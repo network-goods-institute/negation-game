@@ -666,6 +666,10 @@ export default function MultiplayerBoardDetailPage() {
                     pairHeights,
                     hoveredNodeId: hoveredNodeId,
                     setHoveredNodeId: (nid: string | null) => {
+                        // Ensure only one node can be hovered at a time
+                        if (nid !== null && hoveredNodeId === nid) {
+                            return; // Already hovering this node
+                        }
                         setHoveredNodeId(nid);
                     },
                     commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {

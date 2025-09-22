@@ -71,7 +71,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     } = editable;
 
     const pointLike = useStore((s: any) => (s.edges || []).some((edge: any) => (edge.type || '') === 'negation' && (edge.source === id || edge.target === id)));
-    const { hovered, setHovered, onEnter, onLeave } = hover;
+    const { hovered, onMouseEnter, onMouseLeave } = hover;
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -172,14 +172,15 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 ]}
                 rootRef={rootRef}
                 rootProps={{
-                    onMouseEnter: () => { setHovered(true); onEnter(); handleMouseEnter(); },
+                    onMouseEnter: (e) => {
+                        e.stopPropagation();
+                        onMouseEnter();
+                        handleMouseEnter();
+                    },
                     onMouseLeave: (e) => {
-                        const next = e.relatedTarget as EventTarget | null;
-                        const root = (containerRef.current || rootRef.current) as any;
-                        if (root && next && next instanceof Node && root.contains(next)) return;
-                        setHovered(false);
+                        e.stopPropagation();
+                        onMouseLeave();
                         handleMouseLeave();
-                        onLeave();
                     },
                 }}
                 containerRef={containerRef}
@@ -254,7 +255,7 @@ items-center justify-center pointer-events-none select-none">
                     <NodeActionPill
                         label="Negate"
                         visible={shouldShowPill}
-                        onClick={() => { addNegationBelow(id); hideNow(); setHovered(false); }}
+                        onClick={() => { addNegationBelow(id); hideNow(); }}
                         colorClass="bg-stone-800"
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
@@ -264,7 +265,7 @@ items-center justify-center pointer-events-none select-none">
                     <SideActionPill
                         label="Support"
                         visible={shouldShowPill}
-                        onClick={() => { createSupportBelow?.(id); hideNow(); setHovered(false); }}
+                        onClick={() => { createSupportBelow?.(id); hideNow(); }}
                         colorClass="bg-stone-700"
                         side="left"
                         onMouseEnter={handleMouseEnter}

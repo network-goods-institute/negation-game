@@ -3,18 +3,19 @@ import { useGraphActions } from "../GraphContext";
 
 type HoverTracking = {
   hovered: boolean;
-  setHovered: (v: boolean) => void;
-  onEnter: () => void;
-  onLeave: () => void;
-  scheduleHoldRelease: () => void;
-  clearHoldTimer: () => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
 };
 
 export const useHoverTracking = (id: string): HoverTracking => {
   const { hoveredNodeId, setHoveredNodeId } = useGraphActions() as any;
   const [hovered, setHovered] = useState(false);
   const holdTimerRef = useRef<number | null>(null);
-  const hoverDebounceRef = useRef<number | null>(null);
+
+  // Sync local state with global state
+  useEffect(() => {
+    setHovered(hoveredNodeId === id);
+  }, [hoveredNodeId, id]);
 
   const clearHoldTimer = useCallback(() => {
     if (holdTimerRef.current) {
@@ -23,57 +24,28 @@ export const useHoverTracking = (id: string): HoverTracking => {
     }
   }, []);
 
-  const clearHoverDebounce = useCallback(() => {
-    if (hoverDebounceRef.current) {
-      window.clearTimeout(hoverDebounceRef.current);
-      hoverDebounceRef.current = null;
+  const onMouseEnter = useCallback(() => {
+    clearHoldTimer();
+    setHoveredNodeId?.(id);
+  }, [id, setHoveredNodeId, clearHoldTimer]);
+
+  const onMouseLeave = useCallback(() => {
+    clearHoldTimer();
+    if (hoveredNodeId === id) {
+      setHoveredNodeId?.(null);
     }
-  }, []);
-
-  const debouncedSetHovered = useCallback(
-    (value: boolean) => {
-      clearHoverDebounce();
-      hoverDebounceRef.current = window.setTimeout(() => {
-        setHoveredNodeId?.(value ? id : null);
-        hoverDebounceRef.current = null;
-      }, 10);
-    },
-    [id, setHoveredNodeId, clearHoverDebounce]
-  );
-
-  const scheduleHoldRelease = useCallback(() => {
-    clearHoldTimer();
-    holdTimerRef.current = window.setTimeout(() => {
-      setHovered(false);
-      holdTimerRef.current = null;
-    }, 100);
-  }, [clearHoldTimer]);
-
-  const onEnter = useCallback(() => {
-    clearHoldTimer();
-    setHovered(true);
-    debouncedSetHovered(true);
-  }, [clearHoldTimer, debouncedSetHovered]);
-
-  const onLeave = useCallback(() => {
-    scheduleHoldRelease();
-    if (hoveredNodeId === id) debouncedSetHovered(false);
-  }, [scheduleHoldRelease, debouncedSetHovered, hoveredNodeId, id]);
+  }, [hoveredNodeId, id, setHoveredNodeId, clearHoldTimer]);
 
   useEffect(
     () => () => {
       clearHoldTimer();
-      clearHoverDebounce();
     },
-    [clearHoldTimer, clearHoverDebounce]
+    [clearHoldTimer]
   );
 
   return {
     hovered,
-    setHovered,
-    onEnter,
-    onLeave,
-    scheduleHoldRelease,
-    clearHoldTimer,
+    onMouseEnter,
+    onMouseLeave,
   };
 };

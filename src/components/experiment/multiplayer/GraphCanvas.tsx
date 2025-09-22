@@ -181,8 +181,24 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     onBackgroundDoubleClick?.(flowP.x, flowP.y);
   };
 
+  const onCanvasMouseMove = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+
+    const isNode = target.closest('.react-flow__node') !== null;
+    const isEdge = target.closest('.react-flow__edge') !== null;
+    const hasDataId = target.closest('[data-id]') !== null;
+
+    if (!isNode && !isEdge && !hasDataId) {
+      graph.setHoveredNodeId?.(null);
+    }
+
+    if (connectMode) {
+      handleMouseMove(e);
+    }
+  };
+
   return (
-    <div ref={containerRef} className="w-full h-full relative" onMouseMove={connectMode ? handleMouseMove : undefined} onMouseUp={handleMouseUp} onDoubleClick={onCanvasDoubleClick}>
+    <div ref={containerRef} className="w-full h-full relative" onMouseMove={onCanvasMouseMove} onMouseLeave={() => graph.setHoveredNodeId?.(null)} onMouseUp={handleMouseUp} onDoubleClick={onCanvasDoubleClick}>
       {(() => {
         // Wrap changes to intercept removals and route through multiplayer delete
         const handleNodesChange = (changes: any[]) => {

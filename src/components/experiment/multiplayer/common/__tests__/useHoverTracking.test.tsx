@@ -4,15 +4,15 @@ import { useHoverTracking } from '../useHoverTracking';
 import { GraphProvider } from '../../GraphContext';
 
 const TestComp: React.FC<{ id: string; onHoverChange?: (v: boolean) => void }> = ({ id, onHoverChange }) => {
-  const { hovered, onEnter, onLeave } = useHoverTracking(id);
+  const { hovered, onMouseEnter, onMouseLeave } = useHoverTracking(id);
   React.useEffect(() => { onHoverChange?.(hovered); }, [hovered, onHoverChange]);
-  return <div data-testid="box" onMouseEnter={onEnter} onMouseLeave={onLeave} />;
+  return <div data-testid="box" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} />;
 };
 
 jest.useFakeTimers();
 
 describe('useHoverTracking', () => {
-  it('debounces setting hovered node id', () => {
+  it('immediately sets hovered node id on enter', () => {
     const setHoveredNodeId = jest.fn();
     const { getByTestId } = render(
       <GraphProvider value={{ setHoveredNodeId, hoveredNodeId: null } as any}>
@@ -21,12 +21,10 @@ describe('useHoverTracking', () => {
     );
     const el = getByTestId('box');
     fireEvent.mouseEnter(el);
-    expect(setHoveredNodeId).not.toHaveBeenCalled();
-    act(() => { jest.advanceTimersByTime(15); });
     expect(setHoveredNodeId).toHaveBeenCalledWith('n1');
   });
 
-  it('releases hover after hold delay', () => {
+  it('clears hover on mouse leave', () => {
     const setHoveredNodeId = jest.fn();
     const onHoverChange = jest.fn();
     const { getByTestId } = render(
@@ -36,10 +34,8 @@ describe('useHoverTracking', () => {
     );
     const el = getByTestId('box');
     fireEvent.mouseEnter(el);
-    act(() => { jest.advanceTimersByTime(20); });
     fireEvent.mouseLeave(el);
-    expect(onHoverChange).not.toHaveBeenLastCalledWith(false);
-    act(() => { jest.advanceTimersByTime(120); });
-    expect(onHoverChange).toHaveBeenLastCalledWith(false);
+    act(() => { jest.advanceTimersByTime(10); });
+    expect(setHoveredNodeId).toHaveBeenCalledWith(null);
   });
 });

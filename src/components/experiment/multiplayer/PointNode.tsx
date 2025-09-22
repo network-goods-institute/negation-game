@@ -84,11 +84,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const {
     hovered,
-    setHovered,
-    onEnter: onHoverEnter,
-    onLeave: onHoverLeave,
-    scheduleHoldRelease,
-    clearHoldTimer,
+    onMouseEnter: onHoverEnter,
+    onMouseLeave: onHoverLeave,
   } = hover;
 
   const { handleMouseEnter, handleMouseLeave, shouldShowPill } = pill;
@@ -184,8 +181,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); }
       }}
       onDragStart={(e) => { e.preventDefault(); }}
-      onMouseEnter={() => { clearHoldTimer(); setSliverHovered(true); setHovered(true); }}
-      onMouseLeave={() => { setSliverHovered(false); scheduleHoldRelease(); }}
+      onMouseEnter={() => { setSliverHovered(true); }}
+      onMouseLeave={() => { setSliverHovered(false); }}
     >
       <div
         className={`w-full h-full bg-white border-black border-4 rounded-lg shadow-lg overflow-hidden origin-left transition-all ease-out ${(hovered && !sliverAnimating) ? 'opacity-100 duration-700' : sliverAnimating ? 'opacity-0 duration-1000' : 'opacity-0 duration-700'}`}
@@ -201,17 +198,16 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
 
   const wrapperProps = {
-    onMouseEnter: () => { clearHoldTimer(); setHovered(true); onHoverEnter(); handleMouseEnter(); },
-    onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
-      const next = e.relatedTarget as Node | null;
-      const root = (containerRef.current || wrapperRef.current) as any;
-      if (root && next && typeof root.contains === 'function' && next instanceof Node && root.contains(next)) {
-        return;
-      }
-      scheduleHoldRelease();
-      handleMouseLeave();
+    onMouseEnter: (e) => {
+      e.stopPropagation();
+      onHoverEnter();
+      handleMouseEnter();
+    },
+    onMouseLeave: (e) => {
+      e.stopPropagation();
       onHoverLeave();
       setSliverHovered(false);
+      handleMouseLeave();
     },
     onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
       if (isConnectMode) {
@@ -355,7 +351,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           <NodeActionPill
             label="Negate"
             visible={shouldShowPill}
-            onClick={() => { addNegationBelow(id); setHovered(false); setSliverHovered(false); }}
+            onClick={() => { addNegationBelow(id); setSliverHovered(false); }}
             colorClass="bg-stone-800"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -365,7 +361,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           <SideActionPill
             label="Support"
             visible={shouldShowPill}
-            onClick={() => { createSupportBelow?.(id); setHovered(false); setSliverHovered(false); }}
+            onClick={() => { createSupportBelow?.(id); setSliverHovered(false); }}
             colorClass="bg-stone-700"
             side="left"
             onMouseEnter={handleMouseEnter}

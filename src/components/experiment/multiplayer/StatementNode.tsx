@@ -61,7 +61,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     isConnectMode,
   } = editable;
 
-  const { hovered, setHovered, onEnter, onLeave } = hover;
+  const { hovered, onMouseEnter, onMouseLeave } = hover;
   const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -87,14 +87,15 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
         ]}
         rootRef={rootRef}
         rootProps={{
-          onMouseEnter: () => { setHovered(true); onEnter(); handleMouseEnter(); },
+          onMouseEnter: (e) => {
+            e.stopPropagation();
+            onMouseEnter();
+            handleMouseEnter();
+          },
           onMouseLeave: (e) => {
-            const next = e.relatedTarget as EventTarget | null;
-            const root = rootRef.current;
-            if (root && next && next instanceof Node && root.contains(next)) return;
-            setHovered(false);
+            e.stopPropagation();
+            onMouseLeave();
             handleMouseLeave();
-            onLeave();
           },
         }}
         wrapperRef={wrapperRef}
@@ -175,7 +176,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           <NodeActionPill
             label="Make option"
             visible={shouldShowPill}
-            onClick={() => { addPointBelow(id); hideNow(); setHovered(false); }}
+            onClick={() => { addPointBelow(id); hideNow(); }}
             colorClass="bg-blue-700"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}

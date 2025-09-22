@@ -65,7 +65,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
         isConnectMode,
     } = editable;
 
-    const { hovered, setHovered, onEnter, onLeave } = hover;
+    const { hovered, onMouseEnter, onMouseLeave } = hover;
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 
     return (
@@ -91,8 +91,16 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
             wrapperStyle={innerScaleStyle as any}
             wrapperProps={{
-                onMouseEnter: () => { setHovered(true); onEnter(); handleMouseEnter(); },
-                onMouseLeave: () => { setHovered(false); handleMouseLeave(); onLeave(); },
+                onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
+                    e.stopPropagation();
+                    onMouseEnter();
+                    handleMouseEnter();
+                },
+                onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
+                    e.stopPropagation();
+                    onMouseLeave();
+                    handleMouseLeave();
+                },
                 onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
                     if (isConnectMode) {
                         e.stopPropagation();
@@ -164,7 +172,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                 <NodeActionPill
                     label="Make option"
                     visible={shouldShowPill}
-                    onClick={() => { addPointBelow?.(id); hideNow(); setHovered(false); }}
+                    onClick={() => { addPointBelow?.(id); hideNow(); }}
                     colorClass="bg-blue-700"
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}

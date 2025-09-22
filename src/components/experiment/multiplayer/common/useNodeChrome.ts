@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import React from "react";
 import { useEditableNode } from "./useEditableNode";
 import { usePillVisibility } from "./usePillVisibility";
 import { useConnectableNode } from "./useConnectableNode";
@@ -76,13 +77,31 @@ export const useNodeChrome = ({
     if (hidden) return false;
     if (hidePillWhileEditing && editable.isEditing) return false;
     return true;
-  }, [
-    pill.pillVisible,
-    locked,
-    hidden,
-    hidePillWhileEditing,
-    editable.isEditing,
-  ]);
+  }, [pill.pillVisible, locked, hidden, hidePillWhileEditing, editable.isEditing]);
+
+  // Edge-triggered visibility: react only to state transitions.
+  const prevActiveRef = React.useRef<boolean>(false);
+  useEffect(() => {
+    // Hard stop: if we can't show a pill, hide immediately.
+    if (locked || hidden || (hidePillWhileEditing && editable.isEditing)) {
+      pill.hideNow?.();
+      prevActiveRef.current = false;
+      return;
+    }
+
+    const wasActive = prevActiveRef.current;
+
+    if (isActive) {
+      // Transition to active (hover OR selected): cancel any pending hide and show.
+      pill.cancelHide?.();
+      pill.handleMouseEnter?.();
+    } else if (wasActive) {
+      // Transition from active → inactive: schedule a hide (allows brief mouse travel).
+      pill.scheduleHide?.();
+    }
+
+    prevActiveRef.current = isActive;
+  }, [isActive, locked, hidden, hidePillWhileEditing, editable.isEditing, pill]);
 
   return {
     editable,
