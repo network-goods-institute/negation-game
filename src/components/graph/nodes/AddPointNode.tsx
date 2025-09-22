@@ -78,7 +78,8 @@ export const AddPointNode = ({
 
   const parentNode = getNode(parentId);
   const isParentStatement = parentNode?.type === "statement";
-  const buttonText = isParentStatement ? "Make Option" : "Make Point";
+  const reviewButtonText = isParentStatement ? "Review Option" : "Review Point";
+  const submitButtonText = isParentStatement ? "Submit Option" : "Submit Point";
 
   const existingPointIds = useMemo(() => {
     const nodes = getNodes().filter((node): node is Node<{ pointId: number }> =>
@@ -104,6 +105,10 @@ export const AddPointNode = ({
       return similarPoints;
     },
     enabled: debouncedContent.length >= POINT_MIN_LENGTH,
+    retry: 1,
+    retryDelay: 500,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   const { mutateAsync: makePoint, isPending: isMakingPoint } = useMakePoint();
@@ -119,6 +124,8 @@ export const AddPointNode = ({
       setLastReviewedContent(content);
       setHasContentBeenReviewed(true);
     },
+    retry: 1,
+    retryDelay: 500,
   });
 
   const prefetchPoint = usePrefetchPoint();
@@ -159,19 +166,56 @@ export const AddPointNode = ({
     } else {
       const parentNode = getNode(parentId);
       const parentContent = parentNode?.data?.content as string | undefined;
+
+      const reviewTimeout = setTimeout(async () => {
+
+        setLastReviewedContent(content);
+        setHasContentBeenReviewed(true);
+        await createPoint();
+      }, 30000); // 30 second timeout
+
+      try {
+        await reviewPoint({
+          pointContent: content,
+          parentContent: isParentStatement ? parentContent : undefined,
+        });
+        clearTimeout(reviewTimeout);
+      } catch (error) {
+        clearTimeout(reviewTimeout);
+        setLastReviewedContent(content);
+        setHasContentBeenReviewed(true);
+        await createPoint();
+      }
+    }
+  }, [isMakingPoint, isReviewing, hasContentBeenReviewed, content, lastReviewedContent, getNode, parentId, reviewPoint, isParentStatement, createPoint]);
+
+  const handleReviewClick = async () => {
+    if (isMakingPoint || isReviewing) return;
+    const parentNode = getNode(parentId);
+    const parentContent = parentNode?.data?.content as string | undefined;
+
+    const reviewTimeout = setTimeout(async () => {
+      setLastReviewedContent(content);
+      setHasContentBeenReviewed(true);
+      await createPoint();
+    }, 30000);
+
+    try {
       await reviewPoint({
         pointContent: content,
         parentContent: isParentStatement ? parentContent : undefined,
       });
-    }
-  }, [isMakingPoint, isReviewing, hasContentBeenReviewed, content, lastReviewedContent, getNode, parentId, reviewPoint, isParentStatement, createPoint]);
-
-  const handleButtonClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (event.altKey) {
+      clearTimeout(reviewTimeout);
+    } catch (error) {
+      clearTimeout(reviewTimeout);
+      setLastReviewedContent(content);
+      setHasContentBeenReviewed(true);
       await createPoint();
-    } else {
-      await submitOrReview();
     }
+  };
+
+  const handleSubmitClick = async () => {
+    await createPoint();
   };
 
 
@@ -227,7 +271,7 @@ export const AddPointNode = ({
   return (
     <div
       className={cn(
-        "relative bg-background flex flex-col gap-2 rounded-md border-2 border-dashed p-2 min-h-28 w-80"
+        "relative bg-background flex flex-col gap-2 rounded-md border-2 border-dashed p-2 min-h-28 w-[26rem]"
       )}
     >
       <button
@@ -263,13 +307,22 @@ export const AddPointNode = ({
       <div className="flex justify-between gap-2">
         <div className="flex gap-2">
           <AuthenticatedActionButton
-            className="rounded-md"
-            onClick={handleButtonClick}
-            disabled={!canMakePoint}
-            rightLoading={isMakingPoint || isReviewing}
-            title={isParentStatement ? "Click to review option, Alt+click to skip review" : "Click to review point, Alt+click to skip review"}
+            className={`rounded-md ${!hasContentBeenReviewed || content !== lastReviewedContent ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+            onClick={handleReviewClick}
+            disabled={!canMakePoint || isReviewing || isMakingPoint}
+            rightLoading={isReviewing}
+            title={isParentStatement ? "Click to review option with AI again" : "Click to review point with AI again"}
           >
-            {buttonText}
+            {reviewButtonText}
+          </AuthenticatedActionButton>
+          <AuthenticatedActionButton
+            className={`rounded-md ${hasContentBeenReviewed && content === lastReviewedContent ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-200 hover:text-gray-600 cursor-not-allowed'}`}
+            onClick={handleSubmitClick}
+            disabled={!canMakePoint || isMakingPoint || isReviewing || (!hasContentBeenReviewed || content !== lastReviewedContent)}
+            rightLoading={isMakingPoint}
+            title={isParentStatement ? "Click to submit option directly" : "Click to submit point directly"}
+          >
+            {submitButtonText}
           </AuthenticatedActionButton>
         </div>
         {isLoading && <Loader className="m-2" />}
