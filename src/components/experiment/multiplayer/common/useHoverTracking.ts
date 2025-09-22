@@ -1,5 +1,5 @@
-import React from 'react';
-import { useGraphActions } from '../GraphContext';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useGraphActions } from "../GraphContext";
 
 type HoverTracking = {
   hovered: boolean;
@@ -12,33 +12,36 @@ type HoverTracking = {
 
 export const useHoverTracking = (id: string): HoverTracking => {
   const { hoveredNodeId, setHoveredNodeId } = useGraphActions() as any;
-  const [hovered, setHovered] = React.useState(false);
-  const holdTimerRef = React.useRef<number | null>(null);
-  const hoverDebounceRef = React.useRef<number | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const holdTimerRef = useRef<number | null>(null);
+  const hoverDebounceRef = useRef<number | null>(null);
 
-  const clearHoldTimer = React.useCallback(() => {
+  const clearHoldTimer = useCallback(() => {
     if (holdTimerRef.current) {
       window.clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
   }, []);
 
-  const clearHoverDebounce = React.useCallback(() => {
+  const clearHoverDebounce = useCallback(() => {
     if (hoverDebounceRef.current) {
       window.clearTimeout(hoverDebounceRef.current);
       hoverDebounceRef.current = null;
     }
   }, []);
 
-  const debouncedSetHovered = React.useCallback((value: boolean) => {
-    clearHoverDebounce();
-    hoverDebounceRef.current = window.setTimeout(() => {
-      setHoveredNodeId?.(value ? id : null);
-      hoverDebounceRef.current = null;
-    }, 10);
-  }, [id, setHoveredNodeId, clearHoverDebounce]);
+  const debouncedSetHovered = useCallback(
+    (value: boolean) => {
+      clearHoverDebounce();
+      hoverDebounceRef.current = window.setTimeout(() => {
+        setHoveredNodeId?.(value ? id : null);
+        hoverDebounceRef.current = null;
+      }, 10);
+    },
+    [id, setHoveredNodeId, clearHoverDebounce]
+  );
 
-  const scheduleHoldRelease = React.useCallback(() => {
+  const scheduleHoldRelease = useCallback(() => {
     clearHoldTimer();
     holdTimerRef.current = window.setTimeout(() => {
       setHovered(false);
@@ -46,22 +49,31 @@ export const useHoverTracking = (id: string): HoverTracking => {
     }, 100);
   }, [clearHoldTimer]);
 
-  const onEnter = React.useCallback(() => {
+  const onEnter = useCallback(() => {
     clearHoldTimer();
     setHovered(true);
     debouncedSetHovered(true);
   }, [clearHoldTimer, debouncedSetHovered]);
 
-  const onLeave = React.useCallback(() => {
+  const onLeave = useCallback(() => {
     scheduleHoldRelease();
     if (hoveredNodeId === id) debouncedSetHovered(false);
   }, [scheduleHoldRelease, debouncedSetHovered, hoveredNodeId, id]);
 
-  React.useEffect(() => () => {
-    clearHoldTimer();
-    clearHoverDebounce();
-  }, [clearHoldTimer, clearHoverDebounce]);
+  useEffect(
+    () => () => {
+      clearHoldTimer();
+      clearHoverDebounce();
+    },
+    [clearHoldTimer, clearHoverDebounce]
+  );
 
-  return { hovered, setHovered, onEnter, onLeave, scheduleHoldRelease, clearHoldTimer };
+  return {
+    hovered,
+    setHovered,
+    onEnter,
+    onLeave,
+    scheduleHoldRelease,
+    clearHoldTimer,
+  };
 };
-

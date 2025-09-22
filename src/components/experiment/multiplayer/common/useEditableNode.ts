@@ -38,105 +38,6 @@ export const useEditableNode = ({
     direction: "forward" | "backward" | "none";
   } | null>(null);
 
-  const recordSelectionBookmark = useCallback(() => {
-    const el = contentRef.current;
-    if (!el) {
-      selectionBookmarkRef.current = null;
-      return;
-    }
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      selectionBookmarkRef.current = null;
-      return;
-    }
-    const range = selection.getRangeAt(0);
-    if (
-      !el.contains(range.startContainer) ||
-      !el.contains(range.endContainer)
-    ) {
-      selectionBookmarkRef.current = null;
-      return;
-    }
-
-    const preSelectionRange = range.cloneRange();
-    preSelectionRange.selectNodeContents(el);
-    preSelectionRange.setEnd(range.startContainer, range.startOffset);
-    const start = preSelectionRange.toString().length;
-    const selectionTextLength = range.toString().length;
-    const end = start + selectionTextLength;
-
-    let direction: "forward" | "backward" | "none" = "none";
-    if (selectionTextLength === 0) {
-      direction = "none";
-    } else if (
-      selection.anchorNode === range.startContainer &&
-      selection.anchorOffset === range.startOffset
-    ) {
-      direction = "forward";
-    } else {
-      direction = "backward";
-    }
-
-    selectionBookmarkRef.current = { start, end, direction };
-  }, []);
-
-  const resolveOffset = useCallback((root: HTMLElement, offset: number) => {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-    let remaining = offset;
-    while (walker.nextNode()) {
-      const node = walker.currentNode as Text;
-      const length = node.textContent?.length ?? 0;
-      if (remaining <= length) {
-        return {
-          node,
-          offset: Math.max(0, Math.min(remaining, length)),
-        } as const;
-      }
-      remaining -= length;
-    }
-    return { node: root, offset: root.childNodes.length } as const;
-  }, []);
-
-  const restoreSelectionBookmark = useCallback(() => {
-    const el = contentRef.current;
-    const bookmark = selectionBookmarkRef.current;
-    if (!el || !bookmark) return;
-
-    const selection = window.getSelection();
-    if (!selection) return;
-
-    const startPoint = resolveOffset(el, bookmark.start);
-    const endPoint = resolveOffset(el, bookmark.end);
-    if (!startPoint || !endPoint) return;
-
-    const range = document.createRange();
-    try {
-      range.setStart(startPoint.node, startPoint.offset);
-      range.setEnd(endPoint.node, endPoint.offset);
-    } catch {
-      return;
-    }
-
-    selection.removeAllRanges();
-
-    if (
-      bookmark.direction === "backward" &&
-      typeof selection.extend === "function"
-    ) {
-      selection.addRange(range);
-      selection.collapse(endPoint.node, endPoint.offset);
-      try {
-        selection.extend(startPoint.node, startPoint.offset);
-      } catch {
-        selection.removeAllRanges();
-        selection.addRange(range);
-      }
-      return;
-    }
-
-    selection.addRange(range);
-  }, [resolveOffset]);
-
   // Sync incoming content, allowing updates during editing for undo/redo
   useEffect(() => {
     const now = Date.now();
@@ -161,9 +62,42 @@ export const useEditableNode = ({
       draftRef.current = content;
 
       if (contentRef.current && contentRef.current.innerText !== content) {
+        // Record selection before updating content
         if (isEditing) {
           try {
-            recordSelectionBookmark();
+            const el = contentRef.current;
+            if (el) {
+              const selection = window.getSelection();
+              if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                if (
+                  el.contains(range.startContainer) &&
+                  el.contains(range.endContainer)
+                ) {
+                  const preSelectionRange = range.cloneRange();
+                  preSelectionRange.selectNodeContents(el);
+                  preSelectionRange.setEnd(
+                    range.startContainer,
+                    range.startOffset
+                  );
+                  const start = preSelectionRange.toString().length;
+                  const selectionTextLength = range.toString().length;
+                  const end = start + selectionTextLength;
+
+                  selectionBookmarkRef.current = {
+                    start,
+                    end,
+                    direction:
+                      selectionTextLength === 0
+                        ? "none"
+                        : selection.anchorNode === range.startContainer &&
+                            selection.anchorOffset === range.startOffset
+                          ? "forward"
+                          : "backward",
+                  };
+                }
+              }
+            }
           } catch {}
         }
 
@@ -172,19 +106,89 @@ export const useEditableNode = ({
         if (isEditing) {
           requestAnimationFrame(() => {
             try {
-              restoreSelectionBookmark();
+              const el = contentRef.current;
+              const bookmark = selectionBookmarkRef.current;
+              if (el && bookmark) {
+                const selection = window.getSelection();
+                if (selection) {
+                  const startPoint = (() => {
+                    const walker = document.createTreeWalker(
+                      el,
+                      NodeFilter.SHOW_TEXT,
+                      null
+                    );
+                    let remaining = bookmark.start;
+                    while (walker.nextNode()) {
+                      const node = walker.currentNode as Text;
+                      const length = node.textContent?.length ?? 0;
+                      if (remaining <= length) {
+                        return {
+                          node,
+                          offset: Math.max(0, Math.min(remaining, length)),
+                        };
+                      }
+                      remaining -= length;
+                    }
+                    return { node: el, offset: el.childNodes.length };
+                  })();
+
+                  const endPoint = (() => {
+                    const walker = document.createTreeWalker(
+                      el,
+                      NodeFilter.SHOW_TEXT,
+                      null
+                    );
+                    let remaining = bookmark.end;
+                    while (walker.nextNode()) {
+                      const node = walker.currentNode as Text;
+                      const length = node.textContent?.length ?? 0;
+                      if (remaining <= length) {
+                        return {
+                          node,
+                          offset: Math.max(0, Math.min(remaining, length)),
+                        };
+                      }
+                      remaining -= length;
+                    }
+                    return { node: el, offset: el.childNodes.length };
+                  })();
+
+                  if (startPoint && endPoint) {
+                    const range = document.createRange();
+                    try {
+                      range.setStart(startPoint.node, startPoint.offset);
+                      range.setEnd(endPoint.node, endPoint.offset);
+                    } catch {
+                      return;
+                    }
+
+                    selection.removeAllRanges();
+
+                    if (
+                      bookmark.direction === "backward" &&
+                      typeof selection.extend === "function"
+                    ) {
+                      selection.addRange(range);
+                      selection.collapse(endPoint.node, endPoint.offset);
+                      try {
+                        selection.extend(startPoint.node, startPoint.offset);
+                      } catch {
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                      }
+                      return;
+                    }
+
+                    selection.addRange(range);
+                  }
+                }
+              }
             } catch {}
           });
         }
       }
     }
-  }, [
-    content,
-    isEditing,
-    recordSelectionBookmark,
-    restoreSelectionBookmark,
-    value,
-  ]);
+  }, [content, isEditing, value]);
 
   // autosize height
   useEffect(() => {
@@ -348,8 +352,38 @@ export const useEditableNode = ({
     if (wrapperRef.current && contentRef.current) {
       wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
     }
+    // Record selection bookmark for potential undo/redo
     try {
-      recordSelectionBookmark();
+      const el = contentRef.current;
+      if (el) {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          if (
+            el.contains(range.startContainer) &&
+            el.contains(range.endContainer)
+          ) {
+            const preSelectionRange = range.cloneRange();
+            preSelectionRange.selectNodeContents(el);
+            preSelectionRange.setEnd(range.startContainer, range.startOffset);
+            const start = preSelectionRange.toString().length;
+            const selectionTextLength = range.toString().length;
+            const end = start + selectionTextLength;
+
+            selectionBookmarkRef.current = {
+              start,
+              end,
+              direction:
+                selectionTextLength === 0
+                  ? "none"
+                  : selection.anchorNode === range.startContainer &&
+                      selection.anchorOffset === range.startOffset
+                    ? "forward"
+                    : "backward",
+            };
+          }
+        }
+      }
     } catch {}
   };
 

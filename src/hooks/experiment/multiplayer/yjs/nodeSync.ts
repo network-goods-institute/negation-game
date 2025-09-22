@@ -35,7 +35,8 @@ export const createUpdateNodesFromY = (
   lastNodesSigRef: MutableRefObject<string>,
   setNodes: (updater: (nodes: Node[]) => Node[]) => void,
   localOriginRef?: MutableRefObject<unknown>,
-  isUndoRedoRef?: MutableRefObject<boolean>
+  isUndoRedoRef?: MutableRefObject<boolean>,
+  isLockedForMe?: (nodeId: string) => boolean
 ) => {
   const knownNodeIds = new Set<string>();
 
@@ -100,7 +101,8 @@ export const createUpdateNodesFromY = (
       mergeNodesWithText(
         sorted,
         yTextMapRef.current,
-        new Map(previous.map((node) => [node.id, node]))
+        new Map(previous.map((node) => [node.id, node])),
+        isLockedForMe
       )
     );
   };

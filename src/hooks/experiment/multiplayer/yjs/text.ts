@@ -10,8 +10,10 @@ const applySelection = (node: Node, shouldSelect: boolean): Node => ({
   selected: shouldSelect,
 });
 
-const sanitizeNode = (node: Node): MutableNode => {
-  const lockedDrag = Boolean(node.parentId);
+const sanitizeNode = (node: Node, isLockedForMe?: (nodeId: string) => boolean): MutableNode => {
+  const parentLocked = Boolean(node.parentId);
+  const userLocked = isLockedForMe?.(node.id) || false;
+  const lockedDrag = parentLocked || userLocked;
   const sanitized: MutableNode = {
     ...node,
     draggable: lockedDrag ? false : node.draggable,
@@ -42,13 +44,14 @@ const mergeContent = (node: MutableNode, content: string | undefined, key: "cont
 export const mergeNodesWithText = (
   nodes: Node[],
   yTextMap: Y.Map<Y.Text> | null,
-  prevById?: NodeMap
+  prevById?: NodeMap,
+  isLockedForMe?: (nodeId: string) => boolean
 ): Node[] => {
   if (!yTextMap) return nodes;
   return nodes.map((node) => {
     const text = yTextMap.get(node.id);
     const previous = prevById?.get(node.id);
-    const base = sanitizeNode(node);
+    const base = sanitizeNode(node, isLockedForMe);
     const selected = previous?.selected === true;
 
     if (text) {

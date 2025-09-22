@@ -183,8 +183,19 @@ export default function MultiplayerBoardDetailPage() {
     const { canWrite } = useWriteAccess(provider, userId);
 
     const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite });
-    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite });
+    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite });
     const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
+
+    // Update node draggability when locks change
+    useEffect(() => {
+        setNodes((currentNodes) =>
+            currentNodes.map((node) => {
+                const isLocked = isLockedForMe(node.id);
+                if (node.draggable === !isLocked) return node; // No change needed
+                return { ...node, draggable: !isLocked };
+            })
+        );
+    }, [locks, setNodes]); // Remove isLockedForMe from deps to avoid infinite loop
     const startEditingNodeCtx = React.useCallback((nodeId: string) => {
         setEditingSet((prev) => { const ns = new Set(prev); ns.add(nodeId); return ns; });
         try { startEditing(nodeId); } catch { }

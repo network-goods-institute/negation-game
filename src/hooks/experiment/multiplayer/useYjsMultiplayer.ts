@@ -13,6 +13,7 @@ interface UseYjsMultiplayerProps {
   initialEdges: Edge[];
   enabled?: boolean;
   localOrigin?: unknown;
+  isLockedForMe?: (nodeId: string) => boolean;
 }
 
 export const useYjsMultiplayer = ({
@@ -21,6 +22,7 @@ export const useYjsMultiplayer = ({
   initialEdges,
   enabled = true,
   localOrigin,
+  isLockedForMe,
 }: UseYjsMultiplayerProps) => {
   const [nodes, setNodes] = useNodesState(initialNodes);
   const [edges, setEdges] = useEdgesState(initialEdges);
@@ -109,6 +111,7 @@ export const useYjsMultiplayer = ({
     setNextSaveTime,
     undoManagerRef,
     updateLocalStateVector,
+    isLockedForMe,
   });
 
   const {

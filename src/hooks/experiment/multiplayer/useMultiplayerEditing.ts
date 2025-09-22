@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
 
 type YProvider = WebsocketProvider | null;
@@ -36,6 +36,7 @@ export const useMultiplayerEditing = ({
   const [locks, setLocks] = useState<LockMap>(new Map());
   const localEditingRef = useRef<Set<string>>(new Set());
   const sessionIdRef = useRef<string>("");
+  const lockRenewalTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   if (!sessionIdRef.current) {
     sessionIdRef.current =
@@ -89,7 +90,7 @@ export const useMultiplayerEditing = ({
         // capture locks with TTL
         const lock = state?.lock;
         const now = Date.now();
-        if (u && lock?.nodeId && now - (lock?.ts || 0) < 3000) {
+        if (u && lock?.nodeId && now - (lock?.ts || 0) < 5000) {
           const session = lock.sessionId || u.sessionId;
           const uid = session ? `${u.id || u.name}:${session}` : u.id || u.name;
           const info: LockInfo = {
@@ -127,6 +128,21 @@ export const useMultiplayerEditing = ({
     };
   }, [provider]);
 
+  const renewLock = useCallback(
+    (nodeId: string) => {
+      if (!provider || !canWrite) return;
+      const awareness = provider.awareness;
+      const prev = awareness.getLocalState() || {};
+      if (prev?.lock?.nodeId === nodeId) {
+        awareness.setLocalState({
+          ...prev,
+          lock: { ...prev.lock, ts: Date.now() },
+        });
+      }
+    },
+    [provider, canWrite]
+  );
+
   const startEditing = (nodeId: string) => {
     if (!provider || !canWrite) return;
     localEditingRef.current.add(nodeId);
@@ -137,12 +153,27 @@ export const useMultiplayerEditing = ({
       editing: { nodeId, ts: Date.now(), sessionId },
       lock: { nodeId, kind: "edit", ts: Date.now(), sessionId },
     });
+
+    if (lockRenewalTimerRef.current) {
+      clearInterval(lockRenewalTimerRef.current);
+    }
+    lockRenewalTimerRef.current = setInterval(() => {
+      if (localEditingRef.current.has(nodeId)) {
+        renewLock(nodeId);
+      }
+    }, 2000);
   };
 
   const stopEditing = (nodeId: string) => {
     if (!provider || !canWrite) return;
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     localEditingRef.current.delete(nodeId);
+
+    if (localEditingRef.current.size === 0 && lockRenewalTimerRef.current) {
+      clearInterval(lockRenewalTimerRef.current);
+      lockRenewalTimerRef.current = null;
+    }
+
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     if (prev?.editing?.nodeId === nodeId) {
@@ -192,6 +223,14 @@ export const useMultiplayerEditing = ({
     return { name: info.name, color: info.color, kind: info.kind } as const;
   };
 
+  useEffect(() => {
+    return () => {
+      if (lockRenewalTimerRef.current) {
+        clearInterval(lockRenewalTimerRef.current);
+      }
+    };
+  }, []);
+
   return {
     editors,
     startEditing,
@@ -201,5 +240,6 @@ export const useMultiplayerEditing = ({
     unlockNode,
     isLockedForMe,
     getLockOwner,
+    locks, // Expose locks map so we can listen to changes
   };
 };

@@ -5,9 +5,7 @@ interface UseNodeDragHandlersProps {
   lockNode: (nodeId: string, kind: "edit" | "drag") => void;
   unlockNode: (nodeId: string) => void;
   isLockedForMe?: (nodeId: string) => boolean;
-  getLockOwner?: (
-    nodeId: string
-  ) => {
+  getLockOwner?: (nodeId: string) => {
     readonly name: string;
     readonly color: string;
     readonly kind: "edit" | "drag";
@@ -25,14 +23,19 @@ export const useNodeDragHandlers = ({
   const isDraggingRef = useRef<boolean>(false);
 
   const handleNodeDragStart = useCallback(
-    (_: any, node: any) => {
+    (event: any, node: any) => {
       if (connectMode) {
         return;
       }
-      if (isLockedForMe?.(node.id)) {
+      const locked = isLockedForMe?.(node.id);
+      if (locked) {
         const owner = getLockOwner?.(node.id);
-        toast.warning(`Locked by ${owner?.name || "another user"}`);
-        return;
+        toast.warning(
+          `Locked by ${owner?.name || "another user"} (${owner?.kind || "unknown"})`
+        );
+        if (event?.preventDefault) event.preventDefault();
+        if (event?.stopPropagation) event.stopPropagation();
+        return false;
       }
       isDraggingRef.current = true;
       lockNode(node.id, "drag");

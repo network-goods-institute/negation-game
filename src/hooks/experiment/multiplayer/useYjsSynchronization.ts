@@ -33,6 +33,7 @@ interface UseYjsSynchronizationProps {
   setNextSaveTime: Dispatch<SetStateAction<number | null>>;
   undoManagerRef: MutableRefObject<Y.UndoManager | null>;
   updateLocalStateVector: () => void;
+  isLockedForMe?: (nodeId: string) => boolean;
 }
 
 export interface SynchronizationHandlers {
@@ -64,6 +65,7 @@ export const useYjsSynchronization = ({
   setNextSaveTime,
   undoManagerRef,
   updateLocalStateVector,
+  isLockedForMe,
 }: UseYjsSynchronizationProps): SynchronizationHandlers => {
   const lastNodesSignatureRef = useRef<string>("");
   const lastEdgesSignatureRef = useRef<string>("");
@@ -126,7 +128,8 @@ export const useYjsSynchronization = ({
       lastNodesSignatureRef,
       setNodes,
       localOriginRef,
-      isUndoRedoRef
+      isUndoRedoRef,
+      isLockedForMe
     );
 
     const updateEdgesFromY = createUpdateEdgesFromY(
