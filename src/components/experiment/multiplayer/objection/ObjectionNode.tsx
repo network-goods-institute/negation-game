@@ -41,7 +41,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const lockOwner = getLockOwner?.(id) || null;
     const hidden = (data as any)?.hidden === true;
 
-    const { editable, hover, pill, connect, innerScaleStyle, isActive } = useNodeChrome({
+    const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
         id,
         selected,
         content: data.content,
@@ -65,6 +65,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         onFocus,
         onContentMouseDown,
         onContentMouseMove,
+        onContentMouseLeave,
+        onContentMouseUp,
         isConnectMode,
     } = editable;
 
@@ -126,6 +128,10 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             onClick(e);
         },
         onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); },
+        onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
+            // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
+            e.stopPropagation();
+        },
         'data-selected': selected,
     } as React.HTMLAttributes<HTMLDivElement>;
 
@@ -160,7 +166,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 }}
                 containerRef={containerRef}
                 wrapperRef={wrapperRef}
-                wrapperClassName={`px-4 py-3 rounded-xl ${hidden ? 'bg-amber-50 text-amber-900' : 'bg-amber-100 text-amber-900'} border-2 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} min-w-[220px] max-w-[340px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+                wrapperClassName={`px-4 py-3 rounded-xl ${hidden ? 'bg-amber-50 text-amber-900' : 'bg-amber-100 text-amber-900'} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${hidden ? 'border-amber-200' : 'border-amber-300'}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
                 wrapperStyle={{ ...innerScaleStyle, opacity: hidden ? undefined : favorOpacity } as any}
@@ -186,6 +192,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     onInput={onInput}
                     onMouseDown={onContentMouseDown}
                     onMouseMove={onContentMouseMove}
+                    onMouseLeave={onContentMouseLeave}
+                    onMouseUp={onContentMouseUp}
                     onFocus={onFocus}
                     onBlur={onBlur}
                     onKeyDown={onKeyDown}

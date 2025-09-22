@@ -1,32 +1,38 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type MutableRefObject } from "react";
 import * as Y from "yjs";
-import { Node, Edge } from "@xyflow/react";
-import { addTextToUndoScope, createUndoManager } from "./yjs/undo";
+import type { Edge, Node } from "@xyflow/react";
 
-interface UseYjsUndoRedoProps {
-  yNodesMapRef: React.MutableRefObject<Y.Map<Node> | null>;
-  yEdgesMapRef: React.MutableRefObject<Y.Map<Edge> | null>;
-  yTextMapRef: React.MutableRefObject<Y.Map<Y.Text> | null>;
-  localOriginRef: React.MutableRefObject<unknown>;
-  isUndoRedoRef: React.MutableRefObject<boolean>;
-  scheduleSave?: () => void;
+interface UseYjsUndoRedoOptions {
+  yNodesMapRef: MutableRefObject<Y.Map<Node> | null>;
+  yEdgesMapRef: MutableRefObject<Y.Map<Edge> | null>;
+  yTextMapRef: MutableRefObject<Y.Map<Y.Text> | null>;
+  yMetaMapRef: MutableRefObject<Y.Map<unknown> | null>;
+  localOriginRef: MutableRefObject<unknown>;
+  isUndoRedoRef: MutableRefObject<boolean>;
 }
 
-/**
- * Manages collaborative undo/redo functionality backed by Yjs.
- * Sets up the shared UndoManager, tracks stack state, and exposes
- * imperative undo/redo helpers while keeping callbacks stable.
- */
+interface UndoRedoApi {
+  undoManagerRef: MutableRefObject<Y.UndoManager | null>;
+  setupUndoManager: () => (() => void) | undefined;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  setScheduleSave: (fn?: () => void) => void;
+}
+
 export const useYjsUndoRedo = ({
   yNodesMapRef,
   yEdgesMapRef,
   yTextMapRef,
+  yMetaMapRef,
   localOriginRef,
   isUndoRedoRef,
-  scheduleSave,
-}: UseYjsUndoRedoProps) => {
+}: UseYjsUndoRedoOptions): UndoRedoApi => {
   const undoManagerRef = useRef<Y.UndoManager | null>(null);
-  const scheduleSaveRef = useRef<(() => void) | undefined>(scheduleSave);
+  const trackedOriginsRef = useRef<Set<unknown>>(new Set());
+  const fallbackOriginRef = useRef<object>({});
+  const scheduleSaveRef = useRef<(() => void) | undefined>(undefined);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
@@ -45,63 +51,101 @@ export const useYjsUndoRedo = ({
     const yNodes = yNodesMapRef.current;
     const yEdges = yEdgesMapRef.current;
     const yTextMap = yTextMapRef.current;
+    const yMetaMap = yMetaMapRef.current;
 
     if (!yNodes || !yEdges || !yTextMap) {
       return undefined;
     }
 
-    undoManagerRef.current = createUndoManager(
-      yNodes,
-      yEdges,
-      yTextMap,
-      localOriginRef.current
-    );
+    const trackedOrigins = trackedOriginsRef.current;
+    trackedOrigins.clear();
+    const effectiveOrigin = localOriginRef.current ?? fallbackOriginRef.current;
+    trackedOrigins.add(effectiveOrigin);
 
-    addTextToUndoScope(undoManagerRef.current, yTextMap);
+    const managedTypes: Y.AbstractType<any>[] = [yNodes, yEdges, yTextMap];
+    if (yMetaMap) {
+      managedTypes.push(yMetaMap);
+    }
+
+    const manager = new Y.UndoManager(managedTypes, {
+      trackedOrigins,
+      captureTimeout: 600,
+    });
+
+    try {
+      yTextMap.forEach((value) => {
+        if (value instanceof Y.Text) {
+          manager.addToScope(value);
+        }
+      });
+    } catch {}
+
+    undoManagerRef.current = manager;
     recalcStacks();
 
-    const manager = undoManagerRef.current;
+    const handleStackChanged = () => recalcStacks();
+    manager.on("stack-item-added", handleStackChanged);
+    manager.on("stack-item-popped", handleStackChanged);
+    manager.on("stack-cleared", handleStackChanged);
 
-    const handleStackItemAdded = () => recalcStacks();
-    const handleStackItemPopped = () => recalcStacks();
-    const handleStackCleared = () => recalcStacks();
-
-    manager.on("stack-item-added", handleStackItemAdded);
-    manager.on("stack-item-popped", handleStackItemPopped);
-    manager.on("stack-cleared", handleStackCleared);
+    const handleMetaChanged = () => recalcStacks();
+    if (yMetaMap) {
+      try {
+        yMetaMap.observe(handleMetaChanged);
+      } catch {}
+    }
 
     return () => {
       try {
-        manager.off("stack-item-added", handleStackItemAdded);
-        manager.off("stack-item-popped", handleStackItemPopped);
-        manager.off("stack-cleared", handleStackCleared);
+        manager.off("stack-item-added", handleStackChanged);
+        manager.off("stack-item-popped", handleStackChanged);
+        manager.off("stack-cleared", handleStackChanged);
       } catch {}
+      if (yMetaMap) {
+        try {
+          yMetaMap.unobserve(handleMetaChanged);
+        } catch {}
+      }
       undoManagerRef.current = null;
-      setCanUndo(false);
-      setCanRedo(false);
+      // setCanUndo(false); // Commented to avoid setState during cleanup
+      // setCanRedo(false); // Commented to avoid setState during cleanup
     };
-  }, [localOriginRef, recalcStacks, yEdgesMapRef, yNodesMapRef, yTextMapRef]);
+  }, [
+    fallbackOriginRef,
+    localOriginRef,
+    recalcStacks,
+    yEdgesMapRef,
+    yMetaMapRef,
+    yNodesMapRef,
+    yTextMapRef,
+  ]);
 
   const setScheduleSave = useCallback((handler?: () => void) => {
     scheduleSaveRef.current = handler;
   }, []);
 
-  const runWithUndoTracking = useCallback((action: (manager: Y.UndoManager) => void) => {
-    const manager = undoManagerRef.current;
-    if (!manager) return;
+  const runWithUndoTracking = useCallback(
+    (action: (manager: Y.UndoManager) => void) => {
+      const manager = undoManagerRef.current;
+      if (!manager) return;
 
-    isUndoRedoRef.current = true;
-    action(manager);
-    setTimeout(() => {
-      isUndoRedoRef.current = false;
-    }, 100);
+      isUndoRedoRef.current = true;
+      try {
+        action(manager);
+      } finally {
+        setTimeout(() => {
+          isUndoRedoRef.current = false;
+        }, 0);
+      }
 
-    recalcStacks();
+      recalcStacks();
 
-    try {
-      scheduleSaveRef.current?.();
-    } catch {}
-  }, [isUndoRedoRef, recalcStacks]);
+      try {
+        scheduleSaveRef.current?.();
+      } catch {}
+    },
+    [isUndoRedoRef, recalcStacks]
+  );
 
   const undo = useCallback(() => {
     runWithUndoTracking((manager) => manager.undo());
@@ -111,16 +155,6 @@ export const useYjsUndoRedo = ({
     runWithUndoTracking((manager) => manager.redo());
   }, [runWithUndoTracking]);
 
-  const registerTextInUndoScope = useCallback((text: Y.Text | undefined | null) => {
-    try {
-      if (undoManagerRef.current && text) {
-        undoManagerRef.current.addToScope(text);
-      }
-    } catch (error) {
-      console.warn("[undo] Failed to register Y.Text in undo scope", error);
-    }
-  }, []);
-
   return {
     undoManagerRef,
     setupUndoManager,
@@ -128,7 +162,6 @@ export const useYjsUndoRedo = ({
     redo,
     canUndo,
     canRedo,
-    registerTextInUndoScope,
     setScheduleSave,
   };
 };

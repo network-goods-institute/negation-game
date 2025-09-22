@@ -13,6 +13,7 @@ type LockInfo = {
   color: string;
   kind: "edit" | "drag";
   ts: number;
+  sessionId?: string;
 };
 export type LockMap = Map<string, LockInfo>;
 
@@ -34,22 +35,31 @@ export const useMultiplayerEditing = ({
   const [editors, setEditors] = useState<EditorsMap>(new Map());
   const [locks, setLocks] = useState<LockMap>(new Map());
   const localEditingRef = useRef<Set<string>>(new Set());
+  const sessionIdRef = useRef<string>("");
+
+  if (!sessionIdRef.current) {
+    sessionIdRef.current =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `session-${Math.random().toString(36).slice(2)}`;
+  }
+  const sessionId = sessionIdRef.current;
 
   useEffect(() => {
     if (!provider || !username) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
-    
+
     if (!canWrite) {
       // In proxy mode, don't set user awareness to hide from others
       return;
     }
-    
+
     awareness.setLocalState({
       ...prev,
-      user: { id: userId, name: username, color: userColor },
+      user: { id: userId, name: username, color: userColor, sessionId },
     });
-  }, [provider, userId, username, userColor, canWrite]);
+  }, [provider, userId, username, userColor, canWrite, sessionId]);
 
   useEffect(() => {
     if (!provider) return;
@@ -65,7 +75,10 @@ export const useMultiplayerEditing = ({
         if (state?.editing && u) {
           const nodeId: string | undefined = state.editing.nodeId;
           if (nodeId) {
-            const uid = u.id || u.name;
+            const session = state.editing.sessionId || u.sessionId;
+            const uid = session
+              ? `${u.id || u.name}:${session}`
+              : u.id || u.name;
             const prev = result.get(nodeId) || [];
             if (!prev.some((e) => (e as any).id === uid || e.name === u.name)) {
               (prev as any).push({ name: u.name, color: u.color, id: uid });
@@ -77,7 +90,8 @@ export const useMultiplayerEditing = ({
         const lock = state?.lock;
         const now = Date.now();
         if (u && lock?.nodeId && now - (lock?.ts || 0) < 3000) {
-          const uid = u.id || u.name;
+          const session = lock.sessionId || u.sessionId;
+          const uid = session ? `${u.id || u.name}:${session}` : u.id || u.name;
           const info: LockInfo = {
             nodeId: lock.nodeId,
             byId: uid,
@@ -85,6 +99,7 @@ export const useMultiplayerEditing = ({
             color: u.color,
             kind: lock.kind === "drag" ? "drag" : "edit",
             ts: lock.ts || 0,
+            sessionId: session,
           };
           const existing = lockRes.get(lock.nodeId);
           if (!existing || info.ts > existing.ts)
@@ -119,8 +134,8 @@ export const useMultiplayerEditing = ({
     const prev = awareness.getLocalState() || {};
     awareness.setLocalState({
       ...prev,
-      editing: { nodeId, ts: Date.now() },
-      lock: { nodeId, kind: "edit", ts: Date.now() },
+      editing: { nodeId, ts: Date.now(), sessionId },
+      lock: { nodeId, kind: "edit", ts: Date.now(), sessionId },
     });
   };
 
@@ -146,7 +161,7 @@ export const useMultiplayerEditing = ({
     const prev = awareness.getLocalState() || {};
     awareness.setLocalState({
       ...prev,
-      lock: { nodeId, kind, ts: Date.now() },
+      lock: { nodeId, kind, ts: Date.now(), sessionId },
     });
   };
 
@@ -163,12 +178,17 @@ export const useMultiplayerEditing = ({
   const isLockedForMe = (nodeId: string) => {
     const info = locks.get(nodeId);
     if (!info) return false;
+    if (info.sessionId) {
+      return info.sessionId !== sessionId;
+    }
     return info.byId !== userId;
   };
 
   const getLockOwner = (nodeId: string) => {
     const info = locks.get(nodeId);
-    if (!info || info.byId === userId) return null;
+    if (!info) return null;
+    if (info.sessionId && info.sessionId === sessionId) return null;
+    if (!info.sessionId && info.byId === userId) return null;
     return { name: info.name, color: info.color, kind: info.kind } as const;
   };
 
@@ -183,4 +203,3 @@ export const useMultiplayerEditing = ({
     getLockOwner,
   };
 };
-

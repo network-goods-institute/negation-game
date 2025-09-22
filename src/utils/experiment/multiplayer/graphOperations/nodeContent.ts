@@ -9,8 +9,7 @@ export const createUpdateNodeContent = (
   ydoc: any,
   canWrite: boolean,
   localOrigin: object,
-  setNodes: (updater: (nodes: any[]) => any[]) => void,
-  registerTextInUndoScope?: (t: any) => void
+  setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
   return (nodeId: string, content: string) => {
     if (!canWrite) {
@@ -25,9 +24,6 @@ export const createUpdateNodeContent = (
           t = new Y.Text();
           if (t) {
             yTextMap.set(nodeId, t);
-            try {
-              registerTextInUndoScope?.(t);
-            } catch {}
           }
         }
         if (t) {
@@ -109,8 +105,7 @@ export const createUpdateNodeType = (
   ydoc: any,
   canWrite: boolean,
   localOrigin: object,
-  setNodes: (updater: (nodes: any[]) => any[]) => void,
-  registerTextInUndoScope?: (t: any) => void
+  setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
   return (
     nodeId: string,
@@ -182,9 +177,6 @@ export const createUpdateNodeType = (
             if (!t) {
               t = new Y.Text();
               yTextMap.set(nodeId, t);
-              try {
-                registerTextInUndoScope?.(t);
-              } catch {}
             }
             const newContent =
               newType === "statement" ? newData.statement : newData.content;
@@ -199,5 +191,3 @@ export const createUpdateNodeType = (
     }
   };
 };
-
-/* eslint-enable drizzle/enforce-delete-with-where */

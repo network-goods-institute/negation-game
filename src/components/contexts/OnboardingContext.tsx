@@ -164,6 +164,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         const suppressed = pathname === '/' ||
             pathname.startsWith('/embed') ||
             pathname.startsWith('/experiment/rationale/multiplayer') ||
+            pathname === '/privacy' ||
+            pathname === '/tos' ||
             isOnSyncSubdomain;
         if (suppressed) {
             setIsInitialized(true);
@@ -214,6 +216,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     const suppressed = pathname === '/' ||
         pathname.startsWith('/embed') ||
         pathname.startsWith('/experiment/rationale/multiplayer') ||
+        pathname === '/privacy' ||
+        pathname === '/tos' ||
         isOnSyncSubdomain;
 
     return (

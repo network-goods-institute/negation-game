@@ -34,14 +34,14 @@ export const createUpdateNodesFromY = (
   yTextMapRef: MutableRefObject<Y.Map<Y.Text> | null>,
   lastNodesSigRef: MutableRefObject<string>,
   setNodes: (updater: (nodes: Node[]) => Node[]) => void,
-  localOriginRef?: MutableRefObject<unknown>
+  localOriginRef?: MutableRefObject<unknown>,
+  isUndoRedoRef?: MutableRefObject<boolean>
 ) => {
   const knownNodeIds = new Set<string>();
 
   return (_event: Y.YMapEvent<Node>, transaction: Y.Transaction) => {
-    if (localOriginRef && transaction.origin === localOriginRef.current) {
-      return;
-    }
+    const isLocalOrigin =
+      localOriginRef && transaction.origin === localOriginRef.current;
 
     const nodes = Array.from(yNodes.values());
     const migrations: Node[] = [];
@@ -79,14 +79,22 @@ export const createUpdateNodesFromY = (
       currentIds.forEach((id) => knownNodeIds.add(id));
     } catch {}
 
-    const sorted = [...normalised].sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+    const sorted = [...normalised].sort((a, b) =>
+      (a.id || "").localeCompare(b.id || "")
+    );
     const signature = JSON.stringify(sorted.map(toComparableNode));
 
     if (signature === lastNodesSigRef.current) {
-      return;
+      if (isLocalOrigin && !isUndoRedoRef?.current) {
+        return;
+      }
     }
 
     lastNodesSigRef.current = signature;
+
+    if (isLocalOrigin && !isUndoRedoRef?.current) {
+      return;
+    }
 
     setNodes((previous) =>
       mergeNodesWithText(

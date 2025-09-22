@@ -5,6 +5,7 @@ import { useConnectableNode } from "./useConnectableNode";
 import { useNeighborEmphasis } from "./useNeighborEmphasis";
 import { useHoverTracking } from "./useHoverTracking";
 import { useAutoFocusNode } from "./useAutoFocusNode";
+import { useCursorState } from "./useCursorState";
 
 interface UseNodeChromeOptions {
   id: string;
@@ -46,6 +47,8 @@ export const useNodeChrome = ({
     stopEditingNode,
     isSelected: selected,
   });
+
+  const cursorClass = useCursorState({ isEditing: editable.isEditing, locked });
 
   const hover = useHoverTracking(id);
   const pill = usePillVisibility(pillDelay);
@@ -91,6 +94,7 @@ export const useNodeChrome = ({
     connect,
     innerScaleStyle,
     isActive,
+    cursorClass,
   };
 };
 

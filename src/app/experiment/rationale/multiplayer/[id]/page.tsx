@@ -136,8 +136,6 @@ export default function MultiplayerBoardDetailPage() {
         redo,
         canUndo,
         canRedo,
-        registerTextInUndoScope,
-        isUndoRedoRef,
     } = useYjsMultiplayer({
         roomName,
         initialNodes: initialGraph?.nodes || [],
@@ -202,7 +200,8 @@ export default function MultiplayerBoardDetailPage() {
         lockNode,
         unlockNode,
         isLockedForMe,
-        getLockOwner
+        getLockOwner,
+        connectMode,
     });
 
     const deleteNode = createDeleteNode(
@@ -236,7 +235,6 @@ export default function MultiplayerBoardDetailPage() {
         lastAddRef,
         setNodes,
         setEdges,
-        registerTextInUndoScope,
         isLockedForMe,
         getLockOwner,
         getViewportOffset
@@ -252,7 +250,6 @@ export default function MultiplayerBoardDetailPage() {
         lastAddRef,
         setNodes,
         setEdges,
-        registerTextInUndoScope,
         isLockedForMe,
         getLockOwner,
         getViewportOffset
@@ -269,7 +266,6 @@ export default function MultiplayerBoardDetailPage() {
         lastAddRef,
         setNodes,
         setEdges,
-        registerTextInUndoScope,
         isLockedForMe,
         getLockOwner,
         getViewportOffset
@@ -286,7 +282,6 @@ export default function MultiplayerBoardDetailPage() {
         localOriginRef.current,
         setNodes,
         setEdges,
-        registerTextInUndoScope,
         isLockedForMe,
         getLockOwner
     );
@@ -351,7 +346,6 @@ export default function MultiplayerBoardDetailPage() {
         canWrite && writeSynced ? (ydoc as any) : null,
         canWrite && writeSynced,
         localOriginRef.current,
-        undefined,
         undefined
     );
 
@@ -371,8 +365,7 @@ export default function MultiplayerBoardDetailPage() {
         ydoc as any,
         canWrite,
         localOriginRef.current,
-        setNodes,
-        registerTextInUndoScope
+        setNodes
     );
 
     const inversePair = createInversePair(
@@ -385,7 +378,6 @@ export default function MultiplayerBoardDetailPage() {
         localOriginRef.current,
         setNodes,
         setEdges,
-        registerTextInUndoScope,
         isLockedForMe,
         getLockOwner
     );
@@ -442,40 +434,51 @@ export default function MultiplayerBoardDetailPage() {
 
     return (
         <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`}>
-            <MultiplayerHeader
-                username={username}
-                userColor={userColor}
-                provider={provider}
-                isConnected={isConnected}
-                connectionError={connectionError}
-                connectionState={connectionState as any}
-                isSaving={isSaving}
-                forceSave={forceSave}
-                interruptSave={interruptSave || undefined}
-                nextSaveTime={nextSaveTime}
-                proxyMode={!canWrite}
-                userId={userId}
-                title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim(); })()}
-                onTitleInput={(newTitle: string) => {
-                    const t = nodes.find(n => n.type === 'title');
-                    if (t) updateNodeContent(t.id, newTitle);
-                }}
-                onTitleCommit={(newTitle: string) => {
-                    try {
+            {(!nodes || nodes.length === 0) && (
+                <div className="fixed inset-0 top-16 bg-gray-50/80 z-50 flex items-center justify-center">
+                    <div className="text-center bg-white/80 px-6 py-4 rounded-lg border shadow-sm">
+                        <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                        <div className="text-sm text-gray-600">Loading board…</div>
+                    </div>
+                </div>
+            )}
+
+            {nodes && nodes.length > 0 && (
+                <MultiplayerHeader
+                    username={username}
+                    userColor={userColor}
+                    provider={provider}
+                    isConnected={isConnected}
+                    connectionError={connectionError}
+                    connectionState={connectionState as any}
+                    isSaving={isSaving}
+                    forceSave={forceSave}
+                    interruptSave={interruptSave || undefined}
+                    nextSaveTime={nextSaveTime}
+                    proxyMode={!canWrite}
+                    userId={userId}
+                    title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim(); })()}
+                    onTitleInput={(newTitle: string) => {
                         const t = nodes.find(n => n.type === 'title');
                         if (t) updateNodeContent(t.id, newTitle);
-                        // Also persist to db so listing shows updated title
+                    }}
+                    onTitleCommit={(newTitle: string) => {
                         try {
-                            const rid = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
-                            fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`, {
-                                method: 'PATCH',
-                                headers: { 'content-type': 'application/json' },
-                                body: JSON.stringify({ title: newTitle })
-                            }).catch(() => { });
+                            const t = nodes.find(n => n.type === 'title');
+                            if (t) updateNodeContent(t.id, newTitle);
+                            // Also persist to db so listing shows updated title
+                            try {
+                                const rid = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
+                                fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`, {
+                                    method: 'PATCH',
+                                    headers: { 'content-type': 'application/json' },
+                                    body: JSON.stringify({ title: newTitle })
+                                }).catch(() => { });
+                            } catch { }
                         } catch { }
-                    } catch { }
-                }}
-            />
+                    }}
+                />
+            )}
 
             <ReactFlowProvider>
                 <GraphProvider value={{
@@ -626,7 +629,6 @@ export default function MultiplayerBoardDetailPage() {
                     lockNode,
                     unlockNode,
                     proxyMode: !canWrite,
-
                     undo,
                     redo,
                     addNodeAtPosition: createAddNodeAtPosition(
@@ -636,7 +638,6 @@ export default function MultiplayerBoardDetailPage() {
                         canWrite,
                         localOriginRef.current,
                         setNodes as any,
-                        registerTextInUndoScope,
                     ),
                     updateNodeType: createUpdateNodeType(
                         yNodesMap as any,
@@ -645,7 +646,6 @@ export default function MultiplayerBoardDetailPage() {
                         canWrite,
                         localOriginRef.current,
                         setNodes as any,
-                        registerTextInUndoScope,
                     ),
                     deleteInversePair,
                     setPairNodeHeight,
@@ -688,14 +688,6 @@ export default function MultiplayerBoardDetailPage() {
                     },
                 }}>
                     <div className="w-full h-full relative">
-                        {(!nodes || nodes.length === 0) && (
-                            <div className="absolute inset-0 bg-gray-50/80 z-10 flex items-center justify-center">
-                                <div className="text-center bg-white/80 px-6 py-4 rounded-lg border shadow-sm">
-                                    <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                                    <div className="text-sm text-gray-600">Loading board…</div>
-                                </div>
-                            </div>
-                        )}
                         <GraphCanvas
                             nodes={nodes as any}
                             edges={edges as any}
@@ -740,7 +732,6 @@ export default function MultiplayerBoardDetailPage() {
                                     canWrite,
                                     localOriginRef.current,
                                     setNodes as any,
-                                    registerTextInUndoScope,
                                 );
                                 const nodeId = addNodeAtPosition('point', flowX, flowY);
 
@@ -796,7 +787,6 @@ export default function MultiplayerBoardDetailPage() {
                                 canWrite,
                                 localOriginRef.current,
                                 setNodes as any,
-                                registerTextInUndoScope,
                             );
                             updateNodeType(newNodeWithDropdown.id, type);
                             setNewNodeWithDropdown(null);

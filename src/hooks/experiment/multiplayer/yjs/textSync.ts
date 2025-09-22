@@ -44,16 +44,17 @@ export const createUpdateNodesFromText = (
 
 export const createOnTextMapChange = (
   textMap: Y.Map<Y.Text>,
-  undoManager: Y.UndoManager | null
+  undoManagerRef: MutableRefObject<Y.UndoManager | null>
 ) => {
   return (event: Y.YMapEvent<Y.Text>) => {
-    if (!undoManager) return;
+    const manager = undoManagerRef.current;
+    if (!manager) return;
     try {
       const keys = Array.from(event.changes.keys.keys());
       keys.forEach((key) => {
         const value = textMap.get(key);
         if (value instanceof Y.Text) {
-          undoManager.addToScope(value);
+          manager.addToScope(value);
         }
       });
     } catch {}

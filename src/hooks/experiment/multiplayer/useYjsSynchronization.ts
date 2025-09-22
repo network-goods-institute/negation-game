@@ -40,6 +40,7 @@ export interface SynchronizationHandlers {
   getForceSave: () => (() => Promise<void>) | null;
   getScheduleSave: () => (() => void) | null;
   getInterruptSave: () => (() => void) | null;
+  getInterruptSaveForCleanup: () => (() => void) | null;
 }
 
 /**
@@ -69,6 +70,7 @@ export const useYjsSynchronization = ({
   const forceSaveRef = useRef<(() => Promise<void>) | null>(null);
   const scheduleSaveRef = useRef<(() => void) | null>(null);
   const interruptSaveRef = useRef<(() => void) | null>(null);
+  const interruptSaveForCleanupRef = useRef<(() => void) | null>(null);
 
   const setupObservers = useCallback(() => {
     const doc = ydocRef.current;
@@ -81,25 +83,37 @@ export const useYjsSynchronization = ({
       return undefined;
     }
 
-    const { scheduleSave, forceSave, syncFromMeta, interruptSave } =
-      createScheduleSave(
-        ydocRef,
-        serverVectorRef,
-        setIsSaving,
-        savingRef,
-        saveTimerRef,
-        persistId,
-        setNextSaveTime,
-        yMetaMapRef,
-        localOriginRef
-      );
+    const {
+      scheduleSave,
+      forceSave,
+      syncFromMeta,
+      interruptSave,
+      interruptSaveForCleanup,
+    } = createScheduleSave(
+      ydocRef,
+      serverVectorRef,
+      setIsSaving,
+      savingRef,
+      saveTimerRef,
+      persistId,
+      setNextSaveTime,
+      yMetaMapRef,
+      localOriginRef
+    );
 
     forceSaveRef.current = forceSave;
     scheduleSaveRef.current = scheduleSave;
     interruptSaveRef.current = interruptSave;
+    interruptSaveForCleanupRef.current = interruptSaveForCleanup;
 
     const onDocUpdate = (_update: Uint8Array, origin: unknown) => {
-      if (origin === localOriginRef.current) return;
+      if (origin === localOriginRef.current) {
+        // This is a local change - schedule a save
+        try {
+          scheduleSave();
+        } catch {}
+        return;
+      }
       if (serverVectorRef.current) {
         updateLocalStateVector();
       }
@@ -111,14 +125,16 @@ export const useYjsSynchronization = ({
       yTextMapRef,
       lastNodesSignatureRef,
       setNodes,
-      localOriginRef
+      localOriginRef,
+      isUndoRedoRef
     );
 
     const updateEdgesFromY = createUpdateEdgesFromY(
       yEdges,
       lastEdgesSignatureRef,
       setEdges,
-      localOriginRef
+      localOriginRef,
+      isUndoRedoRef
     );
 
     const updateNodesFromText = createUpdateNodesFromText(
@@ -128,17 +144,19 @@ export const useYjsSynchronization = ({
       isUndoRedoRef
     );
 
-    const onTextMapChange = createOnTextMapChange(
-      yTextMap,
-      undoManagerRef.current
-    );
+    const onTextMapChange = createOnTextMapChange(yTextMap, undoManagerRef);
 
     yNodes.observe(updateNodesFromY);
     yEdges.observe(updateEdgesFromY);
     yTextMap.observeDeep(updateNodesFromText);
     yTextMap.observe(onTextMapChange);
 
-    const onMetaChange = (_event: Y.YMapEvent<unknown>) => {
+    const onMetaChange = (
+      _event: Y.YMapEvent<unknown>,
+      transaction: Y.Transaction
+    ) => {
+      // Ignore changes made by syncFromMeta itself to prevent infinite loops
+      if (transaction.origin === "sync-recovery") return;
       try {
         syncFromMeta();
       } catch {}
@@ -182,11 +200,16 @@ export const useYjsSynchronization = ({
   const getForceSave = useCallback(() => forceSaveRef.current, []);
   const getScheduleSave = useCallback(() => scheduleSaveRef.current, []);
   const getInterruptSave = useCallback(() => interruptSaveRef.current, []);
+  const getInterruptSaveForCleanup = useCallback(
+    () => interruptSaveForCleanupRef.current,
+    []
+  );
 
   return {
     setupObservers,
     getForceSave,
     getScheduleSave,
     getInterruptSave,
+    getInterruptSaveForCleanup,
   };
 };

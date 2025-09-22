@@ -16,12 +16,12 @@ export const createUpdateEdgesFromY = (
   yEdges: Y.Map<Edge>,
   lastEdgesSigRef: MutableRefObject<string>,
   setEdges: (updater: (edges: Edge[]) => Edge[]) => void,
-  localOriginRef?: MutableRefObject<unknown>
+  localOriginRef?: MutableRefObject<unknown>,
+  isUndoRedoRef?: MutableRefObject<boolean>
 ) => {
   return (_event: Y.YMapEvent<Edge>, transaction: Y.Transaction) => {
-    if (localOriginRef && transaction.origin === localOriginRef.current) {
-      return;
-    }
+    const isLocalOrigin =
+      localOriginRef && transaction.origin === localOriginRef.current;
 
     const edges = Array.from(yEdges.values());
     const migrations: Edge[] = [];
@@ -48,15 +48,22 @@ export const createUpdateEdgesFromY = (
       } catch {}
     }
 
-    const sorted = [...normalised].sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+    const sorted = [...normalised].sort((a, b) =>
+      (a.id || "").localeCompare(b.id || "")
+    );
     const signature = JSON.stringify(sorted.map(toComparableEdge));
     if (signature === lastEdgesSigRef.current) {
-      return;
+      if (isLocalOrigin && !isUndoRedoRef?.current) {
+        return;
+      }
     }
 
     lastEdgesSigRef.current = signature;
+
+    if (isLocalOrigin && !isUndoRedoRef?.current) {
+      return;
+    }
+
     setEdges(() => sorted);
   };
 };
-
-

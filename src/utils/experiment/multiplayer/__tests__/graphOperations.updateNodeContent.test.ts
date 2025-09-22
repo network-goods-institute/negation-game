@@ -30,15 +30,12 @@ describe("graph operations: update node content", () => {
     const setNodes = (updater: any) => {
       stateNodes = updater(stateNodes);
     };
-    const register = jest.fn();
-
     const fn = createUpdateNodeContent(
       yTextMap,
       ydoc,
       canWrite,
       localOrigin,
-      setNodes,
-      register
+      setNodes
     );
     fn("p1", "Hello world");
     const t1 = yTextMap.get("p1") as Y.Text;
@@ -48,4 +45,3 @@ describe("graph operations: update node content", () => {
     expect(t2).toBeTruthy();
   });
 });
-

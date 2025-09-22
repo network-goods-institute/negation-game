@@ -13,19 +13,34 @@ export const useKeyboardShortcuts = (
   extra?: ExtraShortcuts
 ) => {
   useEffect(() => {
+    const isEditableElement = (element: HTMLElement | null) => {
+      if (!element) return false;
+      const tag = element.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (element.isContentEditable) return true;
+      const role = element.getAttribute('role');
+      if (role && role.toLowerCase() === 'textbox') return true;
+      return false;
+    };
+
+    const eventTargetsIncludeEditable = (event: KeyboardEvent) => {
+      if (isEditableElement(event.target as HTMLElement | null)) return true;
+      if (isEditableElement((document.activeElement as HTMLElement | null) || null)) return true;
+
+      const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+      for (const entry of path) {
+        if (!entry || typeof entry !== 'object') continue;
+        const candidate = entry as HTMLElement;
+        if (typeof candidate.tagName === 'string' && isEditableElement(candidate)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
     const onKey = (e: KeyboardEvent) => {
-      // Ignore all global hotkeys while typing in editable fields
-      const target = e.target as HTMLElement | null;
-      const active = (document.activeElement as HTMLElement | null) || null;
-      const isEditable = (el: HTMLElement | null) => {
-        if (!el) return false;
-        const tag = el.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
-        if (el.isContentEditable) return true;
-        return false;
-      };
-      if (isEditable(target) || isEditable(active)) {
-        return; // let editor-specific handlers manage keys
+      if (eventTargetsIncludeEditable(e)) {
+        return;
       }
 
       const isMod = e.metaKey || e.ctrlKey;
@@ -34,6 +49,7 @@ export const useKeyboardShortcuts = (
       if (isMod) {
         if (key === 'z') {
           e.preventDefault();
+          e.stopPropagation();
           if (e.shiftKey) {
             redo?.();
           } else {
@@ -43,32 +59,40 @@ export const useKeyboardShortcuts = (
         }
         if (key === 'y') {
           e.preventDefault();
+          e.stopPropagation();
           redo?.();
           return;
         }
       }
       // Mode keys without modifiers
       if (!isMod) {
+        if (e.repeat) {
+          return;
+        }
         if (key === 'l') {
           // Toggle Connect mode
+          e.stopPropagation();
           extra?.onToggleConnect?.();
           e.preventDefault();
           return;
         }
         if (key === 'escape') {
           // Exit Connect mode
+          e.stopPropagation();
           extra?.onExitConnect?.();
           e.preventDefault();
           return;
         }
         if (key === 'v') {
           // Pointer mode
+          e.stopPropagation();
           extra?.onPointerMode?.();
           e.preventDefault();
           return;
         }
         if (key === 'h') {
           // Toggle grab (hand)
+          e.stopPropagation();
           extra?.onToggleGrab?.();
           e.preventDefault();
           return;

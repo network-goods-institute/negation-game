@@ -166,9 +166,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
   const onCanvasDoubleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    const isNode = target.closest('.react-flow__node');
-    const isEdge = target.closest('.react-flow__edge');
-    if (isNode || isEdge) return;
+
+    const isNode = target.closest('.react-flow__node') !== null;
+    const isEdge = target.closest('.react-flow__edge') !== null;
+
+    const hasDataId = target.closest('[data-id]') !== null;
+
+    if (isNode || isEdge || hasDataId) {
+      return;
+    }
+
     e.preventDefault();
     const flowP = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     onBackgroundDoubleClick?.(flowP.x, flowP.y);

@@ -12,8 +12,7 @@ export const createAddNodeAtPosition = (
   ydoc: any,
   canWrite: boolean,
   localOrigin: object,
-  setNodes: (updater: (nodes: any[]) => any[]) => void,
-  registerTextInUndoScope?: (t: any) => void
+  setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
   return (
     type: "point" | "statement" | "title" | "objection",
@@ -59,9 +58,6 @@ export const createAddNodeAtPosition = (
             type === "statement" ? data.statement : data.content;
           if (initialContent) t.insert(0, initialContent);
           yTextMap.set(id, t);
-          try {
-            registerTextInUndoScope?.(t);
-          } catch {}
         }
       }, localOrigin);
     }
@@ -69,8 +65,6 @@ export const createAddNodeAtPosition = (
     return id;
   };
 };
-
-
 
 export const createAddNegationBelow = (
   nodes: any[],
@@ -83,7 +77,6 @@ export const createAddNegationBelow = (
   lastAddRef: MutableRefObject<Record<string, number>>,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
-  registerTextInUndoScope?: (t: any) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
   getViewportOffset?: () => { x: number; y: number }
@@ -137,16 +130,11 @@ export const createAddNegationBelow = (
           const t = new Y.Text();
           t.insert(0, "New point");
           yTextMap.set(newId, t);
-          try {
-            registerTextInUndoScope?.(t);
-          } catch {}
         }
       }, localOrigin);
     }
   };
 };
-
-
 
 export const createAddSupportBelow = (
   nodes: any[],
@@ -159,7 +147,6 @@ export const createAddSupportBelow = (
   lastAddRef: MutableRefObject<Record<string, number>>,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
-  registerTextInUndoScope?: (t: any) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
   getViewportOffset?: () => { x: number; y: number }
@@ -209,16 +196,11 @@ export const createAddSupportBelow = (
           const t = new Y.Text();
           t.insert(0, "New support");
           yTextMap.set(newId, t);
-          try {
-            registerTextInUndoScope?.(t);
-          } catch {}
         }
       }, localOrigin);
     }
   };
 };
-
-
 
 export const createAddPointBelow = (
   nodes: any[],
@@ -231,7 +213,6 @@ export const createAddPointBelow = (
   lastAddRef: MutableRefObject<Record<string, number>>,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
-  registerTextInUndoScope?: (t: any) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
   getViewportOffset?: () => { x: number; y: number }
@@ -282,12 +263,8 @@ export const createAddPointBelow = (
           const t = new Y.Text();
           t.insert(0, "New option");
           yTextMap.set(newId, t);
-          try {
-            registerTextInUndoScope?.(t);
-          } catch {}
         }
       }, localOrigin);
     }
   };
 };
-

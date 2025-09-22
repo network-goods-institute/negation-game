@@ -44,14 +44,35 @@ export const TopicsSidebar = memo(({
 
     const availableTopics = useMemo(() => {
         if (!topics) return [];
-        const list = (topics as any[])
+
+        // Filter and map topics
+        const processedTopics = (topics as any[])
             .filter((t: any) => t && typeof t.name === "string" && t.name.trim())
             .map((t: any) => ({
                 id: t.id,
                 name: String(t.name).trim(),
                 discourseUrl: t.discourseUrl,
                 pointsCount: t.pointsCount,
-            }))
+            }));
+
+        // Deduplicate by name, keeping the one with the highest pointsCount
+        // If pointsCount is equal, keep the one with the lower ID (assuming older topics have lower IDs)
+        const uniqueTopics = new Map<string, any>();
+
+        for (const topic of processedTopics) {
+            const existingTopic = uniqueTopics.get(topic.name);
+            if (!existingTopic) {
+                uniqueTopics.set(topic.name, topic);
+            } else {
+                // Keep the topic with higher pointsCount, or lower ID if pointsCount is equal
+                if (topic.pointsCount > existingTopic.pointsCount ||
+                    (topic.pointsCount === existingTopic.pointsCount && topic.id < existingTopic.id)) {
+                    uniqueTopics.set(topic.name, topic);
+                }
+            }
+        }
+
+        const list = Array.from(uniqueTopics.values())
             .sort((a: any, b: any) => a.name.localeCompare(b.name));
         return list;
     }, [topics]);

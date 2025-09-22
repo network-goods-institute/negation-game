@@ -158,7 +158,6 @@ describe("createAddSupportBelow", () => {
       lastAddRef,
       setNodes,
       setEdges,
-      undefined,
       (nodeId) => nodeId === parentId,
       () => ({ name: "X" }) as any
     );

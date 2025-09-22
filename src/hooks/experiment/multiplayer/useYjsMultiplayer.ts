@@ -75,36 +75,41 @@ export const useYjsMultiplayer = ({
     redo,
     canUndo,
     canRedo,
-    registerTextInUndoScope,
     setScheduleSave,
   } = useYjsUndoRedo({
     yNodesMapRef,
     yEdgesMapRef,
     yTextMapRef,
+    yMetaMapRef,
     localOriginRef,
     isUndoRedoRef,
   });
 
-  const { setupObservers, getForceSave, getScheduleSave, getInterruptSave } =
-    useYjsSynchronization({
-      ydocRef,
-      yNodesMapRef,
-      yEdgesMapRef,
-      yTextMapRef,
-      yMetaMapRef,
-      serverVectorRef,
-      saveTimerRef,
-      savingRef,
-      localOriginRef,
-      isUndoRedoRef,
-      persistId,
-      setNodes,
-      setEdges,
-      setIsSaving,
-      setNextSaveTime,
-      undoManagerRef,
-      updateLocalStateVector,
-    });
+  const {
+    setupObservers,
+    getForceSave,
+    getScheduleSave,
+    getInterruptSave,
+    getInterruptSaveForCleanup,
+  } = useYjsSynchronization({
+    ydocRef,
+    yNodesMapRef,
+    yEdgesMapRef,
+    yTextMapRef,
+    yMetaMapRef,
+    serverVectorRef,
+    saveTimerRef,
+    savingRef,
+    localOriginRef,
+    isUndoRedoRef,
+    persistId,
+    setNodes,
+    setEdges,
+    setIsSaving,
+    setNextSaveTime,
+    undoManagerRef,
+    updateLocalStateVector,
+  });
 
   const {
     providerRef,
@@ -142,18 +147,27 @@ export const useYjsMultiplayer = ({
   }, [getInterruptSave]);
 
   useEffect(() => {
+    console.log("[useYjsMultiplayer] Effect triggered", {
+      enabled,
+      persistId,
+      roomName,
+    });
+
     if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
+      console.log("[useYjsMultiplayer] Multiplayer experiment disabled");
       setConnectionError("Multiplayer experiment is disabled");
       setIsConnected(false);
       return;
     }
 
     if (!enabled) {
+      console.log("[useYjsMultiplayer] Not enabled, waiting...");
       setConnectionError("Initializing...");
       setIsConnected(false);
       return;
     }
 
+    console.log("[useYjsMultiplayer] Starting initialization for", persistId);
     const doc = new Y.Doc();
     ydocRef.current = doc;
     setIsConnected(false);
@@ -170,17 +184,23 @@ export const useYjsMultiplayer = ({
     yTextMapRef.current = yText;
     yMetaMapRef.current = yMeta;
 
+    console.log("[useYjsMultiplayer] Setting up observers and undo manager");
     const syncCleanup = setupObservers();
     const undoCleanup = setupUndoManager();
 
     setScheduleSave(getScheduleSave() || undefined);
     forceSaveRef.current = getForceSave();
 
-    hydrateFromServer().catch(() => undefined);
-    initializeProvider().catch(() => undefined);
+    console.log("[useYjsMultiplayer] Starting hydration and provider");
+    hydrateFromServer().catch((err) => {
+      console.error("[useYjsMultiplayer] Hydration failed:", err);
+    });
+    initializeProvider().catch((err) => {
+      console.error("[useYjsMultiplayer] Provider init failed:", err);
+    });
 
     return () => {
-      handleInterruptSave();
+      getInterruptSaveForCleanup()?.();
 
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -216,19 +236,8 @@ export const useYjsMultiplayer = ({
       yTextMapRef.current = null;
       yMetaMapRef.current = null;
     };
-  }, [
-    cleanupProvider,
-    enabled,
-    getForceSave,
-    getScheduleSave,
-    handleInterruptSave,
-    hydrateFromServer,
-    initializeProvider,
-    persistId,
-    setScheduleSave,
-    setupObservers,
-    setupUndoManager,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, persistId]);
 
   const syncYMapFromArray = useCallback(
     <T extends { id: string }>(ymap: Y.Map<T>, arr: T[]) =>
@@ -260,8 +269,6 @@ export const useYjsMultiplayer = ({
     forceSave: handleForceSave,
     interruptSave: handleInterruptSave,
     nextSaveTime,
-    registerTextInUndoScope,
-    isUndoRedoRef,
     restartProviderWithNewToken,
   };
 };

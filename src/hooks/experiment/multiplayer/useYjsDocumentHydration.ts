@@ -49,10 +49,10 @@ export const useYjsDocumentHydration = ({
       try {
         const res = await fetch(url);
         if (res.status === 204) {
-          return (
+          const hasContent =
             doc.getMap<Node>("nodes").size > 0 ||
-            doc.getMap<Edge>("edges").size > 0
-          );
+            doc.getMap<Edge>("edges").size > 0;
+          return hasContent;
         }
         if (
           res.ok &&
@@ -66,7 +66,9 @@ export const useYjsDocumentHydration = ({
             return true;
           }
         }
-      } catch {}
+      } catch (err) {
+        console.error("[loadDiffFromServer] Error:", err);
+      }
       return false;
     },
     []
@@ -76,7 +78,9 @@ export const useYjsDocumentHydration = ({
     const doc = ydocRef.current;
     const yNodes = yNodesMapRef.current;
     const yEdges = yEdgesMapRef.current;
-    if (!doc || !yNodes || !yEdges) return;
+    if (!doc || !yNodes || !yEdges) {
+      return;
+    }
 
     const isBrowser = typeof window !== "undefined";
     let hadContent = yNodes.size > 0 || yEdges.size > 0;
@@ -150,11 +154,29 @@ export const useYjsDocumentHydration = ({
         }
       }
 
-      if (hadContent) {
+      const actuallyHasContent = yNodes.size > 0 || yEdges.size > 0;
+
+      if (actuallyHasContent) {
         serverVectorRef.current = Y.encodeStateVector(doc);
         updateLocalStateVector();
-      } else if (yNodes.size === 0 && yEdges.size === 0) {
+      } else {
+        console.log("[hydrateFromServer] Document is empty, enabling seeding");
         shouldSeedOnConnectRef.current = true;
+
+        // If provider is already connected, trigger seeding immediately
+        // since the sync event may have already occurred
+        setTimeout(() => {
+          if (
+            shouldSeedOnConnectRef.current &&
+            yNodes.size === 0 &&
+            yEdges.size === 0
+          ) {
+            const event = new CustomEvent("yjs-immediate-seed");
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(event);
+            }
+          }
+        }, 100);
       }
     } catch (error) {
       const message =

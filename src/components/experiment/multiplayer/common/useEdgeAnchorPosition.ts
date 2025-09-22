@@ -15,7 +15,7 @@ export const useEdgeAnchorPosition = ({ id, x, y, updateEdgeAnchorPosition }: An
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
     const last = lastPosRef.current;
-    if (last && Math.abs(last.x - x) < 0.5 && Math.abs(last.y - y) < 0.5) return;
+    if (last && Math.abs(last.x - x) < 0.01 && Math.abs(last.y - y) < 0.01) return;
 
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {

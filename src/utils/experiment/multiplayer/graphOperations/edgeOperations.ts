@@ -14,7 +14,6 @@ export const createAddObjectionForEdge = (
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
-  registerTextInUndoScope?: (t: any) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null
 ) => {
@@ -93,16 +92,11 @@ export const createAddObjectionForEdge = (
           const t = new Y.Text();
           t.insert(0, "New mitigation");
           yTextMap.set(objectionId, t);
-          try {
-            registerTextInUndoScope?.(t);
-          } catch {}
         }
       }, localOrigin);
     }
   };
 };
-
-
 
 export const createUpdateEdgeAnchorPosition = (
   setNodes: (updater: (nodes: any[]) => any[]) => void,
@@ -110,7 +104,6 @@ export const createUpdateEdgeAnchorPosition = (
   ydoc?: any,
   canWrite?: boolean,
   localOrigin?: object,
-  isUndoRedoRef?: { current: boolean },
   layoutOrigin?: any
 ) => {
   // Cache last positions to avoid redundant state updates from repeated effects
@@ -152,4 +145,3 @@ export const createUpdateEdgeAnchorPosition = (
     } catch {}
   };
 };
-

@@ -33,7 +33,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = (data as any)?.hidden === true;
 
-  const { editable, hover, pill, connect, innerScaleStyle, isActive } = useNodeChrome({
+  const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
     selected,
     content,
@@ -56,6 +56,8 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     onFocus,
     onContentMouseDown,
     onContentMouseMove,
+    onContentMouseLeave,
+    onContentMouseUp,
     isConnectMode,
   } = editable;
 
@@ -96,7 +98,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           },
         }}
         wrapperRef={wrapperRef}
-        wrapperClassName={`px-5 py-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} border-2 ${locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer')} min-w-[240px] max-w-[360px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+        wrapperClassName={`px-5 py-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} border-2 ${cursorClass} min-w-[240px] max-w-[360px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${hidden ? 'border-blue-300' : 'border-blue-200'}
             ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
@@ -123,6 +125,10 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             onClick(e);
           },
           onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); },
+          onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
+            // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
+            e.stopPropagation();
+          },
           'data-selected': selected,
         } as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-blue-500 opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
@@ -149,6 +155,8 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           onInput={onInput}
           onMouseDown={onContentMouseDown}
           onMouseMove={onContentMouseMove}
+          onMouseLeave={onContentMouseLeave}
+          onMouseUp={onContentMouseUp}
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={onKeyDown}

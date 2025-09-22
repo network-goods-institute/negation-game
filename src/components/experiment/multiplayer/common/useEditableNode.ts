@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useGraphActions } from "../GraphContext";
+import { useCursorState } from "./useCursorState";
 
 interface UseEditableNodeArgs {
   id: string;
@@ -22,6 +23,7 @@ export const useEditableNode = ({
   const graph = useGraphActions();
   const isConnectMode = Boolean((graph as any)?.connectMode);
   const [isEditing, setIsEditing] = useState(false);
+  const cursorClass = useCursorState({ isEditing, locked: false });
   const [value, setValue] = useState(content);
   const draftRef = useRef<string>("");
   const originalBeforeEditRef = useRef<string>("");
@@ -30,6 +32,110 @@ export const useEditableNode = ({
   const contentRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const updateTimerRef = useRef<number | null>(null);
+  const selectionBookmarkRef = useRef<{
+    start: number;
+    end: number;
+    direction: "forward" | "backward" | "none";
+  } | null>(null);
+
+  const recordSelectionBookmark = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) {
+      selectionBookmarkRef.current = null;
+      return;
+    }
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      selectionBookmarkRef.current = null;
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    if (
+      !el.contains(range.startContainer) ||
+      !el.contains(range.endContainer)
+    ) {
+      selectionBookmarkRef.current = null;
+      return;
+    }
+
+    const preSelectionRange = range.cloneRange();
+    preSelectionRange.selectNodeContents(el);
+    preSelectionRange.setEnd(range.startContainer, range.startOffset);
+    const start = preSelectionRange.toString().length;
+    const selectionTextLength = range.toString().length;
+    const end = start + selectionTextLength;
+
+    let direction: "forward" | "backward" | "none" = "none";
+    if (selectionTextLength === 0) {
+      direction = "none";
+    } else if (
+      selection.anchorNode === range.startContainer &&
+      selection.anchorOffset === range.startOffset
+    ) {
+      direction = "forward";
+    } else {
+      direction = "backward";
+    }
+
+    selectionBookmarkRef.current = { start, end, direction };
+  }, []);
+
+  const resolveOffset = useCallback((root: HTMLElement, offset: number) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    let remaining = offset;
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      const length = node.textContent?.length ?? 0;
+      if (remaining <= length) {
+        return {
+          node,
+          offset: Math.max(0, Math.min(remaining, length)),
+        } as const;
+      }
+      remaining -= length;
+    }
+    return { node: root, offset: root.childNodes.length } as const;
+  }, []);
+
+  const restoreSelectionBookmark = useCallback(() => {
+    const el = contentRef.current;
+    const bookmark = selectionBookmarkRef.current;
+    if (!el || !bookmark) return;
+
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const startPoint = resolveOffset(el, bookmark.start);
+    const endPoint = resolveOffset(el, bookmark.end);
+    if (!startPoint || !endPoint) return;
+
+    const range = document.createRange();
+    try {
+      range.setStart(startPoint.node, startPoint.offset);
+      range.setEnd(endPoint.node, endPoint.offset);
+    } catch {
+      return;
+    }
+
+    selection.removeAllRanges();
+
+    if (
+      bookmark.direction === "backward" &&
+      typeof selection.extend === "function"
+    ) {
+      selection.addRange(range);
+      selection.collapse(endPoint.node, endPoint.offset);
+      try {
+        selection.extend(startPoint.node, startPoint.offset);
+      } catch {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      return;
+    }
+
+    selection.addRange(range);
+  }, [resolveOffset]);
 
   // Sync incoming content, allowing updates during editing for undo/redo
   useEffect(() => {
@@ -37,7 +143,7 @@ export const useEditableNode = ({
     const recentlyCommitted = now - justCommittedRef.current < 1500;
 
     if (!isEditing) {
-      if (recentlyCommitted) {
+      if (recentlyCommitted && content === draftRef.current) {
         // Skip syncing from props briefly after a local commit to prevent flicker
         return;
       }
@@ -55,37 +161,30 @@ export const useEditableNode = ({
       draftRef.current = content;
 
       if (contentRef.current && contentRef.current.innerText !== content) {
-        const selection = window.getSelection();
-        const range = selection?.getRangeAt(0);
-        const caretPos = range?.startOffset || 0;
+        if (isEditing) {
+          try {
+            recordSelectionBookmark();
+          } catch {}
+        }
 
         contentRef.current.innerText = content;
 
-        // Restore caret position if possible
-        try {
-          const newRange = document.createRange();
-          const textNode = contentRef.current.firstChild;
-          if (textNode && textNode.nodeType === Node.TEXT_NODE) {
-            const maxPos = Math.min(
-              caretPos,
-              textNode.textContent?.length || 0
-            );
-            newRange.setStart(textNode, maxPos);
-            newRange.collapse(true);
-            selection?.removeAllRanges();
-            selection?.addRange(newRange);
-          }
-        } catch (e) {
-          // Fallback: place caret at end
-          const newRange = document.createRange();
-          newRange.selectNodeContents(contentRef.current);
-          newRange.collapse(false);
-          selection?.removeAllRanges();
-          selection?.addRange(newRange);
+        if (isEditing) {
+          requestAnimationFrame(() => {
+            try {
+              restoreSelectionBookmark();
+            } catch {}
+          });
         }
       }
     }
-  }, [content, isEditing, value]);
+  }, [
+    content,
+    isEditing,
+    recordSelectionBookmark,
+    restoreSelectionBookmark,
+    value,
+  ]);
 
   // autosize height
   useEffect(() => {
@@ -249,11 +348,15 @@ export const useEditableNode = ({
     if (wrapperRef.current && contentRef.current) {
       wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
     }
+    try {
+      recordSelectionBookmark();
+    } catch {}
   };
 
   const commit = useCallback(() => {
     setIsEditing(false);
     stopEditingNode?.(id);
+    selectionBookmarkRef.current = null;
     if (draftRef.current !== value) {
       // After finishing edit, reflect the latest draft locally.
       setValue(draftRef.current);
@@ -285,20 +388,6 @@ export const useEditableNode = ({
   }, [commit, isConnectMode, isEditing]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    // Intercept global undo/redo while editing to avoid native contentEditable undo
-    if (
-      (e.metaKey || e.ctrlKey) &&
-      (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y")
-    ) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.shiftKey || e.key.toLowerCase() === "y") {
-        graph?.redo?.();
-      } else {
-        graph?.undo?.();
-      }
-      return;
-    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       commit();
@@ -314,6 +403,7 @@ export const useEditableNode = ({
       updateNodeContent(id, original);
       setIsEditing(false);
       stopEditingNode?.(id);
+      selectionBookmarkRef.current = null;
     }
   };
 
@@ -353,6 +443,7 @@ export const useEditableNode = ({
     contentRef,
     wrapperRef,
     isConnectMode,
+    cursorClass,
     onClick,
     onInput,
     onKeyDown,
@@ -362,6 +453,9 @@ export const useEditableNode = ({
     startEditingProgrammatically,
     // Handle mouse events to allow text selection while preventing unwanted node dragging
     onContentMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+      // Track mouse down time for selection containment logic
+      (e as any)._mouseDownTime = Date.now();
+
       // Stop propagation to prevent the wrapper's mouse handlers from interfering with text selection
       e.stopPropagation();
 
@@ -375,6 +469,37 @@ export const useEditableNode = ({
     },
     onContentMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
       // Always prevent propagation to avoid interfering with text selection drag
+      e.stopPropagation();
+    },
+    onContentMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
+      // When mouse leaves content area during text selection, stop the selection
+      // to prevent global text selection
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+        // Check if the selection is still within our content area
+        const range = selection.getRangeAt(0);
+        const contentEl = e.currentTarget;
+
+        // If selection extends beyond our content area, collapse it to the end
+        if (
+          !contentEl.contains(range.startContainer) ||
+          !contentEl.contains(range.endContainer)
+        ) {
+          // Only collapse if we're actually selecting text (not just hovering)
+          const mouseDownTime = (e as any)._mouseDownTime || 0;
+          const timeSinceMouseDown = Date.now() - mouseDownTime;
+
+          // If mouse was pressed recently, this is likely a drag selection
+          if (timeSinceMouseDown < 300) {
+            selection.collapseToEnd();
+          }
+        }
+      }
+      e.stopPropagation();
+    },
+    onContentMouseUp: (e: React.MouseEvent<HTMLDivElement>) => {
+      // Clean up any lingering selection state
+      delete (e as any)._mouseDownTime;
       e.stopPropagation();
     },
   };

@@ -177,7 +177,7 @@ export async function createRationale(params?: {
 }) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
-  const id = params?.id || nanoid();
+  const id = params?.id || `m-${nanoid()}`;
   const title = (params?.title || DEFAULT_TITLE).trim() || DEFAULT_TITLE;
 
   await db.transaction(async (tx) => {

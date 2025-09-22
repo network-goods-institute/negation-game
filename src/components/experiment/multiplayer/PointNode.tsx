@@ -49,7 +49,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
 
-  const { editable, hover, pill, connect, innerScaleStyle, isActive } = useNodeChrome({
+  const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
     selected,
     content: data.content,
@@ -77,6 +77,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     onFocus,
     onContentMouseDown,
     onContentMouseMove,
+    onContentMouseLeave,
+    onContentMouseUp,
     isConnectMode,
   } = editable;
 
@@ -161,7 +163,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     }, animationDuration);
   };
 
-  const beforeWrapper = !selected && !isInContainer && inversePairEnabled ? (
+  const beforeWrapper = false ? (
     <div
       className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan ${sliverAnimating ? '' : 'transition-all ease-out'} ${!sliverAnimating ? (sliverHovered ? 'w-[96px] -ml-[48px] duration-700' : (hovered ? 'w-[72px] -ml-[36px] duration-700' : 'w-[30px] -ml-[15px] duration-700')) : ''}`}
       style={sliverAnimating ? {
@@ -194,10 +196,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const wrapperClassName = useMemo(() => {
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
-    const cursor = locked ? 'cursor-not-allowed' : (isEditing ? 'cursor-text' : 'cursor-pointer');
     const ring = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-transform duration-300 ease-out ${base} ${cursor} ${ring} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, locked, isEditing, isConnectingFromNodeId, id, isActive]);
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-transform duration-300 ease-out ${base} ${cursorClass} ${ring} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
 
   const wrapperProps = {
     onMouseEnter: () => { clearHoldTimer(); setHovered(true); onHoverEnter(); handleMouseEnter(); },
@@ -221,6 +222,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       if (contentRef.current && contentRef.current.contains(e.target as Node)) {
         return;
       }
+    },
+    onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
+      // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
+      e.stopPropagation();
     },
     onClick: (e: React.MouseEvent<HTMLDivElement>) => {
       if (isConnectMode) {
@@ -305,6 +310,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onInput={onInput}
           onMouseDown={onContentMouseDown}
           onMouseMove={onContentMouseMove}
+          onMouseLeave={onContentMouseLeave}
+          onMouseUp={onContentMouseUp}
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={onKeyDown}

@@ -153,6 +153,7 @@ export const createScheduleSave = (
         // Recover from a stuck saving flag (e.g., saver disconnected)
         try {
           if (ydocRef.current) {
+            // Use a special origin to prevent observer re-triggering
             ydocRef.current.transact(() => {
               m.set("saving", false);
               // eslint-disable-next-line drizzle/enforce-delete-with-where
@@ -163,7 +164,7 @@ export const createScheduleSave = (
               m.delete("saverId");
               // eslint-disable-next-line drizzle/enforce-delete-with-where
               m.delete("savingSince");
-            }, localOriginRef?.current);
+            }, "sync-recovery");
           }
         } catch {}
       }
@@ -215,12 +216,37 @@ export const createScheduleSave = (
           m.set("saving", false);
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           m.delete("savingSince");
-        }, "interrupt-save");
+        }, "sync-recovery");
       }
     } catch (e) {
       console.error("[save] Error interrupting save:", e);
     }
   };
 
-  return { scheduleSave, forceSave, syncFromMeta, interruptSave };
+  // Cleanup-safe version that doesn't call state setters or Yjs transactions
+  const interruptSaveForCleanup = () => {
+    try {
+      // Clear local state (ref only, no setState calls)
+      savingRef.current = false;
+
+      // Clear any timers
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+
+      // DON'T clear meta state during cleanup to avoid triggering Yjs observers
+      // The component is unmounting anyway, so these will be cleaned up naturally
+    } catch (e) {
+      console.error("[save] Error interrupting save during cleanup:", e);
+    }
+  };
+
+  return {
+    scheduleSave,
+    forceSave,
+    syncFromMeta,
+    interruptSave,
+    interruptSaveForCleanup,
+  };
 };
