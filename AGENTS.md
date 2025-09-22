@@ -33,3 +33,5 @@ When you write raw sql to be inserted into the database to see what it's in it, 
 Additionally, use drizzle syntax for sql statements.
 
 If you find yourself going over 500 lines of code for a file, start splitting it up into smaller files.
+
+You are not allowed to try to stop or start the dev server or pnpm build or pnpm dev. Assume the user can handle it and instruct them to do so.

@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation';
 import { ReactFlowProvider, } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { usePrivy } from '@privy-io/react-auth';
-import { useUser } from '@/queries/users/useUser';
+import { userQueryKey } from '@/queries/users/useUser';
+import { useQueryClient } from '@tanstack/react-query';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { AuthGate } from '@/components/auth/AuthGate';
 import { useUserColor } from '@/hooks/experiment/multiplayer/useUserColor';
@@ -48,8 +49,7 @@ const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
 export default function MultiplayerBoardDetailPage() {
     const routeParams = useParams<{ id: string }>();
-    const { authenticated, ready, login } = usePrivy();
-    const { data: user, isLoading: isUserLoading, isFetching: isUserFetching } = useUser();
+    const { authenticated, ready, login, user: privyUser } = usePrivy();
 
     const [connectMode, setConnectMode] = useState<boolean>(false);
     const [grabMode, setGrabMode] = useState<boolean>(false);
@@ -78,7 +78,6 @@ export default function MultiplayerBoardDetailPage() {
     const [pairHeights, setPairHeights] = useState<Record<string, number>>({});
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
-    const userColor = useUserColor(user?.id);
     const initialGraph = useInitialGraph();
     const [dbTitle, setDbTitle] = useState<string | null>(null);
     const [ownerId, setOwnerId] = useState<string | null>(null);
@@ -104,8 +103,12 @@ export default function MultiplayerBoardDetailPage() {
     }, [routeParams?.id]);
 
 
-    const username = user?.username || 'Anonymous';
-    const userId = (user as any)?.id || '';
+    const queryClient = useQueryClient();
+    const cachedUser = queryClient.getQueryData(userQueryKey(privyUser?.id));
+    const username = (cachedUser as any)?.username || 'Anonymous';
+    const userId = privyUser?.id || '';
+
+    const userColor = useUserColor(userId);
 
     const roomName = useMemo(() => {
         const id = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
@@ -140,7 +143,7 @@ export default function MultiplayerBoardDetailPage() {
         roomName,
         initialNodes: initialGraph?.nodes || [],
         initialEdges: initialGraph?.edges || [],
-        enabled: ready && authenticated && !isUserLoading && !isUserFetching && Boolean(initialGraph),
+        enabled: ready && authenticated && Boolean(initialGraph),
         localOrigin: localOriginRef.current,
     });
     const getNodeCenter = useCallback((nodeId: string) => {
@@ -432,7 +435,7 @@ export default function MultiplayerBoardDetailPage() {
 
 
 
-    if (!ready || (authenticated && (isUserLoading || isUserFetching))) {
+    if (!ready) {
         return <LoadingState />;
     }
 
