@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { EdgeProps, StraightEdge, BezierEdge, getBezierPath, getStraightPath } from '@xyflow/react';
+import { EdgeProps, StraightEdge, BezierEdge, getBezierPath, getStraightPath, Position } from '@xyflow/react';
 import { ContextMenu } from './ContextMenu';
 import { EdgeOverlay } from './EdgeOverlay';
 import { EdgeMidpointControl } from './EdgeMidpointControl';
@@ -92,13 +92,27 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   const [pathD, labelX, labelY] = useMemo(() => {
     if (visual.useBezier) {
       const curvature = (behavior.simplifyDuringDrag && isHighFrequencyUpdates) ? 0 : (visual.curvature ?? 0.35);
+
+      let sourcePosition = (props as any).sourcePosition;
+      let targetPosition = (props as any).targetPosition;
+
+      if (props.edgeType === 'objection') {
+        const objectionY = sourceNode?.position?.y ?? 0;
+        const anchorY = targetNode?.position?.y ?? 0;
+
+        // Source (objection node) handle position - matches ObjectionNode logic
+        sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+        // Target (anchor node) handle position - matches EdgeAnchorNode logic
+        targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+      }
+
       return getBezierPath({
         sourceX: sourceX ?? 0,
         sourceY: sourceY ?? 0,
-        sourcePosition: (props as any).sourcePosition,
+        sourcePosition,
         targetX: targetX ?? 0,
         targetY: targetY ?? 0,
-        targetPosition: (props as any).targetPosition,
+        targetPosition,
         curvature,
       });
     } else {
@@ -110,7 +124,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
       });
       return [path, x, y];
     }
-  }, [sourceX, sourceY, targetX, targetY, visual.useBezier, visual.curvature, behavior.simplifyDuringDrag, isHighFrequencyUpdates, props]);
+  }, [sourceX, sourceY, targetX, targetY, visual.useBezier, visual.curvature, behavior.simplifyDuringDrag, isHighFrequencyUpdates, props, sourceNode, targetNode]);
 
   // Dynamic edge styles
   const edgeStyles = useMemo(() => {
@@ -227,6 +241,10 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
           {visual.useBezier ? (
             <BezierEdge
               {...props}
+              {...(props.edgeType === 'objection' && {
+                sourcePosition: sourceNode?.position?.y < targetNode?.position?.y ? Position.Bottom : Position.Top,
+                targetPosition: sourceNode?.position?.y > targetNode?.position?.y ? Position.Bottom : Position.Top,
+              })}
               style={edgeStyles}
               pathOptions={{ curvature: visual.curvature }}
             />

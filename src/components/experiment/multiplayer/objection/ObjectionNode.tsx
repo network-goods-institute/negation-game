@@ -102,7 +102,24 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         if (!anchor || !self) return Position.Top;
         const anchorY = anchor.position?.y ?? 0;
         const selfY = self.position?.y ?? 0;
-        return anchorY > selfY ? Position.Bottom : Position.Top;
+        return anchorY < selfY ? Position.Bottom : Position.Top;
+    }, (prev: any, next: any) => {
+        // Re-run when edges or node positions change
+        const prevObj = prev.edges?.find((edge: any) => edge.type === 'objection' && edge.source === id);
+        const nextObj = next.edges?.find((edge: any) => edge.type === 'objection' && edge.source === id);
+
+        if (!prevObj && !nextObj) return true;
+        if (!prevObj || !nextObj) return false;
+
+        const prevAnchor = prev.nodeInternals?.get?.(prevObj.target);
+        const nextAnchor = next.nodeInternals?.get?.(nextObj.target);
+        const prevSelf = prev.nodeInternals?.get?.(id);
+        const nextSelf = next.nodeInternals?.get?.(id);
+
+        return (
+            prevAnchor?.position?.y === nextAnchor?.position?.y &&
+            prevSelf?.position?.y === nextSelf?.position?.y
+        );
     });
 
     const wrapperProps = {
