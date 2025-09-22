@@ -1,5 +1,34 @@
 import React from "react";
 
+const makeIcon = (
+  color: string,
+  angles: number[],
+  length = 11,
+  thickness = 3
+): React.ReactNode => {
+  return React.createElement(
+    "div",
+    {
+      style: { position: "relative", width: "12px", height: "12px" },
+    },
+    ...angles.map((deg, i) =>
+      React.createElement("div", {
+        key: `bar-${i}`,
+        style: {
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: `${length}px`,
+          height: `${thickness}px`,
+          backgroundColor: color,
+          transform: `translate(-50%, -50%) rotate(${deg}deg)`,
+          borderRadius: `${thickness / 2}px`,
+        },
+      })
+    )
+  );
+};
+
 export type EdgeType =
   | "negation"
   | "objection"
@@ -69,19 +98,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
         { offset: "0%", stopColor: "#9CA3AF", stopOpacity: 0.15 },
         { offset: "100%", stopColor: "#6B7280", stopOpacity: 0.15 },
       ],
-      midpointContent: React.createElement(
-        "div",
-        {
-          className: "font-bold flex items-center justify-center",
-          style: {
-            color: "#9CA3AF",
-            fontSize: "28px",
-            lineHeight: "1",
-            transform: "translateY(-1px)",
-          },
-        },
-        "-"
-      ),
+      midpointContent: makeIcon("#9CA3AF", [0]),
       useStrap: true,
       useBezier: false,
     },
@@ -99,11 +116,8 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       borderColor: "#f97316",
       starColor: "text-orange-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
-      strokeDasharray: "8,4", // Optional, determined by edgeIsObjectionStyle
-      midpointContent: React.createElement("div", {
-        className: "w-2 h-[2px] rounded-sm",
-        style: { backgroundColor: "#f97316", transform: "rotate(45deg)" },
-      }),
+      strokeDasharray: "8,4",
+      midpointContent: makeIcon("#f97316", [45], 12, 3),
       useBezier: true,
       curvature: 0.35,
     },
@@ -151,19 +165,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       borderColor: "#9CA3AF",
       starColor: "text-gray-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.4)),
-      midpointContent: React.createElement(
-        "div",
-        {
-          className: "font-bold flex items-center justify-center",
-          style: {
-            color: "#9CA3AF",
-            fontSize: "19px",
-            lineHeight: "1",
-            transform: "translateY(-1px)",
-          },
-        },
-        "+"
-      ),
+      midpointContent: makeIcon("#9CA3AF", [0, 90]),
       useBezier: false,
     },
     behavior: {
