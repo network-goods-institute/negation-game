@@ -204,6 +204,42 @@ describe("Middleware", () => {
       );
     });
 
+    test("play subdomain preserves path when redirecting", async () => {
+      await mockMiddleware(
+        "https://play.negationgame.com/s/scroll/rationale/5SDfdIY_WRHNW1rVGtCpy",
+        "play.negationgame.com"
+      );
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: "https://negationgame.com/s/scroll/rationale/5SDfdIY_WRHNW1rVGtCpy"
+        })
+      );
+    });
+
+    test("play subdomain preserves query parameters when redirecting", async () => {
+      await mockMiddleware(
+        "https://play.negationgame.com/profile/testuser?tab=endorsements&sort=recent",
+        "play.negationgame.com"
+      );
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: "https://negationgame.com/profile/testuser?tab=endorsements&sort=recent"
+        })
+      );
+    });
+
+    test("play subdomain preserves complex paths and query params", async () => {
+      await mockMiddleware(
+        "https://play.negationgame.com/s/scroll/rationale/abc123?source=https%3A%2F%2Fforum.scroll.io%2Ft%2Ftest%2F123&tab=points",
+        "play.negationgame.com"
+      );
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: "https://negationgame.com/s/scroll/rationale/abc123?source=https%3A%2F%2Fforum.scroll.io%2Ft%2Ftest%2F123&tab=points"
+        })
+      );
+    });
+
     test("redirects to negationgame.com for blacklisted subdomains", async () => {
       await mockMiddleware(
         "https://www.negationgame.com",

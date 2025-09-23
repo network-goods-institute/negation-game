@@ -103,7 +103,11 @@ function handleSubdomain(
   }
 
   if (BLACKLISTED_SUBDOMAINS.has(subdomain)) {
-    return NextResponse.redirect(new URL("https://negationgame.com"));
+    const redirectUrl = new URL(`https://negationgame.com${url.pathname}`);
+    url.searchParams.forEach((value, key) => {
+      redirectUrl.searchParams.set(key, value);
+    });
+    return NextResponse.redirect(redirectUrl);
   }
 
   if (VALID_SPACE_IDS.has(subdomain)) {
