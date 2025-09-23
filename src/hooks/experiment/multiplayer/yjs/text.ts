@@ -25,18 +25,26 @@ const sanitizeNode = (node: Node, isLockedForMe?: (nodeId: string) => boolean): 
   return sanitized;
 };
 
-const mergeContent = (node: MutableNode, content: string | undefined, key: "content" | "statement") => {
+const mergeContent = (
+  node: MutableNode,
+  content: string | undefined,
+  key: "content" | "statement"
+) => {
   if (content == null) return node;
   const data =
     typeof node.data === "object" && node.data !== null
       ? (node.data as Record<string, unknown>)
       : {};
-  if (data[key] === content) return node;
+  // keep legacy key (content/statement) AND provide a stable alias: title
+  const sameLegacy = data[key] === content;
+  const sameTitle = (data as any).title === content;
+  if (sameLegacy && sameTitle) return node;
   return {
     ...node,
     data: {
       ...data,
       [key]: content,
+      title: content, // <- unified accessor for UI
     },
   } as Node;
 };
@@ -66,7 +74,9 @@ export const mergeNodesWithText = (
     if (previous && previous.data) {
       const previousData = previous.data as Record<string, unknown>;
       const fallbackValue =
-        base.type === "statement"
+        typeof previousData["title"] === "string"
+          ? previousData["title"]
+          : base.type === "statement"
           ? previousData["statement"]
           : previousData["content"];
       if (typeof fallbackValue === "string") {

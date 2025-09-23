@@ -24,7 +24,8 @@ export const createScheduleSave = (
   persistId: string,
   setNextSaveTime?: Dispatch<SetStateAction<number | null>>,
   yMetaMapRef?: MutableRefObject<Y.Map<unknown> | null>,
-  localOriginRef?: MutableRefObject<unknown>
+  localOriginRef?: MutableRefObject<unknown>,
+  onSaveComplete?: () => void
 ) => {
   const performSave = async () => {
     if (!ydocRef.current || savingRef.current) return;
@@ -85,6 +86,9 @@ export const createScheduleSave = (
             m.delete("savingSince");
           }, "cleanup-save");
         }
+      } catch {}
+      try {
+        onSaveComplete?.();
       } catch {}
     }
   };

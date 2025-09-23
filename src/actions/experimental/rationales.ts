@@ -9,7 +9,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 const DEFAULT_OWNER = "connormcmk";
-const DEFAULT_TITLE = "New Board";
+const DEFAULT_TITLE = "Untitled";
 
 export async function listMyRationales() {
   const userId = await getUserId();
@@ -202,44 +202,111 @@ export async function renameRationale(id: string, title: string) {
   if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) throw new Error("Invalid doc id");
   const t = (title || "").trim();
   if (!t) throw new Error("Empty title");
-  const ownerRow = await db
+
+  const row = await db
     .select({ ownerId: mpDocsTable.ownerId })
     .from(mpDocsTable)
     .where(eq(mpDocsTable.id, id))
     .limit(1);
-  if (ownerRow.length === 0) throw new Error("Document not found");
-  const ownerId = ownerRow[0].ownerId || DEFAULT_OWNER;
-  if (!ownerRow[0].ownerId) {
+
+  if (row.length === 0) throw new Error("Document not found");
+  const ownerId = row[0].ownerId;
+
+  if (ownerId && ownerId !== userId) throw new Error("Forbidden");
+  if (!ownerId) {
     await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
       .where(eq(mpDocsTable.id, id));
   }
+
   await db
     .update(mpDocsTable)
     .set({ title: t, updatedAt: new Date() })
     .where(eq(mpDocsTable.id, id));
+
   return { ok: true } as const;
+}
+
+export async function updateNodeTitle(id: string, nodeTitle: string) {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) throw new Error("Invalid doc id");
+
+  const can = await db.execute(sql`
+    SELECT 1
+    FROM mp_docs d
+    LEFT JOIN mp_doc_access a ON a.doc_id = d.id AND a.user_id = ${userId}
+    WHERE d.id = ${id} AND (d.owner_id = ${userId} OR a.user_id = ${userId})
+    LIMIT 1
+  `);
+  if ((can as any[]).length === 0) throw new Error("Forbidden");
+
+  // Get current board title to check if we should sync
+  const current = await db.execute(sql`
+    SELECT title FROM mp_docs WHERE id = ${id} LIMIT 1
+  `);
+  const currentBoardTitle = (current as any[])?.[0]?.title;
+
+  // Sync board title to node title if board title is still "Untitled" and node title is different
+  const shouldSyncBoardTitle =
+    (!currentBoardTitle || currentBoardTitle === DEFAULT_TITLE) &&
+    nodeTitle &&
+    nodeTitle.trim() &&
+    nodeTitle !== DEFAULT_TITLE;
+
+  await db
+    .update(mpDocsTable)
+    .set({
+      nodeTitle,
+      ...(shouldSyncBoardTitle && { title: nodeTitle.trim() }),
+      updatedAt: new Date()
+    })
+    .where(eq(mpDocsTable.id, id));
+
+  return { ok: true } as const;
+}
+
+export async function getDocumentTitles(id: string) {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+
+  const result = await db
+    .select({ title: mpDocsTable.title, nodeTitle: mpDocsTable.nodeTitle })
+    .from(mpDocsTable)
+    .where(eq(mpDocsTable.id, id))
+    .limit(1);
+
+  if (result.length === 0) throw new Error("Document not found");
+
+  return {
+    boardTitle: result[0].title || DEFAULT_TITLE,
+    nodeTitle: result[0].nodeTitle || result[0].title || DEFAULT_TITLE,
+  };
 }
 
 export async function deleteRationale(id: string) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
   if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) throw new Error("Invalid doc id");
-  const ownerRow = await db
+
+  const row = await db
     .select({ ownerId: mpDocsTable.ownerId })
     .from(mpDocsTable)
     .where(eq(mpDocsTable.id, id))
     .limit(1);
-  if (ownerRow.length === 0) throw new Error("Document not found");
-  const ownerId = ownerRow[0].ownerId || DEFAULT_OWNER;
-  if (!ownerRow[0].ownerId) {
+  if (row.length === 0) throw new Error("Document not found");
+
+  const currentOwner = row[0].ownerId;
+  if (!currentOwner) {
     await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
       .where(eq(mpDocsTable.id, id));
+  } else if (currentOwner !== userId) {
+    throw new Error("Forbidden");
   }
-  if (ownerId !== userId) throw new Error("Forbidden");
+
   await db.delete(mpDocUpdatesTable).where(eq(mpDocUpdatesTable.docId, id));
   await db.delete(mpDocsTable).where(eq(mpDocsTable.id, id));
   return { ok: true } as const;

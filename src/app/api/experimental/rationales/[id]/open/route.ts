@@ -24,7 +24,7 @@ export async function POST(_req: Request, ctx: any) {
   try {
     await db
       .insert(mpDocsTable)
-      .values({ id, ownerId: userId, title: "New Board" })
+      .values({ id, ownerId: userId, title: "Untitled" })
       .onConflictDoNothing();
     const row = (
       await db.select().from(mpDocsTable).where(eq(mpDocsTable.id, id)).limit(1)

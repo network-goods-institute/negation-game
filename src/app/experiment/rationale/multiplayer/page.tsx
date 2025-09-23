@@ -175,7 +175,7 @@ export default function MultiplayerRationaleIndexPage() {
               {creating ? (
                 <span className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
               ) : (
-                "New Board"
+                "Untitled"
               )}
             </Button>
           </div>
@@ -277,12 +277,11 @@ export default function MultiplayerRationaleIndexPage() {
                       return !q || t.includes(q) || id.includes(q);
                     })
                     .map((d) => {
-                      const title = (d.title || 'New Board').trim() || 'New Board';
+                      const title = (d.title || 'Untitled').trim() || 'Untitled';
                       const ownerId = (d as any).ownerId || '';
                       const lastOpenAt = d.lastOpenAt ? new Date(d.lastOpenAt as any) : null;
                       const updatedAt = d.updatedAt ? new Date(d.updatedAt as any) : null;
                       const canEditMeta = myId && ownerId && myId === ownerId;
-                      console.log('DEBUG: visited card', d.id, 'ownerId:', ownerId, 'myId:', myId, 'canEditMeta:', canEditMeta);
                       return (
                         <Card
                           key={d.id}
@@ -327,7 +326,10 @@ export default function MultiplayerRationaleIndexPage() {
                                 <DropdownMenuItem
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleCopyUrl();
+                                    const host = typeof window !== 'undefined' ? window.location.host : '';
+                                    const url = buildRationaleDetailPath(d.id, host);
+                                    const fullUrl = `${window.location.protocol}//${host}${url}`;
+                                    handleCopyUrl(fullUrl);
                                   }}
                                 >
                                   {isCopyingUrl ? "Copied!" : "Copy Link"}
@@ -395,12 +397,11 @@ export default function MultiplayerRationaleIndexPage() {
                           return !q || t.includes(q) || id.includes(q);
                         })
                         .map((d) => {
-                          const title = (d.title || 'New Board').trim() || 'New Board';
+                          const title = (d.title || 'Untitled').trim() || 'Untitled';
                           const ownerId = (d as any).ownerId || '';
                           const lastOpenAt = d.lastOpenAt ? new Date(d.lastOpenAt as any) : null;
                           const updatedAt = d.updatedAt ? new Date(d.updatedAt as any) : null;
                           const canEditMeta = myId && ownerId && myId === ownerId;
-                          console.log('DEBUG: card', d.id, 'ownerId:', ownerId, 'myId:', myId, 'canEditMeta:', canEditMeta);
                           return (
                             <Card
                               key={d.id}
@@ -445,7 +446,10 @@ export default function MultiplayerRationaleIndexPage() {
                                     <DropdownMenuItem
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleCopyUrl();
+                                        const host = typeof window !== 'undefined' ? window.location.host : '';
+                                        const url = buildRationaleDetailPath(d.id, host);
+                                        const fullUrl = `${window.location.protocol}//${host}${url}`;
+                                        handleCopyUrl(fullUrl);
                                       }}
                                     >
                                       {isCopyingUrl ? "Copied!" : "Copy Link"}

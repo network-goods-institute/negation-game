@@ -20,8 +20,6 @@ interface MultiplayerHeaderProps {
   proxyMode?: boolean;
   userId?: string;
   title?: string;
-  onTitleCommit?: (title: string) => void;
-  onTitleInput?: (title: string) => void;
 }
 
 export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
@@ -37,26 +35,9 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   proxyMode,
   userId,
   title,
-  onTitleCommit,
-  onTitleInput,
   connectionState,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [titleDraft, setTitleDraft] = useState('');
-
-  useEffect(() => {
-    if (typeof (title as any) === 'string') setTitleDraft(title as string);
-  }, [title]);
-
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = e.target.value;
-    setTitleDraft(v);
-    onTitleInput?.(v);
-  };
-
-  const handleTitleBlur = () => {
-    onTitleCommit?.(titleDraft);
-  };
 
   useEffect(() => {
     if (!nextSaveTime) {
@@ -101,14 +82,10 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           <span>Back to Boards</span>
         </Link>
         <div className="mb-2">
-          <label className="block text-xs text-stone-600 mb-1">Title</label>
-          <input
-            value={titleDraft}
-            onChange={handleTitleChange}
-            onBlur={handleTitleBlur}
-            placeholder="Enter title"
-            className="w-full border rounded px-2 py-1 text-sm"
-          />
+          <label className="block text-xs text-stone-600 mb-1">Board Title</label>
+          <div className="w-full px-2 py-1 text-sm bg-gray-50 border rounded text-gray-700">
+            {title || 'Untitled'}
+          </div>
         </div>
         <p className="text-sm text-gray-600">
           You are: <span className="font-semibold" style={{ color: userColor }}>{username}</span>

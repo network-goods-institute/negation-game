@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2, HelpCircle } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -5,7 +7,7 @@ import { ToolbarButton } from "./ToolbarButton";
 
 interface ToolsBarProps {
   connectMode: boolean;
-  setConnectMode: (f: (v: boolean) => boolean | boolean) => void;
+  setConnectMode: React.Dispatch<React.SetStateAction<boolean>>;
   setConnectAnchorId: (id: string | null) => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -50,7 +52,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             Reset
           </button>
           <button
-            onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); }}
+            onClick={() => { setConnectMode(false); setConnectAnchorId(null); }}
             className="text-sm rounded-full px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
           >
             Done (Esc)
@@ -70,7 +72,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             label="Select"
             shortcut="V"
             active={!connectMode && !grabMode}
-            onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); setGrabMode?.(false); }}
+            onClick={() => { setConnectMode(false); setConnectAnchorId(null); setGrabMode?.(false); }}
           >
             <PointerIcon className="h-5 w-5" />
           </ToolbarButton>
@@ -81,7 +83,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             shortcut={readOnly ? undefined : "L"}
             disabled={!!readOnly}
             active={!!connectMode}
-            onClick={() => { if (!readOnly) { setGrabMode?.(false); setConnectMode(true as any); setConnectAnchorId(null); } }}
+            onClick={() => { if (!readOnly) { setGrabMode?.(false); setConnectMode(true); setConnectAnchorId(null); } }}
           >
             <LinkIcon className="h-5 w-5" />
           </ToolbarButton>
@@ -91,7 +93,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             label="Hand"
             shortcut="H"
             active={!!grabMode}
-            onClick={() => { setConnectMode(false as any); setConnectAnchorId(null); setGrabMode?.(!grabMode); }}
+            onClick={() => { setConnectMode(false); setConnectAnchorId(null); setGrabMode?.(!grabMode); }}
           >
             <HandIcon className="h-5 w-5" />
           </ToolbarButton>

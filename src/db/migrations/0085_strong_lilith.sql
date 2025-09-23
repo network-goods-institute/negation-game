@@ -1,0 +1,1 @@
+ALTER TABLE "mp_docs" ADD COLUMN "node_title" text;

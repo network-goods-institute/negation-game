@@ -84,24 +84,25 @@ export default function MultiplayerBoardDetailPage() {
     const [ownerId, setOwnerId] = useState<string | null>(null);
 
 
-    useEffect(() => {
+    const loadDbTitle = useCallback(async () => {
         if (!routeParams?.id) return;
-        const loadDbTitle = async () => {
-            try {
-                const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
-                try { await recordOpen(rid); } catch { }
-                const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setDbTitle(data.title || null);
-                    setOwnerId(data.ownerId || null);
-                }
-            } catch (e) {
-                console.error('[title] Failed to load DB title:', e);
+        try {
+            const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
+            try { await recordOpen(rid); } catch { }
+            const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`);
+            if (res.ok) {
+                const data = await res.json();
+                setDbTitle(data.title || null);
+                setOwnerId(data.ownerId || null);
             }
-        };
-        loadDbTitle();
+        } catch (e) {
+            console.error('[title] Failed to load DB title:', e);
+        }
     }, [routeParams?.id]);
+
+    useEffect(() => {
+        loadDbTitle();
+    }, [loadDbTitle]);
 
 
     const queryClient = useQueryClient();
@@ -146,6 +147,7 @@ export default function MultiplayerBoardDetailPage() {
         initialEdges: initialGraph?.edges || [],
         enabled: ready && authenticated && Boolean(initialGraph),
         localOrigin: localOriginRef.current,
+        onSaveComplete: loadDbTitle,
     });
     const getNodeCenter = useCallback((nodeId: string) => {
         const node = (nodes as any[])?.find?.((n: any) => n.id === nodeId);
@@ -473,26 +475,7 @@ export default function MultiplayerBoardDetailPage() {
                     nextSaveTime={nextSaveTime}
                     proxyMode={!canWrite}
                     userId={userId}
-                    title={(() => { const t = (((nodes as any[]).find(n => n.type === 'title')?.data?.content) as string) || ''; return (t || '').trim(); })()}
-                    onTitleInput={(newTitle: string) => {
-                        const t = nodes.find(n => n.type === 'title');
-                        if (t) updateNodeContent(t.id, newTitle);
-                    }}
-                    onTitleCommit={(newTitle: string) => {
-                        try {
-                            const t = nodes.find(n => n.type === 'title');
-                            if (t) updateNodeContent(t.id, newTitle);
-                            // Also persist to db so listing shows updated title
-                            try {
-                                const rid = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
-                                fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`, {
-                                    method: 'PATCH',
-                                    headers: { 'content-type': 'application/json' },
-                                    body: JSON.stringify({ title: newTitle })
-                                }).catch(() => { });
-                            } catch { }
-                        } catch { }
-                    }}
+                    title={dbTitle || 'Untitled'}
                 />
             )}
 

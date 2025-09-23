@@ -141,7 +141,7 @@ describe("rationales actions", () => {
     );
     const res = await createRationale({});
     expect(res.id).toMatch(/^m-/);
-    expect(res.title).toBe("New Board");
+    expect(res.title).toBe("Untitled");
   });
 
   it("recordOpen backfills owner if missing and upserts access", async () => {

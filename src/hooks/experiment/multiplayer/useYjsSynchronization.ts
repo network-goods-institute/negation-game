@@ -34,6 +34,7 @@ interface UseYjsSynchronizationProps {
   undoManagerRef: MutableRefObject<Y.UndoManager | null>;
   updateLocalStateVector: () => void;
   isLockedForMe?: (nodeId: string) => boolean;
+  onSaveComplete?: () => void;
 }
 
 export interface SynchronizationHandlers {
@@ -66,6 +67,7 @@ export const useYjsSynchronization = ({
   undoManagerRef,
   updateLocalStateVector,
   isLockedForMe,
+  onSaveComplete,
 }: UseYjsSynchronizationProps): SynchronizationHandlers => {
   const lastNodesSignatureRef = useRef<string>("");
   const lastEdgesSignatureRef = useRef<string>("");
@@ -100,7 +102,8 @@ export const useYjsSynchronization = ({
       persistId,
       setNextSaveTime,
       yMetaMapRef,
-      localOriginRef
+      localOriginRef,
+      onSaveComplete
     );
 
     forceSaveRef.current = forceSave;
