@@ -252,7 +252,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         };
     }, [username, queryClient]);
 
-    // --- Main Loading Check --- 
+    // --- Main Loading Check ---
     // Show loading screen if initial data is loading
     if (isInitialLoading) {
         return (
@@ -264,6 +264,35 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                             <h2 className="text-2xl font-semibold text-center mb-6">Loading Profile</h2>
                             <Progress value={loadingProgress} className="w-full h-2 mb-4" />
                             <p className="text-center text-sm text-muted-foreground mb-6">{loadingStage}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="hidden sm:block"></div>
+            </main>
+        );
+    }
+
+    // --- User Not Found Check ---
+    // Show user not found screen if data finished loading but no user exists
+    if (!isInitialLoading && !userData) {
+        return (
+            <main className="sm:grid sm:grid-cols-[1fr_minmax(200px,600px)_1fr] flex-grow bg-background">
+                <div className="hidden sm:block"></div>
+                <div className="px-4 pt-20 pb-4 flex-grow">
+                    <div className="flex justify-center items-center h-full">
+                        <div className="w-full max-w-md p-8 bg-muted/30 rounded-lg shadow text-center">
+                            <h2 className="text-2xl font-semibold mb-4">User Not Found</h2>
+                            <p className="text-muted-foreground mb-6">
+                                The profile for "{username}" doesn't exist or has been deactivated.
+                            </p>
+                            <Button
+                                variant="outline"
+                                onClick={handleBackClick}
+                                className="gap-1"
+                            >
+                                <ArrowLeftIcon className="size-4" />
+                                Go Back
+                            </Button>
                         </div>
                     </div>
                 </div>
