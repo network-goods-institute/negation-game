@@ -283,7 +283,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         <div className="w-full max-w-md p-8 bg-muted/30 rounded-lg shadow text-center">
                             <h2 className="text-2xl font-semibold mb-4">User Not Found</h2>
                             <p className="text-muted-foreground mb-6">
-                                The profile for "{username}" doesn't exist or has been deactivated.
+                                The profile for &quot;{username}&quot; doesn&apos;t exist or has been deactivated.
                             </p>
                             <Button
                                 variant="outline"
