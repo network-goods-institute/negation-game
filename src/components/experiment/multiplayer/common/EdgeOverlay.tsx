@@ -71,8 +71,38 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                             onUpdateRelevance(i);
                           }}
                         >
-                          <span className={i <= relevance ? starColor : 'text-stone-300'}>
+                          <span className={`text-sm font-bold ${i <= relevance ? starColor : 'text-stone-300'}`}>
                             {edgeType === "support" ? "+" : "−"}
+                          </span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Relevance: {i}/5
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
+              </TooltipProvider>
+            </div>
+          )}
+          {(edgeType !== "support" && edgeType !== "negation") && (
+            <div className="flex items-center gap-2 text-[11px] select-none relative z-10">
+              <span className="text-[11px] font-medium text-stone-600">Relevance:</span>
+              <TooltipProvider>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Tooltip key={`star-${i}`}>
+                      <TooltipTrigger asChild>
+                        <button
+                          title={`Set relevance to ${i}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onUpdateRelevance(i);
+                          }}
+                        >
+                          <span className={`text-sm ${i <= relevance ? starColor : 'text-stone-300'}`}>
+                            ★
                           </span>
                         </button>
                       </TooltipTrigger>

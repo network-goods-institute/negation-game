@@ -103,7 +103,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       useBezier: false,
     },
     behavior: {
-      showRelevanceInContextMenu: true,
+      showRelevanceInContextMenu: false,
       interactionWidth: 24,
       simplifyDuringDrag: false,
     },
@@ -169,7 +169,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       useBezier: false,
     },
     behavior: {
-      showRelevanceInContextMenu: true,
+      showRelevanceInContextMenu: false,
       interactionWidth: 24,
       simplifyDuringDrag: false,
     },
@@ -180,7 +180,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
     visual: {
       stroke: "#6b7280",
       borderColor: "#6b7280",
-      starColor: "text-blue-600",
+      starColor: "text-gray-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
       gradientId: "stmt-strap-gradient",
       gradientStops: [
