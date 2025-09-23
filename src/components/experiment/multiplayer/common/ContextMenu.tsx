@@ -5,6 +5,7 @@ interface MenuItem {
   label: string;
   onClick: () => void;
   danger?: boolean;
+  style?: React.CSSProperties;
 }
 
 interface ContextMenuProps {
@@ -61,6 +62,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ open, x, y, onClose, i
           <button
             key={idx}
             className={`w-full text-left px-3 py-1.5 text-sm hover:bg-stone-100 ${it.danger ? 'text-red-600' : 'text-stone-800'}`}
+            style={it.style}
             onClick={() => { it.onClick(); onClose(); }}
           >
             {it.label}

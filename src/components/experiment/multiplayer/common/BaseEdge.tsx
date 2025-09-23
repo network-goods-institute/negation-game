@@ -55,11 +55,16 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     addObjectionForEdge,
     setHoveredEdge,
     updateEdgeRelevance,
+    updateEdgeType,
     deleteNode,
     connectMode,
     beginConnectFromEdge,
     completeConnectToEdge,
   } = graphActions;
+
+  const handleUpdateRelevance = (newRelevance: number) => {
+    updateEdgeRelevance?.(props.id as string, newRelevance);
+  };
 
   const sourceX = (props as any).sourceX;
   const sourceY = (props as any).sourceY;
@@ -176,10 +181,6 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     setSelectedEdge?.(props.id as string);
   };
 
-  const handleUpdateRelevance = (newRelevance: number) => {
-    updateEdgeRelevance?.(props.id as string, newRelevance);
-  };
-
   const handleAddObjection = () => {
     const x = visual.useBezier ? labelX : cx;
     const y = visual.useBezier ? labelY : cy;
@@ -190,13 +191,6 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
 
   // Context menu items
   const contextMenuItems = [
-    ...(behavior.showRelevanceInContextMenu ? [
-      { label: 'Relevance: ★☆☆☆☆', onClick: () => handleUpdateRelevance(1) },
-      { label: 'Relevance: ★★☆☆☆', onClick: () => handleUpdateRelevance(2) },
-      { label: 'Relevance: ★★★☆☆', onClick: () => handleUpdateRelevance(3) },
-      { label: 'Relevance: ★★★★☆', onClick: () => handleUpdateRelevance(4) },
-      { label: 'Relevance: ★★★★★', onClick: () => handleUpdateRelevance(5) },
-    ] : []),
     { label: 'Delete edge', danger: true, onClick: () => deleteNode?.(props.id as string) },
   ];
 
@@ -294,10 +288,12 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
         isHovered={isHovered}
         relevance={relevance}
         edgeId={props.id as string}
+        edgeType={props.edgeType}
         onMouseEnter={() => setHoveredEdge(props.id as string)}
         onMouseLeave={() => setHoveredEdge(null)}
         onUpdateRelevance={handleUpdateRelevance}
         onAddObjection={handleAddObjection}
+        onToggleEdgeType={() => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
         starColor={visual.starColor}
       />
 

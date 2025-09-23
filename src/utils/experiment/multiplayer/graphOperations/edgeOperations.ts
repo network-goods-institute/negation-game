@@ -98,6 +98,60 @@ export const createAddObjectionForEdge = (
   };
 };
 
+export const createUpdateEdgeType = (
+  nodes: any[],
+  edges: any[],
+  yNodesMap: any,
+  yEdgesMap: any,
+  ydoc: any,
+  canWrite: boolean,
+  localOrigin: object,
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  setEdges: (updater: (edges: any[]) => any[]) => void,
+  isLockedForMe?: (nodeId: string) => boolean,
+  getLockOwner?: (nodeId: string) => { name?: string } | null
+) => {
+  return (edgeId: string, newType: "negation" | "support") => {
+    if (!canWrite) {
+      toast.warning("Read-only mode: Changes won't be saved");
+      return;
+    }
+
+    const edge = edges.find((e: any) => e.id === edgeId);
+    if (!edge) return;
+
+    // Check if nodes are locked
+    const src = nodes.find((n: any) => n.id === edge.source);
+    const tgt = nodes.find((n: any) => n.id === edge.target);
+    if (!src || !tgt) return;
+    if (isLockedForMe?.(src.id) || isLockedForMe?.(tgt.id)) {
+      const lockedNodeId = isLockedForMe?.(src.id) ? src.id : tgt.id;
+      const owner = getLockOwner?.(lockedNodeId);
+      toast.warning(`Locked by ${owner?.name || "another user"}`);
+      return;
+    }
+
+    // Only allow switching between negation and support
+    if (edge.type !== "negation" && edge.type !== "support") return;
+    if (edge.type === newType) return;
+
+    // Update local state immediately for responsiveness
+    setEdges((eds) =>
+      eds.map((e) => (e.id === edgeId ? { ...e, type: newType } : e))
+    );
+
+    // Sync to Yjs if available
+    if (yEdgesMap && ydoc && canWrite) {
+      ydoc.transact(() => {
+        const base = yEdgesMap.get(edgeId);
+        if (base) {
+          yEdgesMap.set(edgeId, { ...base, type: newType });
+        }
+      }, localOrigin);
+    }
+  };
+};
+
 export const createUpdateEdgeAnchorPosition = (
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   yNodesMap?: any,

@@ -152,7 +152,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       useBezier: false,
     },
     behavior: {
-      showRelevanceInContextMenu: true,
+      showRelevanceInContextMenu: false,
       interactionWidth: 24,
       simplifyDuringDrag: false,
     },
@@ -169,7 +169,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       useBezier: false,
     },
     behavior: {
-      showRelevanceInContextMenu: false,
+      showRelevanceInContextMenu: true,
       interactionWidth: 24,
       simplifyDuringDrag: false,
     },
@@ -195,7 +195,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       useBezier: false,
     },
     behavior: {
-      showRelevanceInContextMenu: true,
+      showRelevanceInContextMenu: false,
       interactionWidth: 24,
       simplifyDuringDrag: false,
     },

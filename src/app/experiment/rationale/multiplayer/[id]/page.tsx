@@ -37,6 +37,7 @@ import {
     createAddPointBelow,
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
+    createUpdateEdgeType,
     createAddNodeAtPosition,
     createUpdateNodeType,
     createInversePair,
@@ -198,7 +199,8 @@ export default function MultiplayerBoardDetailPage() {
                 return { ...node, draggable: !isLocked };
             })
         );
-    }, [locks, setNodes]); // Remove isLockedForMe from deps to avoid infinite loop
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [locks, setNodes]);
     const startEditingNodeCtx = React.useCallback((nodeId: string) => {
         setEditingSet((prev) => { const ns = new Set(prev); ns.add(nodeId); return ns; });
         try { startEditing(nodeId); } catch { }
@@ -637,6 +639,19 @@ export default function MultiplayerBoardDetailPage() {
                     hoveredEdgeId,
                     setHoveredEdge: setHoveredEdgeId,
                     updateEdgeRelevance,
+                    updateEdgeType: createUpdateEdgeType(
+                        nodes as any,
+                        edges as any,
+                        yNodesMap as any,
+                        yEdgesMap as any,
+                        ydoc as any,
+                        canWrite,
+                        localOriginRef.current,
+                        setNodes as any,
+                        setEdges as any,
+                        isLockedForMe,
+                        getLockOwner
+                    ),
                     selectedEdgeId,
                     setSelectedEdge: setSelectedEdgeId,
                     updateEdgeAnchorPosition,
