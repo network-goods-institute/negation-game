@@ -81,7 +81,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     const { data: userViewpoints, isLoading: isLoadingViewpoints } = useUserViewpoints(username);
     // Fetch endorsed points always (needed for profile stats)
     const { data: endorsedPoints, isLoading: isLoadingEndorsedPoints } = useUserAllEndorsedPoints(username);
-    const { data: userData } = useUser(username);
+    const { data: userData, isLoading: isLoadingUserData } = useUser(username);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [earningsDialogOpen, setEarningsDialogOpen] = useState(false);
     const [showCredInfo, setShowCredInfo] = useState(false);
@@ -90,19 +90,21 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         enabled: !!privyUser && privyUser?.id === userData?.id
     });
 
-    const isInitialLoading = isLoadingViewpoints || isLoadingEndorsedPoints;
+    const isInitialLoading = isLoadingViewpoints || isLoadingEndorsedPoints || isLoadingUserData;
 
     useEffect(() => {
-        // Progress reflects loading both viewpoints and endorsements
+        // Progress reflects loading user data, viewpoints and endorsements
         if (isInitialLoading) {
             let completedSteps = 0;
-            const totalSteps = 2; // viewpoints, endorsements
+            const totalSteps = 3; // user data, viewpoints, endorsements
 
+            if (!isLoadingUserData) completedSteps++;
             if (!isLoadingViewpoints) completedSteps++;
             if (!isLoadingEndorsedPoints) completedSteps++;
 
-            const stage = completedSteps === 0 ? "Loading rationales..." :
-                completedSteps === 1 ? "Loading endorsements..." : "Finalizing...";
+            const stage = completedSteps === 0 ? "Loading user data..." :
+                completedSteps === 1 ? "Loading rationales..." :
+                completedSteps === 2 ? "Loading endorsements..." : "Finalizing...";
             setLoadingStage(stage);
 
 
@@ -119,7 +121,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             setLoadingProgress(100);
             setLoadingStage("Ready");
         }
-    }, [isInitialLoading, isLoadingViewpoints, isLoadingEndorsedPoints]); // Dependencies updated
+    }, [isInitialLoading, isLoadingUserData, isLoadingViewpoints, isLoadingEndorsedPoints]); // Dependencies updated
 
     // Wrap myPoints in useMemo to stabilize it
     const myPoints = useMemo(() => profilePoints || [], [profilePoints]);
@@ -283,7 +285,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                         <div className="w-full max-w-md p-8 bg-muted/30 rounded-lg shadow text-center">
                             <h2 className="text-2xl font-semibold mb-4">User Not Found</h2>
                             <p className="text-muted-foreground mb-6">
-                                The profile for &quot;{username}&quot; doesn&apos;t exist or has been deactivated.
+                                User &quot;{username}&quot; not found.
                             </p>
                             <Button
                                 variant="outline"
