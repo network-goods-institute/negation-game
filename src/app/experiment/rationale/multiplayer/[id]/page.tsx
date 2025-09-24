@@ -476,6 +476,8 @@ export default function MultiplayerBoardDetailPage() {
                     proxyMode={!canWrite}
                     userId={userId}
                     title={dbTitle || 'Untitled'}
+                    documentId={typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')}
+                    onTitleChange={setDbTitle}
                 />
             )}
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
@@ -20,6 +20,8 @@ interface MultiplayerHeaderProps {
   proxyMode?: boolean;
   userId?: string;
   title?: string;
+  documentId?: string;
+  onTitleChange?: (newTitle: string) => void;
 }
 
 export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
@@ -36,8 +38,61 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   userId,
   title,
   connectionState,
+  documentId,
+  onTitleChange,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [localTitle, setLocalTitle] = useState(title || 'Untitled');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleSaving, setTitleSaving] = useState(false);
+  const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setLocalTitle(title || 'Untitled');
+  }, [title]);
+
+  useEffect(() => {
+    if (titleTimeoutRef.current) {
+      clearTimeout(titleTimeoutRef.current);
+    }
+
+    if (localTitle !== (title || 'Untitled') && !isEditingTitle && localTitle.trim()) {
+      setTitleSaving(true);
+      titleTimeoutRef.current = setTimeout(async () => {
+        if (documentId && onTitleChange) {
+          try {
+            const response = await fetch(`/api/experimental/rationales/${encodeURIComponent(documentId)}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: localTitle.trim() }),
+            });
+
+            if (response.ok) {
+              onTitleChange(localTitle.trim());
+            } else {
+              console.error('Failed to save title');
+            }
+          } catch (error) {
+            console.error('Error saving title:', error);
+          }
+        }
+        setTitleSaving(false);
+        titleTimeoutRef.current = null;
+      }, 5000);
+    } else if (!isEditingTitle && localTitle !== (title || 'Untitled') && !localTitle.trim()) {
+      setLocalTitle(title || 'Untitled');
+      setTitleSaving(false);
+    } else {
+      setTitleSaving(false);
+    }
+
+    return () => {
+      if (titleTimeoutRef.current) {
+        clearTimeout(titleTimeoutRef.current);
+        titleTimeoutRef.current = null;
+      }
+    };
+  }, [localTitle, title, isEditingTitle, documentId, onTitleChange]);
 
   useEffect(() => {
     if (!nextSaveTime) {
@@ -82,10 +137,30 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           <span>Back to Boards</span>
         </Link>
         <div className="mb-2">
-          <label className="block text-xs text-stone-600 mb-1">Board Title</label>
-          <div className="w-full px-2 py-1 text-sm bg-gray-50 border rounded text-gray-700">
-            {title || 'Untitled'}
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs text-stone-600">Board Title</label>
+            {titleSaving && (
+              <div className="flex items-center gap-1 text-xs text-blue-600">
+                <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                <span>Saving...</span>
+              </div>
+            )}
           </div>
+          <input
+            type="text"
+            value={localTitle}
+            onChange={(e) => setLocalTitle(e.target.value)}
+            onFocus={() => setIsEditingTitle(true)}
+            onBlur={() => setIsEditingTitle(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            className="w-full px-2 py-1 text-sm bg-white border border-stone-300 rounded text-gray-700 hover:border-stone-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
+            placeholder="Untitled"
+            disabled={proxyMode}
+          />
         </div>
         <p className="text-sm text-gray-600">
           You are: <span className="font-semibold" style={{ color: userColor }}>{username}</span>
