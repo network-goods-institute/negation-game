@@ -38,7 +38,7 @@ describe("createDeleteNode", () => {
   });
 
   describe("when deleting an edge", () => {
-    it("should delete the edge and associated objection nodes", () => {
+    it("should delete the edge and objection edges but preserve all nodes", () => {
       // Setup test data
       const edgeId = "test-edge-1";
       const anchorId = `anchor:${edgeId}`;
@@ -105,17 +105,17 @@ describe("createDeleteNode", () => {
       const updatedEdges = setEdgesUpdater(mockEdges);
       expect(updatedEdges).toHaveLength(0); // All edges should be deleted
 
-      // Verify nodes were deleted
-      expect(mockSetNodes).toHaveBeenCalledWith(expect.any(Function));
+      // Verify nodes were NOT deleted (new behavior: preserve nodes when deleting edges)
+      expect(mockSetNodes).not.toHaveBeenCalled();
 
-      // Simulate the setNodes call
-      const setNodesUpdater = mockSetNodes.mock.calls[0][0];
-      const updatedNodes = setNodesUpdater(mockNodes);
-      expect(updatedNodes).toHaveLength(1); // Only the unrelated node should remain
-      expect(updatedNodes[0].id).toBe("other-node");
+      // All nodes should remain unchanged
+      expect(mockNodes).toHaveLength(3); // All nodes should remain
+      expect(mockNodes.map((n: any) => n.id)).toEqual(
+        expect.arrayContaining([anchorId, objectionId, "other-node"])
+      );
     });
 
-    it("should handle edges without objection nodes", () => {
+    it("should handle edges without objection nodes and preserve all nodes", () => {
       const edgeId = "test-edge-2";
 
       mockEdges = [
@@ -162,17 +162,15 @@ describe("createDeleteNode", () => {
       const updatedEdges = setEdgesUpdater(mockEdges);
       expect(updatedEdges).toHaveLength(0); // Edge should be deleted
 
-      // Verify no nodes were deleted
-      expect(mockSetNodes).toHaveBeenCalledWith(expect.any(Function));
+      // Verify no nodes were deleted (new behavior: preserve nodes when deleting edges)
+      expect(mockSetNodes).not.toHaveBeenCalled();
 
-      // Simulate the setNodes call
-      const setNodesUpdater = mockSetNodes.mock.calls[0][0];
-      const updatedNodes = setNodesUpdater(mockNodes);
-      expect(updatedNodes).toHaveLength(1); // No nodes should be deleted
-      expect(updatedNodes[0].id).toBe("other-node");
+      // All nodes should remain unchanged
+      expect(mockNodes).toHaveLength(1); // No nodes should be deleted
+      expect(mockNodes[0].id).toBe("other-node");
     });
 
-    it("should handle multiple objection nodes on the same edge", () => {
+    it("should handle multiple objection nodes on the same edge and preserve all nodes", () => {
       const edgeId = "test-edge-3";
       const anchorId = `anchor:${edgeId}`;
       const objectionId1 = "o-123-456";
@@ -251,14 +249,14 @@ describe("createDeleteNode", () => {
       const updatedEdges = setEdgesUpdater(mockEdges);
       expect(updatedEdges).toHaveLength(0); // All edges should be deleted
 
-      // Verify nodes were deleted
-      expect(mockSetNodes).toHaveBeenCalledWith(expect.any(Function));
+      // Verify nodes were NOT deleted (new behavior: preserve nodes when deleting edges)
+      expect(mockSetNodes).not.toHaveBeenCalled();
 
-      // Simulate the setNodes call
-      const setNodesUpdater = mockSetNodes.mock.calls[0][0];
-      const updatedNodes = setNodesUpdater(mockNodes);
-      expect(updatedNodes).toHaveLength(1); // Only the unrelated node should remain
-      expect(updatedNodes[0].id).toBe("other-node");
+      // All nodes should remain unchanged
+      expect(mockNodes).toHaveLength(4); // All nodes should remain
+      expect(mockNodes.map((n: any) => n.id)).toEqual(
+        expect.arrayContaining([anchorId, objectionId1, objectionId2, "other-node"])
+      );
     });
   });
 
@@ -346,4 +344,3 @@ describe("createDeleteNode", () => {
     });
   });
 });
-

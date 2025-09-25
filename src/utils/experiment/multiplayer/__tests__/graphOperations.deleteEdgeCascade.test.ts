@@ -13,7 +13,7 @@ const makeYMap = () => {
 };
 
 describe("graph operations: delete cascade", () => {
-  it("deletes base edge, anchor and connected objections", () => {
+  it("deletes base edge and objection edges but preserves all nodes", () => {
     const nodes: any[] = [
       { id: "s", type: "point", position: { x: 0, y: 0 }, data: {} },
       { id: "t", type: "point", position: { x: 100, y: 0 }, data: {} },
@@ -59,9 +59,12 @@ describe("graph operations: delete cascade", () => {
 
     del("e1");
 
+    // Edge and objection edge should be deleted
     expect(stateEdges.find((e) => e.id === "e1")).toBeFalsy();
-    expect(stateNodes.find((n) => n.id === "anchor:e1")).toBeFalsy();
-    expect(stateNodes.find((n) => n.id === "o1")).toBeFalsy();
+    expect(stateEdges.find((e) => e.id === "oe")).toBeFalsy();
+    // But all nodes should remain (new behavior: preserve nodes when deleting edges)
+    expect(stateNodes.find((n) => n.id === "anchor:e1")).toBeTruthy();
+    expect(stateNodes.find((n) => n.id === "o1")).toBeTruthy();
   });
 });
 

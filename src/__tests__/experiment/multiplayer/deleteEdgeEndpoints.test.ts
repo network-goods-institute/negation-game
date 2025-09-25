@@ -43,7 +43,7 @@ describe("deleteEdge does not delete endpoints", () => {
     expect(nodes.find((n) => n.id === pId)).toBeDefined();
   });
 
-  it("negation edge deletion removes anchor/objections only, keeps endpoints", () => {
+  it("negation edge deletion removes edges only, keeps all nodes including anchor/objections", () => {
     const aId = "a-1";
     const bId = "b-1";
     const eId = "e-neg-1";
@@ -97,9 +97,9 @@ describe("deleteEdge does not delete endpoints", () => {
     // Main edge and objection edge removed
     expect(edges.find((e) => e.id === eId)).toBeUndefined();
     expect(edges.find((e) => e.id === objEdgeId)).toBeUndefined();
-    // Anchor and objection node removed
-    expect(nodes.find((n) => n.id === anchorId)).toBeUndefined();
-    expect(nodes.find((n) => n.id === objId)).toBeUndefined();
+    // All nodes remain (new behavior: preserve nodes when deleting edges)
+    expect(nodes.find((n) => n.id === anchorId)).toBeDefined();
+    expect(nodes.find((n) => n.id === objId)).toBeDefined();
     // Endpoints remain
     expect(nodes.find((n) => n.id === aId)).toBeDefined();
     expect(nodes.find((n) => n.id === bId)).toBeDefined();

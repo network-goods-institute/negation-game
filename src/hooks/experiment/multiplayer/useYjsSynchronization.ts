@@ -202,6 +202,7 @@ export const useYjsSynchronization = ({
     yTextMapRef,
     ydocRef,
     isLockedForMe,
+    onSaveComplete,
   ]);
 
   const getForceSave = useCallback(() => forceSaveRef.current, []);

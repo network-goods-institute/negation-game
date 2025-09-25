@@ -28,45 +28,25 @@ export const createDeleteNode = (
     const edge = edges.find((e: any) => e.id === nodeId);
     if (edge) {
       const edgesToDelete = [edge];
-      const nodesToDelete: string[] = [];
 
+      // Find objection edges attached to this edge's anchor node
       const anchorNode = nodes.find((n: any) => n.id === `anchor:${edge.id}`);
       if (anchorNode) {
-        nodesToDelete.push(anchorNode.id);
-
         const objectionEdges = edges.filter(
           (e: any) =>
             e.type === "objection" &&
             (e.source === anchorNode.id || e.target === anchorNode.id)
         );
+        // Delete the objection edges but preserve all nodes (including objection nodes)
         edgesToDelete.push(...objectionEdges);
-
-        for (const objEdge of objectionEdges) {
-          const objectionNodeId =
-            objEdge.source === anchorNode.id ? objEdge.target : objEdge.source;
-          const objectionNode = nodes.find(
-            (n: any) => n.id === objectionNodeId && n.type === "objection"
-          );
-          if (objectionNode) {
-            nodesToDelete.push(objectionNode.id);
-          }
-        }
       }
 
-      // First sync to Yjs, then update local state
-      if (yEdgesMap && yNodesMap && ydoc) {
+      // When deleting an edge, delete the edge and any attached objection edges, but preserve all nodes
+      if (yEdgesMap && ydoc) {
         ydoc.transact(() => {
           for (const e of edgesToDelete) {
             // eslint-disable-next-line drizzle/enforce-delete-with-where
             yEdgesMap.delete(e.id as any);
-          }
-          for (const nodeId of nodesToDelete) {
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
-            yNodesMap.delete(nodeId as any);
-            try {
-              // eslint-disable-next-line drizzle/enforce-delete-with-where
-              yTextMap?.delete(nodeId as any);
-            } catch {}
           }
         }, localOrigin);
 
@@ -74,16 +54,10 @@ export const createDeleteNode = (
         setEdges((eds) =>
           eds.filter((e: any) => !edgesToDelete.some((del) => del.id === e.id))
         );
-        setNodes((nds) =>
-          nds.filter((n: any) => !nodesToDelete.includes(n.id))
-        );
       } else {
         // Fallback for non-multiplayer mode
         setEdges((eds) =>
           eds.filter((e: any) => !edgesToDelete.some((del) => del.id === e.id))
-        );
-        setNodes((nds) =>
-          nds.filter((n: any) => !nodesToDelete.includes(n.id))
         );
       }
       return;
