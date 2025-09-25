@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
 import { useNodeChrome } from './common/useNodeChrome';
+import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { NodeShell } from './common/NodeShell';
 
 interface StatementNodeProps {
@@ -68,6 +69,14 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  const handleContextMenu = useContextMenuHandler({
+    isEditing,
+    onOpenMenu: (pos) => {
+      setMenuPos(pos);
+      setMenuOpen(true);
+    },
+  });
+
   return (
     <>
       <NodeShell
@@ -125,7 +134,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             }
             onClick(e);
           },
-          onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); },
+          onContextMenu: handleContextMenu,
           onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
             // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
             e.stopPropagation();
@@ -153,6 +162,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
         <div
           ref={contentRef}
           contentEditable={isEditing && !locked && !hidden}
+          spellCheck={true}
           suppressContentEditableWarning
           onInput={onInput}
           onMouseDown={onContentMouseDown}

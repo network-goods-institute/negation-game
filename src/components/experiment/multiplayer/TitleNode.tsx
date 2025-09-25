@@ -149,6 +149,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             <div
                 ref={contentRef}
                 contentEditable={isEditing && !locked && !hidden}
+                spellCheck={true}
                 suppressContentEditableWarning
                 onInput={onInput}
                 onMouseDown={onContentMouseDown}

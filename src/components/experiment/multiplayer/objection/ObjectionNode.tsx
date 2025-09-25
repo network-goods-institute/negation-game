@@ -9,6 +9,7 @@ import { SideActionPill } from '../common/SideActionPill';
 import { Eye, EyeOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNodeChrome } from '../common/useNodeChrome';
+import { useContextMenuHandler } from '../common/useContextMenuHandler';
 import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 
@@ -85,6 +86,14 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+    const handleContextMenu = useContextMenuHandler({
+        isEditing,
+        onOpenMenu: (pos) => {
+            setMenuPos(pos);
+            setMenuOpen(true);
+        },
+    });
     const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 5));
 
     const favorOpacity = useFavorOpacity({
@@ -144,7 +153,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             }
             onClick(e);
         },
-        onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); },
+        onContextMenu: handleContextMenu,
         onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
             // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
             e.stopPropagation();
@@ -207,6 +216,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 <div
                     ref={contentRef}
                     contentEditable={isEditing && !locked && !hidden}
+                    spellCheck={true}
                     suppressContentEditableWarning
                     onInput={onInput}
                     onMouseDown={onContentMouseDown}

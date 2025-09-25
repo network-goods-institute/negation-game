@@ -150,6 +150,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
             type="text"
             value={localTitle}
             onChange={(e) => setLocalTitle(e.target.value)}
+            spellCheck={true}
             onFocus={() => setIsEditingTitle(true)}
             onBlur={() => setIsEditingTitle(false)}
             onKeyDown={(e) => {

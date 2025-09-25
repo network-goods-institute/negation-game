@@ -11,6 +11,7 @@ import { inversePairEnabled } from '@/config/experiments';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
+import { useContextMenuHandler } from './common/useContextMenuHandler';
 
 interface PointNodeProps {
   data: {
@@ -92,6 +93,14 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const handleContextMenu = useContextMenuHandler({
+    isEditing,
+    onOpenMenu: (pos) => {
+      setMenuPos(pos);
+      setMenuOpen(true);
+    },
+  });
   const [sliverHovered, setSliverHovered] = useState(false);
   const [sliverAnimating, setSliverAnimating] = useState(false);
   const [sliverFading, setSliverFading] = useState(false);
@@ -243,7 +252,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       }
       onClick(e);
     },
-    onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => { e.preventDefault(); setMenuPos({ x: e.clientX, y: e.clientY }); setMenuOpen(true); },
+    onContextMenu: handleContextMenu,
     'data-selected': selected,
   } as React.HTMLAttributes<HTMLDivElement>;
 
@@ -303,6 +312,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         <div
           ref={contentRef}
           contentEditable={isEditing && !locked && !hidden && !isConnectMode}
+          spellCheck={true}
           suppressContentEditableWarning
           onInput={onInput}
           onMouseDown={onContentMouseDown}
