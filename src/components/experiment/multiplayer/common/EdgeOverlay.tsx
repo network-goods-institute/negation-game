@@ -1,5 +1,5 @@
 import React from 'react';
-import { EdgeLabelRenderer, useStore } from '@xyflow/react';
+import { EdgeLabelRenderer, useReactFlow, useStore } from '@xyflow/react';
 import { createPortal } from 'react-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -35,6 +35,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 }) => {
   const [isAnchorHovered, setIsAnchorHovered] = React.useState(false);
   const [isTooltipHovered, setIsTooltipHovered] = React.useState(false);
+  const reactFlow = useReactFlow();
 
   // React Flow viewport transform: [translateX, translateY, zoom]
   const [tx, ty, zoom] = useStore((s: any) => s.transform);
@@ -56,11 +57,38 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   const showHUD = isAnchorHovered || isTooltipHovered;
 
+  const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    if (!(event.ctrlKey || event.metaKey)) {
+      return;
+    }
+
+    if (event.deltaY === 0) {
+      return;
+    }
+
+    if (!reactFlow) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.deltaY < 0) {
+      reactFlow.zoomIn({ duration: 0 });
+      return;
+    }
+
+    if (event.deltaY > 0) {
+      reactFlow.zoomOut({ duration: 0 });
+    }
+  }, [reactFlow]);
+
   return (
     <>
       {/* 1) Small hover anchor stays in the edge-label layer */}
       <EdgeLabelRenderer>
         <div
+          data-testid="edge-overlay-anchor"
           style={{
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${cx}px, ${cy}px)`,
@@ -96,21 +124,31 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
               pointerEvents: 'none',
             }}
           >
+            {/* Persistence area - slightly larger invisible buffer around HUD */}
             <div
-              className="flex items-center justify-center gap-3 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1 transition-opacity duration-300"
               style={{
                 transform: `scale(${zoom})`,
                 transformOrigin: 'center',
                 pointerEvents: 'auto',
+                padding: '8px',
+                margin: '-8px',
               }}
               onMouseEnter={() => setIsTooltipHovered(true)}
               onMouseLeave={() => {
                 setIsTooltipHovered(false);
               }}
+              onWheelCapture={handleWheelCapture}
             >
+              <div
+                className="flex items-center justify-center gap-3 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1 transition-opacity duration-300"
+                style={{
+                  pointerEvents: 'auto',
+                }}
+              >
               {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && (
                 <div className="flex items-center gap-2 text-[11px] select-none relative z-10">
                   <button
+                    data-testid="toggle-edge-type"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={(e) => { e.stopPropagation(); onToggleEdgeType(); }}
                     className="rounded-md px-3 py-1.5 text-[11px] font-medium bg-stone-100 text-stone-800 border border-stone-300 hover:bg-stone-200 relative z-0"
@@ -177,6 +215,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
               >
                 Mitigate
               </button>
+              </div>
             </div>
           </div>
         </div>,

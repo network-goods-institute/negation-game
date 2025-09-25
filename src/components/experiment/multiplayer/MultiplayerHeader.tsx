@@ -148,7 +148,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
         startCountdownSequence();
       }, 1500); // Wait 1.5 seconds after typing stops
     }
-  }, [title, startCountdownSequence, onTitleCountdownStop]);
+  }, [title, startCountdownSequence, onTitleCountdownStop, titleCountdown]);
 
   // Cleanup on unmount
   useEffect(() => {
