@@ -1,4 +1,7 @@
-export const getParentNodeHeight = (parentNode: any, allNodes: any[]): number => {
+export const getParentNodeHeight = (
+  parentNode: any,
+  allNodes: any[]
+): number => {
   if (parentNode?.parentId) {
     const groupNode = allNodes.find((n: any) => n.id === parentNode.parentId);
     if (groupNode?.type === "group") {
@@ -49,6 +52,54 @@ export const calculateNodePositionBelow = (
   return {
     x: parentPosition.x + viewportOffset.x,
     y: parentPosition.y + parentHeight + padding + viewportOffset.y,
+  };
+};
+
+export const getParentNodeWidth = (
+  parentNode: any,
+  allNodes: any[]
+): number => {
+  if (
+    parentNode?.measured?.width &&
+    typeof parentNode.measured.width === "number"
+  ) {
+    return parentNode.measured.width;
+  }
+
+  if (parentNode?.parentId) {
+    const groupNode = allNodes.find((n: any) => n.id === parentNode.parentId);
+    if (
+      groupNode?.measured?.width &&
+      typeof groupNode.measured.width === "number"
+    ) {
+      return groupNode.measured.width;
+    }
+  }
+
+  try {
+    const selector = `.react-flow__node[data-id="${parentNode?.id ?? ""}"]`;
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (el) {
+      return Math.ceil(el.getBoundingClientRect().width);
+    }
+  } catch {}
+
+  return 240;
+};
+
+export const calculateNodePositionRight = (
+  parentNode: any,
+  allNodes: any[],
+  getViewportOffset?: () => { x: number; y: number }
+) => {
+  const parentPosition = getAbsolutePosition(parentNode, allNodes);
+  const viewportOffset = getViewportOffset?.() || { x: 0, y: 0 };
+  const parentWidth = getParentNodeWidth(parentNode, allNodes);
+  const gap = 48;
+
+  return {
+    x: parentPosition.x + parentWidth + gap + viewportOffset.x,
+    y: parentPosition.y + viewportOffset.y,
   };
 };
 

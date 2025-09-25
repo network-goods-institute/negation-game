@@ -173,8 +173,8 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                 <NodeActionPill
                     label="Make option"
                     visible={shouldShowPill}
-                    onClick={() => { addPointBelow?.(id); hideNow(); }}
-                    colorClass="bg-blue-700"
+                    onClick={() => { addPointBelow?.(id); hideNow?.(); }}
+                    colorClass="bg-stone-900"
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                 />

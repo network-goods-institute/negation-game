@@ -263,21 +263,21 @@ items-center justify-center pointer-events-none select-none">
                 )}
                 {!hidden && (
                     <NodeActionPill
-                        label="Negate"
+                        label="Support"
                         visible={shouldShowPill}
-                        onClick={() => { addNegationBelow(id); hideNow(); }}
-                        colorClass="bg-stone-800"
+                        onClick={() => { createSupportBelow?.(id); hideNow?.(); }}
+                        colorClass="bg-stone-900"
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                     />
                 )}
                 {!hidden && (
                     <SideActionPill
-                        label="Support"
+                        label="Negate"
                         visible={shouldShowPill}
-                        onClick={() => { createSupportBelow?.(id); hideNow(); }}
-                        colorClass="bg-stone-700"
-                        side="left"
+                        onClick={() => { addNegationBelow(id); hideNow?.(); }}
+                        colorClass="bg-stone-900"
+                        side="right"
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                     />

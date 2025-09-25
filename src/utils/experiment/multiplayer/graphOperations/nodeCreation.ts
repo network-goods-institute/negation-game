@@ -2,7 +2,11 @@ import * as Y from "yjs";
 import { toast } from "sonner";
 import type { MutableRefObject } from "react";
 
-import { calculateNodePositionBelow, getDefaultContentForType } from "./shared";
+import {
+  calculateNodePositionBelow,
+  calculateNodePositionRight,
+  getDefaultContentForType,
+} from "./shared";
 import { generateEdgeId } from "../graphSync";
 import { chooseEdgeType } from "../connectUtils";
 
@@ -99,7 +103,7 @@ export const createAddNegationBelow = (
     if (!parent) return;
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
-    const newPos = calculateNodePositionBelow(parent, nodes, getViewportOffset);
+    const newPos = calculateNodePositionRight(parent, nodes, getViewportOffset);
     const newNode: any = {
       id: newId,
       type: "point",

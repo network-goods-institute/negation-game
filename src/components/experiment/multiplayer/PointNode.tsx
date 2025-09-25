@@ -44,6 +44,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     isLockedForMe,
     getLockOwner,
     setPairNodeHeight,
+    setHoveredNodeId,
   } = useGraphActions() as any;
 
   const locked = isLockedForMe?.(id) || false;
@@ -90,6 +91,13 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   } = hover;
 
   const { handleMouseEnter, handleMouseLeave, shouldShowPill } = pill;
+
+  const forceHidePills = React.useCallback(() => {
+    pill.hideNow?.();
+    handleMouseLeave();
+    onHoverLeave();
+    setHoveredNodeId?.(null);
+  }, [pill, handleMouseLeave, onHoverLeave, setHoveredNodeId]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -359,23 +367,25 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         )}
         {!hidden && (
           <NodeActionPill
-            label="Negate"
+            label="Support"
             visible={shouldShowPill}
-            onClick={() => { addNegationBelow(id); setSliverHovered(false); }}
-            colorClass="bg-stone-800"
+            onClick={() => { createSupportBelow?.(id); forceHidePills(); }}
+            colorClass="bg-stone-900"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            onForceHide={forceHidePills}
           />
         )}
         {!hidden && (
           <SideActionPill
-            label="Support"
+            label="Negate"
             visible={shouldShowPill}
-            onClick={() => { createSupportBelow?.(id); setSliverHovered(false); }}
-            colorClass="bg-stone-700"
-            side="left"
+            onClick={() => { addNegationBelow(id); forceHidePills(); }}
+            colorClass="bg-stone-900"
+            side="right"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            onForceHide={forceHidePills}
           />
         )}
       </NodeShell>

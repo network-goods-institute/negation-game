@@ -7,6 +7,7 @@ interface SideActionPillProps {
     colorClass?: string;
     onMouseEnter?: () => void;
     onMouseLeave?: () => void;
+    onForceHide?: () => void;
     side?: 'left' | 'right';
 }
 
@@ -14,22 +15,30 @@ export const SideActionPill: React.FC<SideActionPillProps> = ({
     label,
     visible,
     onClick,
-    colorClass = 'bg-stone-800',
+    colorClass = 'bg-stone-900',
     onMouseEnter,
     onMouseLeave,
     side = 'right',
+    onForceHide,
 }) => {
     const leaveTimerRef = React.useRef<number | null>(null);
+    const interactable = visible;
+    const justifyClass = side === 'left' ? 'justify-start' : 'justify-end';
+    const hoverTranslateClass = side === 'left' ? 'hover:-translate-x-0.5' : 'hover:translate-x-0.5';
+    const hiddenOffsetClass = side === 'left' ? '-translate-x-1' : 'translate-x-1';
 
     const handleEnter = () => {
         if (leaveTimerRef.current) {
             clearTimeout(leaveTimerRef.current);
             leaveTimerRef.current = null;
         }
-        onMouseEnter?.();
+        if (interactable) {
+            onMouseEnter?.();
+        }
     };
 
     const handleLeave = () => {
+        if (!interactable) return;
         if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = window.setTimeout(() => {
             onMouseLeave?.();
@@ -37,22 +46,26 @@ export const SideActionPill: React.FC<SideActionPillProps> = ({
         }, 140);
     };
 
-    const sidePosClass = side === 'left' ? 'left-[-96px]' : 'right-[-56px]';
-    const bridgeClass = side === 'left' ? '-left-10' : '-right-6';
-    const hiddenTranslate = side === 'left' ? 'translate-x-2' : 'translate-x-2';
+    const sidePosClass = side === 'left' ? 'left-[-72px]' : 'right-[-96px]';
+    const hiddenTranslate = side === 'left' ? '-translate-x-3 opacity-0' : '-translate-x-4 opacity-0';
 
     return (
         <div
-            className={`absolute ${sidePosClass} top-1/2 -translate-y-1/2 transition-transform duration-300 ease-out ${visible ? 'translate-x-0' : hiddenTranslate}`}
-            style={{ zIndex: visible ? 30 : 0 }}
-            onMouseEnter={handleEnter}
-            onMouseLeave={handleLeave}
+            className={`absolute ${sidePosClass} top-1/2 -translate-y-1/2 flex h-[120px] w-[112px] items-center ${justifyClass} transition-[opacity,transform] duration-200 ease-out ${visible ? 'translate-x-0 opacity-100' : hiddenTranslate}`}
+            style={{ zIndex: visible ? 40 : 0, pointerEvents: interactable ? 'auto' : 'none' }}
         >
-            <div className={`absolute ${bridgeClass} top-1/2 -translate-y-1/2 h-[200px] w-6 pointer-events-none`} />
             <button
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => { e.stopPropagation(); onClick(e); }}
-                className={`${colorClass} rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] md:text-[12px] whitespace-nowrap font-medium text-white shadow-sm ${visible ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClick(e);
+                    onMouseLeave?.();
+                    onForceHide?.();
+                }}
+                onMouseEnter={interactable ? handleEnter : undefined}
+                onMouseLeave={interactable ? handleLeave : undefined}
+                className={`${colorClass} rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] md:text-[12px] whitespace-nowrap font-medium text-white shadow-sm transition-all duration-200 ${visible ? 'opacity-100' : 'opacity-0'} ${visible ? '' : hiddenOffsetClass} ${interactable ? hoverTranslateClass : ''}`}
+                style={{ pointerEvents: interactable ? 'auto' : 'none' }}
                 aria-label={label}
             >
                 {label}
