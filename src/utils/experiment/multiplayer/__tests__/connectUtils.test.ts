@@ -1,4 +1,7 @@
-import { chooseEdgeType, buildConnectionEdge } from "@/utils/experiment/multiplayer/connectUtils";
+import {
+  chooseEdgeType,
+  buildConnectionEdge,
+} from "@/utils/experiment/multiplayer/connectUtils";
 
 describe("connect utils", () => {
   it("chooses option when either node is title", () => {
@@ -6,8 +9,11 @@ describe("connect utils", () => {
     expect(chooseEdgeType("point", "title")).toBe("option");
   });
 
-  it("chooses statement when target is statement", () => {
-    expect(chooseEdgeType("point", "statement")).toBe("statement");
+  it("chooses option for point-to-statement connections", () => {
+    expect(chooseEdgeType("point", "statement")).toBe("option");
+  });
+
+  it("chooses statement for other connections to statement", () => {
     expect(chooseEdgeType("objection", "statement")).toBe("statement");
   });
 
@@ -21,11 +27,8 @@ describe("connect utils", () => {
       { id: "b", type: "statement" },
     ];
     const { id, edge, edgeType } = buildConnectionEdge(nodes as any, "b", "a");
-    expect(edgeType).toBe("statement");
-    expect(id).toBe(
-      `edge:statement:a:a-source-handle->b:b-incoming-handle`
-    );
+    expect(edgeType).toBe("option");
+    expect(id).toBe(`edge:option:a:a-source-handle->b:b-incoming-handle`);
     expect(edge.id).toBe(id);
   });
 });
-

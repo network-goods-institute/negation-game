@@ -5,7 +5,12 @@ export const chooseEdgeType = (sourceType?: string, targetType?: string) => {
     return "option";
   }
 
-  // Any connection TO a statement node uses statement edge
+  // Point connections TO a statement node use option edge (for options/positions)
+  if (targetType === "statement" && sourceType === "point") {
+    return "option";
+  }
+
+  // Objection connections TO a statement node use statement edge
   if (targetType === "statement") {
     return "statement";
   }
