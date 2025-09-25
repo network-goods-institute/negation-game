@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { MutableRefObject, useCallback } from "react";
 import * as Y from "yjs";
 import { Edge, Node } from "@xyflow/react";
 
@@ -9,10 +9,21 @@ interface UseYjsDocumentHydrationProps {
   yEdgesMapRef: React.MutableRefObject<Y.Map<Edge> | null>;
   serverVectorRef: React.MutableRefObject<Uint8Array | null>;
   shouldSeedOnConnectRef: React.MutableRefObject<boolean>;
+  hydrationStatusRef: MutableRefObject<HydrationStatus>;
   setConnectionError: (error: string | null) => void;
   setConnectionState: (
     state: "initializing" | "connecting" | "connected" | "failed"
   ) => void;
+}
+
+export interface HydrationStatus {
+  phase: "pending" | "completed";
+  hasContent: boolean;
+  mapCount: {
+    nodes: number;
+    edges: number;
+  };
+  observedNodeIds: string[];
 }
 
 const LOCAL_STORAGE_TTL_MS = 1000 * 60 * 60 * 24 * 14; // 14 days
@@ -32,6 +43,7 @@ export const useYjsDocumentHydration = ({
   yEdgesMapRef,
   serverVectorRef,
   shouldSeedOnConnectRef,
+  hydrationStatusRef,
   setConnectionError,
   setConnectionState,
 }: UseYjsDocumentHydrationProps) => {
@@ -48,7 +60,7 @@ export const useYjsDocumentHydration = ({
     async (doc: Y.Doc, url: string): Promise<boolean> => {
       try {
         const res = await fetch(url);
-        if (res.status === 204) {
+      if (res.status === 204) {
           const hasContent =
             doc.getMap<Node>("nodes").size > 0 ||
             doc.getMap<Edge>("edges").size > 0;
@@ -83,7 +95,14 @@ export const useYjsDocumentHydration = ({
     }
 
     const isBrowser = typeof window !== "undefined";
+    hydrationStatusRef.current = {
+      phase: "pending",
+      hasContent: false,
+      mapCount: { nodes: yNodes.size, edges: yEdges.size },
+      observedNodeIds: [],
+    };
     let hadContent = yNodes.size > 0 || yEdges.size > 0;
+    const observedDuringHydration = new Set<string>();
 
     try {
       if (isBrowser && !hadContent) {
@@ -131,14 +150,20 @@ export const useYjsDocumentHydration = ({
             const buf = new Uint8Array(await res.arrayBuffer());
             if (buf.byteLength > 0) {
               Y.applyUpdate(doc, buf);
-              hadContent = yNodes.size > 0 || yEdges.size > 0;
+              doc.getMap<Node>("nodes").forEach((_value, key) =>
+                observedDuringHydration.add(key)
+              );
+              hadContent = true;
             }
           } else {
             const json = await res.json().catch(() => undefined);
             if (json?.snapshot) {
               try {
                 Y.applyUpdate(doc, decodeBase64(json.snapshot));
-                hadContent = yNodes.size > 0 || yEdges.size > 0;
+                doc.getMap<Node>("nodes").forEach((_value, key) =>
+                  observedDuringHydration.add(key)
+                );
+                hadContent = true;
               } catch (error) {
                 console.warn("[yjs] Failed to apply snapshot", error);
               }
@@ -146,6 +171,9 @@ export const useYjsDocumentHydration = ({
               for (const update of json.updates) {
                 try {
                   Y.applyUpdate(doc, decodeBase64(update));
+                  doc.getMap<Node>("nodes").forEach((_value, key) =>
+                    observedDuringHydration.add(key)
+                  );
                   hadContent = true;
                 } catch {}
               }
@@ -153,36 +181,38 @@ export const useYjsDocumentHydration = ({
           }
         }
       }
-
-      const actuallyHasContent = yNodes.size > 0 || yEdges.size > 0;
-
-      if (actuallyHasContent) {
-        serverVectorRef.current = Y.encodeStateVector(doc);
-        updateLocalStateVector();
-      } else {
-        console.log("[hydrateFromServer] Document is empty, enabling seeding");
-        shouldSeedOnConnectRef.current = true;
-
-        // If provider is already connected, trigger seeding immediately
-        // since the sync event may have already occurred
-        setTimeout(() => {
-          if (
-            shouldSeedOnConnectRef.current &&
-            yNodes.size === 0 &&
-            yEdges.size === 0
-          ) {
-            const event = new CustomEvent("yjs-immediate-seed");
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(event);
-            }
-          }
-        }, 100);
-      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to load document";
       setConnectionError(message);
       setConnectionState("failed");
+      hadContent = yNodes.size > 0 || yEdges.size > 0;
+    }
+
+    const nodesSize = yNodes.size;
+    const edgesSize = yEdges.size;
+    const mapHasContent = nodesSize > 0 || edgesSize > 0;
+    const finalHasContent = hadContent || mapHasContent;
+    const seededDuringHydration = new Set<string>();
+    yNodes.forEach((_value, key) => seededDuringHydration.add(key));
+
+    hydrationStatusRef.current = {
+      phase: "completed",
+      hasContent: finalHasContent,
+      mapCount: {
+        nodes: nodesSize,
+        edges: edgesSize,
+      },
+      observedNodeIds: Array.from(new Set([...observedDuringHydration, ...seededDuringHydration])).sort(),
+    };
+
+    shouldSeedOnConnectRef.current = !finalHasContent;
+
+    if (finalHasContent) {
+      serverVectorRef.current = Y.encodeStateVector(doc);
+      updateLocalStateVector();
+    } else {
+      console.debug("[hydrateFromServer] Document is empty, enabling seeding");
     }
   }, [
     loadDiffFromServer,
@@ -191,6 +221,7 @@ export const useYjsDocumentHydration = ({
     setConnectionError,
     setConnectionState,
     shouldSeedOnConnectRef,
+    hydrationStatusRef,
     updateLocalStateVector,
     yEdgesMapRef,
     yNodesMapRef,

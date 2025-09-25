@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Edge, Node, useEdgesState, useNodesState } from "@xyflow/react";
 import * as Y from "yjs";
 import { syncYMapFromArray as syncYMapFromArrayHelper } from "./yjs/sync";
-import { useYjsDocumentHydration } from "./useYjsDocumentHydration";
+import {
+  HydrationStatus,
+  useYjsDocumentHydration,
+} from "./useYjsDocumentHydration";
 import { useYjsProviderConnection } from "./useYjsProviderConnection";
 import { useYjsSynchronization } from "./useYjsSynchronization";
 import { useYjsUndoRedo } from "./useYjsUndoRedo";
@@ -49,6 +52,12 @@ export const useYjsMultiplayer = ({
   const didResyncOnConnectRef = useRef(false);
   const shouldSeedOnConnectRef = useRef(false);
   const seededOnceRef = useRef(false);
+  const hydrationStatusRef = useRef<HydrationStatus>({
+    phase: "pending",
+    hasContent: false,
+    mapCount: { nodes: 0, edges: 0 },
+    observedNodeIds: [],
+  });
   const isUndoRedoRef = useRef(false);
   const forceSaveRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -68,6 +77,7 @@ export const useYjsMultiplayer = ({
       yEdgesMapRef,
       serverVectorRef,
       shouldSeedOnConnectRef,
+      hydrationStatusRef,
       setConnectionError,
       setConnectionState,
     });
@@ -132,6 +142,7 @@ export const useYjsMultiplayer = ({
     shouldSeedOnConnectRef,
     seededOnceRef,
     didResyncOnConnectRef,
+    hydrationStatusRef,
     initialNodes,
     initialEdges,
     forceSaveRef,

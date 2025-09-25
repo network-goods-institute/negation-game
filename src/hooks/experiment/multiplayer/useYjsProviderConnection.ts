@@ -3,6 +3,7 @@ import * as Y from "yjs";
 import { Node, Edge } from "@xyflow/react";
 import { WebsocketProvider } from "y-websocket";
 import { fetchYjsAuthToken, getRefreshDelayMs } from "./yjs/auth";
+import { HydrationStatus } from "./useYjsDocumentHydration";
 
 interface UseYjsProviderConnectionProps {
   roomName: string;
@@ -14,6 +15,7 @@ interface UseYjsProviderConnectionProps {
   shouldSeedOnConnectRef: React.MutableRefObject<boolean>;
   seededOnceRef: React.MutableRefObject<boolean>;
   didResyncOnConnectRef: React.MutableRefObject<boolean>;
+  hydrationStatusRef: React.MutableRefObject<HydrationStatus>;
   initialNodes: Node[];
   initialEdges: Edge[];
   forceSaveRef: React.MutableRefObject<(() => Promise<void>) | null>;
@@ -42,6 +44,7 @@ export const useYjsProviderConnection = ({
   shouldSeedOnConnectRef,
   seededOnceRef,
   didResyncOnConnectRef,
+  hydrationStatusRef,
   initialNodes,
   initialEdges,
   forceSaveRef,
@@ -52,6 +55,7 @@ export const useYjsProviderConnection = ({
 }: UseYjsProviderConnectionProps): ProviderConnectionApi => {
   const providerRef = useRef<WebsocketProvider | null>(null);
   const refreshTimerRef = useRef<number | null>(null);
+  const fallbackSeedingTimerRef = useRef<number | null>(null);
   const isRefreshingTokenRef = useRef(false);
   const restartProviderWithNewTokenRef = useRef<(() => Promise<void>) | null>(
     null
@@ -61,6 +65,16 @@ export const useYjsProviderConnection = ({
     if (refreshTimerRef.current) {
       window.clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = null;
+    }
+  }, []);
+
+  const clearFallbackSeedingTimer = useCallback(() => {
+    if (
+      fallbackSeedingTimerRef.current !== null &&
+      typeof window !== "undefined"
+    ) {
+      window.clearTimeout(fallbackSeedingTimerRef.current);
+      fallbackSeedingTimerRef.current = null;
     }
   }, []);
 
@@ -168,6 +182,16 @@ export const useYjsProviderConnection = ({
     [clearRefreshTimer]
   );
 
+  const canSeed = useCallback(() => {
+    const hydrationStatus = hydrationStatusRef.current;
+    return (
+      shouldSeedOnConnectRef.current &&
+      !seededOnceRef.current &&
+      hydrationStatus.phase === "completed" &&
+      hydrationStatus.hasContent === false
+    );
+  }, [hydrationStatusRef, seededOnceRef, shouldSeedOnConnectRef]);
+
   const attachProviderListeners = useCallback(
     (provider: WebsocketProvider) => {
       console.log(
@@ -189,7 +213,7 @@ export const useYjsProviderConnection = ({
           void onResyncFromServer();
         }
 
-        if (shouldSeedOnConnectRef.current) {
+        if (canSeed()) {
           console.log(
             "[YJS Provider] sync - shouldSeedOnConnect is true, calling seedDocument"
           );
@@ -257,6 +281,7 @@ export const useYjsProviderConnection = ({
       });
     },
     [
+      canSeed,
       didResyncOnConnectRef,
       onResyncFromServer,
       seedDocument,
@@ -270,11 +295,12 @@ export const useYjsProviderConnection = ({
 
   const destroyProvider = useCallback(() => {
     clearRefreshTimer();
+    clearFallbackSeedingTimer();
     try {
       providerRef.current?.destroy?.();
     } catch {}
     providerRef.current = null;
-  }, [clearRefreshTimer]);
+  }, [clearFallbackSeedingTimer, clearRefreshTimer]);
 
   const createProvider = useCallback(async () => {
     console.log("[YJS Provider] createProvider called", {
@@ -416,35 +442,23 @@ export const useYjsProviderConnection = ({
       );
       provider.connect();
 
-      // Listen for immediate seeding requests from hydration
-      const handleImmediateSeeding = () => {
-        console.log("[YJS Provider] immediate seeding event received", {
-          seededOnce: seededOnceRef.current,
-          shouldSeedOnConnect: shouldSeedOnConnectRef.current,
-        });
-        if (!seededOnceRef.current && shouldSeedOnConnectRef.current) {
-          console.log("[YJS Provider] executing immediate seeding");
-          seedDocument();
-          shouldSeedOnConnectRef.current = false;
-        }
-      };
-
       if (typeof window !== "undefined") {
-        window.addEventListener("yjs-immediate-seed", handleImmediateSeeding);
-
+        clearFallbackSeedingTimer();
         console.log(
-          "[YJS Provider] initializeProvider - setting up fallback seeding timeout (1200ms)"
+          "[YJS Provider] initializeProvider - setting up fallback seeding timeout (5000ms)"
         );
-        window.setTimeout(() => {
+        fallbackSeedingTimerRef.current = window.setTimeout(() => {
           console.log(
             "[YJS Provider] initializeProvider - fallback timeout reached",
             {
               seededOnce: seededOnceRef.current,
               shouldSeedOnConnect: shouldSeedOnConnectRef.current,
+              hydrationPhase: hydrationStatusRef.current.phase,
+              hydrationHasContent: hydrationStatusRef.current.hasContent,
             }
           );
 
-          if (!seededOnceRef.current && shouldSeedOnConnectRef.current) {
+          if (canSeed()) {
             console.log(
               "[YJS Provider] initializeProvider - fallback seeding triggered"
             );
@@ -455,7 +469,7 @@ export const useYjsProviderConnection = ({
               "[YJS Provider] initializeProvider - fallback seeding skipped (already seeded or shouldn't seed)"
             );
           }
-        }, 1200);
+        }, 5000);
       } else {
         console.log(
           "[YJS Provider] initializeProvider - window not available, skipping fallback timeout"
@@ -477,12 +491,15 @@ export const useYjsProviderConnection = ({
     }
   }, [
     createProvider,
+    canSeed,
+    clearFallbackSeedingTimer,
     didResyncOnConnectRef,
     seedDocument,
     seededOnceRef,
     setConnectionError,
     setConnectionState,
     shouldSeedOnConnectRef,
+    hydrationStatusRef,
   ]);
 
   return useMemo(
