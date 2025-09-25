@@ -8,6 +8,7 @@ import { NodeActionPill } from './common/NodeActionPill';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { NodeShell } from './common/NodeShell';
+import { useForceHidePills } from './common/useForceHidePills';
 
 interface StatementNodeProps {
   id: string;
@@ -64,6 +65,13 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
 
   const { hovered, onMouseEnter, onMouseLeave } = hover;
   const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
+
+  const forceHidePills = useForceHidePills({
+    id,
+    hidePill: hideNow,
+    onPillMouseLeave: handleMouseLeave,
+    onHoverLeave: onMouseLeave,
+  });
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -186,10 +194,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           <NodeActionPill
             label="Make option"
             visible={shouldShowPill}
-            onClick={() => { addPointBelow(id); hideNow?.(); }}
+            onClick={() => { addPointBelow(id); forceHidePills(); }}
             colorClass="bg-stone-900"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            onForceHide={forceHidePills}
           />
         )}
       </NodeShell>

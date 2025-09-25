@@ -60,7 +60,7 @@ export const useYjsDocumentHydration = ({
     async (doc: Y.Doc, url: string): Promise<boolean> => {
       try {
         const res = await fetch(url);
-      if (res.status === 204) {
+        if (res.status === 204) {
           const hasContent =
             doc.getMap<Node>("nodes").size > 0 ||
             doc.getMap<Edge>("edges").size > 0;
@@ -150,9 +150,9 @@ export const useYjsDocumentHydration = ({
             const buf = new Uint8Array(await res.arrayBuffer());
             if (buf.byteLength > 0) {
               Y.applyUpdate(doc, buf);
-              doc.getMap<Node>("nodes").forEach((_value, key) =>
-                observedDuringHydration.add(key)
-              );
+              doc
+                .getMap<Node>("nodes")
+                .forEach((_value, key) => observedDuringHydration.add(key));
               hadContent = true;
             }
           } else {
@@ -160,9 +160,9 @@ export const useYjsDocumentHydration = ({
             if (json?.snapshot) {
               try {
                 Y.applyUpdate(doc, decodeBase64(json.snapshot));
-                doc.getMap<Node>("nodes").forEach((_value, key) =>
-                  observedDuringHydration.add(key)
-                );
+                doc
+                  .getMap<Node>("nodes")
+                  .forEach((_value, key) => observedDuringHydration.add(key));
                 hadContent = true;
               } catch (error) {
                 console.warn("[yjs] Failed to apply snapshot", error);
@@ -171,9 +171,9 @@ export const useYjsDocumentHydration = ({
               for (const update of json.updates) {
                 try {
                   Y.applyUpdate(doc, decodeBase64(update));
-                  doc.getMap<Node>("nodes").forEach((_value, key) =>
-                    observedDuringHydration.add(key)
-                  );
+                  doc
+                    .getMap<Node>("nodes")
+                    .forEach((_value, key) => observedDuringHydration.add(key));
                   hadContent = true;
                 } catch {}
               }
@@ -203,7 +203,9 @@ export const useYjsDocumentHydration = ({
         nodes: nodesSize,
         edges: edgesSize,
       },
-      observedNodeIds: Array.from(new Set([...observedDuringHydration, ...seededDuringHydration])).sort(),
+      observedNodeIds: Array.from(
+        new Set([...observedDuringHydration, ...seededDuringHydration])
+      ).sort(),
     };
 
     shouldSeedOnConnectRef.current = !finalHasContent;

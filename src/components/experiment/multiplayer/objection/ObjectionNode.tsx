@@ -12,6 +12,7 @@ import { useNodeChrome } from '../common/useNodeChrome';
 import { useContextMenuHandler } from '../common/useContextMenuHandler';
 import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
+import { useForceHidePills } from '../common/useForceHidePills';
 
 interface ObjectionNodeProps {
     data: {
@@ -74,6 +75,13 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const pointLike = useStore((s: any) => (s.edges || []).some((edge: any) => (edge.type || '') === 'negation' && (edge.source === id || edge.target === id)));
     const { hovered, onMouseEnter, onMouseLeave } = hover;
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
+
+    const forceHidePills = useForceHidePills({
+        id,
+        hidePill: hideNow,
+        onPillMouseLeave: handleMouseLeave,
+        onHoverLeave: onMouseLeave,
+    });
 
     const containerRef = useRef<HTMLDivElement | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -265,21 +273,23 @@ items-center justify-center pointer-events-none select-none">
                     <NodeActionPill
                         label="Support"
                         visible={shouldShowPill}
-                        onClick={() => { createSupportBelow?.(id); hideNow?.(); }}
+                        onClick={() => { createSupportBelow?.(id); forceHidePills(); }}
                         colorClass="bg-stone-900"
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
+                        onForceHide={forceHidePills}
                     />
                 )}
                 {!hidden && (
                     <SideActionPill
                         label="Negate"
                         visible={shouldShowPill}
-                        onClick={() => { addNegationBelow(id); hideNow?.(); }}
+                        onClick={() => { addNegationBelow(id); forceHidePills(); }}
                         colorClass="bg-stone-900"
                         side="right"
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
+                        onForceHide={forceHidePills}
                     />
                 )}
             </NodeShell>

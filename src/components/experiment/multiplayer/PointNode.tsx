@@ -12,6 +12,7 @@ import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
 import { useContextMenuHandler } from './common/useContextMenuHandler';
+import { useForceHidePills } from './common/useForceHidePills';
 
 interface PointNodeProps {
   data: {
@@ -44,7 +45,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     isLockedForMe,
     getLockOwner,
     setPairNodeHeight,
-    setHoveredNodeId,
   } = useGraphActions() as any;
 
   const locked = isLockedForMe?.(id) || false;
@@ -92,12 +92,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const { handleMouseEnter, handleMouseLeave, shouldShowPill } = pill;
 
-  const forceHidePills = React.useCallback(() => {
-    pill.hideNow?.();
-    handleMouseLeave();
-    onHoverLeave();
-    setHoveredNodeId?.(null);
-  }, [pill, handleMouseLeave, onHoverLeave, setHoveredNodeId]);
+  const forceHidePills = useForceHidePills({
+    id,
+    hidePill: pill.hideNow,
+    onPillMouseLeave: pill.handleMouseLeave,
+    onHoverLeave: onHoverLeave,
+  });
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });

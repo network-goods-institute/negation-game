@@ -6,6 +6,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNodeChrome } from './common/useNodeChrome';
 import { NodeShell } from './common/NodeShell';
+import { useForceHidePills } from './common/useForceHidePills';
 
 interface TitleNodeProps {
     data: {
@@ -67,6 +68,13 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
 
     const { hovered, onMouseEnter, onMouseLeave } = hover;
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
+
+    const forceHidePills = useForceHidePills({
+        id,
+        hidePill: hideNow,
+        onPillMouseLeave: handleMouseLeave,
+        onHoverLeave: onMouseLeave,
+    });
 
     return (
         <NodeShell
@@ -173,10 +181,11 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                 <NodeActionPill
                     label="Make option"
                     visible={shouldShowPill}
-                    onClick={() => { addPointBelow?.(id); hideNow?.(); }}
+                    onClick={() => { addPointBelow?.(id); forceHidePills(); }}
                     colorClass="bg-stone-900"
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
+                    onForceHide={forceHidePills}
                 />
             )}
         </NodeShell>
