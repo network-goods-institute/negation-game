@@ -3,7 +3,6 @@ import { Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
-import { Eye, EyeOff } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useContextMenuHandler } from './common/useContextMenuHandler';
@@ -155,18 +154,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
         {isConnectingFromNodeId === id && (
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
         )}
-        {selected && (
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => { e.stopPropagation(); updateNodeHidden?.(id, !hidden); }}
-            className="group absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-5 w-5 flex items-center justify-center"
-            title={hidden ? 'Show' : 'Hide'}
-            style={{ zIndex: 20 }}
-          >
-            <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
-            <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
-          </button>
-        )}
         <div
           ref={contentRef}
           contentEditable={isEditing && !locked && !hidden}
@@ -195,7 +182,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             label="Make option"
             visible={shouldShowPill}
             onClick={() => { addPointBelow(id); forceHidePills(); }}
-            colorClass="bg-stone-900"
+            colorClass="bg-blue-600"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             onForceHide={forceHidePills}

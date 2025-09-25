@@ -105,7 +105,7 @@ export async function PATCH(req: Request, ctx: any) {
   try {
     json = await req.json();
   } catch {}
-  const title = (json?.title || "").trim();
+  const title = json?.title || "";
   try {
     await db
       .insert(mpDocsTable)

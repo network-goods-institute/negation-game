@@ -2,7 +2,6 @@ import React from 'react';
 import { Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { NodeActionPill } from './common/NodeActionPill';
-import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNodeChrome } from './common/useNodeChrome';
 import { NodeShell } from './common/NodeShell';
@@ -139,18 +138,6 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             } as any}
             highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-blue-600 opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
         >
-            {selected && (
-                <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={(e) => { e.stopPropagation(); updateNodeHidden?.(id, !hidden); }}
-                    className="group absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-5 w-5 flex items-center justify-center"
-                    title={hidden ? 'Show' : 'Hide'}
-                    style={{ zIndex: 20 }}
-                >
-                    <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
-                    <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
-                </button>
-            )}
             {isConnectingFromNodeId === id && (
                 <div className="absolute -top-3 right-0 text-[10px] bg-green-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
             )}
@@ -182,7 +169,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                     label="Make option"
                     visible={shouldShowPill}
                     onClick={() => { addPointBelow?.(id); forceHidePills(); }}
-                    colorClass="bg-stone-900"
+                    colorClass="bg-blue-600"
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                     onForceHide={forceHidePills}

@@ -169,7 +169,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   const handleEdgeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (connectMode) {
-      const midpoint = visual.useBezier ? { x: labelX, y: labelY } : { x: cx, y: cy };
+      const midpoint = { x: cx, y: cy };
       const anchorId = graphActions.isConnectingFromNodeId as string | null;
       if (!anchorId) {
         beginConnectFromEdge?.(props.id as string, midpoint);
@@ -182,9 +182,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   };
 
   const handleAddObjection = () => {
-    const x = visual.useBezier ? labelX : cx;
-    const y = visual.useBezier ? labelY : cy;
-    addObjectionForEdge(props.id as string, x, y);
+    addObjectionForEdge(props.id as string, cx, cy);
     setHoveredEdge(null);
     setSelectedEdge?.(null);
   };
@@ -272,8 +270,8 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
       {/* Midpoint control */}
       {showAffordance && (
         <EdgeMidpointControl
-          cx={visual.useBezier ? labelX : cx}
-          cy={visual.useBezier ? labelY : cy}
+          cx={cx}
+          cy={cy}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
         >
@@ -283,8 +281,8 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
 
       {/* Hover overlay */}
       <EdgeOverlay
-        cx={visual.useBezier ? labelX : cx}
-        cy={visual.useBezier ? labelY : cy}
+        cx={cx}
+        cy={cy}
         isHovered={isHovered}
         relevance={relevance}
         edgeId={props.id as string}

@@ -44,7 +44,7 @@ export const NodeActionPill: React.FC<NodeActionPillProps> = ({
   return (
     <div
       className={`absolute left-1/2 -translate-x-1/2 bottom-[-56px] flex h-[72px] w-[200px] items-end justify-center transition-transform duration-300 ease-out ${visible ? 'translate-y-0' : '-translate-y-2'}`}
-      style={{ zIndex: visible ? 40 : 0, pointerEvents: interactable ? 'auto' : 'none' }}
+      style={{ zIndex: visible ? 1000 : 0, pointerEvents: interactable ? 'auto' : 'none' }}
     >
       <button
         onMouseDown={(e) => e.preventDefault()}

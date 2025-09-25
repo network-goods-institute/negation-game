@@ -4,7 +4,7 @@ import { useGraphActions } from './GraphContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
-import { Eye, EyeOff, X as XIcon } from 'lucide-react';
+import { X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
 import { SideActionPill } from './common/SideActionPill';
 import { inversePairEnabled } from '@/config/experiments';
@@ -290,18 +290,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         wrapperProps={wrapperProps as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
       >
-        {selected && !isDirectInverse && (
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => { e.stopPropagation(); updateNodeHidden?.(id, !hidden); }}
-            className="group absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-5 w-5 flex items-center justify-center"
-            title={hidden ? 'Show' : 'Hide'}
-            style={{ zIndex: 20 }}
-          >
-            <Eye className={`transition-opacity duration-150 ${hidden ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`} size={14} />
-            <EyeOff className={`absolute transition-opacity duration-150 ${hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} size={14} />
-          </button>
-        )}
         {selected && isDirectInverse && inversePairEnabled && (
           <button
             onMouseDown={(e) => e.preventDefault()}

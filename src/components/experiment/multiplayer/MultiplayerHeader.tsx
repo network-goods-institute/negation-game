@@ -143,7 +143,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
     }
 
     // Only start countdown if title has changed and has content
-    if (newTitle.trim() && newTitle !== (title || 'Untitled')) {
+    if (newTitle && newTitle !== (title || 'Untitled')) {
       typingTimeoutRef.current = setTimeout(() => {
         startCountdownSequence();
       }, 1500); // Wait 1.5 seconds after typing stops
