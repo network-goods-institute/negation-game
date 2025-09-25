@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
@@ -22,6 +22,13 @@ interface MultiplayerHeaderProps {
   title?: string;
   documentId?: string;
   onTitleChange?: (newTitle: string) => void;
+  onTitleEditingStart?: () => void;
+  onTitleEditingStop?: () => void;
+  onTitleCountdownStart?: () => void;
+  onTitleCountdownStop?: () => void;
+  onTitleSavingStart?: () => void;
+  onTitleSavingStop?: () => void;
+  titleEditingUser?: { name: string; color: string } | null;
 }
 
 export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
@@ -40,59 +47,123 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   connectionState,
   documentId,
   onTitleChange,
+  onTitleEditingStart,
+  onTitleEditingStop,
+  onTitleCountdownStart,
+  onTitleCountdownStop,
+  onTitleSavingStart,
+  onTitleSavingStop,
+  titleEditingUser,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [localTitle, setLocalTitle] = useState(title || 'Untitled');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleSaving, setTitleSaving] = useState(false);
+  const [titleCountdown, setTitleCountdown] = useState<number | null>(null);
   const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const titleCountdownRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setLocalTitle(title || 'Untitled');
   }, [title]);
 
-  useEffect(() => {
+  const startCountdownSequence = useCallback(async () => {
+    if (titleCountdownRef.current) {
+      clearTimeout(titleCountdownRef.current);
+    }
     if (titleTimeoutRef.current) {
       clearTimeout(titleTimeoutRef.current);
     }
 
-    if (localTitle !== (title || 'Untitled') && !isEditingTitle && localTitle.trim()) {
-      setTitleSaving(true);
-      titleTimeoutRef.current = setTimeout(async () => {
-        if (documentId && onTitleChange) {
-          try {
-            const response = await fetch(`/api/experimental/rationales/${encodeURIComponent(documentId)}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title: localTitle.trim() }),
-            });
+    const runCountdown = (count: number) => {
+      setTitleCountdown(count);
+      if (count === 5) {
+        // Starting countdown
+        onTitleCountdownStart?.();
+      }
 
-            if (response.ok) {
-              onTitleChange(localTitle.trim());
-            } else {
-              console.error('Failed to save title');
+      if (count > 1) {
+        titleCountdownRef.current = setTimeout(() => runCountdown(count - 1), 1000);
+      } else {
+        // Final countdown reached, now save
+        titleTimeoutRef.current = setTimeout(async () => {
+          onTitleCountdownStop?.();
+          setTitleSaving(true);
+          setTitleCountdown(null);
+          onTitleSavingStart?.();
+
+          if (documentId && onTitleChange) {
+            try {
+              const response = await fetch(`/api/experimental/rationales/${encodeURIComponent(documentId)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: localTitle.trim() }),
+              });
+
+              if (response.ok) {
+                onTitleChange(localTitle.trim());
+              } else {
+                console.error('Failed to save title');
+              }
+            } catch (error) {
+              console.error('Error saving title:', error);
             }
-          } catch (error) {
-            console.error('Error saving title:', error);
           }
-        }
-        setTitleSaving(false);
-        titleTimeoutRef.current = null;
-      }, 5000);
-    } else if (!isEditingTitle && localTitle !== (title || 'Untitled') && !localTitle.trim()) {
-      setLocalTitle(title || 'Untitled');
-      setTitleSaving(false);
-    } else {
-      setTitleSaving(false);
-    }
-
-    return () => {
-      if (titleTimeoutRef.current) {
-        clearTimeout(titleTimeoutRef.current);
-        titleTimeoutRef.current = null;
+          setTitleSaving(false);
+          onTitleSavingStop?.();
+          titleTimeoutRef.current = null;
+        }, 1000);
       }
     };
-  }, [localTitle, title, isEditingTitle, documentId, onTitleChange]);
+
+    runCountdown(5);
+  }, [documentId, onTitleChange, localTitle, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop]);
+
+  const handleTitleChange = useCallback((newTitle: string) => {
+    setLocalTitle(newTitle);
+
+    // Clear existing timers
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    if (titleCountdownRef.current) {
+      clearTimeout(titleCountdownRef.current);
+    }
+    if (titleTimeoutRef.current) {
+      clearTimeout(titleTimeoutRef.current);
+    }
+
+    setTitleCountdown(null);
+    setTitleSaving(false);
+
+    // Stop countdown awareness if we were in countdown
+    if (titleCountdown !== null) {
+      onTitleCountdownStop?.();
+    }
+
+    // Only start countdown if title has changed and has content
+    if (newTitle.trim() && newTitle !== (title || 'Untitled')) {
+      typingTimeoutRef.current = setTimeout(() => {
+        startCountdownSequence();
+      }, 1500); // Wait 1.5 seconds after typing stops
+    }
+  }, [title, startCountdownSequence, onTitleCountdownStop]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (titleCountdownRef.current) {
+        clearTimeout(titleCountdownRef.current);
+      }
+      if (titleTimeoutRef.current) {
+        clearTimeout(titleTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!nextSaveTime) {
@@ -137,22 +208,44 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           <span>Back to Boards</span>
         </Link>
         <div className="mb-2">
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-xs text-stone-600">Board Title</label>
-            {titleSaving && (
-              <div className="flex items-center gap-1 text-xs text-blue-600">
-                <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                <span>Saving...</span>
+          <div className="flex items-start justify-between mb-1 gap-2">
+            <label className="block text-xs text-stone-600 flex-shrink-0">Board Title</label>
+            {titleEditingUser ? (
+              <div className="flex items-center gap-1 text-xs flex-shrink-0 max-w-[140px]" style={{ color: titleEditingUser.color }}>
+                <div className="w-3 h-3 rounded-full animate-pulse flex-shrink-0" style={{ backgroundColor: titleEditingUser.color }} />
+                <span className="truncate" title={`${titleEditingUser.name} is editing...`}>
+                  {titleEditingUser.name} is editing...
+                </span>
               </div>
-            )}
+            ) : (titleSaving || titleCountdown !== null) ? (
+              <div className="flex items-center gap-1 text-xs text-blue-600 flex-shrink-0">
+                {titleCountdown !== null ? (
+                  <>
+                    <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse flex-shrink-0" />
+                    <span className="whitespace-nowrap">Saving in {titleCountdown}...</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <span className="whitespace-nowrap">Saving...</span>
+                  </>
+                )}
+              </div>
+            ) : null}
           </div>
           <input
             type="text"
             value={localTitle}
-            onChange={(e) => setLocalTitle(e.target.value)}
+            onChange={(e) => handleTitleChange(e.target.value)}
             spellCheck={true}
-            onFocus={() => setIsEditingTitle(true)}
-            onBlur={() => setIsEditingTitle(false)}
+            onFocus={() => {
+              setIsEditingTitle(true);
+              onTitleEditingStart?.();
+            }}
+            onBlur={() => {
+              setIsEditingTitle(false);
+              onTitleEditingStop?.();
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 (e.target as HTMLInputElement).blur();
@@ -160,7 +253,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
             }}
             className="w-full px-2 py-1 text-sm bg-white border border-stone-300 rounded text-gray-700 hover:border-stone-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
             placeholder="Untitled"
-            disabled={proxyMode}
+            disabled={proxyMode || !!titleEditingUser}
           />
         </div>
         <p className="text-sm text-gray-600">

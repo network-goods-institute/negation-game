@@ -78,6 +78,7 @@ export default function MultiplayerBoardDetailPage() {
     const [pairNodeHeights, setPairNodeHeights] = useState<Record<string, Record<string, number>>>({});
     const [pairHeights, setPairHeights] = useState<Record<string, number>>({});
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+    const [titleEditingUser, setTitleEditingUser] = useState<{ name: string; color: string } | null>(null);
 
     const initialGraph = useInitialGraph();
     const [dbTitle, setDbTitle] = useState<string | null>(null);
@@ -149,6 +150,117 @@ export default function MultiplayerBoardDetailPage() {
         localOrigin: localOriginRef.current,
         onSaveComplete: loadDbTitle,
     });
+
+    const loadDbTitleWithSync = useCallback(async () => {
+        if (!routeParams?.id) return;
+        try {
+            const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
+            try { await recordOpen(rid); } catch { }
+            const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`);
+            if (res.ok) {
+                const data = await res.json();
+                const normalizedTitle = data.title || null;
+                setDbTitle(normalizedTitle);
+                setOwnerId(data.ownerId || null);
+
+                if (yMetaMap && ydoc && normalizedTitle) {
+                    ydoc.transact(() => {
+                        yMetaMap.set('title', normalizedTitle);
+                    }, localOriginRef.current);
+                }
+            }
+        } catch (e) {
+            console.error('[title] Failed to load DB title:', e);
+        }
+    }, [routeParams?.id, yMetaMap, ydoc]);
+
+    useEffect(() => {
+        if (!yMetaMap || !ydoc) return;
+
+        const handleMetaChange = () => {
+            const syncedTitle = yMetaMap.get('title') as string;
+            if (syncedTitle && syncedTitle !== dbTitle) {
+                setDbTitle(syncedTitle);
+            }
+        };
+
+        yMetaMap.observe(handleMetaChange);
+
+        return () => {
+            yMetaMap.unobserve(handleMetaChange);
+        };
+    }, [yMetaMap, ydoc, dbTitle]);
+
+    useEffect(() => {
+        if (yMetaMap && ydoc) {
+            loadDbTitleWithSync();
+        }
+    }, [yMetaMap, ydoc, loadDbTitleWithSync]);
+
+    useEffect(() => {
+        if (!provider?.awareness) return;
+
+        const awareness = provider.awareness;
+
+        const handleAwarenessChange = () => {
+            const states = Array.from(awareness.getStates().entries());
+            const titleEditor = states.find(([clientId, state]: [number, any]) =>
+                clientId !== awareness.clientID && (state.editingTitle || state.countdownTitle || state.savingTitle)
+            );
+
+            if (titleEditor) {
+                const [, state] = titleEditor;
+                setTitleEditingUser({
+                    name: state.user?.name || 'Someone',
+                    color: state.user?.color || '#666'
+                });
+            } else {
+                setTitleEditingUser(null);
+            }
+        };
+
+        awareness.on('change', handleAwarenessChange);
+        return () => {
+            awareness.off('change', handleAwarenessChange);
+        };
+    }, [provider?.awareness]);
+
+    const handleTitleEditingStart = useCallback(() => {
+        if (provider?.awareness) {
+            provider.awareness.setLocalStateField('editingTitle', true);
+        }
+    }, [provider?.awareness]);
+
+    const handleTitleEditingStop = useCallback(() => {
+        if (provider?.awareness) {
+            provider.awareness.setLocalStateField('editingTitle', false);
+        }
+    }, [provider?.awareness]);
+
+    const handleTitleSavingStart = useCallback(() => {
+        if (provider?.awareness) {
+            provider.awareness.setLocalStateField('savingTitle', true);
+        }
+    }, [provider?.awareness]);
+
+    const handleTitleSavingStop = useCallback(() => {
+        if (provider?.awareness) {
+            provider.awareness.setLocalStateField('savingTitle', false);
+        }
+    }, [provider?.awareness]);
+
+    const handleTitleCountdownStart = useCallback(() => {
+        if (provider?.awareness) {
+            provider.awareness.setLocalStateField('countdownTitle', true);
+        }
+    }, [provider?.awareness]);
+
+    const handleTitleCountdownStop = useCallback(() => {
+        if (provider?.awareness) {
+            provider.awareness.setLocalStateField('countdownTitle', false);
+        }
+    }, [provider?.awareness]);
+
     const getNodeCenter = useCallback((nodeId: string) => {
         const node = (nodes as any[])?.find?.((n: any) => n.id === nodeId);
         if (!node) return null;
@@ -477,7 +589,22 @@ export default function MultiplayerBoardDetailPage() {
                     userId={userId}
                     title={dbTitle || 'Untitled'}
                     documentId={typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')}
-                    onTitleChange={setDbTitle}
+                    onTitleChange={(newTitle: string) => {
+                        setDbTitle(newTitle);
+                        // Sync title change to other clients via Yjs meta map
+                        if (yMetaMap && ydoc) {
+                            ydoc.transact(() => {
+                                yMetaMap.set('title', newTitle);
+                            }, localOriginRef.current);
+                        }
+                    }}
+                    onTitleEditingStart={handleTitleEditingStart}
+                    onTitleEditingStop={handleTitleEditingStop}
+                    onTitleCountdownStart={handleTitleCountdownStart}
+                    onTitleCountdownStop={handleTitleCountdownStop}
+                    onTitleSavingStart={handleTitleSavingStart}
+                    onTitleSavingStop={handleTitleSavingStop}
+                    titleEditingUser={titleEditingUser}
                 />
             )}
 
