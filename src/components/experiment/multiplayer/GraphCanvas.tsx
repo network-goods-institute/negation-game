@@ -219,6 +219,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
+            } else if (c?.type === 'position') {
+              // Ignore position changes for edges - they shouldn't be manually movable
+              continue;
             } else {
               passthrough.push(c);
             }
