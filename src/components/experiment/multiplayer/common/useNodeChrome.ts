@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import React from "react";
+import { useReactFlow } from "@xyflow/react";
 import { useEditableNode } from "./useEditableNode";
 import { usePillVisibility } from "./usePillVisibility";
 import { useConnectableNode } from "./useConnectableNode";
@@ -7,6 +8,26 @@ import { useNeighborEmphasis } from "./useNeighborEmphasis";
 import { useHoverTracking } from "./useHoverTracking";
 import { useAutoFocusNode } from "./useAutoFocusNode";
 import { useCursorState } from "./useCursorState";
+
+const HOVER_ELEVATION_Z_INDEX = 1000;
+
+const stylesAreEqual = (
+  a?: React.CSSProperties,
+  b?: React.CSSProperties,
+) => {
+  if (!a && !b) {
+    return true;
+  }
+  if (!a || !b) {
+    return false;
+  }
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+  return keysA.every((key) => a[key as keyof React.CSSProperties] === b[key as keyof React.CSSProperties]);
+};
 
 interface UseNodeChromeOptions {
   id: string;
@@ -40,6 +61,81 @@ export const useNodeChrome = ({
   hidePillWhileEditing = true,
   autoFocus,
 }: UseNodeChromeOptions) => {
+  const reactFlow = useReactFlow();
+  const hoverElevationAppliedRef = React.useRef(false);
+  const originalZIndexRef = React.useRef<React.CSSProperties['zIndex']>(undefined);
+
+  const elevateNodeZIndex = React.useCallback((shouldElevate: boolean) => {
+    if (!reactFlow) {
+      return;
+    }
+
+    reactFlow.setNodes((nodes) => {
+      let changed = false;
+
+      const nextNodes = nodes.map((node) => {
+        if (node.id !== id) {
+          return node;
+        }
+
+        const currentStyle = (node.style ?? {}) as React.CSSProperties;
+        const nextStyle: React.CSSProperties = { ...currentStyle };
+
+        if (shouldElevate) {
+          if (!hoverElevationAppliedRef.current) {
+            originalZIndexRef.current = currentStyle.zIndex;
+          }
+
+          const styleZ = currentStyle.zIndex;
+          const numericZ = typeof styleZ === 'number' ? styleZ : Number.parseInt(`${styleZ}`, 10);
+          const targetZ = Number.isFinite(numericZ) ? Math.max(numericZ as number, HOVER_ELEVATION_Z_INDEX) : HOVER_ELEVATION_Z_INDEX;
+
+          if (nextStyle.zIndex === targetZ) {
+            return node;
+          }
+
+          nextStyle.zIndex = targetZ;
+        } else {
+          const original = originalZIndexRef.current;
+
+          if (original === undefined) {
+            if (nextStyle.zIndex === undefined) {
+              return node;
+            }
+            delete nextStyle.zIndex;
+          } else {
+            if (nextStyle.zIndex === original) {
+              return node;
+            }
+            nextStyle.zIndex = original;
+          }
+        }
+
+        const finalStyle = Object.keys(nextStyle).length === 0 ? undefined : nextStyle;
+        if (stylesAreEqual(node.style as React.CSSProperties | undefined, finalStyle)) {
+          return node;
+        }
+
+        changed = true;
+        return {
+          ...node,
+          style: finalStyle,
+        };
+      });
+
+      if (!changed) {
+        return nodes;
+      }
+
+      return nextNodes;
+    });
+
+    if (!shouldElevate) {
+      originalZIndexRef.current = undefined;
+    }
+    hoverElevationAppliedRef.current = shouldElevate;
+  }, [id, reactFlow]);
+
   const editable = useEditableNode({
     id,
     content,
@@ -61,6 +157,22 @@ export const useNodeChrome = ({
     isActive,
     scale: neighborScale,
   });
+
+  useEffect(() => {
+    if (hover.hovered) {
+      if (!hoverElevationAppliedRef.current) {
+        elevateNodeZIndex(true);
+      }
+    } else if (hoverElevationAppliedRef.current) {
+      elevateNodeZIndex(false);
+    }
+
+    return () => {
+      if (hoverElevationAppliedRef.current) {
+        elevateNodeZIndex(false);
+      }
+    };
+  }, [hover.hovered, elevateNodeZIndex]);
 
   useAutoFocusNode({
     content,
