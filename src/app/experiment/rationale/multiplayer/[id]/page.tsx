@@ -630,6 +630,7 @@ export default function MultiplayerBoardDetailPage() {
                     isLockedForMe,
                     getLockOwner,
                     isAnyNodeEditing,
+                    grabMode,
                     beginConnectFromNode: (id: string, cursor?: { x: number; y: number }) => {
                         connectAnchorRef.current = id;
                         setConnectAnchorId(id);

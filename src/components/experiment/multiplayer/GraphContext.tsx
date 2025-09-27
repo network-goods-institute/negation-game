@@ -51,6 +51,7 @@ type GraphActions = {
         width: number,
         height: number
     ) => void;
+    grabMode?: boolean;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -95,6 +96,7 @@ export const useGraphActions = () => {
             redo: () => { },
             hoveredNodeId: null,
             setHoveredNodeId: () => { },
+            grabMode: false,
         } as GraphActions;
     }
     return ctx;

@@ -2,9 +2,11 @@ import React from 'react';
 import { EdgeLabelRenderer, useReactFlow, useStore } from '@xyflow/react';
 import { createPortal } from 'react-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useGraphActions } from '../GraphContext';
 
 const EDGE_ANCHOR_SIZE = 36;
 const PERSISTENCE_PADDING = 14;
+const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
 // commented to death because i spent like 3 hours on this
 
@@ -39,6 +41,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [isAnchorHovered, setIsAnchorHovered] = React.useState(false);
   const [isTooltipHovered, setIsTooltipHovered] = React.useState(false);
   const reactFlow = useReactFlow();
+  const { grabMode = false } = useGraphActions();
 
   // React Flow viewport transform: [translateX, translateY, zoom]
   const [tx, ty, zoom] = useStore((s: any) => s.transform);
@@ -86,6 +89,140 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     }
   }, [reactFlow]);
 
+  const [isSpacePressed, setIsSpacePressed] = React.useState(false);
+  const panSessionRef = React.useRef<{
+    pointerId: number;
+    lastX: number;
+    lastY: number;
+    viewport: { x: number; y: number; zoom: number };
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        setIsSpacePressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  const stopPanSession = React.useCallback(() => {
+    panSessionRef.current = null;
+  }, []);
+
+  const handlePersistencePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!reactFlow) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    const isMiddleButton = event.button === 1;
+    const isTouchGesture = event.pointerType === 'touch';
+    const isSpaceDrag = event.button === 0 && isSpacePressed;
+    const isHandDrag = grabMode && event.button === 0 && event.pointerType === 'mouse';
+
+    if (isHandDrag && target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
+      return;
+    }
+
+    if (!(isMiddleButton || isSpaceDrag || isTouchGesture || isHandDrag)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const viewport = reactFlow?.getViewport();
+    if (!viewport) {
+      return;
+    }
+
+    panSessionRef.current = {
+      pointerId: event.pointerId,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      viewport,
+    };
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
+  }, [grabMode, isSpacePressed, reactFlow]);
+
+  const handlePersistencePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const session = panSessionRef.current;
+    if (!session || session.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const deltaX = event.clientX - session.lastX;
+    const deltaY = event.clientY - session.lastY;
+
+    session.lastX = event.clientX;
+    session.lastY = event.clientY;
+
+    const nextViewport = {
+      x: session.viewport.x + deltaX,
+      y: session.viewport.y + deltaY,
+      zoom: session.viewport.zoom,
+    };
+
+    session.viewport = nextViewport;
+    reactFlow?.setViewport(nextViewport, { duration: 0 });
+  }, [reactFlow]);
+
+  const handlePersistencePointerUp = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const session = panSessionRef.current;
+    if (!session || session.pointerId !== event.pointerId) {
+      return;
+    }
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {}
+
+    stopPanSession();
+  }, [stopPanSession]);
+
+  const handlePersistencePointerLeave = React.useCallback(() => {
+    stopPanSession();
+  }, [stopPanSession]);
+
+  const handlePortalMouseDown = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.stopPropagation();
+  }, []);
+
+  const handlePortalMouseMove = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if ((event.buttons & 1) === 0) {
+      return;
+    }
+
+    event.stopPropagation();
+  }, []);
+
   return (
     <>
       {/* 1) Small hover anchor stays in the edge-label layer */}
@@ -117,8 +254,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             zIndex: 2147483647,
             pointerEvents: 'none',
           }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onMouseMove={(e) => e.stopPropagation()}
+          onMouseDown={handlePortalMouseDown}
+          onMouseMove={handlePortalMouseMove}
         >
           <div
             style={{
@@ -141,6 +278,11 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                 setIsTooltipHovered(false);
               }}
               onWheelCapture={handleWheelCapture}
+              onPointerDown={handlePersistencePointerDown}
+              onPointerMove={handlePersistencePointerMove}
+              onPointerUp={handlePersistencePointerUp}
+              onPointerCancel={handlePersistencePointerUp}
+              onPointerLeave={handlePersistencePointerLeave}
             >
               <div
                 className="flex items-center justify-center gap-3 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1 transition-opacity duration-300"
