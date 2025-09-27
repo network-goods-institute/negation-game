@@ -25,7 +25,7 @@ const nextConfig = {
   },
   async headers() {
     const scriptSrc = [
-      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+      "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://www.googletagmanager.com https://va.vercel-scripts.com",
       isDev ? "'unsafe-eval'" : null,
     ].filter(Boolean).join(' ');
 
@@ -46,6 +46,11 @@ const nextConfig = {
       "https://api.web3modal.org",
       "https://pulse.walletconnect.org",
       "https://privy.play.negationgame.com",
+      "https://privy.negationgame.com",
+      "https://www.googletagmanager.com",
+      "https://www.google-analytics.com",
+      "https://va.vercel-analytics.com",
+      "https://va.vercel-scripts.com",
       "wss://rationalesync.negationgame.com",
       yjsWsOrigin,
       isDev ? "ws://localhost:8080" : null,
@@ -62,7 +67,7 @@ const nextConfig = {
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'self' https://negation-game-git-auth-refactor-staging-network-goods-institute.vercel.app https://negation-game-network-goods-institute.vercel.app https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app https://auth.privy.io",
-      "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://www.youtube.com",
+      "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://privy.negationgame.com https://www.youtube.com",
       connectSrc,
       "worker-src 'self' blob:",
       "manifest-src 'self'",
@@ -111,7 +116,7 @@ const nextConfig = {
       "base-uri 'self'",
       "form-action 'self'",
       `frame-ancestors ${embedAllowedAncestors}`,
-      "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://www.youtube.com",
+      "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://privy.negationgame.com https://www.youtube.com",
       connectSrc,
       "worker-src 'self' blob:",
       "manifest-src 'self'",

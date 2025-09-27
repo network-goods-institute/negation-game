@@ -111,7 +111,7 @@ script-src 'self' 'unsafe-inline' 'unsafe-eval';
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
 font-src 'self' https://fonts.gstatic.com; 
 img-src 'self' data: blob: https:; 
-connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://vitals.vercel-insights.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;
+connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://privy.negationgame.com https://www.googletagmanager.com https://www.google-analytics.com https://va.vercel-analytics.com https://va.vercel-scripts.com https://vitals.vercel-insights.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;
 ```
 
 ### CORS Configuration

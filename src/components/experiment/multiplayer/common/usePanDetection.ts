@@ -44,12 +44,8 @@ export const usePanDetection = ({
       const isPrimary = event.button === PRIMARY_BUTTON;
       const isMiddle = event.button === MIDDLE_BUTTON;
 
-      // Only detect panning for:
-      // 1. Primary button on pane (background) - always
-      // 2. Middle button anywhere in graph - always
-      // Note: In grab mode, primary button on non-pane areas should NOT be detected as panning
-      // to allow node dragging with cursor sync
-      const shouldDetectPan = (pane && isPrimary) || (isMiddle && inGraph);
+      const shouldDetectPan =
+        (pane && isPrimary) || (isMiddle && inGraph);
 
       if (shouldDetectPan) {
         isDraggingRef.current = true;

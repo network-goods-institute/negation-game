@@ -35,19 +35,25 @@ export const createEdgeByType = (
   targetHandle?: string | null
 ): Edge => {
   return {
-    id: deterministicEdgeId(
-      edgeType,
-      source,
-      target,
-      sourceHandle,
-      targetHandle
-    ),
+    id: deterministicEdgeId(edgeType, source, target, sourceHandle, targetHandle),
     source,
     target,
     sourceHandle: sourceHandle || null,
     targetHandle: targetHandle || null,
     type: edgeType,
   };
+};
+
+const edgesEqual = (a: Edge | undefined, b: Edge) => {
+  if (!a) return false;
+  return (
+    a.id === b.id &&
+    a.source === b.source &&
+    a.target === b.target &&
+    (a.sourceHandle || null) === (b.sourceHandle || null) &&
+    (a.targetHandle || null) === (b.targetHandle || null) &&
+    a.type === b.type
+  );
 };
 
 export const createGraphChangeHandlers = (
@@ -63,89 +69,92 @@ export const createGraphChangeHandlers = (
   localOrigin?: any,
   getCurrentNodes?: () => Node[]
 ) => {
-  // Delta-based node sync: only write changed positions to Yjs during drags
   let rafEdgesId: number | null = null;
   let pendingEdges: Edge[] | null = null;
-  const isSameNodes = (a: Node[], b: Node[]) => {
-    if (a === b) return true;
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      const na: any = a[i];
-      const nb: any = b[i];
-      if (na.id !== nb.id) return false;
-      if (na.type !== nb.type) return false;
-      const pa = na.position || { x: 0, y: 0 };
-      const pb = nb.position || { x: 0, y: 0 };
-      if (pa.x !== pb.x || pa.y !== pb.y) return false;
-      const da = na.data || {};
-      const db = nb.data || {};
-      if (JSON.stringify(da) !== JSON.stringify(db)) return false;
+  let rafNodesId: number | null = null;
+  let pendingNodePositions: Map<string, { x: number; y: number }> | null = null;
+
+  const flushPendingNodePositions = () => {
+    if (!ydoc || !yNodesMap || !pendingNodePositions || pendingNodePositions.size === 0) {
+      return;
     }
-    return true;
+    const entries = pendingNodePositions;
+    pendingNodePositions = null;
+    ydoc.transact(() => {
+      entries.forEach((pos, id) => {
+        if (!yNodesMap.has(id)) return;
+        const existing = yNodesMap.get(id) as Node | undefined;
+        if (!existing) return;
+        const samePos =
+          (existing.position?.x ?? 0) === (pos?.x ?? 0) &&
+          (existing.position?.y ?? 0) === (pos?.y ?? 0);
+        if (samePos) return;
+        yNodesMap.set(id, { ...existing, position: pos } as Node);
+      });
+    }, localOrigin);
   };
 
-  const isSameEdges = (a: Edge[], b: Edge[]) => {
-    if (a === b) return true;
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      const ea: any = a[i];
-      const eb: any = b[i];
-      if (ea.id !== eb.id) return false;
-      if (ea.source !== eb.source || ea.target !== eb.target) return false;
-      if (ea.type !== eb.type) return false;
-      if ((ea.sourceHandle || null) !== (eb.sourceHandle || null)) return false;
-      if ((ea.targetHandle || null) !== (eb.targetHandle || null)) return false;
+  const scheduleNodeFlush = () => {
+    if (typeof window === "undefined") {
+      flushPendingNodePositions();
+      return;
     }
-    return true;
+    if (rafNodesId != null) return;
+    rafNodesId = window.requestAnimationFrame(() => {
+      rafNodesId = null;
+      flushPendingNodePositions();
+    });
   };
+
+  const flushPendingEdges = () => {
+    if (!ydoc || !yEdgesMap || !pendingEdges) return;
+    const edgesById = new Map<string, Edge>();
+    pendingEdges.forEach((edge) => {
+      edgesById.set(edge.id, edge);
+    });
+    pendingEdges = null;
+    ydoc.transact(() => {
+      edgesById.forEach((edge, id) => {
+        const existing = (yEdgesMap as any).get(id) as Edge | undefined;
+        if (!edgesEqual(existing, edge)) {
+          (yEdgesMap as any).set(id, edge);
+        }
+      });
+    }, localOrigin);
+  };
+
+  const scheduleEdgeFlush = () => {
+    if (typeof window === "undefined") {
+      flushPendingEdges();
+      return;
+    }
+    if (rafEdgesId != null) return;
+    rafEdgesId = window.requestAnimationFrame(() => {
+      rafEdgesId = null;
+      flushPendingEdges();
+    });
+  };
+
   const onNodesChange = (changes: any[]) => {
-    const m = yNodesMap;
-    const d = ydoc;
     setNodes((nds) => {
       const next = applyNodeChanges(changes, nds);
-      // Targeted Yjs updates for position/dimensions only
-      if (m && d && Array.isArray(changes) && changes.length > 0) {
+      if (Array.isArray(changes) && changes.length > 0) {
         const idsToUpdate = new Set<string>();
         for (const ch of changes) {
           if (!ch || typeof ch !== "object") continue;
-          const t = (ch as any).type;
-          if (t === "position") {
-            const id = (ch as any).id as string;
-            if (id) idsToUpdate.add(id);
-          }
+          if ((ch as any).type !== "position") continue;
+          const id = (ch as any).id as string | undefined;
+          if (id) idsToUpdate.add(id);
         }
         if (idsToUpdate.size > 0) {
-          d.transact(() => {
-            for (const id of idsToUpdate) {
-              if (!m.has(id)) continue;
-              const nextNode = (next as Node[]).find((n) => n.id === id);
-              const existing = m.get(id) as Node | undefined;
-              if (!nextNode || !existing) continue;
-              const samePos =
-                (existing.position?.x ?? 0) === (nextNode.position?.x ?? 0) &&
-                (existing.position?.y ?? 0) === (nextNode.position?.y ?? 0);
-
-              const dimsChanged = false;
-
-              if (!samePos && !dimsChanged) {
-                m.set(id, { ...existing, position: nextNode.position } as Node);
-                continue;
-              }
-
-              if (samePos && !dimsChanged) {
-                // nothing to write
-                continue;
-              }
-
-              const updated: any = { ...existing };
-              if (!samePos) {
-                updated.position = nextNode.position as any;
-              }
-              if (dimsChanged) {
-              }
-              m.set(id, updated as Node);
-            }
-          }, localOrigin);
+          pendingNodePositions = pendingNodePositions ?? new Map();
+          idsToUpdate.forEach((id) => {
+            const nextNode = (next as Node[]).find((n) => n.id === id);
+            if (!nextNode) return;
+            const position = nextNode.position || { x: 0, y: 0 };
+            pendingNodePositions!.set(id, position);
+          });
+          scheduleNodeFlush();
         }
       }
       return next;
@@ -153,48 +162,11 @@ export const createGraphChangeHandlers = (
   };
 
   const onEdgesChange = (changes: any[]) => {
-    const m = yEdgesMap;
-    const d = ydoc;
     setEdges((eds) => {
       const next = applyEdgeChanges(changes, eds);
-      if (m && d) {
+      if (yEdgesMap && ydoc) {
         pendingEdges = next as Edge[];
-        if (rafEdgesId == null) {
-          rafEdgesId =
-            typeof window !== "undefined"
-              ? window.requestAnimationFrame(() => {
-                  if (pendingEdges && m && d) {
-                    // Upsert-only: write/update known edges without deleting unknown keys
-                    const byId = new Map<string, Edge>();
-                    for (const e of pendingEdges as Edge[]) byId.set(e.id, e);
-                    d.transact(() => {
-                      byId.forEach((e, id) => {
-                        const curr = (m as any).get(id) as Edge | undefined;
-                        const normalized = (x: any) => ({
-                          id: x?.id,
-                          s: x?.source,
-                          t: x?.target,
-                          ty: x?.type,
-                          sh: x?.sourceHandle ?? null,
-                          th: x?.targetHandle ?? null,
-                          d: x?.data || {},
-                        });
-                        const same =
-                          curr &&
-                          JSON.stringify(normalized(curr)) ===
-                            JSON.stringify(normalized(e));
-                        if (!same) (m as any).set(id, e);
-                      });
-                    }, localOrigin);
-                  }
-                  pendingEdges = null;
-                  if (rafEdgesId != null && typeof window !== "undefined") {
-                    window.cancelAnimationFrame(rafEdgesId);
-                  }
-                  rafEdgesId = null;
-                })
-              : null;
-        }
+        scheduleEdgeFlush();
       }
       return next;
     });
@@ -221,75 +193,45 @@ export const createGraphChangeHandlers = (
       params.targetHandle
     );
 
-    // Optimistic local update
     setEdges((eds) => addEdge(edge, eds));
 
-    // Sync to Yjs map
-    const m = yEdgesMap;
-    const d = ydoc;
-    if (m && d)
-      d.transact(() => {
-        if (!m.has(edge.id)) m.set(edge.id, edge);
-      }, localOrigin);
-  };
-
-  const commitNodePositions = (nodes: Node[]) => {
-    const m = yNodesMap;
-    const d = ydoc;
-    if (m && d) {
-      // Merge-only: update positions for known ids
-      d.transact(() => {
-        for (const n of nodes) {
-          if (!m.has(n.id)) continue;
-          const curr = m.get(n.id) as Node | undefined;
-          if (!curr) continue;
-          const samePos =
-            (curr.position?.x ?? 0) === (n.position?.x ?? 0) &&
-            (curr.position?.y ?? 0) === (n.position?.y ?? 0);
-          if (samePos) continue;
-          m.set(n.id, { ...curr, position: n.position } as Node);
-        }
+    if (yEdgesMap && ydoc) {
+      ydoc.transact(() => {
+        if (!yEdgesMap.has(edge.id)) yEdgesMap.set(edge.id, edge);
       }, localOrigin);
     }
   };
 
+  const commitNodePositions = (nodes: Node[]) => {
+    flushPendingNodePositions();
+    if (!yNodesMap || !ydoc) return;
+    ydoc.transact(() => {
+      for (const node of nodes) {
+        if (!yNodesMap.has(node.id)) continue;
+        const existing = yNodesMap.get(node.id) as Node | undefined;
+        if (!existing) continue;
+        const samePos =
+          (existing.position?.x ?? 0) === (node.position?.x ?? 0) &&
+          (existing.position?.y ?? 0) === (node.position?.y ?? 0);
+        if (samePos) continue;
+        yNodesMap.set(node.id, { ...existing, position: node.position } as Node);
+      }
+    }, localOrigin);
+  };
+
   const flushPendingChanges = () => {
-    const mN = yNodesMap;
-    const mE = yEdgesMap;
-    const d = ydoc;
     if (typeof window !== "undefined") {
       if (rafEdgesId != null) {
         window.cancelAnimationFrame(rafEdgesId);
         rafEdgesId = null;
       }
-    }
-    if (d) {
-      if (mE && pendingEdges) {
-        // Upsert-only write of pending edges
-        const byId = new Map<string, Edge>();
-        for (const e of pendingEdges as Edge[]) byId.set(e.id, e);
-        d.transact(() => {
-          byId.forEach((e, id) => {
-            const curr = (mE as any).get(id) as Edge | undefined;
-            const normalized = (x: any) => ({
-              id: x?.id,
-              s: x?.source,
-              t: x?.target,
-              ty: x?.type,
-              sh: x?.sourceHandle ?? null,
-              th: x?.targetHandle ?? null,
-              d: x?.data || {},
-            });
-            const same =
-              curr &&
-              JSON.stringify(normalized(curr)) ===
-                JSON.stringify(normalized(e));
-            if (!same) (mE as any).set(id, e);
-          });
-        }, localOrigin);
-        pendingEdges = null;
+      if (rafNodesId != null) {
+        window.cancelAnimationFrame(rafNodesId);
+        rafNodesId = null;
       }
     }
+    flushPendingNodePositions();
+    flushPendingEdges();
   };
 
   return {
@@ -306,7 +248,6 @@ export const createNodeDragHandler = (
   username: string
 ) => {
   return (event: React.MouseEvent, node: Node) => {
-    // Add visual indicator that this node is being edited
     const updatedNode = {
       ...node,
       data: {
@@ -317,7 +258,6 @@ export const createNodeDragHandler = (
 
     setNodes((nds) => nds.map((n) => (n.id === node.id ? updatedNode : n)));
 
-    // Clear the indicator after 2 seconds
     setTimeout(() => {
       setNodes((nds) =>
         nds.map((n) =>

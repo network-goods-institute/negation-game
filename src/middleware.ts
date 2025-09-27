@@ -174,7 +174,7 @@ export default async function middleware(req: NextRequest) {
     ].join(" ");
     response.headers.set(
       "Content-Security-Policy",
-      `frame-ancestors ${embedAncestors}; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; img-src 'self' data: blob: https: https://cdn.tldraw.com; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://vitals.vercel-insights.com https://cdn.tldraw.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;`
+      `frame-ancestors ${embedAncestors}; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; img-src 'self' data: blob: https: https://cdn.tldraw.com; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://privy.negationgame.com https://www.googletagmanager.com https://www.google-analytics.com https://va.vercel-analytics.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://cdn.tldraw.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;`
     );
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("X-XSS-Protection", "1; mode=block");
@@ -212,7 +212,7 @@ export default async function middleware(req: NextRequest) {
     ].join(" ");
     response.headers.set(
       "Content-Security-Policy",
-      `frame-ancestors ${embedAncestors2}; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://vitals.vercel-insights.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;`
+      `frame-ancestors ${embedAncestors2}; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://privy.negationgame.com https://www.googletagmanager.com https://www.google-analytics.com https://va.vercel-analytics.com https://va.vercel-scripts.com https://vitals.vercel-insights.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;`
     );
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("X-XSS-Protection", "1; mode=block");

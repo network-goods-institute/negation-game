@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { WebsocketProvider } from 'y-websocket';
 import { usePanDetection } from './common/usePanDetection';
@@ -15,24 +15,25 @@ interface CursorReporterProps {
 export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, username, userColor, grabMode = false }) => {
   const rf = useReactFlow();
   const isPanning = usePanDetection({ grabMode });
+  const latestPointerRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  const pointerRafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!provider || !username) return;
 
-    const update = (event: PointerEvent | MouseEvent) => {
-      if (isPanning) return;
-
-      const target = event.target as HTMLElement | null;
-      const graphRoot = target?.closest('.react-flow');
-      const onNode = target?.closest('.react-flow__node');
-      const buttons = 'buttons' in event ? event.buttons : 0;
-      const isMiddleDrag = Boolean(graphRoot) && (buttons & 4) === 4;
-      const isHandDrag = grabMode && Boolean(graphRoot) && !onNode && (buttons & 1) === 1;
-      if (isMiddleDrag || isHandDrag) {
-        return;
+    const cancelScheduled = () => {
+      if (pointerRafIdRef.current != null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(pointerRafIdRef.current);
+        pointerRafIdRef.current = null;
       }
+    };
 
-      const { clientX, clientY } = event;
+    const processPointer = () => {
+      pointerRafIdRef.current = null;
+      const payload = latestPointerRef.current;
+      if (!payload) return;
+      latestPointerRef.current = null;
+      const { clientX, clientY } = payload;
       const { x: fx, y: fy } = rf.screenToFlowPosition({ x: clientX, y: clientY });
       const prev = provider.awareness.getLocalState() || {};
       const prevUser = prev.user || {};
@@ -47,6 +48,39 @@ export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, userna
       });
     };
 
+    const scheduleProcess = () => {
+      if (typeof window === 'undefined') {
+        processPointer();
+        return;
+      }
+      if (pointerRafIdRef.current == null) {
+        pointerRafIdRef.current = window.requestAnimationFrame(processPointer);
+      }
+    };
+
+    const update = (event: PointerEvent | MouseEvent) => {
+      if (isPanning) {
+        latestPointerRef.current = null;
+        cancelScheduled();
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const graphRoot = target?.closest('.react-flow');
+      const onNode = target?.closest('.react-flow__node');
+      const buttons = 'buttons' in event ? event.buttons : 0;
+      const isMiddleDrag = Boolean(graphRoot) && (buttons & 4) === 4;
+      const isHandDrag = grabMode && Boolean(graphRoot) && !onNode && (buttons & 1) === 1;
+      if (isMiddleDrag || isHandDrag) {
+        latestPointerRef.current = null;
+        cancelScheduled();
+        return;
+      }
+
+      latestPointerRef.current = { clientX: event.clientX, clientY: event.clientY };
+      scheduleProcess();
+    };
+
     const onPointerMove = (e: PointerEvent) => update(e);
     const onMouseMove = (e: MouseEvent) => update(e);
 
@@ -56,6 +90,8 @@ export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, userna
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('mousemove', onMouseMove);
+      latestPointerRef.current = null;
+      cancelScheduled();
     };
   }, [rf, provider, username, userColor, grabMode, isPanning]);
 

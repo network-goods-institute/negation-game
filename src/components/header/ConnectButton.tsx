@@ -30,7 +30,7 @@ import { useEnsureUser } from "@/hooks/auth/useEnsureUser";
 import { UsernameSignupDialog } from "@/components/dialogs/UsernameSignupDialog";
 
 export const ConnectButton = () => {
-  const { ready, login, logout, user: privyUser } = usePrivy();
+  const { ready, login, logout, user: privyUser, authenticated } = usePrivy();
   const { data: user, isLoading } = useUser(privyUser?.id);
   useEnsureUser();
   const [signupOpen, setSignupOpen] = useState(true);
@@ -62,14 +62,34 @@ export const ConnectButton = () => {
   // Proactively set the HttpOnly Privy token cookie once we have a Privy user
   const tokenSetRef = useRef(false);
   useEffect(() => {
-    if (!privyUser || tokenSetRef.current) return;
+    if (!privyUser?.id) {
+      tokenSetRef.current = false;
+      return;
+    }
+
+    tokenSetRef.current = false;
+  }, [privyUser?.id]);
+
+  useEffect(() => {
+    if (!ready || !authenticated || !privyUser?.id || tokenSetRef.current) return;
+
+    let cancelled = false;
+
     (async () => {
       try {
-        await setPrivyToken();
-        tokenSetRef.current = true;
-      } catch { }
+        const success = await setPrivyToken({ force: true });
+        if (success && !cancelled) {
+          tokenSetRef.current = true;
+        }
+      } catch (error) {
+        console.error("Failed to persist Privy token during connect flow", error);
+      }
     })();
-  }, [privyUser]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, authenticated, privyUser?.id]);
 
   // Check if user is admin of any space or is site admin
   const isAnySpaceAdmin = adminStatus?.siteAdmin || (adminStatus?.adminSpaces && adminStatus.adminSpaces.length > 0);

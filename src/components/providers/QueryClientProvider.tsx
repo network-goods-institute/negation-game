@@ -4,7 +4,8 @@ import {
   QueryClient,
   QueryClientProvider as TanstackQueryClientProvider,
 } from "@tanstack/react-query";
-import { FC, PropsWithChildren, useState, useEffect } from "react";
+import { FC, PropsWithChildren, useState, useEffect, useRef } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 import { userQueryKey } from "@/queries/users/useUser";
 
@@ -50,32 +51,61 @@ export const QueryClientProvider: FC<QueryClientProviderProps> = ({ children, in
 };
 
 function ClientAuthRefresher() {
+  const { ready, authenticated } = usePrivy();
+  const inFlightRef = useRef(false);
+
   useEffect(() => {
-    let refreshInterval: NodeJS.Timeout;
+    if (!ready || !authenticated) {
+      return;
+    }
+
+    let cancelled = false;
+    let refreshInterval: NodeJS.Timeout | null = null;
+    let retryTimeout: NodeJS.Timeout | null = null;
     let lastActivity = Date.now();
 
-    const refreshToken = async () => {
+    const refreshToken = async (attempt = 1): Promise<void> => {
+      if (cancelled || inFlightRef.current) return;
+      inFlightRef.current = true;
+
       try {
         const success = await setPrivyToken();
-        if (success) {
-          console.log("Privy token refreshed successfully");
+        if (!success && attempt <= 4 && !cancelled) {
+          scheduleRetry(attempt);
+          return;
         }
       } catch (error) {
+        if (!cancelled && attempt <= 4) {
+          console.warn("Retrying Privy token refresh after error", error);
+          scheduleRetry(attempt);
+          return;
+        }
         console.error("Failed to refresh Privy token:", error);
+      } finally {
+        inFlightRef.current = false;
       }
     };
 
-    // Initial refresh on mount
-    refreshToken();
+    function scheduleRetry(attempt: number) {
+      const delay = Math.min(1000 * attempt, 5000);
+      retryTimeout = setTimeout(() => {
+        inFlightRef.current = false;
+        void refreshToken(attempt + 1);
+      }, delay);
+    }
 
-    refreshInterval = setInterval(refreshToken, 30 * 60 * 1000);
+    void refreshToken();
+
+    refreshInterval = setInterval(() => {
+      void refreshToken();
+    }, 25 * 60 * 1000);
 
     const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
 
     const handleActivity = () => {
       const now = Date.now();
       if (now - lastActivity > 45 * 60 * 1000) {
-        refreshToken();
+        void refreshToken();
       }
       lastActivity = now;
     };
@@ -85,11 +115,14 @@ function ClientAuthRefresher() {
     });
 
     return () => {
-      clearInterval(refreshInterval);
+      cancelled = true;
+      if (refreshInterval) clearInterval(refreshInterval);
+      if (retryTimeout) clearTimeout(retryTimeout);
       activityEvents.forEach(event => {
         document.removeEventListener(event, handleActivity);
       });
     };
-  }, []);
+  }, [ready, authenticated]);
+
   return null;
 }
