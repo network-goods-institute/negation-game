@@ -3,6 +3,9 @@ import { EdgeLabelRenderer, useReactFlow, useStore } from '@xyflow/react';
 import { createPortal } from 'react-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+const EDGE_ANCHOR_SIZE = 36;
+const PERSISTENCE_PADDING = 14;
+
 // commented to death because i spent like 3 hours on this
 
 export interface EdgeOverlayProps {
@@ -92,8 +95,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
           style={{
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${cx}px, ${cy}px)`,
-            width: 25,
-            height: 25,
+            width: EDGE_ANCHOR_SIZE,
+            height: EDGE_ANCHOR_SIZE,
             zIndex: 1,
             pointerEvents: 'all',
           }}
@@ -130,8 +133,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                 transform: `scale(${zoom})`,
                 transformOrigin: 'center',
                 pointerEvents: 'auto',
-                padding: '8px',
-                margin: '-8px',
+                padding: `${PERSISTENCE_PADDING}px`,
+                margin: `-${PERSISTENCE_PADDING}px`,
               }}
               onMouseEnter={() => setIsTooltipHovered(true)}
               onMouseLeave={() => {
