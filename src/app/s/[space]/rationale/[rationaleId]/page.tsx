@@ -159,6 +159,12 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
     const isMobile = useIsMobile(768) || isEmbedMode; // Force mobile layout in embed mode (but not desktop embed)
 
     const { isCopyingUrl, handleCopyUrl } = useCopyUrl();
+
+    // Create a safe copy URL handler that ensures we pass a proper string URL
+    const handleCopyRationaleUrl = useCallback(() => {
+        const currentUrl = window.location.href;
+        handleCopyUrl(String(currentUrl));
+    }, [handleCopyUrl]);
     const { data: viewpoint } = useViewpoint(viewpointId);
 
     const [editableTitle, setEditableTitle] = useState("");
@@ -376,7 +382,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
                             isCopying={isCopying}
                             isCopyingUrl={isCopyingUrl}
                             toggleSharingMode={toggleSharingMode}
-                            handleCopyUrl={handleCopyUrl}
+                            handleCopyUrl={handleCopyRationaleUrl}
                             isPageCopyConfirmOpen={isPageCopyConfirmOpen}
                             setIsPageCopyConfirmOpen={setIsPageCopyConfirmOpen}
                             handleCopy={handleCopy}

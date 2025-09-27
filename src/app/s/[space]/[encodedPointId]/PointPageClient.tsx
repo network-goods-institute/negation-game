@@ -282,11 +282,19 @@ export default function PointPageClient({ params, searchParams }: PointPageClien
 
     const handleCopyMarkdownLink = async () => {
         if (!point) return;
-        const url = `${window.location.origin}${basePath}/${encodeId(point.pointId)}`;
+
+        // Ensure we have a valid origin and base path
+        const origin = window.location.origin;
+        const safePath = basePath || "";
+        const encodedId = encodeId(point.pointId);
+
+        // Construct URL carefully and ensure it's a string
+        const url = `${origin}${safePath}/${encodedId}`;
         const markdownLink = `[${point.content}](${url})`;
 
         try {
-            await navigator.clipboard.writeText(markdownLink);
+            // Ensure we're passing a string to writeText
+            await navigator.clipboard.writeText(String(markdownLink));
             toast.success("Markdown link copied to clipboard");
         } catch (error) {
             toast.error("Failed to copy link");

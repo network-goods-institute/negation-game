@@ -10,14 +10,17 @@ export function useCopyUrl() {
 
   const handleCopyUrl = useCallback(async (customUrl?: string) => {
     try {
-      const url = customUrl || window.location.href;
+      // Ensure URL is always a string
+      const url = String(customUrl || window.location.href);
       await navigator.clipboard.writeText(url);
       setIsCopyingUrl(true);
       setTimeout(() => setIsCopyingUrl(false), 2000);
     } catch (error) {
       console.error("Failed to copy URL:", error);
+      // Fallback method - also ensure string conversion
+      const fallbackUrl = String(customUrl || window.location.href);
       const textArea = document.createElement("textarea");
-      textArea.value = customUrl || window.location.href;
+      textArea.value = fallbackUrl;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand("copy");
