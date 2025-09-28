@@ -28,6 +28,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 import { useEnsureUser } from "@/hooks/auth/useEnsureUser";
 import { UsernameSignupDialog } from "@/components/dialogs/UsernameSignupDialog";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 export const ConnectButton = () => {
   const { ready, login, logout, user: privyUser, authenticated } = usePrivy();
@@ -35,6 +36,7 @@ export const ConnectButton = () => {
   useEnsureUser();
   const [signupOpen, setSignupOpen] = useState(true);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const notificationsEnabled = isFeatureEnabled('notifications');
   const incompleteAssignmentCount = useIncompleteAssignmentCount();
   const router = useRouter();
   const pathname = usePathname();
@@ -201,12 +203,12 @@ export const ConnectButton = () => {
               <div className="flex items-center gap-1 overflow-hidden">
                 <p className="overflow-clip max-w-full">{user.username}</p>
                 <ChevronDownIcon className="size-4 flex-shrink-0" />
-                {(unreadCount > 0 || unreadMessageCount > 0 || incompleteAssignmentCount > 0) && (
+                {((notificationsEnabled && unreadCount > 0) || unreadMessageCount > 0 || incompleteAssignmentCount > 0) && (
                   <Badge
                     variant="destructive"
                     className="h-4 min-w-4 px-1 text-xs absolute -top-1 -right-1"
                   >
-                    {(unreadCount + unreadMessageCount + incompleteAssignmentCount) > 99 ? "99+" : (unreadCount + unreadMessageCount + incompleteAssignmentCount)}
+                    {((notificationsEnabled ? unreadCount : 0) + unreadMessageCount + incompleteAssignmentCount) > 99 ? "99+" : ((notificationsEnabled ? unreadCount : 0) + unreadMessageCount + incompleteAssignmentCount)}
                   </Badge>
                 )}
               </div>
@@ -245,26 +247,28 @@ export const ConnectButton = () => {
               </DropdownMenuItem>
             )}
 
-            <DropdownMenuItem asChild disabled={pathname === "/notifications"}>
-              <Link prefetch href="/notifications" className="gap-2">
-                <BellIcon className="size-4" />
-                <div className="flex items-center justify-between w-full">
-                  <span>Notifications</span>
-                  <div className="flex space-x-1">
-                    {unreadCount > 0 && (
-                      <Badge variant="destructive" className="h-4 min-w-4 px-1 text-xs">
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </Badge>
-                    )}
-                    {incompleteAssignmentCount > 0 && (
-                      <Badge variant="secondary" className="h-4 min-w-4 px-1 text-xs">
-                        {incompleteAssignmentCount > 99 ? "99+" : incompleteAssignmentCount}
-                      </Badge>
-                    )}
+            {notificationsEnabled && (
+              <DropdownMenuItem asChild disabled={pathname === "/notifications"}>
+                <Link prefetch href="/notifications" className="gap-2">
+                  <BellIcon className="size-4" />
+                  <div className="flex items-center justify-between w-full">
+                    <span>Notifications</span>
+                    <div className="flex space-x-1">
+                      {unreadCount > 0 && (
+                        <Badge variant="destructive" className="h-4 min-w-4 px-1 text-xs">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </Badge>
+                      )}
+                      {incompleteAssignmentCount > 0 && (
+                        <Badge variant="secondary" className="h-4 min-w-4 px-1 text-xs">
+                          {incompleteAssignmentCount > 99 ? "99+" : incompleteAssignmentCount}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Link>
-            </DropdownMenuItem>
+                </Link>
+              </DropdownMenuItem>
+            )}
 
             {currentSpace && (
               <DropdownMenuItem

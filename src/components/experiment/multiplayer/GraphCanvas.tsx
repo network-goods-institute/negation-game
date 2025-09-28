@@ -71,6 +71,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const graph = useGraphActions();
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
+  const deselectAllNodes = React.useCallback(() => {
+    try {
+      (graph as any)?.clearNodeSelection?.();
+    } catch { }
+  }, [graph]);
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
@@ -204,12 +209,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         const handleNodesChange = (changes: any[]) => {
           if (!authenticated) return onNodesChange?.(changes);
           const passthrough: any[] = [];
+          let nodeSelected = false;
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
             } else {
+              if (c?.type === 'select' && c?.selected) {
+                nodeSelected = true;
+              }
               passthrough.push(c);
             }
+          }
+          if (nodeSelected) {
+            try { graph.setSelectedEdge?.(null); } catch { }
           }
           if (passthrough.length) onNodesChange?.(passthrough);
         };
@@ -238,7 +250,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onConnect={authenticated ? onConnect : undefined}
             onNodeClick={onNodeClick}
             onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } if (connectMode) onBackgroundMouseUp?.(); }}
-            onEdgeClick={(e, edge) => { e.stopPropagation(); graph.setSelectedEdge?.(edge.id); onEdgeClick?.(e, edge); }}
+            onEdgeClick={(e, edge) => {
+              e.stopPropagation();
+              deselectAllNodes();
+              graph.setSelectedEdge?.(edge.id);
+              onEdgeClick?.(e, edge);
+            }}
             onNodeDragStart={authenticated ? onNodeDragStart : undefined}
             onNodeDragStop={authenticated ? onNodeDragStop : undefined}
             nodeTypes={nodeTypes}

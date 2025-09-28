@@ -55,7 +55,8 @@ export const SideActionPill: React.FC<SideActionPillProps> = ({
             style={{ zIndex: visible ? 40 : 0, pointerEvents: interactable ? 'auto' : 'none' }}
         >
             <button
-                onMouseDown={(e) => e.preventDefault()}
+                type="button"
+                onMouseDown={(e) => { e.stopPropagation(); }}
                 onClick={(e) => {
                     e.stopPropagation();
                     onClick(e);

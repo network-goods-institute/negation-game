@@ -23,6 +23,7 @@ import { useSetAtom } from "jotai";
 import { initialSpaceTabAtom } from "@/atoms/navigationAtom";
 import { handleBackNavigation } from "@/lib/negation-game/backButtonUtils";
 import { useUser } from "@/queries/users/useUser";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 export const NotificationsPage = () => {
     const { ready, authenticated } = usePrivy();
@@ -170,6 +171,31 @@ export const NotificationsPage = () => {
                         </div>
                     ))}
                 </div>
+            </div>
+        );
+    }
+
+    if (!isFeatureEnabled('notifications')) {
+        return (
+            <div className="container max-w-4xl mx-auto p-6">
+                <div className="flex items-center gap-3 mb-6">
+                    <Button variant="ghost" size="sm" asChild className="mr-2">
+                        <Link prefetch href={fallbackHref} onClick={onBackClick}>
+                            <ArrowLeftIcon className="w-4 h-4" />
+                        </Link>
+                    </Button>
+                    <BellIcon className="w-6 h-6" />
+                    <h1 className="text-2xl font-bold">Notifications</h1>
+                </div>
+                <Card>
+                    <CardContent className="text-center py-12">
+                        <BellIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                        <h3 className="text-lg font-semibold mb-2">Notifications are currently disabled</h3>
+                        <p className="text-muted-foreground">
+                            The notification system is temporarily disabled.
+                        </p>
+                    </CardContent>
+                </Card>
             </div>
         );
     }

@@ -5,6 +5,7 @@ import { pointsTable, viewpointsTable, usersTable } from "@/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { PointNodeData } from "@/components/graph/nodes/PointNode";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 interface EndorsementNotificationData {
   type: "endorsement";
@@ -79,6 +80,10 @@ class NotificationQueue {
   private processing = false;
 
   async queueNotification(data: NotificationData) {
+    if (!isFeatureEnabled("notifications")) {
+      return;
+    }
+
     this.queue.push(data);
     if (!this.processing) {
       setImmediate(() => {

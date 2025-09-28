@@ -178,6 +178,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
       }
       return;
     }
+    graphActions.clearNodeSelection?.();
     setSelectedEdge?.(props.id as string);
   };
 

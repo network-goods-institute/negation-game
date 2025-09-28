@@ -116,6 +116,32 @@
   .circle-dashed-3>circle {
     stroke-dasharray: 3;
   }
+
+  .favor-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.18rem 0.6rem 1.05rem 0.6rem;
+    margin: 0 -0.45rem -0.75rem -0.45rem;
+    border-radius: 0.5rem;
+    background-color: transparent;
+  }
+
+  .favor-button::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.45rem;
+    height: 0.45rem;
+  }
+
+  .favor-button__icon {
+    display: inline-block;
+    transform: translateY(-0.18rem);
+    pointer-events: none;
+  }
 }
 
 @keyframes nodeExpand {

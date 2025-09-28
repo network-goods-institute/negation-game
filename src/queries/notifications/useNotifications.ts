@@ -3,6 +3,7 @@ import { getNotifications } from "@/actions/notifications/getNotifications";
 import { useUser } from "@/queries/users/useUser";
 import { useAppVisibility } from "@/hooks//utils/useAppVisibility";
 import { useMemo } from "react";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 export interface UseNotificationsOptions {
   limit?: number;
@@ -19,8 +20,8 @@ export const useNotifications = (options: UseNotificationsOptions = {}) => {
   return useAuthenticatedQuery({
     queryKey: ["notifications", user?.id, stableOptions],
     queryFn: () => getNotifications(stableOptions),
-    enabled: !!user?.id, // This already waits for user context via useUser
-    refetchInterval: isVisible ? 30000 : false,
+    enabled: !!user?.id && isFeatureEnabled('notifications'), // Check feature flag
+    refetchInterval: isVisible && isFeatureEnabled('notifications') ? 30000 : false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes in memory
   });
@@ -36,7 +37,7 @@ export const useUnreadNotificationCount = () => {
       getNotifications({ unreadOnly: true }).then(
         (data: any[]) => data?.length || 0
       ),
-    enabled: !!user?.id,
-    refetchInterval: isVisible ? 30000 : false,
+    enabled: !!user?.id && isFeatureEnabled('notifications'), // Check feature flag
+    refetchInterval: isVisible && isFeatureEnabled('notifications') ? 30000 : false,
   });
 };

@@ -47,7 +47,8 @@ export const NodeActionPill: React.FC<NodeActionPillProps> = ({
       style={{ zIndex: visible ? 1000 : 0, pointerEvents: interactable ? 'auto' : 'none' }}
     >
       <button
-        onMouseDown={(e) => e.preventDefault()}
+        type="button"
+        onMouseDown={(e) => { e.stopPropagation(); }}
         onClick={(e) => {
           e.stopPropagation();
           onClick(e);

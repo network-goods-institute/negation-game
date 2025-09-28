@@ -6,12 +6,14 @@ import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
 import { SideActionPill } from '../common/SideActionPill';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNodeChrome } from '../common/useNodeChrome';
 import { useContextMenuHandler } from '../common/useContextMenuHandler';
 import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 import { useForceHidePills } from '../common/useForceHidePills';
+import { FavorSelector } from '../common/FavorSelector';
+
+const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
 interface ObjectionNodeProps {
     data: {
@@ -145,6 +147,11 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 return;
             }
             if (isEditing) return;
+            const target = e.target as HTMLElement | null;
+            if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
+                e.stopPropagation();
+                return;
+            }
         },
         onClick: (e: React.MouseEvent<HTMLDivElement>) => {
             if (isConnectMode) {
@@ -156,6 +163,10 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             if (locked) {
                 e.stopPropagation();
                 toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
+                return;
+            }
+            const target = e.target as HTMLElement | null;
+            if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
                 return;
             }
             onClick(e);
@@ -235,25 +246,12 @@ items-center justify-center pointer-events-none select-none">
                 {selected && !hidden && (
                     <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
                         <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
-                        <TooltipProvider>
-                            <div className="flex items-center gap-1">
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                    <Tooltip key={`fv-${i}`}>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                title={`Set favor to ${i}`}
-                                                onMouseDown={(e) => e.preventDefault()}
-                                                onClick={(e) => { e.stopPropagation(); updateNodeFavor?.(id, i as any); }}
-                                                className="text-[12px] leading-none"
-                                            >
-                                                <span className={i <= favor ? 'text-amber-600' : 'text-stone-300'}>★</span>
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="text-xs">Favor: {i}/5</TooltipContent>
-                                    </Tooltip>
-                                ))}
-                            </div>
-                        </TooltipProvider>
+                        <FavorSelector
+                            value={favor}
+                            onSelect={(level) => updateNodeFavor?.(id, level)}
+                            activeClassName="text-amber-600"
+                            inactiveClassName="text-stone-300"
+                        />
                     </div>
                 )}
                 {!hidden && (

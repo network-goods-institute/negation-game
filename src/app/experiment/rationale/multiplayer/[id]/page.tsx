@@ -443,6 +443,20 @@ export default function MultiplayerBoardDetailPage() {
             }, localOriginRef.current);
         }
     };
+
+    const clearNodeSelection = React.useCallback(() => {
+        setNodes((nds: any[]) => {
+            let changed = false;
+            const next = nds.map((node: any) => {
+                if (node?.selected) {
+                    changed = true;
+                    return { ...node, selected: false };
+                }
+                return node;
+            });
+            return changed ? next : nds;
+        });
+    }, [setNodes]);
     const updateEdgeRelevance = (edgeId: string, relevance: 1 | 2 | 3 | 4 | 5) => {
         setEdges((eds: any[]) => eds.map(e => e.id === edgeId ? { ...e, data: { ...(e.data || {}), relevance } } : e));
         if (yEdgesMap && ydoc && canWrite) {
@@ -631,6 +645,7 @@ export default function MultiplayerBoardDetailPage() {
                     getLockOwner,
                     isAnyNodeEditing,
                     grabMode,
+                    clearNodeSelection,
                     beginConnectFromNode: (id: string, cursor?: { x: number; y: number }) => {
                         connectAnchorRef.current = id;
                         setConnectAnchorId(id);
