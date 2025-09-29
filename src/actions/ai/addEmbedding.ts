@@ -2,8 +2,10 @@
 
 import { getSpace } from "@/actions/spaces/getSpace";
 import { embeddingsTable } from "@/db/schema";
-import { Point } from "@/db/tables/pointsTable";
+import { pointsTable } from "@/db/tables/pointsTable";
+import type { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
+import { eq } from "drizzle-orm";
 import { openai } from "@ai-sdk/openai";
 import { embed } from "ai";
 
@@ -19,6 +21,16 @@ export const addEmbedding = async ({
   ).embedding;
 
   const space = await getSpace();
+
+  const existingPoint = await db
+    .select({ id: pointsTable.id })
+    .from(pointsTable)
+    .where(eq(pointsTable.id, Number(pointId)))
+    .limit(1);
+
+  if (existingPoint.length === 0) {
+    return;
+  }
 
   await db
     .insert(embeddingsTable)

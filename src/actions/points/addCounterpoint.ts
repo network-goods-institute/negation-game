@@ -26,6 +26,7 @@ export const addCounterpoint = async ({
   negatedPointId: Negation["olderPointId"];
 } & Pick<InsertEndorsement, "cred">): Promise<Point["id"]> => {
   const userId = await getUserId();
+  const backgroundJobs: Array<() => Promise<void>> = [];
 
   if (!userId) {
     throw new Error("Must be authenticated to add a point");
@@ -43,7 +44,7 @@ export const addCounterpoint = async ({
 
   const space = await getSpace();
 
-  return await db.transaction(async (tx) => {
+  const newPointId = await db.transaction(async (tx) => {
     const newPointId = await tx
       .insert(pointsTable)
       .values({ content: trimmedContent, createdBy: userId, space, isOption: false })
@@ -73,11 +74,19 @@ export const addCounterpoint = async ({
       space,
     });
 
-    waitUntil(addEmbedding({ content: trimmedContent, id: newPointId }));
-    waitUntil(addKeywords({ content: trimmedContent, id: newPointId }));
+    backgroundJobs.push(() =>
+      addEmbedding({ content: trimmedContent, id: newPointId })
+    );
+    backgroundJobs.push(() => addKeywords({ content: trimmedContent, id: newPointId }));
 
     return newPointId;
   });
+
+  for (const job of backgroundJobs) {
+    waitUntil(job());
+  }
+
+  return newPointId;
 };
 
 export interface NegationRelationshipResult {

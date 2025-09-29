@@ -25,6 +25,7 @@ export const makePoint = async ({
 > => {
   const userId = await getUserId();
   const space = await getSpace();
+  const backgroundJobs: Array<() => Promise<void>> = [];
 
   if (!userId) {
     throw new Error("Must be authenticated to add a point");
@@ -44,7 +45,7 @@ export const makePoint = async ({
 
   const isCommand = trimmedContent.startsWith("/");
 
-  return await db.transaction(async (tx) => {
+  const newPointId = await db.transaction(async (tx) => {
     const newPointId = await tx
       .insert(pointsTable)
       .values({
@@ -73,42 +74,42 @@ export const makePoint = async ({
       });
     }
 
-    waitUntil(addEmbedding({ content: trimmedContent, id: newPointId }));
-    waitUntil(addKeywords({ content: trimmedContent, id: newPointId }));
-
-    waitUntil(
-      (async () => {
-        try {
-          const { buildPointCluster } = await import(
-            "@/actions/points/buildPointCluster"
-          );
-          await buildPointCluster(newPointId);
-        } catch (error) {
-          console.error(
-            `Failed to build cluster for point ${newPointId}:`,
-            error
-          );
-        }
-      })()
+    backgroundJobs.push(() =>
+      addEmbedding({ content: trimmedContent, id: newPointId })
     );
+    backgroundJobs.push(() => addKeywords({ content: trimmedContent, id: newPointId }));
+    backgroundJobs.push(async () => {
+      try {
+        const { buildPointCluster } = await import(
+          "@/actions/points/buildPointCluster"
+        );
+        await buildPointCluster(newPointId);
+      } catch (error) {
+        console.error(`Failed to build cluster for point ${newPointId}:`, error);
+      }
+    });
 
     // If this is a command, execute it after the transaction
     if (isCommand) {
-      waitUntil(
-        (async () => {
-          try {
-            const result = await executeCommand(space, trimmedContent);
+      backgroundJobs.push(async () => {
+        try {
+          const result = await executeCommand(space, trimmedContent);
 
-            if (result.success) {
-              revalidatePath(`/s/${space}`);
-            }
-          } catch (error) {
-            console.error(`Error executing command: ${error}`);
+          if (result.success) {
+            revalidatePath(`/s/${space}`);
           }
-        })()
-      );
+        } catch (error) {
+          console.error(`Error executing command: ${error}`);
+        }
+      });
     }
 
     return newPointId;
   });
+
+  for (const job of backgroundJobs) {
+    waitUntil(job());
+  }
+
+  return newPointId;
 };

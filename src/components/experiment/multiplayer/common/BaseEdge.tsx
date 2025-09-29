@@ -292,7 +292,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
         onMouseLeave={() => setHoveredEdge(null)}
         onUpdateRelevance={handleUpdateRelevance}
         onAddObjection={handleAddObjection}
-        onToggleEdgeType={() => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
+        onToggleEdgeType={connectMode ? undefined : () => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
         starColor={visual.starColor}
       />
 

@@ -26,6 +26,7 @@ export const editPoint = async ({
   content,
 }: EditPointArgs): Promise<EditPointResult> => {
   const userId = await getUserId();
+  const backgroundJobs: Array<() => Promise<void>> = [];
 
   if (!userId) {
     throw new Error("Must be authenticated to edit points");
@@ -37,7 +38,7 @@ export const editPoint = async ({
 
   const trimmedContent = content.trim();
 
-  return await db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     // First, get the current point to validate ownership and capture previous content
     const existingPoint = await tx
       .select({
@@ -107,8 +108,10 @@ export const editPoint = async ({
     const updatedPoint = updateResult[0];
 
     // Update embeddings and keywords asynchronously
-    waitUntil(addEmbedding({ content: trimmedContent, id: pointId }));
-    waitUntil(addKeywords({ content: trimmedContent, id: pointId }));
+    backgroundJobs.push(() =>
+      addEmbedding({ content: trimmedContent, id: pointId })
+    );
+    backgroundJobs.push(() => addKeywords({ content: trimmedContent, id: pointId }));
 
     // Fetch affected relationships for impact visualization
     const affectedRelationships = await fetchAffectedRelationships(pointId);
@@ -121,4 +124,10 @@ export const editPoint = async ({
       affectedRelationships,
     };
   });
+
+  for (const job of backgroundJobs) {
+    waitUntil(job());
+  }
+
+  return result;
 };

@@ -31,6 +31,7 @@ export const addObjection = async ({
   cred = 0,
 }: AddObjectionArgs): Promise<Point["id"]> => {
   const userId = await getUserId();
+  const backgroundJobs: Array<() => Promise<void>> = [];
 
   if (!userId) {
     throw new Error("Must be authenticated to add an objection");
@@ -85,7 +86,7 @@ export const addObjection = async ({
 
   const parentEdgeId = negationRelationship[0].id;
 
-  return await db.transaction(async (tx) => {
+  const objectionPointId = await db.transaction(async (tx) => {
     const objectionPointId = await tx
       .insert(pointsTable)
       .values({
@@ -135,11 +136,21 @@ export const addObjection = async ({
       space,
     });
 
-    waitUntil(addEmbedding({ content: trimmedContent, id: objectionPointId }));
-    waitUntil(addKeywords({ content: trimmedContent, id: objectionPointId }));
+    backgroundJobs.push(() =>
+      addEmbedding({ content: trimmedContent, id: objectionPointId })
+    );
+    backgroundJobs.push(() =>
+      addKeywords({ content: trimmedContent, id: objectionPointId })
+    );
 
     return objectionPointId;
   });
+
+  for (const job of backgroundJobs) {
+    waitUntil(job());
+  }
+
+  return objectionPointId;
 };
 
 export interface ValidateObjectionTargetResult {
