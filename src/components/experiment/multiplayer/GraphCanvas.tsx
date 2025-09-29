@@ -270,6 +270,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             zoomOnDoubleClick={false}
             nodesDraggable={!connectMode}
             multiSelectionKeyCode="Shift"
+            onSelectionChange={({ nodes, edges }) => {
+              if (edges.length > 0) {
+                const edgeChanges = edges.map(edge => ({ id: edge.id, type: 'select', selected: false }));
+                setTimeout(() => onEdgesChange?.(edgeChanges), 0);
+              }
+            }}
             proOptions={{ hideAttribution: true }}
           >
             <Background />

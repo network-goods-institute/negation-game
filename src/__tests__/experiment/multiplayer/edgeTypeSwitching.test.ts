@@ -218,7 +218,7 @@ describe("createUpdateEdgeType", () => {
     expect(yEdges.map.size).toBe(0); // No Yjs changes
   });
 
-  it("respects node locks", () => {
+  it("ignores node locks", () => {
     const edgeId = "e1";
     const nodes = [
       { id: "n1", type: "point", position: { x: 0, y: 0 } },
@@ -228,6 +228,7 @@ describe("createUpdateEdgeType", () => {
 
     const yNodes = new YMapMock<any>();
     const yEdges = new YMapMock<any>();
+    yEdges.set(edgeId, edges[0]);
     const ydoc = { transact: (fn: Function) => fn() } as any;
     const localOrigin = {};
 
@@ -252,7 +253,7 @@ describe("createUpdateEdgeType", () => {
 
     updateEdgeType(edgeId, "negation");
 
-    expect(latestEdges[0].type).toBe("support"); // No change due to lock
-    expect(yEdges.map.size).toBe(0); // No Yjs changes
+    expect(latestEdges[0].type).toBe("negation");
+    expect(yEdges.get(edgeId).type).toBe("negation");
   });
 });

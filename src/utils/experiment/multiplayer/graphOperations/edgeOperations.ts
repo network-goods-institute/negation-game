@@ -115,22 +115,17 @@ export const createUpdateEdgeType = (
     const edge = edges.find((e: any) => e.id === edgeId);
     if (!edge) return;
 
-    // Check if nodes are locked
     const src = nodes.find((n: any) => n.id === edge.source);
     const tgt = nodes.find((n: any) => n.id === edge.target);
     if (!src || !tgt) return;
-    // Edge operations are never blocked by node locks
 
-    // Only allow switching between negation and support
     if (edge.type !== "negation" && edge.type !== "support") return;
     if (edge.type === newType) return;
 
-    // Update local state immediately for responsiveness
     setEdges((eds) =>
       eds.map((e) => (e.id === edgeId ? { ...e, type: newType } : e))
     );
 
-    // Sync to Yjs if available
     if (yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         const base = yEdgesMap.get(edgeId);

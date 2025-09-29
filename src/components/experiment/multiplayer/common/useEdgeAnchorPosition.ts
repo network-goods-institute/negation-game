@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 export interface AnchorPositionConfig {
   id: string;
@@ -7,22 +7,22 @@ export interface AnchorPositionConfig {
   updateEdgeAnchorPosition: (id: string, x: number, y: number) => void;
 }
 
-export const useEdgeAnchorPosition = ({ id, x, y, updateEdgeAnchorPosition }: AnchorPositionConfig) => {
+export const useEdgeAnchorPosition = ({
+  id,
+  x,
+  y,
+  updateEdgeAnchorPosition,
+}: AnchorPositionConfig) => {
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
-  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
     const last = lastPosRef.current;
-    if (last && Math.abs(last.x - x) < 0.01 && Math.abs(last.y - y) < 0.01) return;
+    if (last && Math.abs(last.x - x) < 0.01 && Math.abs(last.y - y) < 0.01)
+      return;
 
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      lastPosRef.current = { x, y };
-      updateEdgeAnchorPosition(id, x, y);
-    });
-
-    return () => cancelAnimationFrame(rafRef.current);
+    lastPosRef.current = { x, y };
+    updateEdgeAnchorPosition(id, x, y);
   }, [x, y, id, updateEdgeAnchorPosition]);
 };

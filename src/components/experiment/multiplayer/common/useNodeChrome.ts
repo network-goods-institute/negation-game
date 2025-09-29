@@ -11,10 +11,7 @@ import { useCursorState } from "./useCursorState";
 
 const HOVER_ELEVATION_Z_INDEX = 1000;
 
-const stylesAreEqual = (
-  a?: React.CSSProperties,
-  b?: React.CSSProperties,
-) => {
+const stylesAreEqual = (a?: React.CSSProperties, b?: React.CSSProperties) => {
   if (!a && !b) {
     return true;
   }
@@ -26,7 +23,11 @@ const stylesAreEqual = (
   if (keysA.length !== keysB.length) {
     return false;
   }
-  return keysA.every((key) => a[key as keyof React.CSSProperties] === b[key as keyof React.CSSProperties]);
+  return keysA.every(
+    (key) =>
+      a[key as keyof React.CSSProperties] ===
+      b[key as keyof React.CSSProperties]
+  );
 };
 
 interface UseNodeChromeOptions {
@@ -63,78 +64,93 @@ export const useNodeChrome = ({
 }: UseNodeChromeOptions) => {
   const reactFlow = useReactFlow();
   const hoverElevationAppliedRef = React.useRef(false);
-  const originalZIndexRef = React.useRef<React.CSSProperties['zIndex']>(undefined);
+  const originalZIndexRef =
+    React.useRef<React.CSSProperties["zIndex"]>(undefined);
 
-  const elevateNodeZIndex = React.useCallback((shouldElevate: boolean) => {
-    if (!reactFlow) {
-      return;
-    }
+  const elevateNodeZIndex = React.useCallback(
+    (shouldElevate: boolean) => {
+      if (!reactFlow) {
+        return;
+      }
 
-    reactFlow.setNodes((nodes) => {
-      let changed = false;
+      reactFlow.setNodes((nodes) => {
+        let changed = false;
 
-      const nextNodes = nodes.map((node) => {
-        if (node.id !== id) {
-          return node;
-        }
-
-        const currentStyle = (node.style ?? {}) as React.CSSProperties;
-        const nextStyle: React.CSSProperties = { ...currentStyle };
-
-        if (shouldElevate) {
-          if (!hoverElevationAppliedRef.current) {
-            originalZIndexRef.current = currentStyle.zIndex;
-          }
-
-          const styleZ = currentStyle.zIndex;
-          const numericZ = typeof styleZ === 'number' ? styleZ : Number.parseInt(`${styleZ}`, 10);
-          const targetZ = Number.isFinite(numericZ) ? Math.max(numericZ as number, HOVER_ELEVATION_Z_INDEX) : HOVER_ELEVATION_Z_INDEX;
-
-          if (nextStyle.zIndex === targetZ) {
+        const nextNodes = nodes.map((node) => {
+          if (node.id !== id) {
             return node;
           }
 
-          nextStyle.zIndex = targetZ;
-        } else {
-          const original = originalZIndexRef.current;
+          const currentStyle = (node.style ?? {}) as React.CSSProperties;
+          const nextStyle: React.CSSProperties = { ...currentStyle };
 
-          if (original === undefined) {
-            if (nextStyle.zIndex === undefined) {
+          if (shouldElevate) {
+            if (!hoverElevationAppliedRef.current) {
+              originalZIndexRef.current = currentStyle.zIndex;
+            }
+
+            const styleZ = currentStyle.zIndex;
+            const numericZ =
+              typeof styleZ === "number"
+                ? styleZ
+                : Number.parseInt(`${styleZ}`, 10);
+            const targetZ = Number.isFinite(numericZ)
+              ? Math.max(numericZ as number, HOVER_ELEVATION_Z_INDEX)
+              : HOVER_ELEVATION_Z_INDEX;
+
+            if (nextStyle.zIndex === targetZ) {
               return node;
             }
-            delete nextStyle.zIndex;
+
+            nextStyle.zIndex = targetZ;
           } else {
-            if (nextStyle.zIndex === original) {
-              return node;
+            const original = originalZIndexRef.current;
+
+            if (original === undefined) {
+              if (nextStyle.zIndex === undefined) {
+                return node;
+              }
+              delete nextStyle.zIndex;
+            } else {
+              if (nextStyle.zIndex === original) {
+                return node;
+              }
+              nextStyle.zIndex = original;
             }
-            nextStyle.zIndex = original;
           }
+
+          const finalStyle =
+            Object.keys(nextStyle).length === 0 ? undefined : nextStyle;
+          if (
+            stylesAreEqual(
+              node.style as React.CSSProperties | undefined,
+              finalStyle
+            )
+          ) {
+            return node;
+          }
+
+          changed = true;
+          return {
+            ...node,
+            style: finalStyle,
+          };
+        });
+
+        if (!changed) {
+          return nodes;
         }
 
-        const finalStyle = Object.keys(nextStyle).length === 0 ? undefined : nextStyle;
-        if (stylesAreEqual(node.style as React.CSSProperties | undefined, finalStyle)) {
-          return node;
-        }
-
-        changed = true;
-        return {
-          ...node,
-          style: finalStyle,
-        };
+        return nextNodes;
       });
 
-      if (!changed) {
-        return nodes;
+      if (!shouldElevate) {
+        originalZIndexRef.current = undefined;
       }
-
-      return nextNodes;
-    });
-
-    if (!shouldElevate) {
-      originalZIndexRef.current = undefined;
-    }
-    hoverElevationAppliedRef.current = shouldElevate;
-  }, [id, reactFlow]);
+      hoverElevationAppliedRef.current = shouldElevate;
+    },
+    [id, reactFlow]
+  );
 
   const editable = useEditableNode({
     id,
@@ -183,11 +199,29 @@ export const useNodeChrome = ({
     isQuestionNode: autoFocus?.isQuestionNode ?? false,
   });
 
+  const [multipleSelected, setMultipleSelected] = React.useState(false);
+
+  useEffect(() => {
+    const checkSelection = () => {
+      const selectedCount = reactFlow
+        .getNodes()
+        .filter((node) => node.selected).length;
+      setMultipleSelected(selectedCount > 1);
+    };
+
+    checkSelection();
+
+    const interval = setInterval(checkSelection, 100);
+
+    return () => clearInterval(interval);
+  }, [reactFlow]);
+
   const shouldShowPill = useMemo(() => {
     if (!pill.pillVisible) return false;
     if (locked) return false;
     if (hidden) return false;
     if (hidePillWhileEditing && editable.isEditing) return false;
+    if (multipleSelected) return false;
     return true;
   }, [
     pill.pillVisible,
@@ -195,6 +229,7 @@ export const useNodeChrome = ({
     hidden,
     hidePillWhileEditing,
     editable.isEditing,
+    multipleSelected,
   ]);
 
   // Edge-triggered visibility: react only to state transitions.
