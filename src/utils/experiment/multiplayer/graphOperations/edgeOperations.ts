@@ -29,12 +29,7 @@ export const createAddObjectionForEdge = (
     const src = nodes.find((n: any) => n.id === base.source);
     const tgt = nodes.find((n: any) => n.id === base.target);
     if (!src || !tgt) return;
-    if (isLockedForMe?.(src.id) || isLockedForMe?.(tgt.id)) {
-      const lockedNodeId = isLockedForMe?.(src.id) ? src.id : tgt.id;
-      const owner = getLockOwner?.(lockedNodeId);
-      toast.warning(`Locked by ${owner?.name || "another user"}`);
-      return;
-    }
+    // Edge operations are never blocked by node locks
     const midX = overrideMidX ?? (src.position.x + tgt.position.x) / 2;
     const midY = overrideMidY ?? (src.position.y + tgt.position.y) / 2;
 
@@ -124,12 +119,7 @@ export const createUpdateEdgeType = (
     const src = nodes.find((n: any) => n.id === edge.source);
     const tgt = nodes.find((n: any) => n.id === edge.target);
     if (!src || !tgt) return;
-    if (isLockedForMe?.(src.id) || isLockedForMe?.(tgt.id)) {
-      const lockedNodeId = isLockedForMe?.(src.id) ? src.id : tgt.id;
-      const owner = getLockOwner?.(lockedNodeId);
-      toast.warning(`Locked by ${owner?.name || "another user"}`);
-      return;
-    }
+    // Edge operations are never blocked by node locks
 
     // Only allow switching between negation and support
     if (edge.type !== "negation" && edge.type !== "support") return;

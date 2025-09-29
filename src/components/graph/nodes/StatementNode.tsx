@@ -282,7 +282,7 @@ export const StatementNode = ({
         </Handle>
       )}
 
-      <p className="text-accent-foreground font-bold">{statement}</p>
+      <p className="text-accent-foreground">{statement}</p>
     </div>
   );
 };
