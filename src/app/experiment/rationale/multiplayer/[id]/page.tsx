@@ -728,7 +728,6 @@ export default function MultiplayerBoardDetailPage() {
                         setConnectAnchorId(null);
                         connectAnchorRef.current = null;
                         setConnectCursor(null);
-                        setConnectMode(false);
                     },
                     cancelConnect: () => { setConnectAnchorId(null); connectAnchorRef.current = null; setConnectCursor(null); setConnectMode(false); },
                     completeConnectToEdge: (edgeId: string, midX?: number, midY?: number) => {
@@ -759,7 +758,6 @@ export default function MultiplayerBoardDetailPage() {
                         setConnectAnchorId(null);
                         connectAnchorRef.current = null;
                         setConnectCursor(null);
-                        setConnectMode(false);
                     },
                     isConnectingFromNodeId: connectAnchorId,
                     connectMode,

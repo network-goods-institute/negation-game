@@ -42,14 +42,14 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <span className="text-sm font-medium">Connecting</span>
           </div>
           <span className="text-sm text-stone-700">
-            {connectAnchorId ? 'Click a target node or edge to finish' : 'Click a starting node or edge to start a link from'}
+            {connectAnchorId ? 'Click a target node or edge to connect' : 'Click a starting node or edge to connect from'}
           </span>
           <div className="h-5 w-px bg-stone-200 mx-2" />
           <button
             onClick={() => setConnectAnchorId(null)}
             className="text-sm rounded-full px-3 py-1 bg-stone-100 text-stone-900 hover:bg-stone-200"
           >
-            Reset
+            Restart
           </button>
           <button
             onClick={() => { setConnectMode(false); setConnectAnchorId(null); }}
