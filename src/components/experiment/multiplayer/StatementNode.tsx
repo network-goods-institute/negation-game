@@ -167,14 +167,14 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={onKeyDown}
-          className={`text-sm font-semibold whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+          className={`text-sm whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
           style={{ userSelect: hidden ? 'none' : 'text' }}
         >
           {value || 'New Question'}
         </div>
         {hidden && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-            <div className="text-sm font-semibold text-stone-600 italic animate-fade-in">Hidden</div>
+            <div className="text-sm text-stone-600 italic animate-fade-in">Hidden</div>
           </div>
         )}
         {!hidden && (
