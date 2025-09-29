@@ -135,31 +135,26 @@ export const createDeleteNode = (
       (e: any) => e.source === nodeId || e.target === nodeId
     );
 
-    const allEdgesToDelete = [...incidentEdges];
-    const allNodesToDelete: string[] = [];
+    const edgesToDeleteIds = new Set<string>(incidentEdges.map((e: any) => e.id));
+    const nodesToDeleteIds = new Set<string>();
 
-    for (const incidentEdge of incidentEdges) {
-      const anchorNode = nodes.find(
-        (n: any) => n.id === `anchor:${incidentEdge.id}`
-      );
-      if (anchorNode) {
-        allNodesToDelete.push(anchorNode.id);
-
-        const objectionEdges = edges.filter(
-          (e: any) =>
-            e.type === "objection" &&
-            (e.source === anchorNode.id || e.target === anchorNode.id)
+    if (node.type !== "objection") {
+      for (const incidentEdge of incidentEdges) {
+        const anchorNode = nodes.find(
+          (n: any) => n.id === `anchor:${incidentEdge.id}`
         );
-        allEdgesToDelete.push(...objectionEdges);
 
-        for (const objEdge of objectionEdges) {
-          const objectionNodeId =
-            objEdge.source === anchorNode.id ? objEdge.target : objEdge.source;
-          const objectionNode = nodes.find(
-            (n: any) => n.id === objectionNodeId && n.type === "objection"
+        if (anchorNode && anchorNode.id !== nodeId) {
+          nodesToDeleteIds.add(anchorNode.id);
+
+          const objectionEdges = edges.filter(
+            (e: any) =>
+              e.type === "objection" &&
+              (e.source === anchorNode.id || e.target === anchorNode.id)
           );
-          if (objectionNode) {
-            allNodesToDelete.push(objectionNode.id);
+
+          for (const objEdge of objectionEdges) {
+            edgesToDeleteIds.add(objEdge.id);
           }
         }
       }
@@ -168,10 +163,10 @@ export const createDeleteNode = (
     // First sync to Yjs, then update local state to ensure consistency
     if (yNodesMap && yEdgesMap && ydoc) {
       ydoc.transact(() => {
-        for (const e of allEdgesToDelete) {
+        edgesToDeleteIds.forEach((edgeId) => {
           // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yEdgesMap.delete(e.id as any);
-        }
+          yEdgesMap.delete(edgeId as any);
+        });
 
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         yNodesMap.delete(nodeId as any);
@@ -179,34 +174,29 @@ export const createDeleteNode = (
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yTextMap?.delete(nodeId as any);
         } catch {}
-        // Delete objection nodes
-        for (const objectionNodeId of allNodesToDelete) {
+
+        nodesToDeleteIds.forEach((id) => {
           // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yNodesMap.delete(objectionNodeId as any);
+          yNodesMap.delete(id as any);
           try {
             // eslint-disable-next-line drizzle/enforce-delete-with-where
-            yTextMap?.delete(objectionNodeId as any);
+            yTextMap?.delete(id as any);
           } catch {}
-        }
+        });
       }, localOrigin);
 
       // Update local state after Yjs sync
-      setEdges((eds) =>
-        eds.filter((e: any) => !allEdgesToDelete.some((del) => del.id === e.id))
-      );
+      setEdges((eds) => eds.filter((e: any) => !edgesToDeleteIds.has(e.id)));
       setNodes((nds) =>
         nds.filter(
-          (n: any) => n.id !== nodeId && !allNodesToDelete.includes(n.id)
+          (n: any) => n.id !== nodeId && !nodesToDeleteIds.has(n.id)
         )
       );
     } else {
-      // Fallback for non-multiplayer mode
-      setEdges((eds) =>
-        eds.filter((e: any) => !allEdgesToDelete.some((del) => del.id === e.id))
-      );
+      setEdges((eds) => eds.filter((e: any) => !edgesToDeleteIds.has(e.id)));
       setNodes((nds) =>
         nds.filter(
-          (n: any) => n.id !== nodeId && !allNodesToDelete.includes(n.id)
+          (n: any) => n.id !== nodeId && !nodesToDeleteIds.has(n.id)
         )
       );
     }
