@@ -1,12 +1,19 @@
 import { SPACE_HEADER, USER_HEADER } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
-import { isValidSpaceId } from "@/lib/negation-game/isValidSpaceId";
 import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
 import { getPrivyClient } from "@/lib/privy/getPrivyClient";
 import { NextRequest, NextResponse } from "next/server";
 
 // Special subdomains that shouldn't redirect to a space
 const BLACKLISTED_SUBDOMAINS = new Set(["www", "api", "play", "admin"]);
+
+const SPACE_REWRITE_EXCLUSION_PREFIXES = ["/profile"] as const;
+
+function isSpaceRewriteExcluded(pathname: string): boolean {
+  return SPACE_REWRITE_EXCLUSION_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
 
 const SENSITIVE_PATTERNS = [
   /\.env$/i, // Environment files
@@ -118,6 +125,12 @@ function handleSubdomain(
         pathParts.splice(0, 2);
         targetPath = pathParts.length > 0 ? `/${pathParts.join("/")}` : "";
       }
+    }
+
+    if (isSpaceRewriteExcluded(targetPath)) {
+      const response = NextResponse.next();
+      response.headers.set(SPACE_HEADER, subdomain);
+      return response;
     }
 
     const dest = new URL(`/s/${subdomain}${targetPath}`, req.url);

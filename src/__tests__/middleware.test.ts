@@ -170,6 +170,17 @@ describe("Middleware", () => {
       );
     });
 
+    test("allows profile paths to pass through on space subdomains", async () => {
+      const response = await mockMiddleware(
+        "https://scroll.negationgame.com/profile/alice",
+        "scroll.negationgame.com"
+      );
+
+      expect(NextResponse.next).toHaveBeenCalled();
+      expect(NextResponse.rewrite).not.toHaveBeenCalled();
+      expect(response.headers.get("x-space")).toBe("scroll");
+    });
+
     test("preserves query parameters when rewriting space subdomain root", async () => {
       await mockMiddleware(
         "https://scroll.negationgame.com?foo=bar&test=123",
