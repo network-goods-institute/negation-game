@@ -351,7 +351,7 @@ export default function MultiplayerBoardDetailPage() {
 
     const getViewportOffset = React.useCallback(() => {
         const nodeSpacing = 16;
-        return { x: Math.random() * 40 - 20, y: nodeSpacing };
+        return { x: 0, y: nodeSpacing };
     }, []);
 
     const addNegationBelow = createAddNegationBelow(

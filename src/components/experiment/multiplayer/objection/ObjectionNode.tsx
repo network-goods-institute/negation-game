@@ -245,7 +245,7 @@ items-center justify-center pointer-events-none select-none">
                 )}
                 {selected && !hidden && (
                     <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
-                        <span className="text-[10px] uppercase tracking-wide text-stone-500">Favor</span>
+                        <span className="text-[10px] uppercase tracking-wide text-stone-500 -translate-y-0.5">Favor</span>
                         <FavorSelector
                             value={favor}
                             onSelect={(level) => updateNodeFavor?.(id, level)}

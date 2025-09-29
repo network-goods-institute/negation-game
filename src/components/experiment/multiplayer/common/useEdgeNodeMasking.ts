@@ -20,16 +20,24 @@ export const useEdgeNodeMasking = (
       sourceNode?.type === "point" || sourceNode?.type === "objection";
     const tgtHasFavor =
       targetNode?.type === "point" || targetNode?.type === "objection";
-    const srcFavor = Math.max(1, Math.min(5, sourceNode?.data?.favor ?? 5));
-    const tgtFavor = Math.max(1, Math.min(5, targetNode?.data?.favor ?? 5));
+
+    const normalizeFavor = (value: unknown) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return 5;
+      }
+      const rounded = Math.round(numeric);
+      return Math.max(1, Math.min(5, rounded));
+    };
+
+    const srcFavor = normalizeFavor(sourceNode?.data?.favor ?? 5);
+    const tgtFavor = normalizeFavor(targetNode?.data?.favor ?? 5);
     const srcIsTitle = sourceNode?.type === "title";
     const tgtIsTitle = targetNode?.type === "title";
     const srcIsAnchor = sourceNode?.type === "edge_anchor";
     const tgtIsAnchor = targetNode?.type === "edge_anchor";
-    const srcLowOpacity =
-      (srcHasFavor && srcFavor <= 3) || srcIsTitle || srcIsAnchor;
-    const tgtLowOpacity =
-      (tgtHasFavor && tgtFavor <= 3) || tgtIsTitle || tgtIsAnchor;
+    const srcLowOpacity = true;
+    const tgtLowOpacity = true;
 
     return {
       srcHasFavor,

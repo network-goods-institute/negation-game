@@ -255,7 +255,12 @@ describe("createDeleteNode", () => {
       // All nodes should remain unchanged
       expect(mockNodes).toHaveLength(4); // All nodes should remain
       expect(mockNodes.map((n: any) => n.id)).toEqual(
-        expect.arrayContaining([anchorId, objectionId1, objectionId2, "other-node"])
+        expect.arrayContaining([
+          anchorId,
+          objectionId1,
+          objectionId2,
+          "other-node",
+        ])
       );
     });
   });
@@ -341,6 +346,89 @@ describe("createDeleteNode", () => {
       expect(updatedNodes.map((n: any) => n.id)).toEqual(
         expect.arrayContaining(["other-node", "another-node"])
       );
+    });
+
+    it("should retain other objection nodes when a point is deleted", () => {
+      const mainEdgeId = "edge-main";
+      const anchorId = `anchor:${mainEdgeId}`;
+      const objectionNode1 = "objection-1";
+      const objectionNode2 = "objection-2";
+      const objectionEdge1 = "obj-edge-1";
+      const objectionEdge2 = "obj-edge-2";
+      const pointId = "point-1";
+
+      mockNodes = [
+        {
+          id: anchorId,
+          type: "edge_anchor",
+          data: { parentEdgeId: mainEdgeId },
+        },
+        {
+          id: objectionNode1,
+          type: "objection",
+          data: { parentEdgeId: mainEdgeId },
+        },
+        {
+          id: objectionNode2,
+          type: "objection",
+          data: { parentEdgeId: mainEdgeId },
+        },
+        { id: pointId, type: "point", data: { content: "Point" } },
+        { id: "point-2", type: "point", data: { content: "Other point" } },
+      ];
+
+      mockEdges = [
+        {
+          id: mainEdgeId,
+          type: "negation",
+          source: pointId,
+          target: "point-2",
+        },
+        {
+          id: objectionEdge1,
+          type: "objection",
+          source: objectionNode1,
+          target: anchorId,
+        },
+        {
+          id: objectionEdge2,
+          type: "objection",
+          source: objectionNode2,
+          target: anchorId,
+        },
+      ];
+
+      const setNodes = (updater: any) => {
+        mockNodes = updater(mockNodes);
+      };
+
+      const setEdges = (updater: any) => {
+        mockEdges = updater(mockEdges);
+      };
+
+      const deleteNode = createDeleteNode(
+        mockNodes,
+        mockEdges,
+        null,
+        null,
+        null,
+        null,
+        true,
+        {},
+        setNodes,
+        setEdges
+      );
+
+      deleteNode(pointId);
+
+      expect(mockEdges.some((e: any) => e.id === mainEdgeId)).toBe(false);
+      expect(mockEdges.some((e: any) => e.id === objectionEdge1)).toBe(false);
+      expect(mockEdges.some((e: any) => e.id === objectionEdge2)).toBe(false);
+
+      expect(mockNodes.some((n: any) => n.id === pointId)).toBe(false);
+      expect(mockNodes.some((n: any) => n.id === anchorId)).toBe(false);
+      expect(mockNodes.some((n: any) => n.id === objectionNode1)).toBe(true);
+      expect(mockNodes.some((n: any) => n.id === objectionNode2)).toBe(true);
     });
   });
 });
