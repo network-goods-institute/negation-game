@@ -47,7 +47,7 @@ export const TopicsSidebar = memo(({
 
         // Filter and map topics
         const processedTopics = (topics as any[])
-            .filter((t: any) => t && typeof t.name === "string" && t.name.trim())
+            .filter((t: any) => t && typeof t.name === "string" && t.name.trim() && t.rationalesCount > 0)
             .map((t: any) => ({
                 id: t.id,
                 name: String(t.name).trim(),
