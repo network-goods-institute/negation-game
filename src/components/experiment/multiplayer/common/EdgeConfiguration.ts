@@ -4,7 +4,7 @@ const makeIcon = (
   color: string,
   angles: number[],
   length = 11,
-  thickness = 3
+  thickness = 2
 ): React.ReactNode => {
   return React.createElement(
     "div",
@@ -117,7 +117,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       starColor: "text-orange-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
       strokeDasharray: "8,4",
-      midpointContent: makeIcon("#f97316", [45], 12, 3),
+      midpointContent: makeIcon("#f97316", [45], 12, 2),
       useBezier: true,
       curvature: 0.35,
     },
@@ -141,12 +141,20 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
         { offset: "100%", stopColor: "#3b82f6", stopOpacity: 0.22 },
       ],
       midpointContent: React.createElement(
-        "div",
+        "svg",
         {
-          className: "text-[8px] font-bold",
-          style: { color: "#2563eb" },
+          width: "12",
+          height: "12",
+          viewBox: "0 0 12 12",
+          style: { display: "block" },
         },
-        "?"
+        React.createElement("path", {
+          d: "M 4.5 3.5 C 4.5 2.5 5 2 6 2 C 7 2 7.5 2.5 7.5 3.5 C 7.5 4.5 6.5 5 6 6 L 6 7.5 M 6 9.5 L 6 10",
+          stroke: "#2563eb",
+          strokeWidth: "1.5",
+          strokeLinecap: "round",
+          fill: "none",
+        })
       ),
       useStrap: true,
       useBezier: false,
