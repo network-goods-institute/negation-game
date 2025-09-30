@@ -435,15 +435,22 @@ export const useEditableNode = ({
     }
     if (e.key === "Escape") {
       e.preventDefault();
-      // Cancel: restore pre-edit content (since onInput pushes live changes)
-      const original = originalBeforeEditRef.current;
-      if (contentRef.current) contentRef.current.innerText = original;
-      draftRef.current = original;
-      setValue(original);
-      updateNodeContent(id, original);
+      // Just exit editing mode, keeping current content
       setIsEditing(false);
       stopEditingNode?.(id);
       selectionBookmarkRef.current = null;
+      // Ensure draft is committed
+      if (draftRef.current !== value) {
+        setValue(draftRef.current);
+        if (updateTimerRef.current) {
+          clearTimeout(updateTimerRef.current);
+          updateTimerRef.current = null;
+        }
+        updateNodeContent(id, draftRef.current);
+      }
+      if (contentRef.current) {
+        contentRef.current.innerText = draftRef.current;
+      }
     }
   };
 
