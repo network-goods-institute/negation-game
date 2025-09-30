@@ -14,6 +14,7 @@ import { pick } from "remeda";
 import { topicsTable } from "@/db/tables/topicsTable";
 import { eq } from "drizzle-orm";
 import { validatePointsExistence } from "@/actions/points/validatePointsExistence";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 
 export interface PublishViewpointArgs
   extends Omit<
@@ -98,6 +99,10 @@ export const publishViewpoint = async ({
     }
   }
 
+  const pointSnapshots = pointIds.length
+    ? await fetchPointSnapshots(pointIds)
+    : [];
+
   const cleanedGraph = cleanupForPublishing(graph);
 
   const valuesToInsert = {
@@ -121,6 +126,9 @@ export const publishViewpoint = async ({
     graph,
     authorId: userId,
     space,
+    pointSnapshots,
+    rationaleTitle: finalTitle,
+    rationaleDescription: description,
   });
 
   return id;
