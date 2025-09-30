@@ -52,6 +52,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     wrapperRef,
     onClick,
     onInput,
+    onPaste,
     onKeyDown,
     onBlur,
     onFocus,
@@ -160,6 +161,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           spellCheck={true}
           suppressContentEditableWarning
           onInput={onInput}
+          onPaste={onPaste}
           onMouseDown={onContentMouseDown}
           onMouseMove={onContentMouseMove}
           onMouseLeave={onContentMouseLeave}

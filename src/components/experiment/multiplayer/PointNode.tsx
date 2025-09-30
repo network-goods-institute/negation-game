@@ -76,6 +76,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     wrapperRef,
     onClick,
     onInput,
+    onPaste,
     onKeyDown,
     onBlur,
     onFocus,
@@ -322,6 +323,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           spellCheck={true}
           suppressContentEditableWarning
           onInput={onInput}
+          onPaste={onPaste}
           onMouseDown={onContentMouseDown}
           onMouseMove={onContentMouseMove}
           onMouseLeave={onContentMouseLeave}

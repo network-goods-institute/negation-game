@@ -55,6 +55,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
         wrapperRef,
         onClick,
         onInput,
+        onPaste,
         onKeyDown,
         onBlur,
         onFocus,
@@ -147,6 +148,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                 spellCheck={true}
                 suppressContentEditableWarning
                 onInput={onInput}
+                onPaste={onPaste}
                 onMouseDown={onContentMouseDown}
                 onMouseMove={onContentMouseMove}
                 onMouseLeave={onContentMouseLeave}

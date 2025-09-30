@@ -63,6 +63,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         wrapperRef,
         onClick,
         onInput,
+        onPaste,
         onKeyDown,
         onBlur,
         onFocus,
@@ -160,13 +161,18 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     return;
                 }
             }
-            if (locked) {
-                e.stopPropagation();
-                toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
+            if (contentRef.current && contentRef.current.contains(e.target as Node)) {
+                onClick(e);
                 return;
             }
             const target = e.target as HTMLElement | null;
             if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
+                return;
+            }
+            if (isEditing) return;
+            if (locked) {
+                e.stopPropagation();
+                toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
                 return;
             }
             onClick(e);
@@ -224,6 +230,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     spellCheck={true}
                     suppressContentEditableWarning
                     onInput={onInput}
+                    onPaste={onPaste}
                     onMouseDown={onContentMouseDown}
                     onMouseMove={onContentMouseMove}
                     onMouseLeave={onContentMouseLeave}
@@ -231,7 +238,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     onFocus={onFocus}
                     onBlur={onBlur}
                     onKeyDown={onKeyDown}
-                    className={`${pointLike ? 'text-sm text-gray-900' : 'text-xs text-amber-900'} leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+                    className={`text-sm ${pointLike ? 'text-gray-900' : 'text-amber-900'} leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
                     style={{ userSelect: hidden ? 'none' : 'text' }}
                 >
                     {value || (pointLike ? 'New point' : 'New mitigation')}

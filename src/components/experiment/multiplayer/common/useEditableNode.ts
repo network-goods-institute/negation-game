@@ -343,6 +343,12 @@ export const useEditableNode = ({
     lastClickRef.current = now;
   };
 
+  const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  };
+
   const onInput = (e: React.FormEvent<HTMLDivElement>) => {
     draftRef.current = (e.target as HTMLDivElement).innerText;
     if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
@@ -480,6 +486,7 @@ export const useEditableNode = ({
     cursorClass,
     onClick,
     onInput,
+    onPaste,
     onKeyDown,
     onBlur,
     onFocus,
