@@ -46,6 +46,7 @@ jest.mock("drizzle-orm", () => ({
     raw: jest.fn().mockReturnThis(),
     mapWith: jest.fn().mockReturnThis(),
   })),
+  isTable: jest.fn().mockReturnValue(true),
 }));
 
 // Add mock for toast
@@ -68,12 +69,17 @@ jest.mock("@/lib/notifications/notificationQueue", () => ({
   queueNegationNotification: jest.fn(),
 }));
 
+jest.mock("@/actions/points/fetchPointSnapshots", () => ({
+  fetchPointSnapshots: jest.fn(),
+}));
+
 // Import the negate action after setting up mocks
 import { negate } from "../points/negate";
 import { getUserId } from "../users/getUserId";
 import { getSpace } from "@/actions/spaces/getSpace";
 import { db } from "@/services/db";
 import { usersTable, endorsementsTable, negationsTable } from "@/db/schema";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 
 describe("negate", () => {
   const mockPointQueries = () => {
@@ -104,6 +110,24 @@ describe("negate", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPointQueries();
+    (fetchPointSnapshots as jest.Mock).mockResolvedValue([
+      {
+        id: 123,
+        createdBy: "other-user",
+        content: "Test negated point content",
+        space: "test-space",
+        createdAt: new Date(),
+        authorUsername: "other-user",
+      },
+      {
+        id: 456,
+        createdBy: "third-user",
+        content: "Test counterpoint content",
+        space: "test-space",
+        createdAt: new Date(),
+        authorUsername: "third-user",
+      },
+    ]);
   });
 
   it("should throw an error if user is not authenticated", async () => {

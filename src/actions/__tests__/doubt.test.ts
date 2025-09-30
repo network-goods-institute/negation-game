@@ -11,6 +11,10 @@ jest.mock("@/lib/notifications/notificationQueue", () => ({
   queueDoubtNotification: jest.fn(),
 }));
 
+jest.mock("@/actions/points/fetchPointSnapshots", () => ({
+  fetchPointSnapshots: jest.fn(),
+}));
+
 jest.mock("@/db/schema", () => ({
   doubtsTable: {
     id: "id",
@@ -116,10 +120,18 @@ import { doubt } from "../epistemic/doubt";
 import { getUserId } from "../users/getUserId";
 import { db } from "@/services/db";
 import { doubtsTable, doubtHistoryTable, usersTable } from "@/db/schema";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 
 describe("doubt", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (fetchPointSnapshots as jest.Mock).mockImplementation(async (ids: number[]) =>
+      ids.map((id) => ({
+        id,
+        createdBy: `owner-${id}`,
+        content: `Point ${id}`,
+      }))
+    );
   });
 
   it("should throw an error if user is not authenticated", async () => {

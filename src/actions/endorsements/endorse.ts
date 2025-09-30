@@ -9,6 +9,7 @@ import {
   InsertEndorsement,
 } from "@/db/tables/endorsementsTable";
 import { queueEndorsementNotification } from "@/lib/notifications/notificationQueue";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 import { trackEndorseEvent } from "@/actions/analytics/trackCredEvent";
 
 import { db } from "@/services/db";
@@ -56,6 +57,8 @@ export const endorse = async ({
     return insertResult[0].id;
   });
 
+  const [pointSnapshot] = await fetchPointSnapshots([pointId]);
+
   // Track the cred event and queue notification in background - don't await
   Promise.all([
     trackEndorseEvent(userId, pointId, cred),
@@ -64,6 +67,7 @@ export const endorse = async ({
       endorserId: userId,
       credAmount: cred,
       space,
+      pointSnapshot: pointSnapshot ?? null,
     }),
   ]).catch((error) => {
     console.error("Background endorsement tasks failed:", error);

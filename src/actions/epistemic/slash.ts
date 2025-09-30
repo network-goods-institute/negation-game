@@ -14,6 +14,7 @@ import {
   queueSlashNotification,
   queueDoubtReductionNotification,
 } from "@/lib/notifications/notificationQueue";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 import { trackSlashEvent } from "@/actions/analytics/trackCredEvent";
 import { db } from "@/services/db";
 import { eq, and, sql, desc } from "drizzle-orm";
@@ -31,6 +32,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
   }
 
   const space = await getSpace();
+  const [pointSnapshot] = await fetchPointSnapshots([pointId]);
 
   return await db.transaction(async (tx) => {
     // First get the restake - we can only slash our own restakes
@@ -217,13 +219,14 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
             });
 
             // Queue notification for doubt holder
-            queueDoubtReductionNotification({
-              negatedPointId: pointId,
-              slasherId: userId,
-              doubterId: doubt.userId,
-              reductionAmount,
-              newDoubtAmount,
-              space,
+           queueDoubtReductionNotification({
+             negatedPointId: pointId,
+             slasherId: userId,
+             doubterId: doubt.userId,
+             reductionAmount,
+             newDoubtAmount,
+             space,
+              pointSnapshot: pointSnapshot ?? null,
             });
           }
         }
@@ -273,13 +276,14 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
             });
 
             // Queue notification for doubt holder
-            queueDoubtReductionNotification({
-              negatedPointId: pointId,
-              slasherId: userId,
-              doubterId: doubt.userId,
-              reductionAmount,
-              newDoubtAmount,
-              space,
+           queueDoubtReductionNotification({
+             negatedPointId: pointId,
+             slasherId: userId,
+             doubterId: doubt.userId,
+             reductionAmount,
+             newDoubtAmount,
+             space,
+              pointSnapshot: pointSnapshot ?? null,
             });
           }
         }
@@ -305,6 +309,7 @@ export const slash = async ({ pointId, negationId, amount }: SlashArgs) => {
         slasherId: userId,
         amount,
         space,
+        pointSnapshot: pointSnapshot ?? null,
       });
     }
 

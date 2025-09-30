@@ -11,6 +11,10 @@ jest.mock("@/lib/notifications/notificationQueue", () => ({
   queueEndorsementNotification: jest.fn(),
 }));
 
+jest.mock("@/actions/points/fetchPointSnapshots", () => ({
+  fetchPointSnapshots: jest.fn(),
+}));
+
 // Mock DB schema
 jest.mock("@/db/schema", () => ({
   usersTable: {
@@ -86,6 +90,7 @@ import { getUserId } from "../users/getUserId";
 import { getSpace } from "../spaces/getSpace";
 import { db } from "@/services/db";
 import { usersTable, endorsementsTable } from "@/db/schema";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 
 describe("endorse", () => {
   beforeEach(() => {
@@ -119,6 +124,14 @@ describe("endorse", () => {
     (getUserId as jest.Mock).mockResolvedValue("user-123");
     (getSpace as jest.Mock).mockResolvedValue("test-space");
 
+    (fetchPointSnapshots as jest.Mock).mockResolvedValue([
+      {
+        id: 123,
+        createdBy: "other-user",
+        content: "Test point content",
+      },
+    ]);
+
     // Mock update chain
     const updateSet = jest.fn().mockReturnThis();
     const updateWhere = jest.fn().mockReturnThis();
@@ -135,21 +148,6 @@ describe("endorse", () => {
       returning: insertReturning,
     });
 
-    // Mock select chain for point data
-    const selectFrom = jest.fn().mockReturnThis();
-    const selectWhere = jest.fn().mockReturnThis();
-    const selectLimit = jest.fn().mockResolvedValue([
-      {
-        createdBy: "other-user",
-        content: "Test point content",
-      },
-    ]);
-    const select = jest.fn().mockReturnValue({
-      from: selectFrom,
-      where: selectWhere,
-      limit: selectLimit,
-    });
-
     // Setup transaction mock with proper chaining
     const txMock = {
       update,
@@ -158,13 +156,6 @@ describe("endorse", () => {
 
     (db.transaction as jest.Mock).mockImplementation(async (callback) => {
       return await callback(txMock);
-    });
-
-    // Mock the point data query
-    (db.select as jest.Mock).mockReturnValue({
-      from: selectFrom,
-      where: selectWhere,
-      limit: selectLimit,
     });
 
     // Execute

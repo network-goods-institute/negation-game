@@ -12,6 +12,10 @@ jest.mock("@/lib/notifications/notificationQueue", () => ({
   queueDoubtReductionNotification: jest.fn(),
 }));
 
+jest.mock("@/actions/points/fetchPointSnapshots", () => ({
+  fetchPointSnapshots: jest.fn(),
+}));
+
 jest.mock("@/db/schema", () => ({
   restakesTable: {
     id: "id",
@@ -99,10 +103,18 @@ import {
   slashHistoryTable,
   restakeHistoryTable,
 } from "@/db/schema";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 
 describe("slash", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (fetchPointSnapshots as jest.Mock).mockImplementation(async (ids: number[]) =>
+      ids.map((id) => ({
+        id,
+        createdBy: `owner-${id}`,
+        content: `Point ${id}`,
+      }))
+    );
   });
 
   it("should throw an error if user is not authenticated", async () => {

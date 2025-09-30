@@ -7,6 +7,7 @@ import { Point } from "@/db/tables/pointsTable";
 import { queueNegationNotification } from "@/lib/notifications/notificationQueue";
 import { db } from "@/services/db";
 import { eq, sql, and } from "drizzle-orm";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 
 export interface NegateArgs {
   negatedPointId: Point["id"];
@@ -72,6 +73,9 @@ export const negate = async ({
     return existing.id;
   });
 
+  const snapshots = await fetchPointSnapshots([negatedPointId, counterpointId]);
+  const snapshotMap = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
+
   // Queue notification in background - let the queue handle all the logic
   queueNegationNotification({
     negatedPointId,
@@ -79,6 +83,8 @@ export const negate = async ({
     negatorId: userId,
     credAmount: cred,
     space,
+    negatedPointSnapshot: snapshotMap.get(negatedPointId) ?? null,
+    counterpointSnapshot: snapshotMap.get(counterpointId) ?? null,
   });
 
   return negationId;

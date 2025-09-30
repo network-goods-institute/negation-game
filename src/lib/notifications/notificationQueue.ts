@@ -3,6 +3,7 @@ import { generateNotificationSummary } from "@/actions/ai/generateNotificationSu
 import { db } from "@/services/db";
 import { pointsTable, viewpointsTable, usersTable } from "@/db/schema";
 import { eq, inArray, and } from "drizzle-orm";
+import type { PointSnapshot } from "@/actions/points/fetchPointSnapshots";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { PointNodeData } from "@/components/graph/nodes/PointNode";
 import { isFeatureEnabled } from "@/lib/featureFlags";
@@ -13,6 +14,7 @@ interface EndorsementNotificationData {
   endorserId: string;
   credAmount: number;
   space: string;
+  pointSnapshot?: PointSnapshot | null;
 }
 
 interface NegationNotificationData {
@@ -22,6 +24,8 @@ interface NegationNotificationData {
   negatorId: string;
   credAmount: number;
   space: string;
+  negatedPointSnapshot?: PointSnapshot | null;
+  counterpointSnapshot?: PointSnapshot | null;
 }
 
 interface RationaleMentionNotificationData {
@@ -30,6 +34,9 @@ interface RationaleMentionNotificationData {
   graph: ViewpointGraph;
   authorId: string;
   space: string;
+  pointSnapshots?: PointSnapshot[] | null;
+  rationaleTitle?: string | null;
+  rationaleDescription?: string | null;
 }
 
 interface RestakeNotificationData {
@@ -38,6 +45,7 @@ interface RestakeNotificationData {
   restakerId: string;
   amount: number;
   space: string;
+  pointSnapshot?: PointSnapshot | null;
 }
 
 interface SlashNotificationData {
@@ -46,6 +54,7 @@ interface SlashNotificationData {
   slasherId: string;
   amount: number;
   space: string;
+  pointSnapshot?: PointSnapshot | null;
 }
 
 interface DoubtNotificationData {
@@ -54,6 +63,7 @@ interface DoubtNotificationData {
   doubterId: string;
   amount: number;
   space: string;
+  pointSnapshot?: PointSnapshot | null;
 }
 
 interface DoubtReductionNotificationData {
@@ -64,6 +74,7 @@ interface DoubtReductionNotificationData {
   reductionAmount: number;
   newDoubtAmount: number;
   space: string;
+  pointSnapshot?: PointSnapshot | null;
 }
 
 type NotificationData =
@@ -75,9 +86,153 @@ type NotificationData =
   | DoubtNotificationData
   | DoubtReductionNotificationData;
 
+const isCompletePointSnapshot = (
+  snapshot?: PointSnapshot | null
+): snapshot is PointSnapshot => {
+  if (!snapshot) {
+    return false;
+  }
+
+  const { id, createdBy, content, space, createdAt } = snapshot;
+
+  return (
+    typeof id === "number" &&
+    typeof createdBy === "string" &&
+    typeof content === "string" &&
+    typeof space === "string" &&
+    createdAt !== undefined &&
+    "authorUsername" in snapshot
+  );
+};
+
 class NotificationQueue {
   private queue: NotificationData[] = [];
   private processing = false;
+  private pointCache = new Map<number, PointSnapshot>();
+  private rationaleCache = new Map<
+    string,
+    { title: string; description: string | null }
+  >();
+
+  private async resolvePointSnapshot(
+    pointId: number,
+    fallback?: PointSnapshot | null
+  ): Promise<PointSnapshot | null> {
+    if (isCompletePointSnapshot(fallback)) {
+      this.pointCache.set(pointId, fallback);
+      return fallback;
+    }
+
+    const cached = this.pointCache.get(pointId);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await db
+      .select({
+        id: pointsTable.id,
+        createdBy: pointsTable.createdBy,
+        content: pointsTable.content,
+        space: pointsTable.space,
+        createdAt: pointsTable.createdAt,
+        authorUsername: usersTable.username,
+      })
+      .from(pointsTable)
+      .innerJoin(usersTable, eq(usersTable.id, pointsTable.createdBy))
+      .where(and(eq(pointsTable.id, pointId), eq(pointsTable.isActive, true)))
+      .limit(1);
+
+    if (!result[0]) {
+      return null;
+    }
+
+    this.pointCache.set(pointId, result[0]);
+    return result[0];
+  }
+
+  private async collectPointSnapshots(
+    pointIds: number[],
+    provided?: Map<number, PointSnapshot | null>
+  ): Promise<Map<number, PointSnapshot>> {
+    const snapshots = new Map<number, PointSnapshot>();
+    const missing: number[] = [];
+
+    for (const id of pointIds) {
+      const providedSnapshot = provided?.get(id);
+      if (isCompletePointSnapshot(providedSnapshot)) {
+        snapshots.set(id, providedSnapshot);
+        this.pointCache.set(id, providedSnapshot);
+        continue;
+      }
+
+      const cached = this.pointCache.get(id);
+      if (cached) {
+        snapshots.set(id, cached);
+        continue;
+      }
+
+      missing.push(id);
+    }
+
+    if (missing.length > 0) {
+      const rows = await db
+        .select({
+          id: pointsTable.id,
+          createdBy: pointsTable.createdBy,
+          content: pointsTable.content,
+          space: pointsTable.space,
+          createdAt: pointsTable.createdAt,
+          authorUsername: usersTable.username,
+        })
+        .from(pointsTable)
+        .innerJoin(usersTable, eq(usersTable.id, pointsTable.createdBy))
+        .where(
+          and(inArray(pointsTable.id, missing), eq(pointsTable.isActive, true))
+        );
+
+      rows.forEach((row) => {
+        this.pointCache.set(row.id, row);
+        snapshots.set(row.id, row);
+      });
+    }
+
+    return snapshots;
+  }
+
+  private async resolveRationaleSnapshot(
+    rationaleId: string,
+    fallback?: { title?: string | null; description?: string | null }
+  ): Promise<{ title: string; description: string | null } | null> {
+    if (fallback && fallback.title) {
+      const resolved = {
+        title: fallback.title,
+        description: fallback.description ?? null,
+      } as { title: string; description: string | null };
+      this.rationaleCache.set(rationaleId, resolved);
+      return resolved;
+    }
+
+    const cached = this.rationaleCache.get(rationaleId);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await db
+      .select({
+        title: viewpointsTable.title,
+        description: viewpointsTable.description,
+      })
+      .from(viewpointsTable)
+      .where(eq(viewpointsTable.id, rationaleId))
+      .limit(1);
+
+    if (!result[0]) {
+      return null;
+    }
+
+    this.rationaleCache.set(rationaleId, result[0]);
+    return result[0];
+  }
 
   async queueNotification(data: NotificationData) {
     if (!isFeatureEnabled("notifications")) {
@@ -139,24 +294,17 @@ class NotificationQueue {
   }
 
   private async processEndorsement(data: EndorsementNotificationData) {
-    // Fetch point and check if we should send notification
-    const point = await db
-      .select({
-        createdBy: pointsTable.createdBy,
-        content: pointsTable.content,
-      })
-      .from(pointsTable)
-      .where(
-        and(eq(pointsTable.id, data.pointId), eq(pointsTable.isActive, true))
-      )
-      .limit(1);
+    const pointSnapshot = await this.resolvePointSnapshot(
+      data.pointId,
+      data.pointSnapshot
+    );
 
-    if (!point[0] || point[0].createdBy === data.endorserId) {
+    if (!pointSnapshot || pointSnapshot.createdBy === data.endorserId) {
       return; // Don't notify if point doesn't exist or user endorsed their own point
     }
 
     const title = "Your point received an endorsement";
-    const content = `Someone endorsed your point with ${data.credAmount} cred: "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}"`;
+    const content = `Someone endorsed your point with ${data.credAmount} cred: "${pointSnapshot.content.length > 50 ? pointSnapshot.content.substring(0, 50) + "..." : pointSnapshot.content}"`;
 
     const notificationData = {
       type: data.type,
@@ -165,14 +313,14 @@ class NotificationQueue {
       metadata: {
         pointId: data.pointId,
         credAmount: data.credAmount,
-        pointContent: point[0].content,
+        pointContent: pointSnapshot.content,
       },
     };
 
     const aiSummary = await generateNotificationSummary(notificationData);
 
     await createNotification({
-      userId: point[0].createdBy,
+      userId: pointSnapshot.createdBy,
       type: data.type,
       sourceUserId: data.endorserId,
       sourceEntityId: data.pointId.toString(),
@@ -186,23 +334,16 @@ class NotificationQueue {
   }
 
   private async processNegation(data: NegationNotificationData) {
-    // Fetch both points and check if we should send notification
-    const points = await db
-      .select({
-        id: pointsTable.id,
-        createdBy: pointsTable.createdBy,
-        content: pointsTable.content,
-      })
-      .from(pointsTable)
-      .where(
-        and(
-          inArray(pointsTable.id, [data.negatedPointId, data.counterpointId]),
-          eq(pointsTable.isActive, true)
-        )
-      );
+    const snapshots = await this.collectPointSnapshots(
+      [data.negatedPointId, data.counterpointId],
+      new Map<number, PointSnapshot | null>([
+        [data.negatedPointId, data.negatedPointSnapshot ?? null],
+        [data.counterpointId, data.counterpointSnapshot ?? null],
+      ])
+    );
 
-    const negatedPoint = points.find((p) => p.id === data.negatedPointId);
-    const counterpoint = points.find((p) => p.id === data.counterpointId);
+    const negatedPoint = snapshots.get(data.negatedPointId);
+    const counterpoint = snapshots.get(data.counterpointId);
 
     if (
       !negatedPoint ||
@@ -259,38 +400,32 @@ class NotificationQueue {
       return; // No points to notify about
     }
 
-    // Fetch rationale data
-    const rationale = await db
-      .select({
-        title: viewpointsTable.title,
-        description: viewpointsTable.description,
-      })
-      .from(viewpointsTable)
-      .where(eq(viewpointsTable.id, data.rationaleId))
-      .limit(1);
+    const providedSnapshots = new Map<number, PointSnapshot | null>(
+      (data.pointSnapshots ?? []).map((snapshot) => [snapshot.id, snapshot])
+    );
 
-    if (!rationale[0]) {
-      return; // Rationale not found
+    const pointSnapshots = await this.collectPointSnapshots(
+      pointIds,
+      providedSnapshots
+    );
+
+    const rationaleSnapshot = await this.resolveRationaleSnapshot(
+      data.rationaleId,
+      {
+        title: data.rationaleTitle,
+        description: data.rationaleDescription,
+      }
+    );
+
+    if (!rationaleSnapshot) {
+      return;
     }
 
-    // Fetch all point creators
-    const pointCreators = await db
-      .select({
-        id: pointsTable.id,
-        createdBy: pointsTable.createdBy,
-        content: pointsTable.content,
-      })
-      .from(pointsTable)
-      .where(
-        and(inArray(pointsTable.id, pointIds), eq(pointsTable.isActive, true))
-      );
-
-    // Prepare notification data for all point creators (except the rationale author)
-    const notificationTasks = pointCreators
+    const notificationTasks = Array.from(pointSnapshots.values())
       .filter((point) => point.createdBy !== data.authorId)
       .map(async (point) => {
         const title = "Your point was mentioned in a rationale";
-        const content = `Your point "${point.content.length > 50 ? point.content.substring(0, 50) + "..." : point.content}" was included in the rationale "${rationale[0].title}"`;
+        const content = `Your point "${point.content.length > 50 ? point.content.substring(0, 50) + "..." : point.content}" was included in the rationale "${rationaleSnapshot.title}"`;
 
         const notificationData = {
           type: data.type,
@@ -299,8 +434,8 @@ class NotificationQueue {
           metadata: {
             rationaleId: data.rationaleId,
             pointId: point.id,
-            rationaleTitle: rationale[0].title,
-            rationaleDescription: rationale[0].description,
+            rationaleTitle: rationaleSnapshot.title,
+            rationaleDescription: rationaleSnapshot.description,
             pointContent: point.content,
           },
         };
@@ -356,27 +491,17 @@ class NotificationQueue {
   }
 
   private async processRestake(data: RestakeNotificationData) {
-    // Fetch point and check if we should send notification
-    const point = await db
-      .select({
-        createdBy: pointsTable.createdBy,
-        content: pointsTable.content,
-      })
-      .from(pointsTable)
-      .where(
-        and(
-          eq(pointsTable.id, data.negatedPointId),
-          eq(pointsTable.isActive, true)
-        )
-      )
-      .limit(1);
+    const pointSnapshot = await this.resolvePointSnapshot(
+      data.negatedPointId,
+      data.pointSnapshot
+    );
 
-    if (!point[0] || point[0].createdBy === data.restakerId) {
+    if (!pointSnapshot || pointSnapshot.createdBy === data.restakerId) {
       return; // Don't notify if point doesn't exist or user restaked their own point
     }
 
     const title = "Someone restaked on your point";
-    const content = `Someone committed ${data.amount} cred to change their mind if your point "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}" is successfully negated`;
+    const content = `Someone committed ${data.amount} cred to change their mind if your point "${pointSnapshot.content.length > 50 ? pointSnapshot.content.substring(0, 50) + "..." : pointSnapshot.content}" is successfully negated`;
 
     const notificationData = {
       type: data.type,
@@ -385,14 +510,14 @@ class NotificationQueue {
       metadata: {
         negatedPointId: data.negatedPointId,
         amount: data.amount,
-        negatedPointContent: point[0].content,
+        negatedPointContent: pointSnapshot.content,
       },
     };
 
     const aiSummary = await generateNotificationSummary(notificationData);
 
     await createNotification({
-      userId: point[0].createdBy,
+      userId: pointSnapshot.createdBy,
       type: data.type,
       sourceUserId: data.restakerId,
       sourceEntityId: data.negatedPointId.toString(),
@@ -406,27 +531,17 @@ class NotificationQueue {
   }
 
   private async processSlash(data: SlashNotificationData) {
-    // Fetch point and check if we should send notification
-    const point = await db
-      .select({
-        createdBy: pointsTable.createdBy,
-        content: pointsTable.content,
-      })
-      .from(pointsTable)
-      .where(
-        and(
-          eq(pointsTable.id, data.negatedPointId),
-          eq(pointsTable.isActive, true)
-        )
-      )
-      .limit(1);
+    const pointSnapshot = await this.resolvePointSnapshot(
+      data.negatedPointId,
+      data.pointSnapshot
+    );
 
-    if (!point[0] || point[0].createdBy === data.slasherId) {
+    if (!pointSnapshot || pointSnapshot.createdBy === data.slasherId) {
       return; // Don't notify if point doesn't exist or user slashed their own restake
     }
 
     const title = "Someone slashed their restake on your point";
-    const content = `Someone admitted they changed their mind about your point "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}" and slashed ${data.amount} of their restake`;
+    const content = `Someone admitted they changed their mind about your point "${pointSnapshot.content.length > 50 ? pointSnapshot.content.substring(0, 50) + "..." : pointSnapshot.content}" and slashed ${data.amount} of their restake`;
 
     const notificationData = {
       type: data.type,
@@ -435,14 +550,14 @@ class NotificationQueue {
       metadata: {
         negatedPointId: data.negatedPointId,
         amount: data.amount,
-        negatedPointContent: point[0].content,
+        negatedPointContent: pointSnapshot.content,
       },
     };
 
     const aiSummary = await generateNotificationSummary(notificationData);
 
     await createNotification({
-      userId: point[0].createdBy,
+      userId: pointSnapshot.createdBy,
       type: data.type,
       sourceUserId: data.slasherId,
       sourceEntityId: data.negatedPointId.toString(),
@@ -456,27 +571,17 @@ class NotificationQueue {
   }
 
   private async processDoubt(data: DoubtNotificationData) {
-    // Fetch point and check if we should send notification
-    const point = await db
-      .select({
-        createdBy: pointsTable.createdBy,
-        content: pointsTable.content,
-      })
-      .from(pointsTable)
-      .where(
-        and(
-          eq(pointsTable.id, data.negatedPointId),
-          eq(pointsTable.isActive, true)
-        )
-      )
-      .limit(1);
+    const pointSnapshot = await this.resolvePointSnapshot(
+      data.negatedPointId,
+      data.pointSnapshot
+    );
 
-    if (!point[0] || point[0].createdBy === data.doubterId) {
+    if (!pointSnapshot || pointSnapshot.createdBy === data.doubterId) {
       return; // Don't notify if point doesn't exist or user doubted their own point
     }
 
     const title = "Someone doubted restakes on your point";
-    const content = `Someone bet ${data.amount} cred that restakers won't follow through on your point: "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}"`;
+    const content = `Someone bet ${data.amount} cred that restakers won't follow through on your point: "${pointSnapshot.content.length > 50 ? pointSnapshot.content.substring(0, 50) + "..." : pointSnapshot.content}"`;
 
     const notificationData = {
       type: data.type,
@@ -485,14 +590,14 @@ class NotificationQueue {
       metadata: {
         negatedPointId: data.negatedPointId,
         amount: data.amount,
-        negatedPointContent: point[0].content,
+        negatedPointContent: pointSnapshot.content,
       },
     };
 
     const aiSummary = await generateNotificationSummary(notificationData);
 
     await createNotification({
-      userId: point[0].createdBy,
+      userId: pointSnapshot.createdBy,
       type: data.type,
       sourceUserId: data.doubterId,
       sourceEntityId: data.negatedPointId.toString(),
@@ -506,24 +611,17 @@ class NotificationQueue {
   }
 
   private async processDoubtReduction(data: DoubtReductionNotificationData) {
-    // Fetch point for context
-    const point = await db
-      .select({ content: pointsTable.content })
-      .from(pointsTable)
-      .where(
-        and(
-          eq(pointsTable.id, data.negatedPointId),
-          eq(pointsTable.isActive, true)
-        )
-      )
-      .limit(1);
+    const pointSnapshot = await this.resolvePointSnapshot(
+      data.negatedPointId,
+      data.pointSnapshot
+    );
 
-    if (!point[0]) {
+    if (!pointSnapshot) {
       return; // Point doesn't exist
     }
 
     const title = "Your doubt was reduced by a slash";
-    const content = `Someone slashed their restake on "${point[0].content.length > 50 ? point[0].content.substring(0, 50) + "..." : point[0].content}", reducing your doubt by ${data.reductionAmount} cred (${data.newDoubtAmount} remaining)`;
+    const content = `Someone slashed their restake on "${pointSnapshot.content.length > 50 ? pointSnapshot.content.substring(0, 50) + "..." : pointSnapshot.content}", reducing your doubt by ${data.reductionAmount} cred (${data.newDoubtAmount} remaining)`;
 
     const notificationData = {
       type: data.type,
@@ -533,7 +631,7 @@ class NotificationQueue {
         negatedPointId: data.negatedPointId,
         reductionAmount: data.reductionAmount,
         newDoubtAmount: data.newDoubtAmount,
-        negatedPointContent: point[0].content,
+        negatedPointContent: pointSnapshot.content,
       },
     };
 

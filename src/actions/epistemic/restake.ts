@@ -10,6 +10,7 @@ import {
   endorsementsTable,
 } from "@/db/schema";
 import { queueRestakeNotification } from "@/lib/notifications/notificationQueue";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 import { trackRestakeEvent } from "@/actions/analytics/trackCredEvent";
 import { db } from "@/services/db";
 import { eq, and, sql } from "drizzle-orm";
@@ -52,6 +53,7 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
   }
 
   const space = await getSpace();
+  const [pointSnapshot] = await fetchPointSnapshots([pointId]);
 
   // Look for existing restake in EXACT direction only
   const existingRestake = await db
@@ -169,6 +171,7 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
         restakerId: userId,
         amount,
         space,
+        pointSnapshot: pointSnapshot ?? null,
       });
     }
 
@@ -207,6 +210,7 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
         restakerId: userId,
         amount,
         space,
+        pointSnapshot: pointSnapshot ?? null,
       });
     }
 

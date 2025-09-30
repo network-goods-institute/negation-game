@@ -10,6 +10,7 @@ import {
   restakesTable,
 } from "@/db/schema";
 import { queueDoubtNotification } from "@/lib/notifications/notificationQueue";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 import { trackDoubtEvent } from "@/actions/analytics/trackCredEvent";
 import { db } from "@/services/db";
 import { eq, and, sql } from "drizzle-orm";
@@ -27,6 +28,7 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
   }
 
   const space = await getSpace();
+  const [pointSnapshot] = await fetchPointSnapshots([pointId]);
 
   const existingDoubt = await db
     .select()
@@ -178,6 +180,7 @@ export const doubt = async ({ pointId, negationId, amount }: DoubtArgs) => {
         doubterId: userId,
         amount,
         space,
+        pointSnapshot: pointSnapshot ?? null,
       });
     }
 
