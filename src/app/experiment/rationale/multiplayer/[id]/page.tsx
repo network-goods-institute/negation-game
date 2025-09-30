@@ -22,6 +22,7 @@ import { useMultiplayerEditing } from '@/hooks/experiment/multiplayer/useMultipl
 import { useWriteAccess } from '@/hooks/experiment/multiplayer/useWriteAccess';
 import { useWritableSync } from '@/hooks/experiment/multiplayer/useWritableSync';
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
+import * as Y from 'yjs';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
 import { GraphUpdater } from '@/components/experiment/multiplayer/GraphUpdater';
 import { TypeSelectorDropdown } from '@/components/experiment/multiplayer/TypeSelectorDropdown';
@@ -32,8 +33,6 @@ import {
     createUpdateNodeContent,
     createUpdateNodeHidden,
     createDeleteNode,
-    createAddNegationBelow,
-    createAddSupportBelow,
     createAddPointBelow,
     createAddObjectionForEdge,
     createUpdateEdgeAnchorPosition,
@@ -70,8 +69,19 @@ export default function MultiplayerBoardDetailPage() {
             setConnectCursor(null);
         }
     }, [connectMode]);
+    useEffect(() => {
+        return () => {
+            if (edgeRevealTimeoutRef.current) {
+                clearTimeout(edgeRevealTimeoutRef.current);
+                edgeRevealTimeoutRef.current = null;
+            }
+        };
+    }, []);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+    const edgeRevealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const preferredEdgeTypeRef = useRef<'support' | 'negation'>('support');
+    const [preferredEdgeType, setPreferredEdgeType] = useState<'support' | 'negation'>(preferredEdgeTypeRef.current);
     const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
     const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
@@ -354,37 +364,6 @@ export default function MultiplayerBoardDetailPage() {
         return { x: 0, y: nodeSpacing };
     }, []);
 
-    const addNegationBelow = createAddNegationBelow(
-        nodes,
-        yNodesMap,
-        yEdgesMap,
-        yTextMap,
-        ydoc,
-        canWrite,
-        localOriginRef.current,
-        lastAddRef,
-        setNodes,
-        setEdges,
-        isLockedForMe,
-        getLockOwner,
-        getViewportOffset
-    );
-    const createSupportBelow = createAddSupportBelow(
-        nodes,
-        yNodesMap,
-        yEdgesMap,
-        yTextMap,
-        ydoc,
-        canWrite,
-        localOriginRef.current,
-        lastAddRef,
-        setNodes,
-        setEdges,
-        isLockedForMe,
-        getLockOwner,
-        getViewportOffset
-    );
-
     const addPointBelow = createAddPointBelow(
         nodes,
         yNodesMap,
@@ -398,8 +377,127 @@ export default function MultiplayerBoardDetailPage() {
         setEdges,
         isLockedForMe,
         getLockOwner,
-        getViewportOffset
+        getViewportOffset,
+        {
+            getPreferredEdgeType: ({ parent }) => {
+                if (parent?.type === 'point' || parent?.type === 'objection') {
+                    return preferredEdgeTypeRef.current;
+                }
+                return preferredEdgeTypeRef.current;
+            },
+            onEdgeCreated: ({ edgeId, edgeType }) => {
+                if (edgeType === 'support' || edgeType === 'negation') {
+                    preferredEdgeTypeRef.current = edgeType;
+                    setPreferredEdgeType(edgeType);
+                }
+                setHoveredEdgeId(edgeId);
+                setSelectedEdgeId(edgeId);
+                if (edgeRevealTimeoutRef.current) {
+                    clearTimeout(edgeRevealTimeoutRef.current);
+                }
+                edgeRevealTimeoutRef.current = setTimeout(() => {
+                    setHoveredEdgeId((current) => (current === edgeId ? null : current));
+                    setSelectedEdgeId((current) => (current === edgeId ? null : current));
+                }, 3500);
+            },
+        }
     );
+
+    const updateEdgeTypeBase = createUpdateEdgeType(
+        nodes as any,
+        edges as any,
+        yNodesMap as any,
+        yEdgesMap as any,
+        ydoc as any,
+        canWrite,
+        localOriginRef.current,
+        setNodes as any,
+        setEdges as any,
+        isLockedForMe,
+        getLockOwner
+    );
+
+    const getDefaultPointContent = (edgeTypeValue: string, parentType?: string) => {
+        if (parentType === 'statement' || parentType === 'title') {
+            return 'New Option';
+        }
+        if (edgeTypeValue === 'support') {
+            return 'New Support';
+        }
+        if (edgeTypeValue === 'negation') {
+            return 'New Negation';
+        }
+        return 'New Point';
+    };
+
+    const recognizedPlaceholderStrings = new Set(['new option', 'new support', 'new negation', 'new point']);
+
+
+    const updateEdgeType = (edgeId: string, newType: 'negation' | 'support') => {
+        if (!canWrite) {
+            toast.warning('Read-only mode: Changes won\'t be saved');
+            return;
+        }
+
+        const edge = edges.find((edgeItem: any) => edgeItem.id === edgeId);
+        if (!edge) return;
+        if (edge.type !== 'support' && edge.type !== 'negation') return;
+        if (edge.type === newType) return;
+
+        const parentNode = nodes.find((nodeItem: any) => nodeItem.id === edge.target);
+        const parentType = parentNode?.type;
+        const previousDefault = getDefaultPointContent(edge.type, parentType);
+        const nextDefault = getDefaultPointContent(newType, parentType);
+
+        updateEdgeTypeBase(edgeId, newType);
+        preferredEdgeTypeRef.current = newType;
+        setPreferredEdgeType(newType);
+
+        const normalizePlaceholder = (value: string) => value.trim().toLowerCase();
+        const previousNormalized = normalizePlaceholder(previousDefault);
+
+        setNodes((current) => current.map((nodeItem: any) => {
+            if (nodeItem.id !== edge.source) return nodeItem;
+            const currentContent = nodeItem.data?.content;
+            if (typeof currentContent !== 'string') return nodeItem;
+            const currentNormalized = normalizePlaceholder(currentContent);
+            const isRecognizedPlaceholder =
+                currentNormalized === previousNormalized ||
+                (recognizedPlaceholderStrings.has(currentNormalized) && recognizedPlaceholderStrings.has(previousNormalized));
+
+            if (!isRecognizedPlaceholder) {
+                return nodeItem;
+            }
+
+            return {
+                ...nodeItem,
+                data: { ...nodeItem.data, content: nextDefault },
+            };
+        }));
+
+        if (yTextMap && ydoc) {
+            ydoc.transact(() => {
+                const textEntry = yTextMap.get(edge.source);
+                if (textEntry instanceof Y.Text) {
+                    const currentText = textEntry.toString().trim().toLowerCase();
+                    const isRecognizedPlaceholder =
+                        currentText === previousNormalized ||
+                        (recognizedPlaceholderStrings.has(currentText) && recognizedPlaceholderStrings.has(previousNormalized));
+
+                    if (!isRecognizedPlaceholder) {
+                        return;
+                    }
+                    // eslint-disable-next-line drizzle/enforce-delete-with-where
+                    textEntry.delete(0, textEntry.length);
+                    textEntry.insert(0, nextDefault);
+                } else if (textEntry == null) {
+                    const text = new Y.Text();
+                    text.insert(0, nextDefault);
+                    yTextMap.set(edge.source, text);
+                }
+            }, localOriginRef.current);
+        }
+    };
 
     const addObjectionForEdge = createAddObjectionForEdge(
         nodes,
@@ -633,9 +731,8 @@ export default function MultiplayerBoardDetailPage() {
                         setNodes as any,
                     ),
                     updateNodeFavor,
-                    addNegationBelow,
-                    createSupportBelow,
                     addPointBelow,
+                    preferredEdgeType,
                     createInversePair: inversePair,
                     deleteNode,
                     startEditingNode: startEditingNodeCtx,
@@ -765,19 +862,7 @@ export default function MultiplayerBoardDetailPage() {
                     hoveredEdgeId,
                     setHoveredEdge: setHoveredEdgeId,
                     updateEdgeRelevance,
-                    updateEdgeType: createUpdateEdgeType(
-                        nodes as any,
-                        edges as any,
-                        yNodesMap as any,
-                        yEdgesMap as any,
-                        ydoc as any,
-                        canWrite,
-                        localOriginRef.current,
-                        setNodes as any,
-                        setEdges as any,
-                        isLockedForMe,
-                        getLockOwner
-                    ),
+                    updateEdgeType,
                     selectedEdgeId,
                     setSelectedEdge: setSelectedEdgeId,
                     updateEdgeAnchorPosition,

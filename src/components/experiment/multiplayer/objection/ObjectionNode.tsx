@@ -5,7 +5,6 @@ import { useGraphActions } from '../GraphContext';
 import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
-import { SideActionPill } from '../common/SideActionPill';
 import { useNodeChrome } from '../common/useNodeChrome';
 import { useContextMenuHandler } from '../common/useContextMenuHandler';
 import { useFavorOpacity } from '../common/useFavorOpacity';
@@ -31,8 +30,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         updateNodeContent,
         updateNodeHidden,
         updateNodeFavor,
-        addNegationBelow,
-        createSupportBelow,
+        addPointBelow,
         deleteNode,
         startEditingNode,
         stopEditingNode,
@@ -262,22 +260,10 @@ items-center justify-center pointer-events-none select-none">
                 )}
                 {!hidden && (
                     <NodeActionPill
-                        label="Support"
+                        label="Add Point"
                         visible={shouldShowPill}
-                        onClick={() => { createSupportBelow?.(id); forceHidePills(); }}
+                        onClick={() => { addPointBelow?.(id); forceHidePills(); }}
                         colorClass="bg-stone-900"
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={handleMouseLeave}
-                        onForceHide={forceHidePills}
-                    />
-                )}
-                {!hidden && (
-                    <SideActionPill
-                        label="Negate"
-                        visible={shouldShowPill}
-                        onClick={() => { addNegationBelow(id); forceHidePills(); }}
-                        colorClass="bg-stone-900"
-                        side="right"
                         onMouseEnter={handleMouseEnter}
                         onMouseLeave={handleMouseLeave}
                         onForceHide={forceHidePills}

@@ -168,7 +168,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             )}
             {!hidden && (
                 <NodeActionPill
-                    label="Make option"
+                    label="Add Point"
                     visible={shouldShowPill}
                     onClick={() => { addPointBelow?.(id); forceHidePills(); }}
                     colorClass="bg-blue-600"

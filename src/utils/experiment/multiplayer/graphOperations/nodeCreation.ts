@@ -10,6 +10,13 @@ import {
 import { generateEdgeId } from "../graphSync";
 import { chooseEdgeType } from "../connectUtils";
 
+type PreferredEdgeType = "support" | "negation";
+
+interface CreateAddPointBelowOptions {
+  getPreferredEdgeType?: (context: { parent: any }) => PreferredEdgeType;
+  onEdgeCreated?: (context: { nodeId: string; edgeId: string; edgeType: string }) => void;
+}
+
 export const createAddNodeAtPosition = (
   yNodesMap: any,
   yTextMap: any,
@@ -107,7 +114,7 @@ export const createAddNegationBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: newPos,
+      position: { x: newPos.x, y: newPos.y + 96 },
       data: { content: "New point", favor: 5, createdAt: Date.now() },
       selected: true, // Auto-select newly created negation nodes
     };
@@ -176,8 +183,8 @@ export const createAddSupportBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: newPos,
-      data: { content: "New support", favor: 5, createdAt: Date.now() },
+      position: { x: newPos.x, y: newPos.y + 96 },
+      data: { content: "New Support", favor: 5, createdAt: Date.now() },
       selected: true,
     };
     const newEdge: any = {
@@ -198,7 +205,7 @@ export const createAddSupportBelow = (
         yEdgesMap.set(newEdge.id, newEdge);
         if (yTextMap && !yTextMap.get(newId)) {
           const t = new Y.Text();
-          t.insert(0, "New support");
+          t.insert(0, "New Support");
           yTextMap.set(newId, t);
         }
       }, localOrigin);
@@ -219,7 +226,8 @@ export const createAddPointBelow = (
   setEdges: (updater: (edges: any[]) => any[]) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
-  getViewportOffset?: () => { x: number; y: number }
+  getViewportOffset?: () => { x: number; y: number },
+  options?: CreateAddPointBelowOptions
 ) => {
   return (parentNodeId: string) => {
     if (isLockedForMe?.(parentNodeId)) {
@@ -238,15 +246,35 @@ export const createAddPointBelow = (
     if (!parent) return;
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
+    const parentType = parent.type;
+    const fallbackEdgeType = chooseEdgeType("point", parentType);
+    let edgeType = fallbackEdgeType;
+    if (parentType === "point" || parentType === "objection") {
+      const preferred = options?.getPreferredEdgeType?.({ parent });
+      if (preferred === "support" || preferred === "negation") {
+        edgeType = preferred;
+      } else if ((fallbackEdgeType === "option")) {
+        edgeType = "support";
+      }
+    }
+
     const newPos = calculateNodePositionBelow(parent, nodes, getViewportOffset);
+    const defaultContent =
+      parentType === "statement" || parentType === "title"
+        ? "New Option"
+        : edgeType === "support"
+          ? "New Support"
+          : edgeType === "negation"
+            ? "New Negation"
+            : "New Point";
+
     const newNode: any = {
       id: newId,
       type: "point",
       position: newPos,
-      data: { content: "New option", favor: 5, createdAt: Date.now() },
-      selected: true, // Auto-select newly created negation nodes
+      data: { content: defaultContent, favor: 5, createdAt: Date.now() },
+      selected: true,
     };
-    const edgeType = chooseEdgeType(newNode.type, parent.type);
     const newEdge: any = {
       id: generateEdgeId(),
       type: edgeType,
@@ -265,10 +293,15 @@ export const createAddPointBelow = (
         yEdgesMap.set(newEdge.id, newEdge);
         if (yTextMap && !yTextMap.get(newId)) {
           const t = new Y.Text();
-          t.insert(0, "New option");
+          t.insert(0, defaultContent);
           yTextMap.set(newId, t);
         }
       }, localOrigin);
     }
+
+    const result = { nodeId: newId, edgeId: newEdge.id, edgeType };
+    options?.onEdgeCreated?.(result);
+    return result;
   };
 };
+

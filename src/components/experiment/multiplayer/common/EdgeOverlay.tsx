@@ -62,6 +62,10 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const offsetY = scaledHUDHeight + clearance;
 
   const showHUD = isAnchorHovered || isTooltipHovered;
+  React.useEffect(() => {
+    setIsAnchorHovered(isHovered);
+  }, [isHovered]);
+
 
   const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     if (!(event.ctrlKey || event.metaKey)) {

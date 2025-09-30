@@ -6,9 +6,8 @@ type GraphActions = {
     setAutoFocusNodeId?: (nodeId: string | null) => void;
     updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
     updateNodeFavor?: (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => void;
-    addNegationBelow: (parentNodeId: string) => void;
-    createSupportBelow?: (parentNodeId: string) => void;
     addPointBelow?: (parentNodeId: string) => void;
+    preferredEdgeType?: 'support' | 'negation';
     createInversePair: (pointNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string, cursor?: { x: number; y: number }) => void;
@@ -66,8 +65,9 @@ export const useGraphActions = () => {
             updateNodeContent: () => { },
             updateNodeHidden: () => { },
             updateNodeFavor: () => { },
-            addNegationBelow: () => { },
+
             addPointBelow: () => { },
+            preferredEdgeType: 'support',
             createInversePair: () => { },
             deleteNode: () => { },
             beginConnectFromNode: () => { },
@@ -103,3 +103,4 @@ export const useGraphActions = () => {
     }
     return ctx;
 };
+

@@ -5,7 +5,6 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
-import { SideActionPill } from './common/SideActionPill';
 import { inversePairEnabled } from '@/config/experiments';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
@@ -36,8 +35,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     updateNodeContent,
     updateNodeHidden,
     updateNodeFavor,
-    addNegationBelow,
-    createSupportBelow,
+    addPointBelow,
     createInversePair,
     deleteInversePair,
     isConnectingFromNodeId,
@@ -130,6 +128,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     hovered,
     additionalFullOpacityConditions: [sliverHovered, sliverAnimating],
   });
+
 
   useEffect(() => {
     if (!parentId || !wrapperRef?.current || !setPairNodeHeight) return;
@@ -355,22 +354,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         )}
         {!hidden && (
           <NodeActionPill
-            label="Support"
+            label="Add Point"
             visible={shouldShowPill}
-            onClick={() => { createSupportBelow?.(id); forceHidePills(); }}
+            onClick={() => { addPointBelow?.(id); forceHidePills(); }}
             colorClass="bg-stone-900"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onForceHide={forceHidePills}
-          />
-        )}
-        {!hidden && (
-          <SideActionPill
-            label="Negate"
-            visible={shouldShowPill}
-            onClick={() => { addNegationBelow(id); forceHidePills(); }}
-            colorClass="bg-stone-900"
-            side="right"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             onForceHide={forceHidePills}
