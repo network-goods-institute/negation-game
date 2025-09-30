@@ -1,8 +1,9 @@
 "use server";
 
-import { db } from "@/services/db";
-import { pointsTable } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
+
+const EXISTENCE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const existenceCache = new Map<number, { exists: boolean; timestamp: number }>();
 
 /**
  * Server action to validate if a point exists in the database
@@ -12,13 +13,15 @@ export async function validatePointExists(pointId: number): Promise<boolean> {
   try {
     if (!pointId || pointId <= 0) return false;
 
-    const exists = await db
-      .select({ id: pointsTable.id })
-      .from(pointsTable)
-      .where(and(eq(pointsTable.id, pointId), eq(pointsTable.isActive, true)))
-      .limit(1);
+    const cached = existenceCache.get(pointId);
+    if (cached && Date.now() - cached.timestamp < EXISTENCE_CACHE_TTL) {
+      return cached.exists;
+    }
 
-    return exists.length > 0;
+    const [snapshot] = await fetchPointSnapshots([pointId]);
+    const exists = Boolean(snapshot);
+    existenceCache.set(pointId, { exists, timestamp: Date.now() });
+    return exists;
   } catch (error) {
     console.error("Error validating point existence:", error);
     return false;

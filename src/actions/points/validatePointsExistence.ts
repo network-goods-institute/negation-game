@@ -1,23 +1,15 @@
 "use server";
 
-import { db } from "@/services/db";
-import { pointsTable } from "@/db/tables/pointsTable";
-import { inArray, eq, and } from "drizzle-orm";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 
-export const validatePointsExistence = async (pointIds: number[]): Promise<Set<number>> => {
+export const validatePointsExistence = async (
+  pointIds: number[]
+): Promise<Set<number>> => {
   if (pointIds.length === 0) {
     return new Set();
   }
 
-  const existingPoints = await db
-    .select({ id: pointsTable.id })
-    .from(pointsTable)
-    .where(
-      and(
-        inArray(pointsTable.id, pointIds),
-        eq(pointsTable.isActive, true)
-      )
-    );
+  const snapshots = await fetchPointSnapshots(pointIds);
 
-  return new Set(existingPoints.map(point => point.id));
+  return new Set(snapshots.map((point) => point.id));
 };
