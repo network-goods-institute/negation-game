@@ -212,8 +212,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 }}
                 containerRef={containerRef}
                 wrapperRef={wrapperRef}
-                wrapperClassName={`px-4 py-3 rounded-xl ${hidden ? 'bg-amber-50 text-amber-900' : 'bg-amber-100 text-amber-900'} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
-            ${hidden ? 'border-amber-200' : 'border-amber-300'}
+                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
                 wrapperStyle={{ ...innerScaleStyle, opacity: hidden ? undefined : favorOpacity } as any}
                 wrapperProps={wrapperProps as any}
@@ -238,9 +237,9 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     {value || (pointLike ? 'New point' : 'New mitigation')}
                 </div>
                 {hidden && (
-                    <div className="absolute inset-0 flex 
+                    <div className="absolute inset-0 flex
 items-center justify-center pointer-events-none select-none">
-                        <div className="text-xs text-amber-600 italic animate-fade-in">Hidden</div>
+                        <div className={`text-xs ${pointLike ? 'text-gray-600' : 'text-amber-600'} italic animate-fade-in`}>Hidden</div>
                     </div>
                 )}
                 {selected && !hidden && (
@@ -249,8 +248,8 @@ items-center justify-center pointer-events-none select-none">
                         <FavorSelector
                             value={favor}
                             onSelect={(level) => updateNodeFavor?.(id, level)}
-                            activeClassName="text-amber-600"
-                            inactiveClassName="text-stone-300"
+                            activeClassName={pointLike ? "text-gray-600" : "text-amber-600"}
+                            inactiveClassName={pointLike ? "text-gray-300" : "text-stone-300"}
                         />
                     </div>
                 )}
