@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAtom } from "jotai";
 import { mergeNodesDialogAtom } from "@/atoms/mergeNodesAtom";
 import { useReactFlow, useStore, Node } from "@xyflow/react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
     Tooltip,
@@ -51,32 +51,24 @@ export const MergeNodesFrame = () => {
     const isPositionSet = useRef(false);
 
     const nodesArray = useStore((s: any) => s.nodes as Node[]);
-    const [isAnyNodeDragging, setIsAnyNodeDragging] = useState(false);
-    const [bbox, setBBox] = useState<BBox | null>(null);
-
-    const recalcBBox = useCallback(() => {
-        if (!dialogState.isOpen || !dialogState.duplicateNodes || dialogState.duplicateNodes.length <= 1) {
-            setBBox(null);
-            return;
+    const isAnyNodeDragging = useMemo(
+        () => nodesArray.some((node) => node.dragging),
+        [nodesArray]
+    );
+    const bbox = useMemo(() => {
+        if (
+            !dialogState.isOpen ||
+            !dialogState.duplicateNodes ||
+            dialogState.duplicateNodes.length <= 1 ||
+            isAnyNodeDragging
+        ) {
+            return null;
         }
-
-        const nodesToMerge = dialogState.duplicateNodes.map(dupNode =>
-            nodesArray.find(n => n.id === dupNode.id)
+        const nodesToMerge = dialogState.duplicateNodes.map((dupNode) =>
+            nodesArray.find((n) => n.id === dupNode.id)
         );
-        setBBox(computeBoundingBox(nodesToMerge));
-    }, [dialogState.isOpen, dialogState.duplicateNodes, nodesArray]);
-
-    useEffect(() => {
-        const anyNodeDragging = nodesArray.some(node => node.dragging);
-        setIsAnyNodeDragging(anyNodeDragging);
-        if (!anyNodeDragging && dialogState.isOpen) {
-            recalcBBox();
-        }
-    }, [nodesArray, dialogState.isOpen, recalcBBox]);
-
-    useEffect(recalcBBox, [recalcBBox]);
-    useEffect(() => { if (!isAnyNodeDragging) recalcBBox(); }, [isAnyNodeDragging, recalcBBox]);
-    useEffect(() => { if (!isAnyNodeDragging) recalcBBox(); }, [nodesArray, isAnyNodeDragging, recalcBBox]);
+        return computeBoundingBox(nodesToMerge);
+    }, [dialogState.isOpen, dialogState.duplicateNodes, nodesArray, isAnyNodeDragging]);
 
     useEffect(() => {
         const checkMobile = () => {

@@ -1,11 +1,6 @@
 "use client";
 
-import React, {
-    useState,
-    useEffect,
-    useCallback,
-    useRef,
-} from "react";
+import React, { useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useAtom } from "jotai";
 import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
@@ -52,30 +47,15 @@ export default function ConnectNodesFrame() {
 
     const rf = useReactFlow();
     const nodesArray = useStore((s: any) => s.nodes as Node[]);
-    const [isDragging, setIsDragging] = useState(false);
-    const [bbox, setBBox] = useState<BBox | null>(null);
-
-    const recalcBBox = useCallback(() => {
-        if (!isOpen) {
-            setBBox(null);
-            return;
+    const isDragging = useMemo(() => nodesArray.some((node) => node.dragging), [nodesArray]);
+    const bbox = useMemo(() => {
+        if (!isOpen || isDragging) {
+            return null;
         }
         const n1 = nodesArray.find((n) => n.id === sourceId);
         const n2 = nodesArray.find((n) => n.id === targetId);
-        setBBox(computeBoundingBox(n1, n2));
-    }, [isOpen, nodesArray, sourceId, targetId]);
-
-    useEffect(() => {
-        const isAnyNodeDragging = nodesArray.some(node => node.dragging);
-        setIsDragging(isAnyNodeDragging);
-        if (!isAnyNodeDragging && isOpen) {
-            recalcBBox();
-        }
-    }, [nodesArray, isOpen, recalcBBox]);
-
-    useEffect(recalcBBox, [recalcBBox]);
-    useEffect(() => { if (!isDragging) recalcBBox(); }, [isDragging, recalcBBox]);
-    useEffect(() => { if (!isDragging) recalcBBox(); }, [nodesArray, isDragging, recalcBBox]);
+        return computeBoundingBox(n1, n2);
+    }, [isOpen, isDragging, nodesArray, sourceId, targetId]);
 
     const { mutateAsync: createNegation, isPending } = useNegate();
 

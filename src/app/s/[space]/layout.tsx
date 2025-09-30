@@ -1,8 +1,8 @@
-import { fetchSpace } from "@/actions/spaces/fetchSpace";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { generateBreadcrumbStructuredData } from "@/lib/seo/structuredData";
 import { generateBreadcrumbs } from "@/lib/seo/utils";
+import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
 
 interface Props {
   params: Promise<{ space: string }>;
@@ -12,25 +12,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const resolvedParams = await params;
     const { space } = resolvedParams;
+    const normalizedSpace = space?.toLowerCase();
 
-    if (!space) {
+    if (!normalizedSpace) {
       return {
         title: "Space Not Found",
         description: "The requested space could not be found.",
       };
     }
 
-    const spaceData = await fetchSpace(space);
-
-    if (!spaceData) {
+    if (!VALID_SPACE_IDS.has(normalizedSpace)) {
       return {
         title: "Space Not Found",
-        description: `The space "s/${space}" could not be found.`,
+        description: `The space "s/${normalizedSpace}" could not be found.`,
       };
     }
 
     // Create display name from space ID
-    const displayName = space.charAt(0).toUpperCase() + space.slice(1);
+    const displayName =
+      normalizedSpace.charAt(0).toUpperCase() + normalizedSpace.slice(1);
     const title = `${displayName} Space`;
     const description = `Explore discussions and reasoned disagreement in the ${displayName} space on Negation Game. Join structured debates with economic incentives for intellectual honesty.`;
 
@@ -59,7 +59,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         title,
         description,
         type: "website",
-        url: `/s/${space}`,
+        url: `/s/${normalizedSpace}`,
         images: [
           {
             url: "/img/negation-game.png",
@@ -77,7 +77,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         images: ["/img/negation-game.png"],
       },
       alternates: {
-        canonical: new URL(`/s/${space}`, baseUrl),
+        canonical: new URL(`/s/${normalizedSpace}`, baseUrl),
       },
     };
   } catch (error) {
@@ -97,12 +97,11 @@ export default async function SpaceLayout({
   params: Promise<{ space: string }>;
 }) {
   const resolvedParams = await params;
-  const { space } = resolvedParams;
+  const normalizedSpace = resolvedParams.space?.toLowerCase();
 
-  if (!space) return notFound();
-
-  const spaceData = await fetchSpace(space);
-  if (!spaceData) return notFound();
+  if (!normalizedSpace || !VALID_SPACE_IDS.has(normalizedSpace)) {
+    return notFound();
+  }
 
   /* Structured data */
   const domain =
@@ -110,15 +109,15 @@ export default async function SpaceLayout({
       ? "http://localhost:3000"
       : `https://${process.env.NEXT_PUBLIC_DOMAIN || "negationgame.com"}`;
 
-  const breadcrumbs = generateBreadcrumbs(`/s/${space}`);
+  const breadcrumbs = generateBreadcrumbs(`/s/${normalizedSpace}`);
   const breadcrumbLd = generateBreadcrumbStructuredData({ breadcrumbs, domain });
 
   const collectionLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: `${space} Space`,
-    description: `Discussions and rationales in the ${space} space on Negation Game`,
-    url: `${domain}/s/${space}`,
+    name: `${normalizedSpace} Space`,
+    description: `Discussions and rationales in the ${normalizedSpace} space on Negation Game`,
+    url: `${domain}/s/${normalizedSpace}`,
   } as const;
 
   return (
