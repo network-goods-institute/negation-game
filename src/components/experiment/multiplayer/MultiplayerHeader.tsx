@@ -278,9 +278,21 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           canWrite={!proxyMode}
         />
         {(connectionError || connectionState === 'connecting' || connectionState === 'failed') && (
-          <p className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">
-            {connectionError || (connectionState === 'connecting' ? 'Connecting to server...' : connectionState === 'failed' ? 'Connection failed' : null)}
-          </p>
+          <div className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">
+            <div className="flex items-center justify-between gap-2">
+              <span>
+                {connectionError || (connectionState === 'connecting' ? 'Connecting to server...' : connectionState === 'failed' ? 'Connection failed' : null)}
+              </span>
+              {connectionError?.includes('AUTH_EXPIRED') && (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-2 py-1 rounded transition-colors whitespace-nowrap"
+                >
+                  Reload Auth
+                </button>
+              )}
+            </div>
+          </div>
         )}
       </div>
       <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">

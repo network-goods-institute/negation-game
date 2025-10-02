@@ -183,6 +183,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   };
 
   const handleAddObjection = () => {
+    graphActions.clearNodeSelection?.();
     addObjectionForEdge(props.id as string, cx, cy);
     setHoveredEdge(null);
     setSelectedEdge?.(null);

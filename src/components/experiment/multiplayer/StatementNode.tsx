@@ -181,7 +181,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
         )}
         {!hidden && (
           <NodeActionPill
-            label="Add Point"
+            label="Add Option"
             visible={shouldShowPill}
             onClick={() => { addPointBelow(id); forceHidePills(); }}
             colorClass="bg-blue-600"

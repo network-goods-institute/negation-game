@@ -28,8 +28,6 @@ export const useAutoFocusNode = ({
 }: UseAutoFocusNodeProps) => {
   useEffect(() => {
     const isDefaultContent =
-      content === "New point" ||
-      content === "New Option" ||
       content === "New objection" || content === "New mitigation";
 
     // Check if node was recently created (within last 2 seconds)
