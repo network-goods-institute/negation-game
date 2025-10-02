@@ -20,6 +20,11 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   const config = EDGE_CONFIGURATIONS[props.edgeType];
   const { visual, behavior } = config;
 
+  const sourceX = (props as any).sourceX;
+  const sourceY = (props as any).sourceY;
+  const targetX = (props as any).targetX;
+  const targetY = (props as any).targetY;
+
   const edgeState = useEdgeState({
     id: props.id as string,
     sourceX: (props as any).sourceX,
@@ -65,11 +70,6 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   const handleUpdateRelevance = (newRelevance: number) => {
     updateEdgeRelevance?.(props.id as string, newRelevance);
   };
-
-  const sourceX = (props as any).sourceX;
-  const sourceY = (props as any).sourceY;
-  const targetX = (props as any).targetX;
-  const targetY = (props as any).targetY;
 
   // Use anchor position hook
   useEdgeAnchorPosition({

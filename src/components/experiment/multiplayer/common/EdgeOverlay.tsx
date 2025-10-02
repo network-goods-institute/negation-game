@@ -66,6 +66,11 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     setIsAnchorHovered(isHovered);
   }, [isHovered]);
 
+  const isSupportEdge = edgeType === "support";
+  const isNegationEdge = edgeType === "negation";
+  const activeEdgeLabel = isSupportEdge ? "Supports" : isNegationEdge ? "Negates" : null;
+  const activeEdgeTone = isSupportEdge ? "text-emerald-600" : isNegationEdge ? "text-rose-600" : "text-stone-500";
+
 
   const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     if (!(event.ctrlKey || event.metaKey)) {
@@ -167,7 +172,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {}
+    } catch { }
   }, [grabMode, isSpacePressed, reactFlow]);
 
   const handlePersistencePointerMove = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -202,7 +207,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
     try {
       event.currentTarget.releasePointerCapture(event.pointerId);
-    } catch {}
+    } catch { }
 
     stopPanSession();
   }, [stopPanSession]);
@@ -228,7 +233,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   }, []);
 
   return (
-    <>
+    <React.Fragment>
       {/* 1) Small hover anchor stays in the edge-label layer */}
       <EdgeLabelRenderer>
         <div
@@ -294,82 +299,94 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   pointerEvents: 'auto',
                 }}
               >
-              {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && (
-                <div className="flex items-center gap-2 text-[11px] select-none relative z-10">
-                  <button
-                    data-testid="toggle-edge-type"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={(e) => { e.stopPropagation(); onToggleEdgeType(); }}
-                    className="rounded-md px-3 py-1.5 text-[11px] font-medium bg-stone-100 text-stone-800 border border-stone-300 hover:bg-stone-200 relative z-0"
-                    title={edgeType === "support" ? "Switch to negation" : "Switch to support"}
-                  >
-                    {edgeType === "support" ? "SUPPORTS" : "NEGATES"}
-                  </button>
-                  <TooltipProvider>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Tooltip key={`rel-${i}`}>
-                          <TooltipTrigger asChild>
-                            <button
-                              title={`Set relevance to ${i}`}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={(e) => { e.stopPropagation(); onUpdateRelevance(i); }}
-                            >
-                              <span className={i <= relevance ? starColor : 'text-stone-300'}>
-                                {edgeType === "support" ? "+" : "−"}
-                              </span>
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs z-[9999]">
-                            Relevance: {i}/5
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
+                {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && (
+                  <div className="flex items-center gap-3 text-[11px] select-none relative z-10">
+                    {activeEdgeLabel && (
+                      <span className={`font-semibold ${activeEdgeTone}`}>{activeEdgeLabel}</span>
+                    )}
+                    <div
+                      data-testid="toggle-edge-type"
+                      className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm bg-stone-300"
+                      onClick={() => onToggleEdgeType()}
+                    >
+                      <div className={`pointer-events-none flex items-center justify-center h-4 w-4 rounded-full bg-white shadow-lg transition-transform text-[9px] font-bold ${edgeType === "support" ? "translate-x-4 text-gray-600" : "translate-x-0 text-gray-600"}`}>
+                        <div style={{ position: "relative", width: "12px", height: "12px" }}>
+                          {edgeType === "support" ? (
+                            <>
+                              <div style={{ position: "absolute", left: "50%", top: "50%", width: "11px", height: "2px", backgroundColor: "#9CA3AF", transform: "translate(-50%, -50%) rotate(0deg)", borderRadius: "1px" }} />
+                              <div style={{ position: "absolute", left: "50%", top: "50%", width: "11px", height: "2px", backgroundColor: "#9CA3AF", transform: "translate(-50%, -50%) rotate(90deg)", borderRadius: "1px" }} />
+                            </>
+                          ) : (
+                            <div style={{ position: "absolute", left: "50%", top: "50%", width: "11px", height: "2px", backgroundColor: "#9CA3AF", transform: "translate(-50%, -50%) rotate(0deg)", borderRadius: "1px" }} />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </TooltipProvider>
-                </div>
-              )}
+                    <TooltipProvider>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Tooltip key={`rel-${i}`}>
+                            <TooltipTrigger asChild>
+                              <button
+                                title={`Set relevance to ${i}`}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={(e) => { e.stopPropagation(); onUpdateRelevance(i); }}
+                              >
+                                <span className={i <= relevance ? starColor : 'text-stone-300'}>
+                                  {edgeType === "support" ? "+" : "-"}
+                                </span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs z-[9999]">
+                              Relevance: {i}/5
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </TooltipProvider>
+                  </div>
+                )}
 
-              {(edgeType !== "support" && edgeType !== "negation") && (
-                <div className="flex items-center gap-2 text-[11px] select-none relative z-10">
-                  <span className="text-[11px] font-medium text-stone-600">Relevance:</span>
-                  <TooltipProvider>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Tooltip key={`star-${i}`}>
-                          <TooltipTrigger asChild>
-                            <button
-                              title={`Set relevance to ${i}`}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={(e) => { e.stopPropagation(); onUpdateRelevance(i); }}
-                            >
-                              <span className={`text-sm ${i <= relevance ? starColor : 'text-stone-300'}`}>★</span>
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs z-[9999]">
-                            Relevance: {i}/5
-                          </TooltipContent>
-                        </Tooltip>
-                      ))}
-                    </div>
-                  </TooltipProvider>
-                </div>
-              )}
+                {(edgeType !== "support" && edgeType !== "negation") && (
+                  <div className="flex items-center gap-2 text-[11px] select-none relative z-10">
+                    <span className="text-[11px] font-medium text-stone-600">Relevance:</span>
+                    <TooltipProvider>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Tooltip key={`star-${i}`}>
+                            <TooltipTrigger asChild>
+                              <button
+                                title={`Set relevance to ${i}`}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={(e) => { e.stopPropagation(); onUpdateRelevance(i); }}
+                              >
+                                <span className={`text-sm ${i <= relevance ? starColor : 'text-stone-300'}`}>★</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs z-[9999]">
+                              Relevance: {i}/5
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </TooltipProvider>
+                  </div>
+                )}
 
-              <button
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => { e.stopPropagation(); onAddObjection(); }}
-                className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white relative z-0"
-                title="Add mitigation to this relation"
-              >
-                Mitigate
-              </button>
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => { e.stopPropagation(); onAddObjection(); }}
+                  className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white relative z-0"
+                  title="Add mitigation to this relation"
+                >
+                  Mitigate
+                </button>
               </div>
             </div>
           </div>
         </div>,
         portalTarget
       )}
-    </>
+    </React.Fragment>
   );
 };

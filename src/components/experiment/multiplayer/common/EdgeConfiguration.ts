@@ -173,7 +173,13 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       borderColor: "#9CA3AF",
       starColor: "text-gray-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.4)),
+      gradientId: "support-strap-gradient",
+      gradientStops: [
+        { offset: "0%", stopColor: "#9CA3AF", stopOpacity: 0.15 },
+        { offset: "100%", stopColor: "#6B7280", stopOpacity: 0.15 },
+      ],
       midpointContent: makeIcon("#9CA3AF", [0, 90]),
+      useStrap: true,
       useBezier: false,
     },
     behavior: {
