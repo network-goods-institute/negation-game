@@ -171,9 +171,9 @@ export default function MultiplayerRationaleIndexPage() {
               <h1 className="text-3xl font-bold text-stone-800">My Boards</h1>
               <p className="text-sm text-stone-600 mt-1">Create, organize, and collaborate on argument boards.</p>
             </div>
-            <Button onClick={handleCreate} disabled={creating} aria-busy={creating} className="h-9 px-4">
+            <Button onClick={handleCreate} disabled={creating} aria-busy={creating} className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white">
               {creating ? (
-                <span className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 "New Board"
               )}
