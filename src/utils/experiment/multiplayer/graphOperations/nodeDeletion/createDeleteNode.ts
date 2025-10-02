@@ -12,7 +12,8 @@ export const createDeleteNode = (
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
   isLockedForMe?: (nodeId: string) => boolean,
-  getLockOwner?: (nodeId: string) => { name?: string } | null
+  getLockOwner?: (nodeId: string) => { name?: string } | null,
+  onShowUndoHint?: (position: { x: number; y: number }) => void
 ) => {
   return (nodeId: string) => {
     if (!canWrite) {
@@ -72,6 +73,10 @@ export const createDeleteNode = (
     if (node.type === "title") {
       toast?.warning?.("Cannot delete the title node");
       return;
+    }
+
+    if (onShowUndoHint && node.position) {
+      onShowUndoHint({ x: node.position.x, y: node.position.y });
     }
 
     // Handle container deletion - convert children back to standalone nodes
@@ -135,7 +140,9 @@ export const createDeleteNode = (
       (e: any) => e.source === nodeId || e.target === nodeId
     );
 
-    const edgesToDeleteIds = new Set<string>(incidentEdges.map((e: any) => e.id));
+    const edgesToDeleteIds = new Set<string>(
+      incidentEdges.map((e: any) => e.id)
+    );
     const nodesToDeleteIds = new Set<string>();
 
     if (node.type !== "objection") {
@@ -188,16 +195,12 @@ export const createDeleteNode = (
       // Update local state after Yjs sync
       setEdges((eds) => eds.filter((e: any) => !edgesToDeleteIds.has(e.id)));
       setNodes((nds) =>
-        nds.filter(
-          (n: any) => n.id !== nodeId && !nodesToDeleteIds.has(n.id)
-        )
+        nds.filter((n: any) => n.id !== nodeId && !nodesToDeleteIds.has(n.id))
       );
     } else {
       setEdges((eds) => eds.filter((e: any) => !edgesToDeleteIds.has(e.id)));
       setNodes((nds) =>
-        nds.filter(
-          (n: any) => n.id !== nodeId && !nodesToDeleteIds.has(n.id)
-        )
+        nds.filter((n: any) => n.id !== nodeId && !nodesToDeleteIds.has(n.id))
       );
     }
   };

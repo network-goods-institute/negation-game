@@ -16,6 +16,7 @@ import { useNodeDragHandlers } from '@/hooks/experiment/multiplayer/useNodeDragH
 import { MultiplayerHeader } from '@/components/experiment/multiplayer/MultiplayerHeader';
 import { ToolsBar } from '@/components/experiment/multiplayer/ToolsBar';
 import { GraphCanvas } from '@/components/experiment/multiplayer/GraphCanvas';
+import { UndoHintOverlay } from '@/components/experiment/multiplayer/UndoHintOverlay';
 import { useYjsMultiplayer } from '@/hooks/experiment/multiplayer/useYjsMultiplayer';
 import { useMultiplayerCursors } from '@/hooks/experiment/multiplayer/useMultiplayerCursors';
 import { useMultiplayerEditing } from '@/hooks/experiment/multiplayer/useMultiplayerEditing';
@@ -89,6 +90,7 @@ export default function MultiplayerBoardDetailPage() {
     const [pairHeights, setPairHeights] = useState<Record<string, number>>({});
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [titleEditingUser, setTitleEditingUser] = useState<{ name: string; color: string } | null>(null);
+    const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
 
     const initialGraph = useInitialGraph();
     const [dbTitle, setDbTitle] = useState<string | null>(null);
@@ -356,7 +358,8 @@ export default function MultiplayerBoardDetailPage() {
         setNodes,
         setEdges,
         isLockedForMe,
-        getLockOwner
+        getLockOwner,
+        setUndoHintPosition
     );
 
     const getViewportOffset = React.useCallback(() => {
@@ -1038,7 +1041,10 @@ export default function MultiplayerBoardDetailPage() {
                     />
                 )}
             </ReactFlowProvider>
-            {null}
+            <UndoHintOverlay
+                position={undoHintPosition}
+                onDismiss={() => setUndoHintPosition(null)}
+            />
         </div>
     );
 }
