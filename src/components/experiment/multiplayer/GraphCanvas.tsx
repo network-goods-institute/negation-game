@@ -98,7 +98,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         return;
       }
 
-      if (key === 'delete' || key === 'backspace') {
+      // Prevent backspace from deleting nodes/edges in multiplayer
+      if (key === 'backspace') {
+        e.preventDefault();
+        try { (e as any).stopImmediatePropagation?.(); } catch {}
+        return;
+      }
+
+      if (key === 'delete') {
         const sel = rf.getNodes().filter((n) => (n as any).selected);
         const selectedEdgeId = (graph as any)?.selectedEdgeId as string | null;
         if (selectedEdgeId) {
@@ -130,8 +137,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         }
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => window.removeEventListener('keydown', onKey as any, { capture: true } as any);
   }, [rf, graph, connectMode]);
   React.useEffect(() => {
     if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
