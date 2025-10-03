@@ -64,6 +64,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     updateEdgeType,
     deleteNode,
     connectMode,
+    grabMode,
     beginConnectFromEdge,
     completeConnectToEdge,
   } = graphActions;
@@ -158,6 +159,10 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     return baseStyle;
   }, [visual, relevance, props.edgeType, targetNode]);
 
+  const edgeStylesWithPointer = useMemo(() => {
+    return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
+  }, [edgeStyles, grabMode]);
+
   // Event handlers
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -202,7 +207,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   return (
     <>
       {/* Edge elements with opacity */}
-      <g style={{ opacity: edgeOpacity }}>
+      <g style={{ opacity: edgeOpacity, pointerEvents: grabMode ? 'none' : undefined }}>
         <EdgeMaskDefs
           edgeId={props.id as string}
           maskingData={maskingData}
@@ -249,13 +254,13 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
                 sourcePosition: sourceNode?.position?.y < targetNode?.position?.y ? Position.Bottom : Position.Top,
                 targetPosition: sourceNode?.position?.y > targetNode?.position?.y ? Position.Bottom : Position.Top,
               })}
-              style={edgeStyles}
+              style={edgeStylesWithPointer}
               pathOptions={{ curvature: visual.curvature }}
             />
           ) : (
             <StraightEdge
               {...props}
-              style={edgeStyles}
+              style={edgeStylesWithPointer}
               interactionWidth={behavior.interactionWidth}
               {...(visual.label && {
                 label: visual.label,
@@ -267,8 +272,8 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
         </g>
       </g>
 
-      {/* Interaction overlay (disabled in connect mode) */}
-      {!connectMode && (
+      {/* Interaction overlay (disabled in connect or hand mode) */}
+      {!connectMode && !grabMode && (
         <EdgeInteractionOverlay
           shouldRender={shouldRenderOverlay}
           pathD={visual.useBezier ? pathD : undefined}
@@ -283,22 +288,21 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
         />
       )}
 
-      {/* Midpoint control */}
+      {/* Midpoint control (non-interactable in hand mode) */}
       {showAffordance && (
         <EdgeMidpointControl
           cx={cx}
           cy={cy}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
-          onClick={connectMode ? (e) => { e.stopPropagation(); completeConnectToEdge?.(props.id as string, cx, cy); } : undefined}
-          onPointerDown={connectMode ? (e) => { e.stopPropagation(); completeConnectToEdge?.(props.id as string, cx, cy); } : undefined}
+          disabled={grabMode}
         >
           {visual.midpointContent}
         </EdgeMidpointControl>
       )}
 
-      {/* Hover overlay (disabled in connect mode) */}
-      {!connectMode && (
+      {/* Hover overlay (disabled in connect or hand mode) */}
+      {!connectMode && !grabMode && (
         <EdgeOverlay
           cx={cx}
           cy={cy}

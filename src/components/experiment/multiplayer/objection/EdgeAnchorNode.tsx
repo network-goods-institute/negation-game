@@ -9,7 +9,7 @@ interface EdgeAnchorNodeProps {
 
 const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
     const graphActions = useGraphActions() as any;
-    const { connectMode } = graphActions;
+    const { connectMode, grabMode } = graphActions;
 
     const handlePositions = useStore((s: any) => {
         const edges: any[] = s.edges || [];
@@ -43,7 +43,7 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
     });
 
     const handleClick = (e: React.MouseEvent) => {
-        if (!connectMode) return;
+        if (!connectMode || grabMode) return;
         e.stopPropagation();
         const origin = (graphActions.isConnectingFromNodeId as string | null) || null;
         const parentEdgeId = data?.parentEdgeId as string | undefined;
@@ -58,23 +58,27 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
         graphActions.completeConnectToEdge?.(parentEdgeId);
     };
 
+    const isInteractable = connectMode && !grabMode;
+
     return (
         <div
-            className={connectMode ? "w-4 h-4 opacity-0 pointer-events-auto" : "w-1 h-1 opacity-0 pointer-events-none"}
+            className={isInteractable ? "w-4 h-4 opacity-0 pointer-events-auto" : "w-1 h-1 opacity-0 pointer-events-none"}
             onClick={handleClick}
-            style={connectMode ? { pointerEvents: 'all' } : undefined}
+            style={isInteractable ? { pointerEvents: 'all' } : undefined}
         >
             <Handle
                 id={`${id}-source-handle`}
                 type="source"
                 position={handlePositions.source}
-                className={connectMode ? "opacity-0 pointer-events-auto" : "opacity-0 pointer-events-none"}
+                className="opacity-0 pointer-events-none"
+                isConnectable={false}
             />
             <Handle
                 id={`${id}-incoming-handle`}
                 type="target"
                 position={handlePositions.target}
-                className={connectMode ? "opacity-0 pointer-events-auto" : "opacity-0 pointer-events-none"}
+                className="opacity-0 pointer-events-none"
+                isConnectable={false}
             />
         </div>
     );

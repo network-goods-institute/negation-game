@@ -178,6 +178,32 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     setEdgesLayer(el);
   }, [nodes, edges]);
 
+  // In hand (grab) mode, make nodes/edges layers non-interactive so panning works anywhere
+  React.useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const nodesLayer = root.querySelector('.react-flow__nodes') as HTMLElement | null;
+    const edgesLayerDiv = root.querySelector('.react-flow__edges') as HTMLElement | null;
+    const edgeLabelsLayer = root.querySelector('.react-flow__edge-labels') as HTMLElement | null;
+    const prevNodesPE = nodesLayer?.style.pointerEvents || '';
+    const prevEdgesPE = edgesLayerDiv?.style.pointerEvents || '';
+    const prevEdgeLabelsPE = edgeLabelsLayer?.style.pointerEvents || '';
+    if (grabMode) {
+      if (nodesLayer) nodesLayer.style.pointerEvents = 'none';
+      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = 'none';
+      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = 'none';
+    } else {
+      if (nodesLayer) nodesLayer.style.pointerEvents = prevNodesPE || 'all';
+      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = prevEdgesPE || 'all';
+      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = prevEdgeLabelsPE || 'all';
+    }
+    return () => {
+      if (nodesLayer) nodesLayer.style.pointerEvents = prevNodesPE;
+      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = prevEdgesPE;
+      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = prevEdgeLabelsPE;
+    };
+  }, [grabMode]);
+
 
   const onCanvasDoubleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -251,6 +277,27 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           if (passthrough.length) onEdgesChange?.(passthrough);
         };
         // Render ReactFlow with wrapped handlers
+        const handleEdgeClickInternal = (e: any, edge: any) => {
+          if (grabMode) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          e.stopPropagation();
+          deselectAllNodes();
+          graph.setSelectedEdge?.(edge.id);
+          onEdgeClick?.(e, edge);
+        };
+
+        const handleNodeClickInternal = (e: any, node: any) => {
+          if (grabMode) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          onNodeClick?.(e, node);
+        };
+
         return (
           <ReactFlow
             nodes={nodes}
@@ -258,29 +305,28 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
             onConnect={authenticated ? onConnect : undefined}
-            onNodeClick={onNodeClick}
+            onNodeClick={handleNodeClickInternal}
             onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } if (connectMode) onBackgroundMouseUp?.(); }}
-            onEdgeClick={(e, edge) => {
-              e.stopPropagation();
-              deselectAllNodes();
-              graph.setSelectedEdge?.(edge.id);
-              onEdgeClick?.(e, edge);
-            }}
+            onEdgeClick={handleEdgeClickInternal}
             onNodeDragStart={authenticated ? onNodeDragStart : undefined}
             onNodeDragStop={authenticated ? onNodeDragStop : undefined}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
             className="w-full h-full bg-gray-50"
-            onEdgeMouseEnter={onEdgeMouseEnter}
-            onEdgeMouseLeave={onEdgeMouseLeave}
-            panOnDrag={panOnDrag}
+            onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
+            onEdgeMouseLeave={grabMode ? undefined : onEdgeMouseLeave}
+            panOnDrag={grabMode ? [0, 1, 2] : false}
             panOnScroll={panOnScroll as any}
             zoomOnScroll={zoomOnScroll}
             zoomOnDoubleClick={false}
-            nodesDraggable={!connectMode}
+            nodesDraggable={!connectMode && !grabMode}
+            nodesConnectable={!grabMode}
+            elementsSelectable={!grabMode}
+            nodesFocusable={!grabMode}
+            edgesFocusable={!grabMode}
             multiSelectionKeyCode="Shift"
-            onSelectionChange={({ nodes, edges }) => {
+            onSelectionChange={grabMode ? undefined : ({ nodes, edges }) => {
               if (edges.length > 0) {
                 const edgeChanges = edges.map(edge => ({ id: edge.id, type: 'select', selected: false }));
                 setTimeout(() => onEdgesChange?.(edgeChanges), 0);

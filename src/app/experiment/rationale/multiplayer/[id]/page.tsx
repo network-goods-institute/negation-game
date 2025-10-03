@@ -188,17 +188,29 @@ export default function MultiplayerBoardDetailPage() {
 
     const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
 
-    // Update node draggability when locks change
+    // Update node draggability when locks or grabMode change
     useEffect(() => {
         setNodes((currentNodes) =>
             currentNodes.map((node) => {
                 const isLocked = isLockedForMe(node.id);
-                if (node.draggable === !isLocked) return node; // No change needed
-                return { ...node, draggable: !isLocked };
+                const shouldBeDraggable = !isLocked && !grabMode;
+                if (node.draggable === shouldBeDraggable) return node; // No change needed
+                return { ...node, draggable: shouldBeDraggable };
             })
         );
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [locks, setNodes]);
+    }, [locks, grabMode, setNodes]);
+
+    // Update edge selectability when grabMode changes
+    useEffect(() => {
+        setEdges((currentEdges) =>
+            currentEdges.map((edge) => {
+                const shouldBeSelectable = !grabMode;
+                if ((edge as any).selectable === shouldBeSelectable) return edge; // No change needed
+                return { ...edge, selectable: shouldBeSelectable };
+            })
+        );
+    }, [grabMode, setEdges]);
     const startEditingNodeCtx = React.useCallback((nodeId: string) => {
         setEditingSet((prev) => { const ns = new Set(prev); ns.add(nodeId); return ns; });
         try { startEditing(nodeId); } catch { }
@@ -481,7 +493,7 @@ export default function MultiplayerBoardDetailPage() {
                             username={username}
                             userColor={userColor}
                             grabMode={grabMode}
-                            panOnDrag={grabMode ? [0, 1, 2] : [1, 2]}
+                            panOnDrag={grabMode ? [0, 1, 2] : false}
                             panOnScroll={true}
                             zoomOnScroll={false}
                             connectMode={connectMode}
