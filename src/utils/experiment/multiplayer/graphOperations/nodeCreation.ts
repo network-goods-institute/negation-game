@@ -14,7 +14,11 @@ type PreferredEdgeType = "support" | "negation";
 
 interface CreateAddPointBelowOptions {
   getPreferredEdgeType?: (context: { parent: any }) => PreferredEdgeType;
-  onEdgeCreated?: (context: { nodeId: string; edgeId: string; edgeType: string }) => void;
+  onEdgeCreated?: (context: {
+    nodeId: string;
+    edgeId: string;
+    edgeType: string;
+  }) => void;
 }
 
 export const createAddNodeAtPosition = (
@@ -253,7 +257,7 @@ export const createAddPointBelow = (
       const preferred = options?.getPreferredEdgeType?.({ parent });
       if (preferred === "support" || preferred === "negation") {
         edgeType = preferred;
-      } else if ((fallbackEdgeType === "option")) {
+      } else if (fallbackEdgeType === "option") {
         edgeType = "support";
       }
     }
@@ -271,7 +275,7 @@ export const createAddPointBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: newPos,
+      position: { x: newPos.x, y: newPos.y + 96 },
       data: { content: defaultContent, favor: 5, createdAt: Date.now() },
       selected: true,
     };
@@ -304,4 +308,3 @@ export const createAddPointBelow = (
     return result;
   };
 };
-

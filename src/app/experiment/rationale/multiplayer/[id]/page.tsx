@@ -13,6 +13,14 @@ import { useUserColor } from '@/hooks/experiment/multiplayer/useUserColor';
 import { useKeyboardShortcuts } from '@/hooks/experiment/multiplayer/useKeyboardShortcuts';
 import { useInitialGraph } from '@/hooks/experiment/multiplayer/useInitialGraph';
 import { useNodeDragHandlers } from '@/hooks/experiment/multiplayer/useNodeDragHandlers';
+import { useMultiplayerTitle } from '@/hooks/experiment/multiplayer/useMultiplayerTitle';
+import { useConnectionMode } from '@/hooks/experiment/multiplayer/useConnectionMode';
+import { useEdgeTypeManager } from '@/hooks/experiment/multiplayer/useEdgeTypeManager';
+import { useGraphOperations } from '@/hooks/experiment/multiplayer/useGraphOperations';
+import { useConnectionHandlers } from '@/hooks/experiment/multiplayer/useConnectionHandlers';
+import { useNodeHelpers } from '@/hooks/experiment/multiplayer/useNodeHelpers';
+import { usePairHeights } from '@/hooks/experiment/multiplayer/usePairHeights';
+import { useEdgeSelection } from '@/hooks/experiment/multiplayer/useEdgeSelection';
 import { MultiplayerHeader } from '@/components/experiment/multiplayer/MultiplayerHeader';
 import { ToolsBar } from '@/components/experiment/multiplayer/ToolsBar';
 import { GraphCanvas } from '@/components/experiment/multiplayer/GraphCanvas';
@@ -23,26 +31,10 @@ import { useMultiplayerEditing } from '@/hooks/experiment/multiplayer/useMultipl
 import { useWriteAccess } from '@/hooks/experiment/multiplayer/useWriteAccess';
 import { useWritableSync } from '@/hooks/experiment/multiplayer/useWritableSync';
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
-import * as Y from 'yjs';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
 import { GraphUpdater } from '@/components/experiment/multiplayer/GraphUpdater';
 import { TypeSelectorDropdown } from '@/components/experiment/multiplayer/TypeSelectorDropdown';
 import { toast } from 'sonner';
-import { buildConnectionEdge } from '@/utils/experiment/multiplayer/connectUtils';
-import { generateEdgeId } from '@/utils/experiment/multiplayer/graphSync';
-import {
-    createUpdateNodeContent,
-    createUpdateNodeHidden,
-    createDeleteNode,
-    createAddPointBelow,
-    createAddObjectionForEdge,
-    createUpdateEdgeAnchorPosition,
-    createUpdateEdgeType,
-    createAddNodeAtPosition,
-    createUpdateNodeType,
-    createInversePair,
-    createDeleteInversePair
-} from '@/utils/experiment/multiplayer/graphOperations';
 import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
 
@@ -52,70 +44,30 @@ export default function MultiplayerBoardDetailPage() {
     const routeParams = useParams<{ id: string }>();
     const { authenticated, ready, login, user: privyUser } = usePrivy();
 
-    const [connectMode, setConnectMode] = useState<boolean>(false);
+    const {
+        connectMode,
+        setConnectMode,
+        connectAnchorId,
+        setConnectAnchorId,
+        connectAnchorRef,
+        connectCursor,
+        setConnectCursor,
+        clearConnect,
+        cancelConnect,
+    } = useConnectionMode();
+
     const [grabMode, setGrabMode] = useState<boolean>(false);
-    const [connectAnchorId, setConnectAnchorId] = useState<string | null>(null);
-    const connectAnchorRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (!connectAnchorId) {
-            connectAnchorRef.current = null;
-            setConnectCursor(null);
-        }
-    }, [connectAnchorId]);
-    const [connectCursor, setConnectCursor] = useState<{ x: number; y: number } | null>(null);
-    useEffect(() => {
-        if (!connectMode) {
-            setConnectAnchorId(null);
-            connectAnchorRef.current = null;
-            setConnectCursor(null);
-        }
-    }, [connectMode]);
-    useEffect(() => {
-        return () => {
-            if (edgeRevealTimeoutRef.current) {
-                clearTimeout(edgeRevealTimeoutRef.current);
-                edgeRevealTimeoutRef.current = null;
-            }
-        };
-    }, []);
-    const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
-    const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-    const edgeRevealTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const preferredEdgeTypeRef = useRef<'support' | 'negation'>('support');
-    const [preferredEdgeType, setPreferredEdgeType] = useState<'support' | 'negation'>(preferredEdgeTypeRef.current);
     const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
+
+    const { hoveredEdgeId, setHoveredEdgeId, selectedEdgeId, setSelectedEdgeId, revealEdgeTemporarily } = useEdgeSelection();
     const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
-    const [pairNodeHeights, setPairNodeHeights] = useState<Record<string, Record<string, number>>>({});
-    const [pairHeights, setPairHeights] = useState<Record<string, number>>({});
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-    const [titleEditingUser, setTitleEditingUser] = useState<{ name: string; color: string } | null>(null);
     const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
 
+    const { pairNodeHeights, pairHeights, setPairNodeHeight, commitGroupLayout: commitGroupLayoutBase } = usePairHeights();
+
     const initialGraph = useInitialGraph();
-    const [dbTitle, setDbTitle] = useState<string | null>(null);
-    const [ownerId, setOwnerId] = useState<string | null>(null);
-
-
-    const loadDbTitle = useCallback(async () => {
-        if (!routeParams?.id) return;
-        try {
-            const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
-            try { await recordOpen(rid); } catch { }
-            const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`);
-            if (res.ok) {
-                const data = await res.json();
-                setDbTitle(data.title || null);
-                setOwnerId(data.ownerId || null);
-            }
-        } catch (e) {
-            console.error('[title] Failed to load DB title:', e);
-        }
-    }, [routeParams?.id]);
-
-    useEffect(() => {
-        loadDbTitle();
-    }, [loadDbTitle]);
 
 
     const queryClient = useQueryClient();
@@ -160,160 +112,58 @@ export default function MultiplayerBoardDetailPage() {
         initialEdges: initialGraph?.edges || [],
         enabled: ready && authenticated && Boolean(initialGraph),
         localOrigin: localOriginRef.current,
-        onSaveComplete: loadDbTitle,
     });
 
-    const loadDbTitleWithSync = useCallback(async () => {
+    // Record page open
+    useEffect(() => {
         if (!routeParams?.id) return;
-        try {
-            const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
-            try { await recordOpen(rid); } catch { }
-            const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(rid)}`);
-            if (res.ok) {
-                const data = await res.json();
-                const normalizedTitle = data.title || null;
-                setDbTitle(normalizedTitle);
-                setOwnerId(data.ownerId || null);
+        const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
+        recordOpen(rid).catch(() => { });
+    }, [routeParams?.id]);
 
-                if (yMetaMap && ydoc && normalizedTitle) {
-                    ydoc.transact(() => {
-                        yMetaMap.set('title', normalizedTitle);
-                    }, localOriginRef.current);
-                }
-            }
-        } catch (e) {
-            console.error('[title] Failed to load DB title:', e);
-        }
-    }, [routeParams?.id, yMetaMap, ydoc]);
+    const {
+        dbTitle,
+        ownerId,
+        titleEditingUser,
+        loadDbTitle,
+        handleTitleChange,
+        handleTitleEditingStart,
+        handleTitleEditingStop,
+        handleTitleSavingStart,
+        handleTitleSavingStop,
+        handleTitleCountdownStart,
+        handleTitleCountdownStop,
+    } = useMultiplayerTitle({
+        routeParams,
+        yMetaMap,
+        ydoc,
+        provider,
+        localOrigin: localOriginRef.current,
+    });
 
-    useEffect(() => {
-        if (!yMetaMap || !ydoc) return;
-
-        const handleMetaChange = () => {
-            const syncedTitle = yMetaMap.get('title') as string;
-            if (syncedTitle && syncedTitle !== dbTitle) {
-                setDbTitle(syncedTitle);
-            }
-        };
-
-        yMetaMap.observe(handleMetaChange);
-
-        return () => {
-            yMetaMap.unobserve(handleMetaChange);
-        };
-    }, [yMetaMap, ydoc, dbTitle]);
-
-    useEffect(() => {
-        if (yMetaMap && ydoc) {
-            loadDbTitleWithSync();
-        }
-    }, [yMetaMap, ydoc, loadDbTitleWithSync]);
-
-    useEffect(() => {
-        if (!provider?.awareness) return;
-
-        const awareness = provider.awareness;
-
-        const handleAwarenessChange = () => {
-            const states = Array.from(awareness.getStates().entries());
-            const titleEditor = states.find(([clientId, state]: [number, any]) =>
-                clientId !== awareness.clientID && (state.editingTitle || state.countdownTitle || state.savingTitle)
-            );
-
-            if (titleEditor) {
-                const [, state] = titleEditor;
-                setTitleEditingUser({
-                    name: state.user?.name || 'Someone',
-                    color: state.user?.color || '#666'
-                });
-            } else {
-                setTitleEditingUser(null);
-            }
-        };
-
-        awareness.on('change', handleAwarenessChange);
-        return () => {
-            awareness.off('change', handleAwarenessChange);
-        };
-    }, [provider?.awareness]);
-
-    const handleTitleEditingStart = useCallback(() => {
-        if (provider?.awareness) {
-            provider.awareness.setLocalStateField('editingTitle', true);
-        }
-    }, [provider?.awareness]);
-
-    const handleTitleEditingStop = useCallback(() => {
-        if (provider?.awareness) {
-            provider.awareness.setLocalStateField('editingTitle', false);
-        }
-    }, [provider?.awareness]);
-
-    const handleTitleSavingStart = useCallback(() => {
-        if (provider?.awareness) {
-            provider.awareness.setLocalStateField('savingTitle', true);
-        }
-    }, [provider?.awareness]);
-
-    const handleTitleSavingStop = useCallback(() => {
-        if (provider?.awareness) {
-            provider.awareness.setLocalStateField('savingTitle', false);
-        }
-    }, [provider?.awareness]);
-
-    const handleTitleCountdownStart = useCallback(() => {
-        if (provider?.awareness) {
-            provider.awareness.setLocalStateField('countdownTitle', true);
-        }
-    }, [provider?.awareness]);
-
-    const handleTitleCountdownStop = useCallback(() => {
-        if (provider?.awareness) {
-            provider.awareness.setLocalStateField('countdownTitle', false);
-        }
-    }, [provider?.awareness]);
-
-    const getNodeCenter = useCallback((nodeId: string) => {
-        const node = (nodes as any[])?.find?.((n: any) => n.id === nodeId);
-        if (!node) return null;
-        const abs = node.positionAbsolute || node.position || { x: 0, y: 0 };
-        const point = abs as { x?: number; y?: number };
-        const baseX = typeof point.x === 'number' ? point.x : 0;
-        const baseY = typeof point.y === 'number' ? point.y : 0;
-        const measured = (node as any).measured as { width?: number; height?: number } | undefined;
-        const style = node.style as { width?: number; height?: number } | undefined;
-        const width = typeof node.width === 'number'
-            ? node.width
-            : (typeof measured?.width === 'number'
-                ? measured.width
-                : (typeof style?.width === 'number' ? style.width : 0));
-        const height = typeof node.height === 'number'
-            ? node.height
-            : (typeof measured?.height === 'number'
-                ? measured.height
-                : (typeof style?.height === 'number' ? style.height : 0));
-        return { x: baseX + (width || 0) / 2, y: baseY + (height || 0) / 2 };
-    }, [nodes]);
-
-    const getEdgeMidpoint = useCallback((edgeId: string) => {
-        const edge = (edges as any[])?.find?.((e: any) => e.id === edgeId);
-        if (!edge) return null;
-        const sourceCenter = getNodeCenter(edge.source);
-        const targetCenter = getNodeCenter(edge.target);
-        if (sourceCenter && targetCenter) {
-            return {
-                x: (sourceCenter.x + targetCenter.x) / 2,
-                y: (sourceCenter.y + targetCenter.y) / 2,
-            };
-        }
-        return null;
-    }, [edges, getNodeCenter]);
+    const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
 
 
     const { canWrite } = useWriteAccess(provider, userId);
 
     const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite });
     const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite });
+
+    const { preferredEdgeTypeRef, updateEdgeType } = useEdgeTypeManager({
+        nodes,
+        edges,
+        yNodesMap,
+        yEdgesMap,
+        yTextMap,
+        ydoc,
+        canWrite,
+        localOrigin: localOriginRef.current,
+        setNodes,
+        setEdges,
+        isLockedForMe,
+        getLockOwner,
+    });
+
     const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
 
     // Update node draggability when locks change
@@ -346,7 +196,35 @@ export default function MultiplayerBoardDetailPage() {
         connectMode,
     });
 
-    const deleteNode = createDeleteNode(
+    const getViewportOffset = React.useCallback(() => {
+        const nodeSpacing = 16;
+        return { x: 0, y: nodeSpacing };
+    }, []);
+
+    const writeSynced = useWritableSync({
+        canWrite,
+        yNodesMap: yNodesMap as any,
+        yEdgesMap: yEdgesMap as any,
+        yTextMap: yTextMap as any,
+        setNodes: setNodes as any,
+        setEdges: setEdges as any,
+        clearConnect: clearConnect,
+    });
+
+    const {
+        updateNodeContent,
+        updateNodeHidden,
+        updateNodeFavor,
+        deleteNode,
+        addPointBelow,
+        addObjectionForEdge,
+        updateEdgeAnchorPosition,
+        addNodeAtPosition,
+        updateNodeType,
+        createInversePair: inversePair,
+        deleteInversePair,
+        updateEdgeRelevance,
+    } = useGraphOperations({
         nodes,
         edges,
         yNodesMap,
@@ -354,196 +232,28 @@ export default function MultiplayerBoardDetailPage() {
         yTextMap,
         ydoc,
         canWrite,
-        localOriginRef.current,
-        setNodes,
-        setEdges,
-        isLockedForMe,
-        getLockOwner,
-        setUndoHintPosition
-    );
-
-    const getViewportOffset = React.useCallback(() => {
-        const nodeSpacing = 16;
-        return { x: 0, y: nodeSpacing };
-    }, []);
-
-    const addPointBelow = createAddPointBelow(
-        nodes,
-        yNodesMap,
-        yEdgesMap,
-        yTextMap,
-        ydoc,
-        canWrite,
-        localOriginRef.current,
+        writeSynced,
+        localOrigin: localOriginRef.current,
         lastAddRef,
         setNodes,
         setEdges,
         isLockedForMe,
         getLockOwner,
         getViewportOffset,
-        {
-            getPreferredEdgeType: ({ parent }) => {
-                if (parent?.type === 'point' || parent?.type === 'objection') {
-                    return preferredEdgeTypeRef.current;
-                }
-                return preferredEdgeTypeRef.current;
-            },
-            onEdgeCreated: ({ edgeId, edgeType }) => {
-                if (edgeType === 'support' || edgeType === 'negation') {
-                    preferredEdgeTypeRef.current = edgeType;
-                    setPreferredEdgeType(edgeType);
-                }
-                setHoveredEdgeId(edgeId);
-                setSelectedEdgeId(edgeId);
-                if (edgeRevealTimeoutRef.current) {
-                    clearTimeout(edgeRevealTimeoutRef.current);
-                }
-                edgeRevealTimeoutRef.current = setTimeout(() => {
-                    setHoveredEdgeId((current) => (current === edgeId ? null : current));
-                    setSelectedEdgeId((current) => (current === edgeId ? null : current));
-                }, 3500);
-            },
-        }
-    );
-
-    const updateEdgeTypeBase = createUpdateEdgeType(
-        nodes as any,
-        edges as any,
-        yNodesMap as any,
-        yEdgesMap as any,
-        ydoc as any,
-        canWrite,
-        localOriginRef.current,
-        setNodes as any,
-        setEdges as any,
-        isLockedForMe,
-        getLockOwner
-    );
-
-    const getDefaultPointContent = (edgeTypeValue: string, parentType?: string) => {
-        if (parentType === 'statement' || parentType === 'title') {
-            return 'New Option';
-        }
-        if (edgeTypeValue === 'support') {
-            return 'New Support';
-        }
-        if (edgeTypeValue === 'negation') {
-            return 'New Negation';
-        }
-        return 'New Point';
-    };
-
-    const recognizedPlaceholderStrings = new Set(['new option', 'new support', 'new negation', 'new point']);
-
-
-    const updateEdgeType = (edgeId: string, newType: 'negation' | 'support') => {
-        if (!canWrite) {
-            toast.warning('Read-only mode: Changes won\'t be saved');
-            return;
-        }
-
-        const edge = edges.find((edgeItem: any) => edgeItem.id === edgeId);
-        if (!edge) return;
-        if (edge.type !== 'support' && edge.type !== 'negation') return;
-        if (edge.type === newType) return;
-
-        const parentNode = nodes.find((nodeItem: any) => nodeItem.id === edge.target);
-        const parentType = parentNode?.type;
-        const previousDefault = getDefaultPointContent(edge.type, parentType);
-        const nextDefault = getDefaultPointContent(newType, parentType);
-
-        updateEdgeTypeBase(edgeId, newType);
-        preferredEdgeTypeRef.current = newType;
-        setPreferredEdgeType(newType);
-
-        const normalizePlaceholder = (value: string) => value.trim().toLowerCase();
-        const previousNormalized = normalizePlaceholder(previousDefault);
-
-        setNodes((current) => current.map((nodeItem: any) => {
-            if (nodeItem.id !== edge.source) return nodeItem;
-            const currentContent = nodeItem.data?.content;
-            if (typeof currentContent !== 'string') return nodeItem;
-            const currentNormalized = normalizePlaceholder(currentContent);
-            const isRecognizedPlaceholder =
-                currentNormalized === previousNormalized ||
-                (recognizedPlaceholderStrings.has(currentNormalized) && recognizedPlaceholderStrings.has(previousNormalized));
-
-            if (!isRecognizedPlaceholder) {
-                return nodeItem;
+        onEdgeCreated: ({ edgeId, edgeType }) => {
+            if (edgeType === 'support' || edgeType === 'negation') {
+                preferredEdgeTypeRef.current = edgeType;
             }
-
-            return {
-                ...nodeItem,
-                data: { ...nodeItem.data, content: nextDefault },
-            };
-        }));
-
-        if (yTextMap && ydoc) {
-            ydoc.transact(() => {
-                const textEntry = yTextMap.get(edge.source);
-                if (textEntry instanceof Y.Text) {
-                    const currentText = textEntry.toString().trim().toLowerCase();
-                    const isRecognizedPlaceholder =
-                        currentText === previousNormalized ||
-                        (recognizedPlaceholderStrings.has(currentText) && recognizedPlaceholderStrings.has(previousNormalized));
-
-                    if (!isRecognizedPlaceholder) {
-                        return;
-                    }
-                    // eslint-disable-next-line drizzle/enforce-delete-with-where
-                    textEntry.delete(0, textEntry.length);
-                    textEntry.insert(0, nextDefault);
-                } else if (textEntry == null) {
-                    const text = new Y.Text();
-                    text.insert(0, nextDefault);
-                    yTextMap.set(edge.source, text);
-                }
-            }, localOriginRef.current);
-        }
-    };
-
-    const addObjectionForEdge = createAddObjectionForEdge(
-        nodes,
-        edges,
-        yNodesMap,
-        yEdgesMap,
-        yTextMap,
-        ydoc,
-        canWrite,
-        localOriginRef.current,
-        setNodes,
-        setEdges,
-        isLockedForMe,
-        getLockOwner
-    );
-
-    const deleteInversePair = React.useMemo(() => (
-        createDeleteInversePair(
-            nodes as any,
-            edges as any,
-            yNodesMap as any,
-            yEdgesMap as any,
-            yTextMap as any,
-            ydoc as any,
-            canWrite,
-            localOriginRef.current,
-            setNodes as any,
-            setEdges as any,
-            isLockedForMe,
-            getLockOwner,
-        )
-    ), [nodes, edges, yNodesMap, yEdgesMap, yTextMap, ydoc, canWrite, setNodes, setEdges, isLockedForMe, getLockOwner]);
-
-
-    const updateNodeFavor = (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
-        setNodes((nds: any[]) => nds.map(n => n.id === nodeId ? { ...n, data: { ...(n.data || {}), favor } } : n));
-        if (yNodesMap && ydoc && canWrite) {
-            ydoc.transact(() => {
-                const base = (yNodesMap as any).get(nodeId);
-                if (base) (yNodesMap as any).set(nodeId, { ...base, data: { ...(base.data || {}), favor } });
-            }, localOriginRef.current);
-        }
-    };
+            revealEdgeTemporarily(edgeId);
+        },
+        getPreferredEdgeType: ({ parent }) => {
+            if (parent?.type === 'point' || parent?.type === 'objection') {
+                return preferredEdgeTypeRef.current;
+            }
+            return preferredEdgeTypeRef.current;
+        },
+        onShowUndoHint: setUndoHintPosition,
+    });
 
     const clearNodeSelection = React.useCallback(() => {
         setNodes((nds: any[]) => {
@@ -558,41 +268,6 @@ export default function MultiplayerBoardDetailPage() {
             return changed ? next : nds;
         });
     }, [setNodes]);
-    const updateEdgeRelevance = (edgeId: string, relevance: 1 | 2 | 3 | 4 | 5) => {
-        setEdges((eds: any[]) => eds.map(e => e.id === edgeId ? { ...e, data: { ...(e.data || {}), relevance } } : e));
-        if (yEdgesMap && ydoc && canWrite) {
-            ydoc.transact(() => {
-                const base = (yEdgesMap as any).get(edgeId);
-                if (base) (yEdgesMap as any).set(edgeId, { ...base, data: { ...(base.data || {}), relevance } });
-            }, localOriginRef.current);
-        }
-    };
-
-
-    const clearConnect = React.useCallback(() => {
-        setConnectMode(false);
-        setConnectAnchorId(null);
-        setConnectCursor(null);
-    }, []);
-
-    const writeSynced = useWritableSync({
-        canWrite,
-        yNodesMap: yNodesMap as any,
-        yEdgesMap: yEdgesMap as any,
-        yTextMap: yTextMap as any,
-        setNodes: setNodes as any,
-        setEdges: setEdges as any,
-        clearConnect,
-    });
-
-    const updateEdgeAnchorPosition = createUpdateEdgeAnchorPosition(
-        setNodes as any,
-        canWrite && writeSynced ? (yNodesMap as any) : null,
-        canWrite && writeSynced ? (ydoc as any) : null,
-        canWrite && writeSynced,
-        localOriginRef.current,
-        undefined
-    );
 
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
@@ -605,41 +280,33 @@ export default function MultiplayerBoardDetailPage() {
         () => nodes as any[]
     );
 
-    const updateNodeContent = createUpdateNodeContent(
-        yTextMap as any,
-        ydoc as any,
-        canWrite,
-        localOriginRef.current,
-        setNodes
-    );
-
-    const inversePair = createInversePair(
+    const {
+        beginConnectFromNode,
+        beginConnectFromEdge,
+        completeConnectToNode,
+        completeConnectToEdge,
+        cancelConnect: cancelConnectHandler,
+    } = useConnectionHandlers({
         nodes,
+        edges,
         yNodesMap,
-        yTextMap,
         yEdgesMap,
         ydoc,
         canWrite,
-        localOriginRef.current,
+        localOrigin: localOriginRef.current,
         setNodes,
         setEdges,
+        connectMode,
+        connectAnchorId,
+        connectAnchorRef,
+        setConnectMode,
+        setConnectAnchorId,
+        setConnectCursor,
         isLockedForMe,
-        getLockOwner
-    );
-
-    const setPairNodeHeight = React.useCallback((groupId: string, nodeId: string, height: number) => {
-        const nextH = Math.max(0, Math.floor(height));
-        setPairNodeHeights((prev) => {
-            const prevGroup = prev[groupId] || {};
-            const prevH = prevGroup[nodeId] ?? 0;
-            if (prevH === nextH) return prev;
-            const group = { ...prevGroup, [nodeId]: nextH } as Record<string, number>;
-            const next = { ...prev, [groupId]: group } as Record<string, Record<string, number>>;
-            const maxH = Object.values(group).reduce((m, h) => Math.max(m, h || 0), 0);
-            setPairHeights((ph) => (ph[groupId] === maxH ? ph : { ...ph, [groupId]: maxH }));
-            return next;
-        });
-    }, []);
+        getLockOwner,
+        getNodeCenter,
+        getEdgeMidpoint,
+    });
 
 
     useKeyboardShortcuts(undo, redo, {
@@ -704,15 +371,7 @@ export default function MultiplayerBoardDetailPage() {
                     userId={userId}
                     title={dbTitle || 'Untitled'}
                     documentId={typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')}
-                    onTitleChange={(newTitle: string) => {
-                        setDbTitle(newTitle);
-                        // Sync title change to other clients via Yjs meta map
-                        if (yMetaMap && ydoc) {
-                            ydoc.transact(() => {
-                                yMetaMap.set('title', newTitle);
-                            }, localOriginRef.current);
-                        }
-                    }}
+                    onTitleChange={handleTitleChange}
                     onTitleEditingStart={handleTitleEditingStart}
                     onTitleEditingStop={handleTitleEditingStop}
                     onTitleCountdownStart={handleTitleCountdownStart}
@@ -726,16 +385,10 @@ export default function MultiplayerBoardDetailPage() {
             <ReactFlowProvider>
                 <GraphProvider value={{
                     updateNodeContent,
-                    updateNodeHidden: createUpdateNodeHidden(
-                        yNodesMap as any,
-                        ydoc as any,
-                        canWrite,
-                        localOriginRef.current,
-                        setNodes as any,
-                    ),
+                    updateNodeHidden,
                     updateNodeFavor,
                     addPointBelow,
-                    preferredEdgeType,
+                    preferredEdgeType: preferredEdgeTypeRef.current,
                     createInversePair: inversePair,
                     deleteNode,
                     startEditingNode: startEditingNodeCtx,
@@ -746,119 +399,11 @@ export default function MultiplayerBoardDetailPage() {
                     isAnyNodeEditing,
                     grabMode,
                     clearNodeSelection,
-                    beginConnectFromNode: (id: string, cursor?: { x: number; y: number }) => {
-                        connectAnchorRef.current = id;
-                        setConnectAnchorId(id);
-                        const fallback = cursor || getNodeCenter(id);
-                        if (fallback) {
-                            setConnectCursor(fallback);
-                        }
-                    },
-                    beginConnectFromEdge: (edgeId: string, cursor?: { x: number; y: number }) => {
-                        const anchorId = `anchor:${edgeId}`;
-                        connectAnchorRef.current = anchorId;
-                        setConnectAnchorId(anchorId);
-                        const midpoint = cursor || getEdgeMidpoint(edgeId);
-                        if (midpoint) {
-                            setConnectCursor(midpoint);
-                        }
-                        const edge = (edges as any[]).find(e => e.id === edgeId);
-                        if (edge) {
-                            const position = midpoint || getEdgeMidpoint(edgeId) || { x: 0, y: 0 };
-                            const anchorNode: any = { id: anchorId, type: 'edge_anchor', position, data: { parentEdgeId: edgeId } };
-                            setNodes((nds: any[]) => nds.some(n => n.id === anchorId) ? nds : [...nds, anchorNode]);
-                        }
-                    },
-                    completeConnectToNode: (nodeId: string) => {
-                        if (!connectMode) return;
-                        if (!canWrite) {
-                            toast.warning("Read-only mode: Changes won't be saved");
-                            return;
-                        }
-                        const anchorId = connectAnchorId || connectAnchorRef.current;
-                        if (!anchorId) return;
-                        if (nodeId === anchorId) {
-                            setConnectAnchorId(null);
-                            connectAnchorRef.current = null;
-                            setConnectCursor(null);
-                            return;
-                        }
-                        if (anchorId.startsWith('anchor:')) {
-                            const edgeId = anchorId.slice('anchor:'.length);
-                            const anchorIdForEdge = `anchor:${edgeId}`;
-                            const anchorNodeExists = (nodes as any[]).some(n => n.id === anchorIdForEdge);
-                            if (!anchorNodeExists) {
-                                const midpoint = getEdgeMidpoint(edgeId) || { x: 0, y: 0 };
-                                const anchorNode: any = { id: anchorIdForEdge, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: edgeId } };
-                                setNodes((nds: any[]) => nds.some(n => n.id === anchorIdForEdge) ? nds : [...nds, anchorNode]);
-                                if (yNodesMap && ydoc && canWrite) {
-                                    ydoc.transact(() => { if (!(yNodesMap as any).has(anchorIdForEdge)) (yNodesMap as any).set(anchorIdForEdge, anchorNode); }, localOriginRef.current);
-                                }
-                            }
-                            const newObjEdge = { id: generateEdgeId(), type: 'objection', source: nodeId, target: anchorIdForEdge } as any;
-                            setEdges((eds: any[]) => eds.some(e => e.id === newObjEdge.id) ? eds : [...eds, newObjEdge]);
-                            if (yEdgesMap && ydoc && canWrite) {
-                                ydoc.transact(() => { if (!(yEdgesMap as any).has(newObjEdge.id)) (yEdgesMap as any).set(newObjEdge.id, newObjEdge); }, localOriginRef.current);
-                            }
-                            setConnectAnchorId(null);
-                            connectAnchorRef.current = null;
-                            setConnectCursor(null);
-                            setConnectMode(false);
-                            return;
-                        }
-                        const parentId = anchorId;
-                        const childId = nodeId;
-                        if (isLockedForMe?.(parentId) || isLockedForMe?.(childId)) {
-                            const lockedNodeId = isLockedForMe?.(parentId) ? parentId : childId;
-                            const owner = getLockOwner?.(lockedNodeId);
-                            toast.warning(`Locked by ${owner?.name || 'another user'}`);
-                            setConnectAnchorId(null);
-                            connectAnchorRef.current = null;
-                            setConnectCursor(null);
-                            return;
-                        }
-                        const { id, edge } = buildConnectionEdge(nodes as any, parentId, childId) as any;
-                        const exists = edges.some((e: any) => e.id === id);
-                        if (!exists) {
-                            setEdges((eds) => (eds.some(e => e.id === id) ? eds : [...eds, edge as any]));
-                        }
-                        if (yEdgesMap && ydoc && canWrite) {
-                            ydoc.transact(() => { if (!yEdgesMap.has(id)) yEdgesMap.set(id, edge as any); }, localOriginRef.current);
-                        }
-                        setConnectAnchorId(null);
-                        connectAnchorRef.current = null;
-                        setConnectCursor(null);
-                    },
-                    cancelConnect: () => { setConnectAnchorId(null); connectAnchorRef.current = null; setConnectCursor(null); setConnectMode(false); },
-                    completeConnectToEdge: (edgeId: string, midX?: number, midY?: number) => {
-                        if (!connectMode) return;
-                        const origin = connectAnchorRef.current;
-                        if (!origin) return;
-                        if (origin.startsWith('anchor:')) {
-                            return;
-                        }
-                        const originNode = (nodes as any[]).find(n => n.id === origin);
-                        if (originNode) {
-                            const anchorId = `anchor:${edgeId}`;
-                            const anchorExists = (nodes as any[]).some(n => n.id === anchorId);
-                            if (!anchorExists) {
-                                const midpoint = getEdgeMidpoint(edgeId) || { x: midX ?? 0, y: midY ?? 0 };
-                                const anchorNode: any = { id: anchorId, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: edgeId } };
-                                setNodes((nds: any[]) => nds.some(n => n.id === anchorId) ? nds : [...nds, anchorNode]);
-                                if (yNodesMap && ydoc && canWrite) {
-                                    ydoc.transact(() => { if (!(yNodesMap as any).has(anchorId)) (yNodesMap as any).set(anchorId, anchorNode); }, localOriginRef.current);
-                                }
-                            }
-                            const newEdge = { id: generateEdgeId(), type: 'objection', source: originNode.id, target: `anchor:${edgeId}` } as any;
-                            setEdges((eds: any[]) => eds.some(e => e.id === newEdge.id) ? eds : [...eds, newEdge]);
-                            if (yEdgesMap && ydoc && canWrite) {
-                                ydoc.transact(() => { if (!(yEdgesMap as any).has(newEdge.id)) (yEdgesMap as any).set(newEdge.id, newEdge); }, localOriginRef.current);
-                            }
-                        }
-                        setConnectAnchorId(null);
-                        connectAnchorRef.current = null;
-                        setConnectCursor(null);
-                    },
+                    beginConnectFromNode,
+                    beginConnectFromEdge,
+                    completeConnectToNode,
+                    completeConnectToEdge,
+                    cancelConnect: cancelConnectHandler,
                     isConnectingFromNodeId: connectAnchorId,
                     connectMode,
                     addObjectionForEdge,
@@ -874,22 +419,8 @@ export default function MultiplayerBoardDetailPage() {
                     proxyMode: !canWrite,
                     undo,
                     redo,
-                    addNodeAtPosition: createAddNodeAtPosition(
-                        yNodesMap as any,
-                        yTextMap as any,
-                        ydoc as any,
-                        canWrite,
-                        localOriginRef.current,
-                        setNodes as any,
-                    ),
-                    updateNodeType: createUpdateNodeType(
-                        yNodesMap as any,
-                        yTextMap as any,
-                        ydoc as any,
-                        canWrite,
-                        localOriginRef.current,
-                        setNodes as any,
-                    ),
+                    addNodeAtPosition,
+                    updateNodeType,
                     deleteInversePair,
                     setPairNodeHeight,
                     pairHeights,
@@ -902,36 +433,7 @@ export default function MultiplayerBoardDetailPage() {
                         setHoveredNodeId(nid);
                     },
                     commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
-                        if (!canWrite) return;
-                        try {
-                            (ydoc as any)?.transact?.(() => {
-                                const gBase = (yNodesMap as any)?.get(groupId);
-                                const curGroup = (nodes as any[])?.find?.((n: any) => n.id === groupId);
-                                const pos = curGroup?.position || gBase?.position || { x: 0, y: 0 };
-                                if (gBase) {
-                                    (yNodesMap as any).set(groupId, {
-                                        ...gBase,
-                                        position: pos,
-                                        width,
-                                        height,
-                                        style: { ...((gBase as any).style || {}), width, height },
-                                    });
-                                }
-                                Object.entries(positions || {}).forEach(([nid, pos]) => {
-                                    const base = (yNodesMap as any)?.get(nid);
-                                    if (base) {
-                                        (yNodesMap as any).set(nid, { ...base, position: { x: pos.x, y: pos.y } });
-                                    }
-                                });
-                            }, localOriginRef.current);
-                        } catch { }
-                        // Update local state immediately as well
-                        setNodes((nds: any[]) => nds.map((n: any) => {
-                            if (n.id === groupId) return { ...n, width, height, style: { ...(n.style || {}), width, height } };
-                            const p = (positions as any)[n.id];
-                            if (p) return { ...n, position: { ...(n.position || { x: 0, y: 0 }), x: p.x, y: p.y } };
-                            return n;
-                        }));
+                        commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canWrite, localOriginRef.current, setNodes);
                     },
                 }}>
                     <div className="w-full h-full relative">
@@ -972,14 +474,6 @@ export default function MultiplayerBoardDetailPage() {
                                     toast.warning("Read-only mode: Changes won't be saved");
                                     return;
                                 }
-                                const addNodeAtPosition = createAddNodeAtPosition(
-                                    yNodesMap as any,
-                                    yTextMap as any,
-                                    ydoc as any,
-                                    canWrite,
-                                    localOriginRef.current,
-                                    setNodes as any,
-                                );
                                 const nodeId = addNodeAtPosition('point', flowX, flowY);
 
                                 setTimeout(() => {
@@ -1027,14 +521,6 @@ export default function MultiplayerBoardDetailPage() {
                         currentType="point"
                         onClose={() => setNewNodeWithDropdown(null)}
                         onSelect={(type) => {
-                            const updateNodeType = createUpdateNodeType(
-                                yNodesMap as any,
-                                yTextMap as any,
-                                ydoc as any,
-                                canWrite,
-                                localOriginRef.current,
-                                setNodes as any,
-                            );
                             updateNodeType(newNodeWithDropdown.id, type);
                             setNewNodeWithDropdown(null);
                         }}
