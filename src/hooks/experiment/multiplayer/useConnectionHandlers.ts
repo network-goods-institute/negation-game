@@ -40,6 +40,7 @@ interface UseConnectionHandlersProps {
   getLockOwner?: GetLockOwner;
   getNodeCenter: (nodeId: string) => { x: number; y: number } | null;
   getEdgeMidpoint: (edgeId: string) => { x: number; y: number } | null;
+  getPreferredEdgeType?: () => "support" | "negation";
 }
 
 export const useConnectionHandlers = ({
@@ -62,6 +63,7 @@ export const useConnectionHandlers = ({
   getLockOwner,
   getNodeCenter,
   getEdgeMidpoint,
+  getPreferredEdgeType,
 }: UseConnectionHandlersProps) => {
   const beginConnectFromNode = useCallback(
     (id: string, cursor?: { x: number; y: number }) => {
@@ -228,7 +230,13 @@ export const useConnectionHandlers = ({
         setConnectCursor(null);
         return;
       }
-      const { id, edge } = buildConnectionEdge(nodes, parentId, childId);
+      const preferred = getPreferredEdgeType?.();
+      const { id, edge } = buildConnectionEdge(
+        nodes,
+        parentId,
+        childId,
+        preferred
+      );
       const exists = edges.some((e) => e.id === id);
       if (!exists) {
         setEdges((eds) =>
@@ -263,6 +271,7 @@ export const useConnectionHandlers = ({
       isLockedForMe,
       getLockOwner,
       getEdgeMidpoint,
+      getPreferredEdgeType,
     ]
   );
 

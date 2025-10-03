@@ -332,6 +332,7 @@ export default function MultiplayerBoardDetailPage() {
         getLockOwner,
         getNodeCenter,
         getEdgeMidpoint,
+        getPreferredEdgeType: () => preferredEdgeTypeRef.current,
     });
 
 

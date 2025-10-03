@@ -23,11 +23,14 @@ export const chooseEdgeType = (sourceType?: string, targetType?: string) => {
 export const buildConnectionEdge = (
   nodes: any[],
   parentId: string,
-  childId: string
+  childId: string,
+  preferredEdgeType?: "support" | "negation"
 ) => {
   const parentType = nodes.find((n) => n.id === parentId)?.type;
   const childType = nodes.find((n) => n.id === childId)?.type;
-  const edgeType = chooseEdgeType(childType, parentType);
+  const computed = chooseEdgeType(childType, parentType);
+  const edgeType =
+    computed === "negation" && preferredEdgeType ? preferredEdgeType : computed;
   const id = deterministicEdgeId(
     edgeType,
     childId,
