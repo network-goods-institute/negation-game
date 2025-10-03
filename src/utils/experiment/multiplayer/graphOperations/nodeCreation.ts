@@ -19,6 +19,7 @@ interface CreateAddPointBelowOptions {
     edgeId: string;
     edgeType: string;
   }) => void;
+  onNodeCreated?: () => void;
 }
 
 export const createAddNodeAtPosition = (
@@ -27,7 +28,8 @@ export const createAddNodeAtPosition = (
   ydoc: any,
   canWrite: boolean,
   localOrigin: object,
-  setNodes: (updater: (nodes: any[]) => any[]) => void
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  onNodeCreated?: () => void
 ) => {
   return (
     type: "point" | "statement" | "title" | "objection",
@@ -58,8 +60,9 @@ export const createAddNodeAtPosition = (
       selected: true,
     };
 
-    // local UI responsiveness
-    setNodes((nds) => [...nds, node]);
+    // Clear all existing selections and add new node
+    onNodeCreated?.();
+    setNodes((nds) => [...nds.map(n => ({ ...n, selected: false })), node]);
 
     if (yNodesMap && ydoc && canWrite) {
       ydoc.transact(() => {
@@ -94,7 +97,8 @@ export const createAddNegationBelow = (
   setEdges: (updater: (edges: any[]) => any[]) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
-  getViewportOffset?: () => { x: number; y: number }
+  getViewportOffset?: () => { x: number; y: number },
+  onNodeCreated?: () => void
 ) => {
   return (parentNodeId: string) => {
     if (isLockedForMe?.(parentNodeId)) {
@@ -132,8 +136,9 @@ export const createAddNegationBelow = (
       targetHandle: `${parentNodeId}-incoming-handle`,
       data: { relevance: 3 },
     };
-    // Always update local state immediately for responsiveness
-    setNodes((curr) => [...curr, newNode]);
+    // Clear all existing selections and add new node/edge
+    onNodeCreated?.();
+    setNodes((curr) => [...curr.map(n => ({ ...n, selected: false })), newNode]);
     setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
@@ -164,7 +169,8 @@ export const createAddSupportBelow = (
   setEdges: (updater: (edges: any[]) => any[]) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
-  getViewportOffset?: () => { x: number; y: number }
+  getViewportOffset?: () => { x: number; y: number },
+  onNodeCreated?: () => void
 ) => {
   return (parentNodeId: string) => {
     if (isLockedForMe?.(parentNodeId)) {
@@ -200,7 +206,9 @@ export const createAddSupportBelow = (
       targetHandle: `${parentNodeId}-incoming-handle`,
       data: { relevance: 3 },
     };
-    setNodes((curr) => [...curr, newNode]);
+    // Clear all existing selections and add new node/edge
+    onNodeCreated?.();
+    setNodes((curr) => [...curr.map(n => ({ ...n, selected: false })), newNode]);
     setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
@@ -288,7 +296,9 @@ export const createAddPointBelow = (
       targetHandle: `${parentNodeId}-incoming-handle`,
       data: { relevance: 3 },
     };
-    setNodes((curr) => [...curr, newNode]);
+    // Clear all existing selections and add new node/edge
+    options?.onNodeCreated?.();
+    setNodes((curr) => [...curr.map(n => ({ ...n, selected: false })), newNode]);
     setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {

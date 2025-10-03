@@ -52,6 +52,7 @@ interface UseGraphOperationsProps {
   onEdgeCreated?: OnEdgeCreated;
   getPreferredEdgeType?: GetPreferredEdgeType;
   onShowUndoHint?: OnShowUndoHint;
+  onClearSelections?: () => void;
 }
 
 export const useGraphOperations = ({
@@ -73,6 +74,7 @@ export const useGraphOperations = ({
   onEdgeCreated,
   getPreferredEdgeType,
   onShowUndoHint,
+  onClearSelections,
 }: UseGraphOperationsProps) => {
   const updateNodeContent = useMemo(
     () =>
@@ -151,6 +153,7 @@ export const useGraphOperations = ({
         {
           getPreferredEdgeType: getPreferredEdgeType || (() => "support"),
           onEdgeCreated,
+          onNodeCreated: onClearSelections,
         }
       ),
     [
@@ -169,6 +172,7 @@ export const useGraphOperations = ({
       getViewportOffset,
       getPreferredEdgeType,
       onEdgeCreated,
+      onClearSelections,
     ]
   );
 
@@ -225,9 +229,10 @@ export const useGraphOperations = ({
         ydoc,
         canWrite,
         localOrigin,
-        setNodes
+        setNodes,
+        onClearSelections
       ),
-    [yNodesMap, yTextMap, ydoc, canWrite, localOrigin, setNodes]
+    [yNodesMap, yTextMap, ydoc, canWrite, localOrigin, setNodes, onClearSelections]
   );
 
   const updateNodeType = useMemo(
@@ -297,6 +302,7 @@ export const useGraphOperations = ({
       yTextMap,
       ydoc,
       canWrite,
+      localOrigin,
       setNodes,
       setEdges,
       isLockedForMe,

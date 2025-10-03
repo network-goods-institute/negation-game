@@ -211,6 +211,20 @@ export default function MultiplayerBoardDetailPage() {
         clearConnect: clearConnect,
     });
 
+    const clearNodeSelection = React.useCallback(() => {
+        setNodes((nds: any[]) => {
+            let changed = false;
+            const next = nds.map((node: any) => {
+                if (node?.selected) {
+                    changed = true;
+                    return { ...node, selected: false };
+                }
+                return node;
+            });
+            return changed ? next : nds;
+        });
+    }, [setNodes]);
+
     const {
         updateNodeContent,
         updateNodeHidden,
@@ -253,22 +267,12 @@ export default function MultiplayerBoardDetailPage() {
             return preferredEdgeTypeRef.current;
         },
         onShowUndoHint: setUndoHintPosition,
+        onClearSelections: () => {
+            clearNodeSelection();
+            setSelectedEdgeId(null);
+            setHoveredEdgeId(null);
+        },
     });
-
-    const clearNodeSelection = React.useCallback(() => {
-        setNodes((nds: any[]) => {
-            let changed = false;
-            const next = nds.map((node: any) => {
-                if (node?.selected) {
-                    changed = true;
-                    return { ...node, selected: false };
-                }
-                return node;
-            });
-            return changed ? next : nds;
-        });
-    }, [setNodes]);
-
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
         setEdges,
