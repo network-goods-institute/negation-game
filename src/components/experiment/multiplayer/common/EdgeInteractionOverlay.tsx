@@ -9,6 +9,8 @@ export interface EdgeInteractionOverlayProps {
   targetY?: number;
   onEdgeClick: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onMouseEnter?: (e: React.MouseEvent) => void;
+  onMouseLeave?: (e: React.MouseEvent) => void;
 }
 
 export const EdgeInteractionOverlay: React.FC<EdgeInteractionOverlayProps> = ({
@@ -20,6 +22,8 @@ export const EdgeInteractionOverlay: React.FC<EdgeInteractionOverlayProps> = ({
   targetY,
   onEdgeClick,
   onContextMenu,
+  onMouseEnter,
+  onMouseLeave,
 }) => {
   if (!shouldRender) return null;
 
@@ -37,6 +41,8 @@ export const EdgeInteractionOverlay: React.FC<EdgeInteractionOverlayProps> = ({
         style={overlayStyle}
         onClick={onEdgeClick}
         onContextMenu={onContextMenu}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       />
     );
   }
@@ -59,6 +65,8 @@ export const EdgeInteractionOverlay: React.FC<EdgeInteractionOverlayProps> = ({
         style={overlayStyle}
         onClick={onEdgeClick}
         onContextMenu={onContextMenu}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       />
     );
   }

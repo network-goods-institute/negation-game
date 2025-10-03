@@ -43,6 +43,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     setMenuPos,
     isHovered,
     selected,
+    setIsConnectHovered,
     cx,
     cy,
     relevance,
@@ -231,6 +232,15 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
             )
           )}
 
+          {/* Connection mode hover highlight */}
+          {shouldRenderOverlay && connectMode && isHovered && !selected && (
+            visual.useBezier ? (
+              <path d={pathD} stroke="#3b82f6" strokeWidth={6} fill="none" strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
+            ) : (
+              <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#3b82f6" strokeWidth={6} strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
+            )
+          )}
+
           {/* Main edge */}
           {visual.useBezier ? (
             <BezierEdge
@@ -257,17 +267,21 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
         </g>
       </g>
 
-      {/* Interaction overlay */}
-      <EdgeInteractionOverlay
-        shouldRender={shouldRenderOverlay}
-        pathD={visual.useBezier ? pathD : undefined}
-        sourceX={visual.useBezier ? undefined : sourceX}
-        sourceY={visual.useBezier ? undefined : sourceY}
-        targetX={visual.useBezier ? undefined : targetX}
-        targetY={visual.useBezier ? undefined : targetY}
-        onEdgeClick={handleEdgeClick}
-        onContextMenu={handleContextMenu}
-      />
+      {/* Interaction overlay (disabled in connect mode) */}
+      {!connectMode && (
+        <EdgeInteractionOverlay
+          shouldRender={shouldRenderOverlay}
+          pathD={visual.useBezier ? pathD : undefined}
+          sourceX={visual.useBezier ? undefined : sourceX}
+          sourceY={visual.useBezier ? undefined : sourceY}
+          targetX={visual.useBezier ? undefined : targetX}
+          targetY={visual.useBezier ? undefined : targetY}
+          onEdgeClick={handleEdgeClick}
+          onContextMenu={handleContextMenu}
+          onMouseEnter={undefined}
+          onMouseLeave={undefined}
+        />
+      )}
 
       {/* Midpoint control */}
       {showAffordance && (
@@ -276,26 +290,31 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
           cy={cy}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
+          onClick={connectMode ? (e) => { e.stopPropagation(); completeConnectToEdge?.(props.id as string, cx, cy); } : undefined}
+          onPointerDown={connectMode ? (e) => { e.stopPropagation(); completeConnectToEdge?.(props.id as string, cx, cy); } : undefined}
         >
           {visual.midpointContent}
         </EdgeMidpointControl>
       )}
 
-      {/* Hover overlay */}
-      <EdgeOverlay
-        cx={cx}
-        cy={cy}
-        isHovered={isHovered}
-        relevance={relevance}
-        edgeId={props.id as string}
-        edgeType={props.edgeType}
-        onMouseEnter={() => setHoveredEdge(props.id as string)}
-        onMouseLeave={() => setHoveredEdge(null)}
-        onUpdateRelevance={handleUpdateRelevance}
-        onAddObjection={handleAddObjection}
-        onToggleEdgeType={connectMode ? undefined : () => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
-        starColor={visual.starColor}
-      />
+      {/* Hover overlay (disabled in connect mode) */}
+      {!connectMode && (
+        <EdgeOverlay
+          cx={cx}
+          cy={cy}
+          isHovered={isHovered}
+          relevance={relevance}
+          edgeId={props.id as string}
+          edgeType={props.edgeType}
+          onMouseEnter={() => setHoveredEdge(props.id as string)}
+          onMouseLeave={() => setHoveredEdge(null)}
+          onUpdateRelevance={handleUpdateRelevance}
+          onAddObjection={handleAddObjection}
+          onToggleEdgeType={() => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
+          onConnectionClick={undefined}
+          starColor={visual.starColor}
+        />
+      )}
 
       {/* Context menu */}
       <ContextMenu

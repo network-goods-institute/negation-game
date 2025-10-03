@@ -1,12 +1,16 @@
 import React from 'react';
 import { Handle, Position, useStore } from '@xyflow/react';
+import { useGraphActions } from '../GraphContext';
 
 interface EdgeAnchorNodeProps {
     id: string;
     data: { parentEdgeId: string };
 }
 
-const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id }) => {
+const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
+    const graphActions = useGraphActions() as any;
+    const { connectMode } = graphActions;
+
     const handlePositions = useStore((s: any) => {
         const edges: any[] = s.edges || [];
         const incoming = edges.find((e: any) => e.type === 'objection' && e.target === id);
@@ -17,13 +21,10 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id }) => {
         const objectionY = objection.position?.y ?? 0;
         const selfY = self.position?.y ?? 0;
 
-        // When objection is below anchor: target receives from bottom, source connects to bottom
-        // When objection is above anchor: target receives from top, source connects to top
         return objectionY > selfY
             ? { target: Position.Bottom, source: Position.Bottom }
             : { target: Position.Top, source: Position.Top };
     }, (prev: any, next: any) => {
-        // Re-run when edges or node positions change
         const prevIncoming = prev.edges?.find((e: any) => e.type === 'objection' && e.target === id);
         const nextIncoming = next.edges?.find((e: any) => e.type === 'objection' && e.target === id);
 
@@ -41,19 +42,39 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id }) => {
         );
     });
 
+    const handleClick = (e: React.MouseEvent) => {
+        if (!connectMode) return;
+        e.stopPropagation();
+        const origin = (graphActions.isConnectingFromNodeId as string | null) || null;
+        const parentEdgeId = data?.parentEdgeId as string | undefined;
+        if (!parentEdgeId) {
+            graphActions.completeConnectToNode?.(id);
+            return;
+        }
+        if (!origin) {
+            graphActions.beginConnectFromEdge?.(parentEdgeId);
+            return;
+        }
+        graphActions.completeConnectToEdge?.(parentEdgeId);
+    };
+
     return (
-        <div className="w-1 h-1 opacity-0 pointer-events-none">
+        <div
+            className={connectMode ? "w-4 h-4 opacity-0 pointer-events-auto" : "w-1 h-1 opacity-0 pointer-events-none"}
+            onClick={handleClick}
+            style={connectMode ? { pointerEvents: 'all' } : undefined}
+        >
             <Handle
-                id="source"
+                id={`${id}-source-handle`}
                 type="source"
                 position={handlePositions.source}
-                className="opacity-0 pointer-events-none"
+                className={connectMode ? "opacity-0 pointer-events-auto" : "opacity-0 pointer-events-none"}
             />
             <Handle
-                id="target"
+                id={`${id}-incoming-handle`}
                 type="target"
                 position={handlePositions.target}
-                className="opacity-0 pointer-events-none"
+                className={connectMode ? "opacity-0 pointer-events-auto" : "opacity-0 pointer-events-none"}
             />
         </div>
     );

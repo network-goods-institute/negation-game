@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { ReactFlowProvider, } from '@xyflow/react';
+import { ReactFlowProvider, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { usePrivy } from '@privy-io/react-auth';
 import { userQueryKey } from '@/queries/users/useUser';
@@ -145,6 +145,28 @@ export default function MultiplayerBoardDetailPage() {
 
 
     const { canWrite } = useWriteAccess(provider, userId);
+    useEffect(() => {
+        if (!connectMode) return;
+        setNodes((current) => {
+            const existing = new Set(current.map((n: any) => n.id));
+            const additions: Node[] = [];
+            for (const e of edges) {
+                if (e.type === 'objection') continue;
+                const anchorId = `anchor:${e.id}`;
+                if (existing.has(anchorId)) continue;
+                const midpoint = getEdgeMidpoint(e.id) || { x: 0, y: 0 };
+                const anchorNode: Node = { id: anchorId, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: e.id } } as Node;
+                additions.push(anchorNode);
+                existing.add(anchorId);
+                if (yNodesMap && ydoc && canWrite) {
+                    try {
+                        ydoc.transact(() => { if (!yNodesMap.has(anchorId)) yNodesMap.set(anchorId, anchorNode as any); }, localOriginRef.current);
+                    } catch { }
+                }
+            }
+            return additions.length ? [...current, ...additions] : current;
+        });
+    }, [connectMode, edges, getEdgeMidpoint, setNodes, yNodesMap, ydoc, canWrite]);
 
     const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite });
     const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite });
@@ -474,6 +496,7 @@ export default function MultiplayerBoardDetailPage() {
                                 setConnectCursor(null);
                             }}
                             onBackgroundDoubleClick={(flowX, flowY) => {
+                                if (connectMode) return;
                                 if (!canWrite) {
                                     toast.warning("Read-only mode: Changes won't be saved");
                                     return;

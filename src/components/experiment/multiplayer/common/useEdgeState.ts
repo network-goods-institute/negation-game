@@ -25,6 +25,7 @@ export interface EdgeState {
   // Hover and selection state
   isHovered: boolean;
   selected: boolean;
+  setIsConnectHovered: (hovered: boolean) => void;
 
   // Position and geometry
   cx: number;
@@ -65,6 +66,7 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isConnectHovered, setIsConnectHovered] = useState(false);
 
   const { sourceX, sourceY, targetX, targetY, source, target, data } = config || {};
 
@@ -86,7 +88,7 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
     return sourceY != null && targetY != null ? (sourceY + targetY) / 2 : 0;
   }, [sourceY, targetY]);
 
-  const isHovered = hoveredEdgeId === (config?.id || '');
+  const isHovered = hoveredEdgeId === (config?.id || '') || (connectMode && isConnectHovered);
   const selected = useMemo(() => (selectedEdgeId || null) === (config?.id || ''), [selectedEdgeId, config?.id]);
   const relevance = useMemo(() => Math.max(1, Math.min(5, (data?.relevance ?? 3))), [data?.relevance]);
   const edgeOpacity = useMemo(() => selected || isHovered ? 1 : Math.max(0.3, Math.min(1, relevance / 5)), [selected, isHovered, relevance]);
@@ -107,6 +109,7 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
     setMenuPos,
     isHovered,
     selected,
+    setIsConnectHovered,
     cx,
     cy,
     relevance,

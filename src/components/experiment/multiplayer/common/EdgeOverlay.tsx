@@ -22,6 +22,7 @@ export interface EdgeOverlayProps {
   onUpdateRelevance: (relevance: number) => void;
   onAddObjection: () => void;
   onToggleEdgeType?: () => void;
+  onConnectionClick?: () => void;
   starColor?: string;
 }
 
@@ -36,12 +37,13 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   onUpdateRelevance,
   onAddObjection,
   onToggleEdgeType,
+  onConnectionClick,
   starColor = 'text-stone-600',
 }) => {
   const [isAnchorHovered, setIsAnchorHovered] = React.useState(false);
   const [isTooltipHovered, setIsTooltipHovered] = React.useState(false);
   const reactFlow = useReactFlow();
-  const { grabMode = false } = useGraphActions();
+  const { grabMode = false, connectMode = false } = useGraphActions();
 
   // React Flow viewport transform: [translateX, translateY, zoom]
   const [tx, ty, zoom] = useStore((s: any) => s.transform);
@@ -232,6 +234,16 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     event.stopPropagation();
   }, []);
 
+  const handleConnectionAwareClick = React.useCallback((e: React.MouseEvent, normalAction: () => void) => {
+    if (connectMode && onConnectionClick) {
+      e.stopPropagation();
+      onConnectionClick();
+      return;
+    }
+
+    normalAction();
+  }, [connectMode, onConnectionClick]);
+
   return (
     <React.Fragment>
       {/* 1) Small hover anchor stays in the edge-label layer */}
@@ -244,7 +256,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             width: EDGE_ANCHOR_SIZE,
             height: EDGE_ANCHOR_SIZE,
             zIndex: 1,
-            pointerEvents: 'all',
+            pointerEvents: connectMode ? 'none' : 'all',
           }}
           onMouseEnter={() => { onMouseEnter(); setIsAnchorHovered(true); }}
           onMouseLeave={() => { onMouseLeave(); setIsAnchorHovered(false); }}
@@ -307,7 +319,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     <div
                       data-testid="toggle-edge-type"
                       className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm bg-stone-300"
-                      onClick={() => onToggleEdgeType()}
+                      onClick={(e) => handleConnectionAwareClick(e, () => onToggleEdgeType?.())}
                     >
                       <div className={`pointer-events-none flex items-center justify-center h-4 w-4 rounded-full bg-white shadow-lg transition-transform text-[9px] font-bold ${edgeType === "support" ? "translate-x-4 text-gray-600" : "translate-x-0 text-gray-600"}`}>
                         <div style={{ position: "relative", width: "12px", height: "12px" }}>
@@ -330,7 +342,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                               <button
                                 title={`Set relevance to ${i}`}
                                 onMouseDown={(e) => e.preventDefault()}
-                                onClick={(e) => { e.stopPropagation(); onUpdateRelevance(i); }}
+                                onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance(i); })}
                               >
                                 <span className={i <= relevance ? starColor : 'text-stone-300'}>
                                   {edgeType === "support" ? "+" : "-"}
@@ -358,7 +370,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                               <button
                                 title={`Set relevance to ${i}`}
                                 onMouseDown={(e) => e.preventDefault()}
-                                onClick={(e) => { e.stopPropagation(); onUpdateRelevance(i); }}
+                                onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance(i); })}
                               >
                                 <span className={`text-sm ${i <= relevance ? starColor : 'text-stone-300'}`}>★</span>
                               </button>
@@ -375,7 +387,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
                 <button
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={(e) => { e.stopPropagation(); onAddObjection(); }}
+                  onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); })}
                   className="rounded-full min-h-8 min-w-8 px-3 py-1 text-[11px] font-medium bg-stone-800 text-white relative z-0"
                   title="Add mitigation to this relation"
                 >
