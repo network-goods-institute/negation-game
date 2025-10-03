@@ -96,6 +96,10 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        sync: {
+          DEFAULT: "hsl(var(--sync-primary))",
+          hover: "hsl(var(--sync-primary-hover))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -240,9 +240,9 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
           {/* Connection mode hover highlight */}
           {shouldRenderOverlay && connectMode && isHovered && !selected && (
             visual.useBezier ? (
-              <path d={pathD} stroke="#3b82f6" strokeWidth={6} fill="none" strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
+              <path d={pathD} stroke="hsl(var(--sync-primary))" strokeWidth={6} fill="none" strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
             ) : (
-              <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#3b82f6" strokeWidth={6} strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
+              <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="hsl(var(--sync-primary))" strokeWidth={6} strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
             )
           )}
 

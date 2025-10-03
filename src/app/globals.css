@@ -32,6 +32,10 @@
     --input: 220 13% 91%;
     --ring: 262.1 83.3% 57.8%;
     --radius: 0.8rem;
+
+    /* Multiplayer sync system primary color */
+    --sync-primary: 217.2 91.2% 59.8%;
+    --sync-primary-hover: 221.2 83.2% 53.3%;
   }
 
   .dark {
@@ -58,6 +62,10 @@
     --border: 215 27.9% 16.9%;
     --input: 215 27.9% 16.9%;
     --ring: 263.4 70% 50.4%;
+
+    /* Multiplayer sync system primary color */
+    --sync-primary: 217.2 91.2% 59.8%;
+    --sync-primary-hover: 221.2 83.2% 53.3%;
   }
 }
 

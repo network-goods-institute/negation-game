@@ -365,10 +365,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           <g className="react-flow__connection-preview" style={{ pointerEvents: 'none' }}>
             <defs>
               <marker id={`rf-preview-arrow-${connectAnchorId}`} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb" />
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--sync-primary))" />
               </marker>
             </defs>
-            <line x1={sx} y1={sy} x2={tx} y2={ty} stroke="#2563eb" strokeOpacity={0.95} strokeWidth={2.5} markerEnd={`url(#rf-preview-arrow-${connectAnchorId})`} />
+            <line x1={sx} y1={sy} x2={tx} y2={ty} stroke="hsl(var(--sync-primary))" strokeOpacity={0.95} strokeWidth={2.5} markerEnd={`url(#rf-preview-arrow-${connectAnchorId})`} />
           </g>
         );
       })(), edgesLayer)}

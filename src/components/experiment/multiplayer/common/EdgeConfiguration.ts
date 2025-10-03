@@ -131,14 +131,14 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   option: {
     type: "option",
     visual: {
-      stroke: "#2563eb",
-      borderColor: "#2563eb",
+      stroke: "hsl(var(--sync-primary))",
+      borderColor: "hsl(var(--sync-primary))",
       starColor: "text-blue-600",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
       gradientId: "quest-strap-gradient",
       gradientStops: [
-        { offset: "0%", stopColor: "#1e40af", stopOpacity: 0.22 },
-        { offset: "100%", stopColor: "#3b82f6", stopOpacity: 0.22 },
+        { offset: "0%", stopColor: "hsl(var(--sync-primary-hover))", stopOpacity: 0.22 },
+        { offset: "100%", stopColor: "hsl(var(--sync-primary))", stopOpacity: 0.22 },
       ],
       midpointContent: React.createElement(
         "svg",
@@ -150,7 +150,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
         },
         React.createElement("path", {
           d: "M 4.5 3.5 C 4.5 2.5 5 2 6 2 C 7 2 7.5 2.5 7.5 3.5 C 7.5 4.5 6.5 5 6 6 L 6 7.5 M 6 9.5 L 6 10",
-          stroke: "#2563eb",
+          stroke: "hsl(var(--sync-primary))",
           strokeWidth: "1.5",
           strokeLinecap: "round",
           fill: "none",

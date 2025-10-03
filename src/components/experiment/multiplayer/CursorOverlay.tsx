@@ -37,14 +37,14 @@ export const CursorOverlay: React.FC<CursorOverlayProps> = ({ cursors }) => {
             >
               <path
                 d="M1 1 L1 18 L5 14 L8 22 L12 21 L9 13 L15 13 Z"
-                fill={cursor.color || '#3b82f6'}
+                fill={cursor.color || 'hsl(var(--sync-primary))'}
                 stroke="white"
                 strokeWidth="1"
               />
             </svg>
             <div
               className="ml-1 px-1.5 py-0.5 text-[10px] rounded text-white inline-block align-middle"
-              style={{ backgroundColor: cursor.color || '#3b82f6' }}
+              style={{ backgroundColor: cursor.color || 'hsl(var(--sync-primary))' }}
             >
               {cursor.name}
             </div>
