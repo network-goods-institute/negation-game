@@ -35,8 +35,9 @@ export const ConnectButton = () => {
   const { data: user, isLoading } = useUser(privyUser?.id);
   useEnsureUser();
   const [signupOpen, setSignupOpen] = useState(true);
-  const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const notificationsEnabled = isFeatureEnabled('notifications');
+  const { data: rawUnreadCount = 0 } = useUnreadNotificationCount();
+  const unreadCount = notificationsEnabled ? rawUnreadCount : 0;
   const incompleteAssignmentCount = useIncompleteAssignmentCount();
   const router = useRouter();
   const pathname = usePathname();
@@ -203,12 +204,12 @@ export const ConnectButton = () => {
               <div className="flex items-center gap-1 overflow-hidden">
                 <p className="overflow-clip max-w-full">{user.username}</p>
                 <ChevronDownIcon className="size-4 flex-shrink-0" />
-                {((notificationsEnabled && unreadCount > 0) || unreadMessageCount > 0 || incompleteAssignmentCount > 0) && (
+                {(unreadCount > 0 || unreadMessageCount > 0 || incompleteAssignmentCount > 0) && (
                   <Badge
                     variant="destructive"
                     className="h-4 min-w-4 px-1 text-xs absolute -top-1 -right-1"
                   >
-                    {((notificationsEnabled ? unreadCount : 0) + unreadMessageCount + incompleteAssignmentCount) > 99 ? "99+" : ((notificationsEnabled ? unreadCount : 0) + unreadMessageCount + incompleteAssignmentCount)}
+                    {(unreadCount + unreadMessageCount + incompleteAssignmentCount) > 99 ? "99+" : (unreadCount + unreadMessageCount + incompleteAssignmentCount)}
                   </Badge>
                 )}
               </div>
