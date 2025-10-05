@@ -34,11 +34,16 @@ export const UndoHintOverlay: React.FC<UndoHintOverlayProps> = ({ position, onDi
         position: "absolute",
         left: x,
         top: y,
-        transform: "translate(-50%, -100%)",
+        transform: "translate(-50%, -50%)",
         pointerEvents: "none",
+        zIndex: 0,
       }}
     >
-      <div className="bg-primary text-primary-foreground px-3 py-1 rounded shadow-sm text-sm min-w-[110px] text-center">
+      <div className="px-3 py-1 rounded shadow-sm text-sm min-w-[110px] text-center"
+        style={{
+          backgroundColor: 'hsl(var(--sync-primary))',
+          color: 'white'
+        }}>
         {navigator.platform.includes("Mac") ? "⌘ + Z to undo" : "Ctrl + Z to undo"}
       </div>
     </div>,

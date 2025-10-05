@@ -75,8 +75,38 @@ export const createDeleteNode = (
       return;
     }
 
-    if (onShowUndoHint && node.position) {
-      onShowUndoHint({ x: node.position.x, y: node.position.y });
+    if (onShowUndoHint) {
+      const abs = (node.positionAbsolute ||
+        node.position || { x: 0, y: 0 }) as { x?: number; y?: number };
+      const baseX = typeof abs.x === "number" ? abs.x : 0;
+      const baseY = typeof abs.y === "number" ? abs.y : 0;
+      const measured = (node as any).measured as
+        | { width?: number; height?: number }
+        | undefined;
+      const style = (node as any).style as
+        | { width?: number; height?: number }
+        | undefined;
+      const width =
+        typeof (node as any).width === "number"
+          ? (node as any).width
+          : typeof measured?.width === "number"
+            ? measured.width
+            : typeof style?.width === "number"
+              ? style.width
+              : 0;
+      const height =
+        typeof (node as any).height === "number"
+          ? (node as any).height
+          : typeof measured?.height === "number"
+            ? measured.height
+            : typeof style?.height === "number"
+              ? style.height
+              : 0;
+
+      onShowUndoHint({
+        x: baseX + (width || 0) / 2,
+        y: baseY + (height || 0) / 2,
+      });
     }
 
     // Handle container deletion - convert children back to standalone nodes
