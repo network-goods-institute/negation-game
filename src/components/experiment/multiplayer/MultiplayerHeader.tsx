@@ -63,10 +63,15 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const titleCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const latestTitleRef = useRef<string>(title || 'Untitled');
 
   useEffect(() => {
     setLocalTitle(title || 'Untitled');
   }, [title]);
+
+  useEffect(() => {
+    latestTitleRef.current = localTitle;
+  }, [localTitle]);
 
   const startCountdownSequence = useCallback(async () => {
     if (titleCountdownRef.current) {
@@ -98,11 +103,11 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
               const response = await fetch(`/api/experimental/rationales/${encodeURIComponent(documentId)}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: localTitle.trim() }),
+                body: JSON.stringify({ title: latestTitleRef.current.trim() }),
               });
 
               if (response.ok) {
-                onTitleChange(localTitle.trim());
+                onTitleChange(latestTitleRef.current.trim());
               } else {
                 console.error('Failed to save title');
               }
