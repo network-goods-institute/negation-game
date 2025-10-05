@@ -75,29 +75,23 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
 
   const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-    if (!(event.ctrlKey || event.metaKey)) {
-      return;
-    }
+    if (!reactFlow) return;
 
-    if (event.deltaY === 0) {
-      return;
-    }
-
-    if (!reactFlow) {
-      return;
-    }
+    // Treat two-finger trackpad scroll as pan; ignore pinch zoom
+    if (event.ctrlKey || event.metaKey) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    if (event.deltaY < 0) {
-      reactFlow.zoomIn({ duration: 0 });
-      return;
-    }
+    const viewport = reactFlow.getViewport?.();
+    if (!viewport) return;
 
-    if (event.deltaY > 0) {
-      reactFlow.zoomOut({ duration: 0 });
-    }
+    const nextViewport = {
+      x: viewport.x + event.deltaX,
+      y: viewport.y + event.deltaY,
+      zoom: viewport.zoom,
+    };
+    reactFlow.setViewport?.(nextViewport, { duration: 0 });
   }, [reactFlow]);
 
   const [isSpacePressed, setIsSpacePressed] = React.useState(false);
