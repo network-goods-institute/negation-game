@@ -272,8 +272,8 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
         </g>
       </g>
 
-      {/* Interaction overlay (disabled in connect or hand mode) */}
-      {!connectMode && !grabMode && (
+      {/* Interaction overlay (enabled in connect and normal modes; disabled only in hand mode) */}
+      {!grabMode && (
         <EdgeInteractionOverlay
           shouldRender={shouldRenderOverlay}
           pathD={visual.useBezier ? pathD : undefined}
@@ -283,8 +283,8 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
           targetY={visual.useBezier ? undefined : targetY}
           onEdgeClick={handleEdgeClick}
           onContextMenu={handleContextMenu}
-          onMouseEnter={undefined}
-          onMouseLeave={undefined}
+          onMouseEnter={() => setIsConnectHovered(true)}
+          onMouseLeave={() => setIsConnectHovered(false)}
         />
       )}
 

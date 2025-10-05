@@ -230,6 +230,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     },
     onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
       if (isConnectMode) {
+        // Allow click to start/finish connect, but prevent drag/selection during connect
         e.stopPropagation();
         return;
       }
@@ -252,6 +253,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       if (isConnectMode) {
         const handled = connect.onClick(e);
         if (handled) {
+          e.preventDefault();
+          e.stopPropagation();
           return;
         }
       }
