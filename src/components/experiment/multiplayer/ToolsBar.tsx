@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2, HelpCircle } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToolbarButton } from "./ToolbarButton";
@@ -32,10 +33,11 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   grabMode,
   setGrabMode,
 }) => {
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
   // Focused (connect) mode UI
   if (connectMode) {
-    return (
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+    const content = (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
         <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
           <div className="flex items-center gap-2 px-1 text-blue-700">
             <LinkIcon className="h-5 w-5" />
@@ -60,11 +62,12 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
         </div>
       </div>
     );
+    return portalTarget ? createPortal(content, portalTarget) : content;
   }
 
   // Default toolbar (idle)
-  return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+  const content = (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
       <TooltipProvider>
         <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-2 transition-all">
           {/* Select (pointer) */}
@@ -251,4 +254,5 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
       </TooltipProvider>
     </div>
   );
+  return portalTarget ? createPortal(content, portalTarget) : content;
 };

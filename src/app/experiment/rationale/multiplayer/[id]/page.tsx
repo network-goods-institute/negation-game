@@ -493,7 +493,7 @@ export default function MultiplayerBoardDetailPage() {
                             username={username}
                             userColor={userColor}
                             grabMode={grabMode}
-                            panOnDrag={grabMode ? [0, 1, 2] : false}
+                            panOnDrag={grabMode ? [0, 1, 2] : [1]}
                             panOnScroll={true}
                             zoomOnScroll={false}
                             connectMode={connectMode}

@@ -272,7 +272,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             left: screenLeft,
             top: screenTop,
             transform: 'translateX(-50%)',
-            zIndex: 2147483647,
+            zIndex: 60,
             pointerEvents: 'none',
           }}
           onMouseDown={handlePortalMouseDown}
@@ -312,7 +312,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                 }}
               >
                 {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && (
-                  <div className="flex items-center gap-3 text-[11px] select-none relative z-10">
+                  <div className="flex items-center gap-3 text-[11px] select-none relative">
                     {activeEdgeLabel && (
                       <span className={`font-semibold ${activeEdgeTone}`}>{activeEdgeLabel}</span>
                     )}
@@ -349,7 +349,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                                 </span>
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs z-[9999]">
+                            <TooltipContent side="top" className="text-xs !z-30">
                               Relevance: {i}/5
                             </TooltipContent>
                           </Tooltip>
@@ -360,7 +360,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                 )}
 
                 {(edgeType !== "support" && edgeType !== "negation") && (
-                  <div className="flex items-center gap-2 text-[11px] select-none relative z-10">
+                  <div className="flex items-center gap-2 text-[11px] select-none relative">
                     <span className="text-[11px] font-medium text-stone-600">Relevance:</span>
                     <TooltipProvider>
                       <div className="flex items-center gap-1">
@@ -375,7 +375,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                                 <span className={`text-sm ${i <= relevance ? starColor : 'text-stone-300'}`}>★</span>
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs z-[9999]">
+                            <TooltipContent side="top" className="text-xs !z-30">
                               Relevance: {i}/5
                             </TooltipContent>
                           </Tooltip>

@@ -316,7 +316,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             className="w-full h-full bg-gray-50"
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
             onEdgeMouseLeave={grabMode ? undefined : onEdgeMouseLeave}
-            panOnDrag={grabMode ? [0, 1, 2] : false}
+            panOnDrag={panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1])}
             panOnScroll={panOnScroll as any}
             zoomOnScroll={zoomOnScroll}
             zoomOnDoubleClick={false}
