@@ -42,7 +42,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <span className="text-sm font-medium">Connecting</span>
           </div>
           <span className="text-sm text-stone-700">
-            {connectAnchorId ? 'Click a target node or edge to connect' : 'Click a starting node or edge to connect from'}
+            {connectAnchorId ? 'Select another point' : 'Select a point or a connection'}
           </span>
           <div className="h-5 w-px bg-stone-200 mx-2" />
           <button
