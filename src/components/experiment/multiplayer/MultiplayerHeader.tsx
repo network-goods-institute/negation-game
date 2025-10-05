@@ -123,7 +123,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
     };
 
     runCountdown(5);
-  }, [documentId, onTitleChange, localTitle, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop]);
+  }, [documentId, onTitleChange, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop]);
 
   const handleTitleChange = useCallback((newTitle: string) => {
     setLocalTitle(newTitle);

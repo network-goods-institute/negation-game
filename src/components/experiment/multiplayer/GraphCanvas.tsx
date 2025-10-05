@@ -8,6 +8,7 @@ import { WebsocketProvider } from 'y-websocket';
 import { useGraphActions } from './GraphContext';
 import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
 import { useKeyboardPanning } from '@/hooks/experiment/multiplayer/useKeyboardPanning';
+import { useConnectionSnapping } from '@/hooks/experiment/multiplayer/useConnectionSnapping';
 
 type YProvider = WebsocketProvider | null;
 
@@ -69,9 +70,18 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   onBackgroundDoubleClick,
 }) => {
   const rf = useReactFlow();
+  const viewport = useViewport();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const graph = useGraphActions();
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
+
+  const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
+    connectMode: !!connectMode,
+    connectAnchorId,
+    connectCursor: connectCursor ?? null,
+    edgesLayer,
+    containerRef,
+  });
   const deselectAllNodes = React.useCallback(() => {
     try {
       (graph as any)?.clearNodeSelection?.();
@@ -169,7 +179,18 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     }
 
     if (target.closest('.react-flow__pane')) {
-      onBackgroundMouseUp?.();
+      // Use the snapped target from the component level hook
+      if (componentSnappedTarget && componentSnappedTarget.kind) {
+        if (componentSnappedTarget.kind === 'node') {
+          (graph as any)?.completeConnectToNode?.(componentSnappedTarget.id);
+        } else if (componentSnappedTarget.kind === 'edge') {
+          (graph as any)?.completeConnectToEdge?.(componentSnappedTarget.id, componentSnappedTarget.x, componentSnappedTarget.y);
+        } else if (componentSnappedTarget.kind === 'edge_anchor') {
+          (graph as any)?.completeConnectToNode?.(componentSnappedTarget.id);
+        }
+      } else {
+        onBackgroundMouseUp?.();
+      }
     }
   };
   React.useEffect(() => {
@@ -341,27 +362,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           </ReactFlow>
         );
       })()}
-      {/* Connect overlay: draw a line from anchor node center to cursor */}
-      {connectMode && connectAnchorId && connectCursor && edgesLayer && createPortal((() => {
-        const n = rf.getNode(connectAnchorId);
-        if (!n) return null as any;
-        const computeCenter = () => {
-          const hasDims = typeof n.width === 'number' && typeof n.height === 'number' && (n.width as number) > 0 && (n.height as number) > 0;
-          if (hasDims) {
-            return { cx: (n.position.x + (n.width || 0) / 2), cy: (n.position.y + (n.height || 0) / 2) };
-          }
-          const el = containerRef.current?.querySelector(`.react-flow__node[data-id="${n.id}"]`) as HTMLElement | null;
-          if (el) {
-            const rect = el.getBoundingClientRect();
-            const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-            const p = rf.screenToFlowPosition(center);
-            return { cx: p.x, cy: p.y };
-          }
-          return { cx: n.position.x, cy: n.position.y };
-        };
-        const { cx: sx, cy: sy } = computeCenter();
-        const tx = connectCursor?.x ?? sx;
-        const ty = connectCursor?.y ?? sy;
+      {/* Connect overlay: draw a line from anchor origin to cursor */}
+      {connectMode && connectAnchorId && edgesLayer && createPortal((() => {
+        const cursorFlow = connectCursor || { x: origin.x + 100, y: origin.y };
+        const tx = snappedPosition?.x ?? cursorFlow.x;
+        const ty = snappedPosition?.y ?? cursorFlow.y;
         return (
           <g className="react-flow__connection-preview" style={{ pointerEvents: 'none' }}>
             <defs>
@@ -369,7 +374,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--sync-primary))" />
               </marker>
             </defs>
-            <line x1={sx} y1={sy} x2={tx} y2={ty} stroke="hsl(var(--sync-primary))" strokeOpacity={0.95} strokeWidth={2.5} markerEnd={`url(#rf-preview-arrow-${connectAnchorId})`} />
+            <line x1={origin.x} y1={origin.y} x2={tx} y2={ty} stroke="hsl(var(--sync-primary))" strokeOpacity={0.95} strokeWidth={2.5} markerEnd={`url(#rf-preview-arrow-${connectAnchorId})`} />
           </g>
         );
       })(), edgesLayer)}
