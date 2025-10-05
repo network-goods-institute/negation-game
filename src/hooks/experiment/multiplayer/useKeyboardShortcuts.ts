@@ -43,6 +43,12 @@ export const useKeyboardShortcuts = (
         return;
       }
 
+      // Allow copy/paste when text is selected
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) {
+        return;
+      }
+
       const isMod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
       // Undo/redo when modifier is held

@@ -90,6 +90,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       };
       if (isEditable(target) || isEditable(active)) return;
 
+      // Allow copy/paste when text is selected
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) {
+        return;
+      }
+
       if (key === 'escape') {
         if (connectMode) {
           e.preventDefault();
