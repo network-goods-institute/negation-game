@@ -7,6 +7,7 @@ import { nodeTypes, edgeTypes } from '@/components/experiment/multiplayer/compon
 import { WebsocketProvider } from 'y-websocket';
 import { useGraphActions } from './GraphContext';
 import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
+import { useKeyboardPanning } from '@/hooks/experiment/multiplayer/useKeyboardPanning';
 
 type YProvider = WebsocketProvider | null;
 
@@ -76,6 +77,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       (graph as any)?.clearNodeSelection?.();
     } catch { }
   }, [graph]);
+
+  useKeyboardPanning({
+    connectMode,
+    onCancelConnect: graph.cancelConnect,
+  });
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
@@ -89,20 +95,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         return false;
       };
       if (isEditable(target) || isEditable(active)) return;
-
-      // Allow copy/paste when text is selected
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed) {
-        return;
-      }
-
-      if (key === 'escape') {
-        if (connectMode) {
-          e.preventDefault();
-          graph.cancelConnect?.();
-        }
-        return;
-      }
 
       const isDeleteKey = key === 'delete' || key === 'backspace';
       if (isDeleteKey) {
@@ -146,9 +138,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         return;
       }
     };
+
     window.addEventListener('keydown', onKey, { capture: true });
-    return () => window.removeEventListener('keydown', onKey as any, { capture: true } as any);
-  }, [rf, graph, connectMode]);
+    return () => {
+      window.removeEventListener('keydown', onKey as any, { capture: true } as any);
+    };
+  }, [rf, graph]);
   React.useEffect(() => {
     if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const handler = (e: MouseEvent) => {
