@@ -14,6 +14,7 @@ export interface EdgeOverlayProps {
   cx: number;
   cy: number;
   isHovered: boolean;
+  selected?: boolean;
   relevance: number;
   edgeId: string;
   edgeType?: string;
@@ -30,6 +31,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   cx,
   cy,
   isHovered,
+  selected = false,
   relevance,
   edgeType,
   onMouseEnter,
@@ -63,7 +65,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const clearance = 30;
   const offsetY = scaledHUDHeight + clearance;
 
-  const showHUD = isAnchorHovered || isTooltipHovered;
+  const showHUD = Boolean(selected || isAnchorHovered || isTooltipHovered);
   React.useEffect(() => {
     setIsAnchorHovered(isHovered);
   }, [isHovered]);

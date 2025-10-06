@@ -73,13 +73,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     updateEdgeRelevance?.(props.id as string, newRelevance);
   };
 
-  // Use anchor position hook
-  useEdgeAnchorPosition({
-    id: props.id as string,
-    x: cx,
-    y: cy,
-    updateEdgeAnchorPosition: graphActions.updateEdgeAnchorPosition,
-  });
+  // placeholder, will set after label coordinates are computed
 
   // Node masking data
   const maskingData = useEdgeNodeMasking(sourceNode, targetNode);
@@ -133,6 +127,13 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     }
   }, [sourceX, sourceY, targetX, targetY, visual.useBezier, visual.curvature, behavior.simplifyDuringDrag, isHighFrequencyUpdates, props, sourceNode, targetNode]);
 
+  useEdgeAnchorPosition({
+    id: props.id as string,
+    x: (labelX ?? cx),
+    y: (labelY ?? cy),
+    updateEdgeAnchorPosition: graphActions.updateEdgeAnchorPosition,
+  });
+
   // Dynamic edge styles
   const edgeStyles = useMemo(() => {
     const baseStyle = {
@@ -175,7 +176,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   const handleEdgeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (connectMode) {
-      const midpoint = { x: cx, y: cy };
+      const midpoint = { x: (labelX ?? cx), y: (labelY ?? cy) };
       const anchorId = graphActions.isConnectingFromNodeId as string | null;
       if (!anchorId) {
         beginConnectFromEdge?.(props.id as string, midpoint);
@@ -291,8 +292,8 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
       {/* Midpoint control (non-interactable in hand mode) */}
       {showAffordance && (
         <EdgeMidpointControl
-          cx={cx}
-          cy={cy}
+          cx={labelX ?? cx}
+          cy={labelY ?? cy}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
           disabled={grabMode}
@@ -304,9 +305,10 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
       {/* Hover overlay (disabled in connect or hand mode) */}
       {!connectMode && !grabMode && (
         <EdgeOverlay
-          cx={cx}
-          cy={cy}
+          cx={labelX ?? cx}
+          cy={labelY ?? cy}
           isHovered={isHovered}
+          selected={selected}
           relevance={relevance}
           edgeId={props.id as string}
           edgeType={props.edgeType}

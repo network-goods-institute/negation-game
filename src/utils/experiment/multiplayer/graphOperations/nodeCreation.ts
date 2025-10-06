@@ -62,7 +62,7 @@ export const createAddNodeAtPosition = (
 
     // Clear all existing selections and add new node
     onNodeCreated?.();
-    setNodes((nds) => [...nds.map(n => ({ ...n, selected: false })), node]);
+    setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), node]);
 
     if (yNodesMap && ydoc && canWrite) {
       ydoc.transact(() => {
@@ -124,7 +124,7 @@ export const createAddNegationBelow = (
       type: "point",
       position: { x: newPos.x, y: newPos.y + 96 },
       data: { content: "New point", favor: 5, createdAt: Date.now() },
-      selected: true, // Auto-select newly created negation nodes
+      selected: false,
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
     const newEdge: any = {
@@ -138,7 +138,10 @@ export const createAddNegationBelow = (
     };
     // Clear all existing selections and add new node/edge
     onNodeCreated?.();
-    setNodes((curr) => [...curr.map(n => ({ ...n, selected: false })), newNode]);
+    setNodes((curr) => [
+      ...curr.map((n) => ({ ...n, selected: false })),
+      newNode,
+    ]);
     setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
@@ -195,7 +198,7 @@ export const createAddSupportBelow = (
       type: "point",
       position: { x: newPos.x, y: newPos.y + 96 },
       data: { content: "New Support", favor: 5, createdAt: Date.now() },
-      selected: true,
+      selected: false,
     };
     const newEdge: any = {
       id: generateEdgeId(),
@@ -208,7 +211,10 @@ export const createAddSupportBelow = (
     };
     // Clear all existing selections and add new node/edge
     onNodeCreated?.();
-    setNodes((curr) => [...curr.map(n => ({ ...n, selected: false })), newNode]);
+    setNodes((curr) => [
+      ...curr.map((n) => ({ ...n, selected: false })),
+      newNode,
+    ]);
     setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
@@ -285,7 +291,7 @@ export const createAddPointBelow = (
       type: "point",
       position: { x: newPos.x, y: newPos.y + 96 },
       data: { content: defaultContent, favor: 5, createdAt: Date.now() },
-      selected: true,
+      selected: false,
     };
     const newEdge: any = {
       id: generateEdgeId(),
@@ -298,7 +304,10 @@ export const createAddPointBelow = (
     };
     // Clear all existing selections and add new node/edge
     options?.onNodeCreated?.();
-    setNodes((curr) => [...curr.map(n => ({ ...n, selected: false })), newNode]);
+    setNodes((curr) => [
+      ...curr.map((n) => ({ ...n, selected: false })),
+      newNode,
+    ]);
     setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {

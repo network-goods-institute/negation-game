@@ -292,7 +292,9 @@ export default function MultiplayerBoardDetailPage() {
             if (edgeType === 'support' || edgeType === 'negation') {
                 preferredEdgeTypeRef.current = edgeType;
             }
-            revealEdgeTemporarily(edgeId);
+            // Select the new edge and reveal its HUD; do NOT select the node
+            setSelectedEdgeId(edgeId);
+            setHoveredEdgeId(edgeId);
         },
         getPreferredEdgeType: ({ parent }) => {
             if (parent?.type === 'point' || parent?.type === 'objection') {

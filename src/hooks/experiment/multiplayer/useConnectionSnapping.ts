@@ -1,5 +1,10 @@
 import { useMemo, useRef } from "react";
-import { useReactFlow, useViewport } from "@xyflow/react";
+import {
+  useReactFlow,
+  useViewport,
+  getBezierPath,
+  Position,
+} from "@xyflow/react";
 
 interface UseConnectionSnappingProps {
   connectMode: boolean;
@@ -41,7 +46,44 @@ export const useConnectionSnapping = ({
       connectAnchorId.startsWith("anchor:")
     ) {
       const edgeId = connectAnchorId.slice("anchor:".length);
-      // Try reading the actual SVG path midpoint for this edge
+
+      // 1) Prefer dedicated edge_anchor node (synced to label midpoint)
+      const anchorNode = rf
+        .getNodes()
+        .find(
+          (n: any) =>
+            n.type === "edge_anchor" && n.data?.parentEdgeId === edgeId
+        );
+      if (anchorNode) {
+        const hasDims =
+          typeof anchorNode.width === "number" &&
+          typeof anchorNode.height === "number" &&
+          anchorNode.width > 0 &&
+          anchorNode.height > 0;
+        if (hasDims) {
+          return {
+            x: anchorNode.position.x + (anchorNode.width || 0) / 2,
+            y: anchorNode.position.y + (anchorNode.height || 0) / 2,
+          };
+        }
+        if (containerRef.current) {
+          const el = containerRef.current.querySelector(
+            `.react-flow__node[data-id="${anchorNode.id}"]`
+          ) as HTMLElement | null;
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const center = {
+              x: rect.left + rect.width / 2,
+              y: rect.top + rect.height / 2,
+            };
+            const p = rf.screenToFlowPosition(center);
+            return { x: p.x, y: p.y };
+          }
+        }
+        return { x: anchorNode.position.x, y: anchorNode.position.y };
+      }
+
+      // 2) Fallback to SVG path midpoint
       const groups = edgesLayer?.querySelectorAll(
         "g.react-flow__edge"
       ) as NodeListOf<SVGGElement> | null;
@@ -54,12 +96,24 @@ export const useConnectionSnapping = ({
             g.querySelector("path")) as SVGPathElement | null;
           if (path) {
             const len = path.getTotalLength();
-            const pt = path.getPointAtLength(len / 2);
-            return { x: pt.x, y: pt.y };
+            const mid = Math.max(1, len / 2);
+            const p0 = path.getPointAtLength(mid);
+            const p1 = path.getPointAtLength(Math.max(0, mid - 1));
+            const p2 = path.getPointAtLength(Math.min(len, mid + 1));
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const mag = Math.hypot(dx, dy) || 1;
+            // Left normal of the tangent
+            const nx = -dy / mag;
+            const ny = dx / mag;
+            const offsetPx = 1; // ~1px screen nudge to counter visual bias
+            const offsetFlow = offsetPx / (viewport.zoom || 1);
+            return { x: p0.x - nx * offsetFlow, y: p0.y - ny * offsetFlow };
           }
         }
       }
-      // Fallback: midpoint between source/target node centers
+
+      // 3) Final midpoint: for objection, compute Bezier label (matches BaseEdge)
       const e = rf.getEdges().find((ed: any) => ed.id === edgeId);
       if (e) {
         const s = rf.getNode(e.source);
@@ -79,7 +133,42 @@ export const useConnectionSnapping = ({
           const sy = sHas ? s.position.y + (s.height || 0) / 2 : s.position.y;
           const tx = tHas ? t.position.x + (t.width || 0) / 2 : t.position.x;
           const ty = tHas ? t.position.y + (t.height || 0) / 2 : t.position.y;
-          return { x: (sx + tx) / 2, y: (sy + ty) / 2 };
+
+          if ((e as any).type === "objection") {
+            const sourcePosition = sy < ty ? Position.Bottom : Position.Top;
+            const targetPosition = sy > ty ? Position.Bottom : Position.Top;
+            const [_path, lx, ly] = getBezierPath({
+              sourceX: sx,
+              sourceY: sy,
+              sourcePosition,
+              targetX: tx,
+              targetY: ty,
+              targetPosition,
+              curvature: 0.35,
+            });
+            // Approximate tangent by chord for nudge direction
+            const dx = tx - sx;
+            const dy = ty - sy;
+            const mag = Math.hypot(dx, dy) || 1;
+            const nx = -dy / mag;
+            const ny = dx / mag;
+            const offsetPx = 1;
+            const offsetFlow = offsetPx / (viewport.zoom || 1);
+            return { x: lx - nx * offsetFlow, y: ly - ny * offsetFlow };
+          }
+
+          // Straight midpoint with small left-normal nudge
+          const dx2 = tx - sx;
+          const dy2 = ty - sy;
+          const mag2 = Math.hypot(dx2, dy2) || 1;
+          const nx2 = -dy2 / mag2;
+          const ny2 = dx2 / mag2;
+          const offsetPx2 = 1;
+          const offsetFlow2 = offsetPx2 / (viewport.zoom || 1);
+          return {
+            x: (sx + tx) / 2 - nx2 * offsetFlow2,
+            y: (sy + ty) / 2 - ny2 * offsetFlow2,
+          };
         }
       }
       return { x: 0, y: 0 };
