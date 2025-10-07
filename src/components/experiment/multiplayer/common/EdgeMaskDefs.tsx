@@ -55,6 +55,8 @@ export const EdgeMaskDefs: React.FC<EdgeMaskDefsProps> = ({
               y={rectPos.y}
               width={rectPos.width}
               height={rectPos.height}
+              rx={rectPos.borderRadius}
+              ry={rectPos.borderRadius}
               fill="black"
             />
           );
@@ -68,6 +70,8 @@ export const EdgeMaskDefs: React.FC<EdgeMaskDefsProps> = ({
               y={rectPos.y}
               width={rectPos.width}
               height={rectPos.height}
+              rx={rectPos.borderRadius}
+              ry={rectPos.borderRadius}
               fill="black"
             />
           );
