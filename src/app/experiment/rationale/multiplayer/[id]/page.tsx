@@ -530,14 +530,14 @@ export default function MultiplayerBoardDetailPage() {
                                         const rect = element.getBoundingClientRect();
                                         setNewNodeWithDropdown({
                                             id: nodeId,
-                                            x: rect.left - 130,
-                                            y: rect.top
+                                            x: rect.right + 16,
+                                            y: rect.top - 8
                                         });
                                     } else {
                                         setNewNodeWithDropdown({
                                             id: nodeId,
-                                            x: window.innerWidth / 2 - 130,
-                                            y: window.innerHeight / 2
+                                            x: window.innerWidth / 2 - 120,
+                                            y: window.innerHeight / 2 - 50
                                         });
                                     }
                                 }, 50);

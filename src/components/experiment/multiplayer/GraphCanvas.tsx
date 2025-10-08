@@ -148,6 +148,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         e.preventDefault();
         return;
       }
+      if (key === 'escape') {
+        try { (graph as any)?.clearNodeSelection?.(); } catch { }
+        try { (graph as any)?.setSelectedEdge?.(null); } catch { }
+        e.preventDefault();
+        return;
+      }
     };
 
     window.addEventListener('keydown', onKey, { capture: true });
@@ -241,6 +247,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     }
 
     e.preventDefault();
+    // Only allow double-click create when nothing is selected and not editing or connecting
+    const anySelected = rf.getNodes().some((n: any) => n?.selected) || (graph as any)?.selectedEdgeId;
+    const isEditingAny = Boolean((graph as any)?.isAnyNodeEditing);
+    if (connectMode || anySelected || isEditingAny) {
+      return;
+    }
     const flowP = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     onBackgroundDoubleClick?.(flowP.x, flowP.y);
   };
@@ -261,8 +273,60 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     }
   };
 
+  const handleBackgroundMouseDownCapture = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+    const isNode = !!target.closest('.react-flow__node');
+    const isEdge = !!target.closest('.react-flow__edge');
+    const isHandle = !!target.closest('.react-flow__handle');
+    const isControl = !!target.closest('.react-flow__controls');
+    const isMinimap = !!target.closest('.react-flow__minimap');
+    const isLabel = !!target.closest('.react-flow__edge-labels');
+    const isPane = !!target.closest('.react-flow__pane');
+    const isOverlay = isLabel || isMinimap || isControl;
+    if (!isNode && !isEdge && (isPane || isOverlay)) {
+      try { graph.clearNodeSelection?.(); } catch {}
+      try { graph.setSelectedEdge?.(null); } catch {}
+      try { window.getSelection()?.removeAllRanges(); } catch {}
+      // Prevent stray text selection on background drag
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const root = containerRef.current;
+      if (!root) return;
+      const rect = root.getBoundingClientRect();
+      const x = e.clientX;
+      const y = e.clientY;
+      const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+      if (!inside) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const isNode = !!target.closest('.react-flow__node');
+      const isEdge = !!target.closest('.react-flow__edge');
+      if (isNode || isEdge) return;
+      try { (graph as any)?.clearNodeSelection?.(); } catch { }
+      try { (graph as any)?.setSelectedEdge?.(null); } catch { }
+      try { if ((graph as any)?.connectMode) onBackgroundMouseUp?.(); } catch { }
+    };
+    window.addEventListener('click', handler, { capture: true });
+    return () => window.removeEventListener('click', handler as any, { capture: true } as any);
+  }, [graph, onBackgroundMouseUp]);
+
   return (
-    <div ref={containerRef} className="w-full h-full relative" onMouseMove={onCanvasMouseMove} onMouseLeave={() => graph.setHoveredNodeId?.(null)} onMouseUp={handleMouseUp} onDoubleClick={onCanvasDoubleClick}>
+    <div
+      ref={containerRef}
+      className="w-full h-full relative"
+      onMouseDownCapture={handleBackgroundMouseDownCapture}
+      onMouseMove={onCanvasMouseMove}
+      onMouseLeave={() => graph.setHoveredNodeId?.(null)}
+      onMouseUp={handleMouseUp}
+      onDoubleClick={onCanvasDoubleClick}
+      data-testid="graph-canvas-root"
+    >
       {(() => {
         // Wrap changes to intercept removals and route through multiplayer delete
         const handleNodesChange = (changes: any[]) => {
@@ -386,6 +450,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onPaneClick={() => {
               try { graph.clearNodeSelection?.(); } catch {}
               try { graph.setSelectedEdge?.(null); } catch {}
+              try { window.getSelection()?.removeAllRanges(); } catch {}
               if (connectMode) onBackgroundMouseUp?.();
             }}
             onEdgeClick={handleEdgeClickInternal}
