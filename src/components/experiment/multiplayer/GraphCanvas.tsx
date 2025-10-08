@@ -362,13 +362,17 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onEdgesChange={handleEdgesChange}
             onConnect={authenticated ? onConnect : undefined}
             onNodeClick={handleNodeClickInternal}
-            onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } if (connectMode) onBackgroundMouseUp?.(); }}
+            onPaneClick={() => {
+              try { graph.clearNodeSelection?.(); } catch {}
+              try { graph.setSelectedEdge?.(null); } catch {}
+              if (connectMode) onBackgroundMouseUp?.();
+            }}
             onEdgeClick={handleEdgeClickInternal}
             onNodeDragStart={authenticated ? handleNodeDragStartInternal : undefined}
             onNodeDrag={authenticated ? ((_: any, node: any) => {
               try { graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0); } catch {}
             }) : undefined}
-            onNodeDragStop={authenticated ? onNodeDragStop : undefined}
+            onNodeDragStop={authenticated ? ((e: any, node: any) => { try { onNodeDragStop?.(e, node); } catch {} try { graph.stopCapturing?.(); } catch {} }) : undefined}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView

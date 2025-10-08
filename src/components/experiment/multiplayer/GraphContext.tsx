@@ -38,6 +38,7 @@ type GraphActions = {
     proxyMode?: boolean;
     undo?: () => void;
     redo?: () => void;
+    stopCapturing?: () => void;
     addNodeAtPosition?: (type: 'point' | 'statement' | 'title' | 'objection', x: number, y: number) => string;
     updateNodeType?: (nodeId: string, newType: 'point' | 'statement' | 'title' | 'objection') => void;
     deleteInversePair?: (inverseNodeId: string) => void;
@@ -99,6 +100,7 @@ export const useGraphActions = () => {
             proxyMode: false,
             undo: () => { },
             redo: () => { },
+            stopCapturing: () => { },
             hoveredNodeId: null,
             setHoveredNodeId: () => { },
             grabMode: false,

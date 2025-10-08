@@ -4,6 +4,7 @@ import {
   type SetStateAction,
 } from "react";
 import * as Y from "yjs";
+import { ORIGIN } from "./origins";
 
 /**
  * Creates a distributed save coordination system for Yjs documents.
@@ -39,7 +40,7 @@ export const createScheduleSave = (
           ydocRef.current.transact(() => {
             m.set("saving", true);
             m.set("savingSince", Date.now());
-          }, localOriginRef?.current);
+          }, ORIGIN.SAVE);
         }
       } catch {}
       const update = serverVectorRef.current
@@ -84,7 +85,7 @@ export const createScheduleSave = (
             m.set("saving", false);
             // eslint-disable-next-line drizzle/enforce-delete-with-where
             m.delete("savingSince");
-          }, "cleanup-save");
+          }, ORIGIN.SAVE);
         }
       } catch {}
       try {
@@ -108,7 +109,7 @@ export const createScheduleSave = (
           m.delete("nextSaveAt");
           m.set("saverId", myId);
         }
-      }, localOriginRef?.current);
+      }, ORIGIN.SAVE);
     } catch {}
     try {
       const currentSaver = yMetaMapRef?.current?.get("saverId");
@@ -130,7 +131,7 @@ export const createScheduleSave = (
           if (!m.has("nextSaveAt")) m.set("nextSaveAt", saveTime);
           if (!m.has("saveId"))
             m.set("saveId", Math.random().toString(36).slice(2));
-        }, localOriginRef?.current);
+        }, ORIGIN.SAVE);
       }
     } catch {}
     saveTimerRef.current = window.setTimeout(async () => {
@@ -168,7 +169,7 @@ export const createScheduleSave = (
               m.delete("saverId");
               // eslint-disable-next-line drizzle/enforce-delete-with-where
               m.delete("savingSince");
-            }, "sync-recovery");
+            }, ORIGIN.RECOVERY);
           }
         } catch {}
       }
@@ -220,7 +221,7 @@ export const createScheduleSave = (
           m.set("saving", false);
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           m.delete("savingSince");
-        }, "sync-recovery");
+        }, ORIGIN.RECOVERY);
       }
     } catch (e) {
       console.error("[save] Error interrupting save:", e);

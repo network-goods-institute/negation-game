@@ -16,6 +16,7 @@ interface UndoRedoApi {
   setupUndoManager: () => (() => void) | undefined;
   undo: () => void;
   redo: () => void;
+  stopCapturing: () => void;
   canUndo: boolean;
   canRedo: boolean;
   setScheduleSave: (fn?: () => void) => void;
@@ -155,11 +156,21 @@ export const useYjsUndoRedo = ({
     runWithUndoTracking((manager) => manager.redo());
   }, [runWithUndoTracking]);
 
+  const stopCapturing = useCallback(() => {
+    const manager = undoManagerRef.current;
+    if (!manager) return;
+    try {
+      manager.stopCapturing();
+      recalcStacks();
+    } catch {}
+  }, [recalcStacks]);
+
   return {
     undoManagerRef,
     setupUndoManager,
     undo,
     redo,
+    stopCapturing,
     canUndo,
     canRedo,
     setScheduleSave,

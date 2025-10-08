@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { toast } from "sonner";
+import { ORIGIN } from "@/hooks/experiment/multiplayer/yjs/origins";
 
 import { generateEdgeId } from "../graphSync";
 
@@ -156,7 +157,7 @@ export const createEnsureEdgeAnchor = (
             data: { parentEdgeId },
           });
         }
-      }, localOrigin);
+      }, ORIGIN.RUNTIME);
     } catch {}
   };
 };
@@ -219,7 +220,7 @@ export const createUpdateEdgeAnchorPosition = (
                 position: { x, y },
               });
             }
-          }, localOrigin || {});
+          }, ORIGIN.RUNTIME);
         }
       }
     } catch {}

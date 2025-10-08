@@ -1,5 +1,6 @@
 /* eslint-disable drizzle/enforce-delete-with-where */
 import * as Y from "yjs";
+import { ORIGIN } from "@/hooks/experiment/multiplayer/yjs/origins";
 import { toast } from "sonner";
 
 import { getDefaultContentForType } from "./shared";
@@ -126,7 +127,7 @@ export const createUpdateNodePosition = (
         if (base) {
           yNodesMap.set(nodeId, { ...base, position: { x, y } });
         }
-      }, localOrigin);
+      }, ORIGIN.RUNTIME);
     }
   };
 };

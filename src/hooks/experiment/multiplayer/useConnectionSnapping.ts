@@ -397,7 +397,7 @@ export const useConnectionSnapping = ({
       snappedTargetRef.current = null;
       return null;
     }
-  }, [connectMode, connectAnchorId, connectCursor, snapTargets, viewport]);
+  }, [connectMode, connectAnchorId, connectCursor, snapTargets, viewport.x, viewport.y, viewport.zoom]);
 
   return {
     origin: safeOrigin,

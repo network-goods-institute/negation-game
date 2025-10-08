@@ -104,6 +104,7 @@ export default function MultiplayerBoardDetailPage() {
         resyncNow,
         undo,
         redo,
+        stopCapturing,
         canUndo,
         canRedo,
     } = useYjsMultiplayer({
@@ -464,6 +465,7 @@ export default function MultiplayerBoardDetailPage() {
                     proxyMode: !canWrite,
                     undo,
                     redo,
+                    stopCapturing,
                     addNodeAtPosition,
                     updateNodeType,
                     deleteInversePair,
