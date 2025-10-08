@@ -78,7 +78,8 @@ const nextConfig = {
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       // Prefer CSP frame-ancestors over legacy X-Frame-Options to allow scoped embedding
-      { key: 'Permissions-Policy', value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
+      // Allow camera/microphone/display-capture for Loom and other recorders while keeping other features restricted
+      { key: 'Permissions-Policy', value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(), interest-cohort=()" },
       { key: 'Origin-Agent-Cluster', value: '?1' },
     ];
 
@@ -126,7 +127,7 @@ const nextConfig = {
       { key: 'Content-Security-Policy', value: cspEmbed },
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-      { key: 'Permissions-Policy', value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
+      { key: 'Permissions-Policy', value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(), interest-cohort=()" },
       { key: 'Origin-Agent-Cluster', value: '?1' },
     ];
 
