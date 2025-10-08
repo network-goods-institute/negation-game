@@ -7,6 +7,7 @@ import { GraphCanvas } from '@/components/experiment/multiplayer/GraphCanvas';
 jest.mock('@xyflow/react', () => {
   return {
     __esModule: true,
+    SelectionMode: { Partial: 'partial', Full: 'full' },
     Background: () => null,
     Controls: () => null,
     MiniMap: () => null,
@@ -64,4 +65,3 @@ describe('GraphCanvas selection clearing', () => {
     expect(setSelectedEdge).toHaveBeenCalledWith(null);
   });
 });
-

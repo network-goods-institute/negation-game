@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ReactFlow, Background, Controls, MiniMap, Edge, Node, useReactFlow, useViewport } from '@xyflow/react';
+import { ReactFlow, Background, Controls, MiniMap, Edge, Node, useReactFlow, useViewport, SelectionMode } from '@xyflow/react';
 import { CursorOverlay } from './CursorOverlay';
 import { CursorReporter } from './CursorReporter';
 import { nodeTypes, edgeTypes } from '@/components/experiment/multiplayer/componentRegistry';
@@ -389,6 +389,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             nodesFocusable={!grabMode}
             edgesFocusable={!grabMode}
             multiSelectionKeyCode="Shift"
+            selectionMode={SelectionMode.Partial}
             onSelectionChange={grabMode ? undefined : ({ nodes, edges }) => {
               if (edges.length > 0) {
                 const edgeChanges = edges.map(edge => ({ id: edge.id, type: 'select', selected: false }));
