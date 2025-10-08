@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { ReactFlow, Background, Controls, MiniMap, Edge, Node, useReactFlow, useViewport, SelectionMode } from '@xyflow/react';
+import { toast } from 'sonner';
 import { CursorOverlay } from './CursorOverlay';
 import { CursorReporter } from './CursorReporter';
 import { nodeTypes, edgeTypes } from '@/components/experiment/multiplayer/componentRegistry';
@@ -323,6 +324,26 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         const handleNodeDragStartInternal = (e: any, node: any) => {
           onNodeDragStart?.(e, node);
           try {
+            // Block dragging a node if any objection connected to an edge with this node as endpoint is being edited
+            try {
+              const edgesAll = rf.getEdges();
+              const nodesAll = rf.getNodes();
+              const relatedObjections = nodesAll.filter((n: any) => n.type === 'objection' && n.data?.parentEdgeId);
+              for (const obj of relatedObjections) {
+                const base = edgesAll.find((ed: any) => ed.id === obj.data.parentEdgeId);
+                if (!base) continue;
+                const isEndpoint = String(base.source) === node.id || String(base.target) === node.id;
+                if (!isEndpoint) continue;
+                const editors = (graph as any)?.getEditorsForNode?.(obj.id) || [];
+                if (editors.length > 0) {
+                  e?.preventDefault?.();
+                  e?.stopPropagation?.();
+                  toast.warning(`Locked by ${editors[0]?.name || 'another user'}`);
+                  return;
+                }
+              }
+            } catch {}
+
             if ((node as any)?.type === 'objection') {
               const allEdges = rf.getEdges();
               const objEdge = allEdges.find((ed: any) => (ed.type || '') === 'objection' && ed.source === node.id);

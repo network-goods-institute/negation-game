@@ -202,7 +202,7 @@ export const useConnectionSnapping = ({
       return { x: p.x, y: p.y };
     }
     return { x: n.position.x, y: n.position.y };
-  }, [connectMode, connectAnchorId, edgesLayer, rf, containerRef]);
+  }, [connectMode, connectAnchorId, edgesLayer, rf, containerRef, viewport.zoom]);
 
   // Ensure origin is never undefined
   const safeOrigin = origin || { x: 0, y: 0 };

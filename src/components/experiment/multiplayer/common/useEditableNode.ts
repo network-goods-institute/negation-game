@@ -463,15 +463,15 @@ export const useEditableNode = ({
       return;
     }
 
-    // If relatedTarget is null, the blur might be due to DOM manipulation (like position updates)
-    // In this case, delay the commit briefly and check if focus returns
+    // If relatedTarget is null, it could be either:
+    // - A user clicked away to a non-focusable surface (we should commit/exit), or
+    // - A transient layout/DOM update (focus will return; we should NOT exit).
+    // Defer briefly: if focus returns to our content element, do nothing; otherwise, commit.
     if (!relatedTarget) {
       setTimeout(() => {
-        // If focus has returned to our content element, don't commit
         if (contentRef.current && document.activeElement === contentRef.current) {
           return;
         }
-        // If we're still in editing mode but focus is elsewhere, commit
         if (isEditing && document.activeElement !== contentRef.current) {
           commit();
         }

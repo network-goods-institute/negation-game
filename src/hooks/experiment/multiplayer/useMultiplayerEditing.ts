@@ -35,6 +35,7 @@ export const useMultiplayerEditing = ({
   const [editors, setEditors] = useState<EditorsMap>(new Map());
   const [locks, setLocks] = useState<LockMap>(new Map());
   const localEditingRef = useRef<Set<string>>(new Set());
+  const localLockedRef = useRef<Set<string>>(new Set());
   const sessionIdRef = useRef<string>("");
   const lockRenewalTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -87,24 +88,42 @@ export const useMultiplayerEditing = ({
             }
           }
         }
-        // capture locks with TTL
-        const lock = state?.lock;
+        // capture locks with TTL (multi-lock aware; legacy compatibility)
         const now = Date.now();
-        if (u && lock?.nodeId && now - (lock?.ts || 0) < 5000) {
-          const session = lock.sessionId || u.sessionId;
+        const legacy = state?.lock;
+        const multiLocks = state?.locks && typeof state.locks === 'object' ? state.locks : undefined;
+        if (u && multiLocks) {
+          Object.entries(multiLocks as Record<string, any>).forEach(([nodeId, lk]) => {
+            if (!lk || !nodeId) return;
+            if (now - (lk.ts || 0) >= 5000) return;
+            const session = lk.sessionId || u.sessionId;
+            const uid = session ? `${u.id || u.name}:${session}` : u.id || u.name;
+            const info: LockInfo = {
+              nodeId,
+              byId: uid,
+              name: u.name,
+              color: u.color,
+              kind: lk.kind === 'drag' ? 'drag' : 'edit',
+              ts: lk.ts || 0,
+              sessionId: session,
+            };
+            const existing = lockRes.get(nodeId);
+            if (!existing || info.ts > existing.ts) lockRes.set(nodeId, info);
+          });
+        } else if (u && legacy?.nodeId && now - (legacy?.ts || 0) < 5000) {
+          const session = legacy.sessionId || u.sessionId;
           const uid = session ? `${u.id || u.name}:${session}` : u.id || u.name;
           const info: LockInfo = {
-            nodeId: lock.nodeId,
+            nodeId: legacy.nodeId,
             byId: uid,
             name: u.name,
             color: u.color,
-            kind: lock.kind === "drag" ? "drag" : "edit",
-            ts: lock.ts || 0,
+            kind: legacy.kind === 'drag' ? 'drag' : 'edit',
+            ts: legacy.ts || 0,
             sessionId: session,
           };
-          const existing = lockRes.get(lock.nodeId);
-          if (!existing || info.ts > existing.ts)
-            lockRes.set(lock.nodeId, info);
+          const existing = lockRes.get(legacy.nodeId);
+          if (!existing || info.ts > existing.ts) lockRes.set(legacy.nodeId, info);
         }
       });
       // strip hidden ids
@@ -128,40 +147,46 @@ export const useMultiplayerEditing = ({
     };
   }, [provider]);
 
-  const renewLock = useCallback(
-    (nodeId: string) => {
-      if (!provider || !canWrite) return;
-      const awareness = provider.awareness;
-      const prev = awareness.getLocalState() || {};
-      if (prev?.lock?.nodeId === nodeId) {
-        awareness.setLocalState({
-          ...prev,
-          lock: { ...prev.lock, ts: Date.now() },
-        });
-      }
-    },
-    [provider, canWrite]
-  );
+  const renewLocks = useCallback(() => {
+    if (!provider || !canWrite) return;
+    const awareness = provider.awareness;
+    const prev = awareness.getLocalState() || {};
+    const now = Date.now();
+    const prevLocks = (prev as any).locks || {};
+    const nextLocks: Record<string, any> = { ...prevLocks };
+    localLockedRef.current.forEach((nodeId) => {
+      const current = nextLocks[nodeId] || { kind: 'drag', sessionId };
+      nextLocks[nodeId] = { ...current, ts: now };
+    });
+    awareness.setLocalState({
+      ...prev,
+      locks: nextLocks,
+    });
+  }, [provider, canWrite, sessionId]);
 
   const startEditing = (nodeId: string) => {
     if (!provider || !canWrite) return;
     localEditingRef.current.add(nodeId);
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
+    const now = Date.now();
+    const prevLocks = (prev as any).locks || {};
+    const nextLocks = { ...prevLocks, [nodeId]: { kind: 'edit', ts: now, sessionId } };
+    localLockedRef.current.add(nodeId);
     awareness.setLocalState({
       ...prev,
-      editing: { nodeId, ts: Date.now(), sessionId },
-      lock: { nodeId, kind: "edit", ts: Date.now(), sessionId },
+      editing: { nodeId, ts: now, sessionId },
+      locks: nextLocks,
     });
 
     if (lockRenewalTimerRef.current) {
       clearInterval(lockRenewalTimerRef.current);
     }
     lockRenewalTimerRef.current = setInterval(() => {
-      if (localEditingRef.current.has(nodeId)) {
-        renewLock(nodeId);
+      if (localEditingRef.current.size > 0 || localLockedRef.current.size > 0) {
+        renewLocks();
       }
-    }, 2000);
+    }, 1000);
   };
 
   const stopEditing = (nodeId: string) => {
@@ -169,17 +194,28 @@ export const useMultiplayerEditing = ({
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     localEditingRef.current.delete(nodeId);
 
-    if (localEditingRef.current.size === 0 && lockRenewalTimerRef.current) {
+    if (localEditingRef.current.size === 0 && localLockedRef.current.size === 0 && lockRenewalTimerRef.current) {
       clearInterval(lockRenewalTimerRef.current);
       lockRenewalTimerRef.current = null;
     }
 
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
-    if (prev?.editing?.nodeId === nodeId) {
-      const { editing, lock, ...rest } = prev as any;
-      awareness.setLocalState({ ...rest });
+    const prevLocks = (prev as any).locks || {};
+    const nextLocks = { ...prevLocks };
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    delete nextLocks[nodeId];
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    localLockedRef.current.delete(nodeId);
+    const { editing, lock, ...rest } = prev as any;
+    const nextState: any = { ...rest, locks: nextLocks };
+    if (editing?.nodeId === nodeId) {
+      // remove editing marker when stopping this node
+      // leave locks for other nodes intact
+    } else if (editing) {
+      nextState.editing = editing;
     }
+    awareness.setLocalState(nextState);
   };
 
   const getEditorsForNode = (nodeId: string): EditorInfo[] => {
@@ -190,9 +226,12 @@ export const useMultiplayerEditing = ({
     if (!provider || !canWrite) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
+    const prevLocks = (prev as any).locks || {};
+    const nextLocks = { ...prevLocks, [nodeId]: { kind, ts: Date.now(), sessionId } };
+    localLockedRef.current.add(nodeId);
     awareness.setLocalState({
       ...prev,
-      lock: { nodeId, kind, ts: Date.now(), sessionId },
+      locks: nextLocks,
     });
   };
 
@@ -200,10 +239,13 @@ export const useMultiplayerEditing = ({
     if (!provider || !canWrite) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
-    if (prev?.lock?.nodeId === nodeId) {
-      const { lock, ...rest } = prev as any;
-      awareness.setLocalState({ ...rest });
-    }
+    const prevLocks = (prev as any).locks || {};
+    const nextLocks = { ...prevLocks };
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    delete nextLocks[nodeId];
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    localLockedRef.current.delete(nodeId);
+    awareness.setLocalState({ ...prev, locks: nextLocks });
   };
 
   const isLockedForMe = (nodeId: string) => {

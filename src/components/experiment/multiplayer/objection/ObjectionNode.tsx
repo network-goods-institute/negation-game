@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Position, useStore } from '@xyflow/react';
+import { Position, useStore, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 
 import { ContextMenu } from '../common/ContextMenu';
@@ -26,6 +26,7 @@ interface ObjectionNodeProps {
 }
 
 const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => {
+    const graph = useGraphActions() as any;
     const {
         updateNodeContent,
         updateNodeHidden,
@@ -36,19 +37,49 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         stopEditingNode,
         isLockedForMe,
         getLockOwner,
-    } = useGraphActions() as any;
+        lockNode,
+        unlockNode,
+    } = graph;
 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
     const hidden = (data as any)?.hidden === true;
+
+    const rf = useReactFlow();
 
     const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
         id,
         selected,
         content: data.content,
         updateNodeContent,
-        startEditingNode,
-        stopEditingNode,
+        startEditingNode: (nodeId: string) => {
+            try { startEditingNode?.(nodeId); } catch {}
+            try {
+                const baseEdgeId: string | undefined = (data as any)?.parentEdgeId;
+                if (baseEdgeId) {
+                    const edges: any[] = (rf as any)?.getEdges?.() || [];
+                    const base = edges.find((e: any) => e.id === baseEdgeId);
+                    if (base) {
+                        lockNode?.(String(base.source), 'drag');
+                        lockNode?.(String(base.target), 'drag');
+                    }
+                }
+            } catch {}
+        },
+        stopEditingNode: (nodeId: string) => {
+            try { stopEditingNode?.(nodeId); } catch {}
+            try {
+                const baseEdgeId: string | undefined = (data as any)?.parentEdgeId;
+                if (baseEdgeId) {
+                    const edges: any[] = (rf as any)?.getEdges?.() || [];
+                    const base = edges.find((e: any) => e.id === baseEdgeId);
+                    if (base) {
+                        unlockNode?.(String(base.source));
+                        unlockNode?.(String(base.target));
+                    }
+                }
+            } catch {}
+        },
         locked,
         hidden,
         pillDelay: 200,
@@ -222,6 +253,15 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 wrapperProps={wrapperProps as any}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
             >
+                {locked && (
+                    <div className="pointer-events-none">
+                        <div className="absolute -top-2 -right-2 z-20" title={lockOwner ? `Locked by ${lockOwner.name}` : 'Locked'}>
+                            <div className="h-6 w-6 rounded-full bg-rose-600 border-2 border-white text-white shadow flex items-center justify-center">
+                                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm-3 8V7a3 3 0 116 0v3H9z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <div
                     ref={contentRef}
                     contentEditable={isEditing && !locked && !hidden}
