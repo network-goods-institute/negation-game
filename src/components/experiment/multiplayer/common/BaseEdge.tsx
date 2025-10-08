@@ -127,6 +127,44 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     }
   }, [sourceX, sourceY, targetX, targetY, visual.useBezier, visual.curvature, behavior.simplifyDuringDrag, isHighFrequencyUpdates, props, sourceNode, targetNode]);
 
+  // Compute visual midpoint between node borders rather than between centers
+  const [midXBetweenBorders, midYBetweenBorders] = useMemo(() => {
+    try {
+      const s = sourceNode as any;
+      const t = targetNode as any;
+      if (!s || !t) return [labelX, labelY] as const;
+      const sw = Number(s?.width); const sh = Number(s?.height);
+      const tw = Number(t?.width); const th = Number(t?.height);
+      if (!Number.isFinite(sw) || !Number.isFinite(sh) || !Number.isFinite(tw) || !Number.isFinite(th)) {
+        return [labelX, labelY] as const;
+      }
+      const sx = Number(s?.position?.x ?? 0) + sw / 2;
+      const sy = Number(s?.position?.y ?? 0) + sh / 2;
+      const tx = Number(t?.position?.x ?? 0) + tw / 2;
+      const ty = Number(t?.position?.y ?? 0) + th / 2;
+
+      const dx = tx - sx;
+      const dy = ty - sy;
+      if (dx === 0 && dy === 0) return [labelX, labelY] as const;
+
+      const intersectRect = (cx: number, cy: number, halfW: number, halfH: number, dirX: number, dirY: number) => {
+        const adx = Math.abs(dirX);
+        const ady = Math.abs(dirY);
+        if (adx === 0 && ady === 0) return { x: cx, y: cy };
+        const txScale = adx > 0 ? (halfW / adx) : Number.POSITIVE_INFINITY;
+        const tyScale = ady > 0 ? (halfH / ady) : Number.POSITIVE_INFINITY;
+        const tScale = Math.min(txScale, tyScale);
+        return { x: cx + dirX * tScale, y: cy + dirY * tScale };
+      };
+
+      const fromS = intersectRect(sx, sy, sw / 2, sh / 2, dx, dy);
+      const fromT = intersectRect(tx, ty, tw / 2, th / 2, -dx, -dy);
+      return [(fromS.x + fromT.x) / 2, (fromS.y + fromT.y) / 2] as const;
+    } catch {
+      return [labelX, labelY] as const;
+    }
+  }, [sourceNode, targetNode, labelX, labelY]);
+
   useEdgeAnchorPosition({
     id: props.id as string,
     x: (labelX ?? cx),
@@ -292,8 +330,8 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
       {/* Midpoint control (non-interactable in hand mode) */}
       {showAffordance && (
         <EdgeMidpointControl
-          cx={labelX ?? cx}
-          cy={labelY ?? cy}
+          cx={(midXBetweenBorders ?? labelX ?? cx) as number}
+          cy={(midYBetweenBorders ?? labelY ?? cy) as number}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
           disabled={grabMode}
@@ -305,8 +343,8 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
       {/* Hover overlay (disabled in connect or hand mode) */}
       {!connectMode && !grabMode && (
         <EdgeOverlay
-          cx={labelX ?? cx}
-          cy={labelY ?? cy}
+          cx={(midXBetweenBorders ?? labelX ?? cx) as number}
+          cy={(midYBetweenBorders ?? labelY ?? cy) as number}
           isHovered={isHovered}
           selected={selected}
           relevance={relevance}
