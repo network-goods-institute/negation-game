@@ -278,7 +278,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     if (!target) return;
     const isNode = !!target.closest('.react-flow__node');
     const isEdge = !!target.closest('.react-flow__edge');
-    const isHandle = !!target.closest('.react-flow__handle');
     const isControl = !!target.closest('.react-flow__controls');
     const isMinimap = !!target.closest('.react-flow__minimap');
     const isLabel = !!target.closest('.react-flow__edge-labels');
@@ -288,9 +287,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       try { graph.clearNodeSelection?.(); } catch {}
       try { graph.setSelectedEdge?.(null); } catch {}
       try { window.getSelection()?.removeAllRanges(); } catch {}
-      // Prevent stray text selection on background drag
-      e.preventDefault();
-      e.stopPropagation();
+      // Do not preventDefault or stopPropagation here to preserve React Flow panning.
     }
   };
 
