@@ -221,6 +221,7 @@ export const useNodeChrome = ({
     if (locked) return false;
     if (hidden) return false;
     if (hidePillWhileEditing && editable.isEditing) return false;
+    if (editable.isConnectMode) return false;
     if (multipleSelected) return false;
     return true;
   }, [
@@ -229,6 +230,7 @@ export const useNodeChrome = ({
     hidden,
     hidePillWhileEditing,
     editable.isEditing,
+    editable.isConnectMode,
     multipleSelected,
   ]);
 

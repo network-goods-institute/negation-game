@@ -370,7 +370,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           <NodeActionPill
             label="Add Point"
             visible={shouldShowPill}
-            onClick={() => { addPointBelow?.(id); forceHidePills(); }}
+            onClick={() => { if (isConnectMode) return; addPointBelow?.(id); forceHidePills(); }}
             colorClass="bg-stone-900"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}

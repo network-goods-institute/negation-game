@@ -192,7 +192,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           <NodeActionPill
             label="Add Option"
             visible={shouldShowPill}
-            onClick={() => { addPointBelow(id); forceHidePills(); }}
+            onClick={() => { if (isConnectMode) return; addPointBelow(id); forceHidePills(); }}
             colorClass="bg-blue-600"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
