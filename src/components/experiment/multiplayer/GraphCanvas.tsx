@@ -320,6 +320,40 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           onNodeClick?.(e, node);
         };
 
+        const handleNodeDragStartInternal = (e: any, node: any) => {
+          onNodeDragStart?.(e, node);
+          try {
+            if ((node as any)?.type === 'objection') {
+              const allEdges = rf.getEdges();
+              const objEdge = allEdges.find((ed: any) => (ed.type || '') === 'objection' && ed.source === node.id);
+              if (objEdge) {
+                const anchorId = String(objEdge.target || '');
+                const anchor: any = rf.getNode(anchorId);
+                if (anchor && anchor.type === 'edge_anchor') {
+                  const parentEdgeId: string | undefined = anchor.data?.parentEdgeId;
+                  if (parentEdgeId) {
+                    graph.ensureEdgeAnchor?.(anchor.id, parentEdgeId, anchor.position?.x ?? 0, anchor.position?.y ?? 0);
+                    graph.updateEdgeAnchorPosition?.(parentEdgeId, anchor.position?.x ?? 0, anchor.position?.y ?? 0, true);
+                  }
+                } else {
+                  // Anchor not in local RF yet; derive parent edge id from target and ensure presence using midpoint
+                  const parentEdgeId = anchorId.startsWith('anchor:') ? anchorId.slice('anchor:'.length) : null;
+                  if (parentEdgeId) {
+                    const base = allEdges.find((e: any) => e.id === parentEdgeId);
+                    if (base) {
+                      const src = rf.getNode(String(base.source));
+                      const tgt = rf.getNode(String(base.target));
+                      const midX = (((src as any)?.position?.x ?? 0) + ((tgt as any)?.position?.x ?? 0)) / 2;
+                      const midY = (((src as any)?.position?.y ?? 0) + ((tgt as any)?.position?.y ?? 0)) / 2;
+                      graph.ensureEdgeAnchor?.(anchorId, parentEdgeId, midX, midY);
+                    }
+                  }
+                }
+              }
+            }
+          } catch { }
+        };
+
         return (
           <ReactFlow
             nodes={nodes}
@@ -330,7 +364,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onNodeClick={handleNodeClickInternal}
             onPaneClick={() => { try { graph.setSelectedEdge?.(null); } catch { } if (connectMode) onBackgroundMouseUp?.(); }}
             onEdgeClick={handleEdgeClickInternal}
-            onNodeDragStart={authenticated ? onNodeDragStart : undefined}
+            onNodeDragStart={authenticated ? handleNodeDragStartInternal : undefined}
+            onNodeDrag={authenticated ? ((_: any, node: any) => {
+              try { graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0); } catch {}
+            }) : undefined}
             onNodeDragStop={authenticated ? onNodeDragStop : undefined}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}

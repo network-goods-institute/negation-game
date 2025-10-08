@@ -137,6 +137,30 @@ export const createUpdateEdgeType = (
   };
 };
 
+export const createEnsureEdgeAnchor = (
+  yNodesMap: any,
+  ydoc: any,
+  canWrite: boolean,
+  localOrigin: object
+) => {
+  return (anchorId: string, parentEdgeId: string, x: number, y: number) => {
+    if (!yNodesMap || !ydoc || !canWrite) return;
+    try {
+      if (typeof anchorId !== 'string' || !anchorId) return;
+      ydoc.transact(() => {
+        if (!yNodesMap.has(anchorId)) {
+          yNodesMap.set(anchorId, {
+            id: anchorId,
+            type: 'edge_anchor',
+            position: { x, y },
+            data: { parentEdgeId },
+          });
+        }
+      }, localOrigin);
+    } catch {}
+  };
+};
+
 export const createUpdateEdgeAnchorPosition = (
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   yNodesMap?: any,
@@ -148,38 +172,55 @@ export const createUpdateEdgeAnchorPosition = (
   // Cache last positions to avoid redundant state updates from repeated effects
   const lastPos = new Map<string, { x: number; y: number }>();
   const eps = 0.01;
-  return (edgeId: string, x: number, y: number) => {
+  return (edgeId: string, x: number, y: number, force?: boolean) => {
     const prev = lastPos.get(edgeId);
-    if (prev && Math.abs(prev.x - x) < eps && Math.abs(prev.y - y) < eps) {
+    if (!force && prev && Math.abs(prev.x - x) < eps && Math.abs(prev.y - y) < eps) {
       return;
     }
     lastPos.set(edgeId, { x, y });
+
+    const anchorId = `anchor:${edgeId}`;
     let changedAnchorId: string | null = null;
+
     setNodes((nds) => {
       let changed = false;
       const updated = nds.map((n: any) => {
-        if (!(n.type === "edge_anchor" && n.data?.parentEdgeId === edgeId))
+        if (!(n.type === "edge_anchor" && (n.data?.parentEdgeId === edgeId || n.id === anchorId))) {
           return n;
-        const px = n.position?.x ?? 0,
-          py = n.position?.y ?? 0;
-        if (Math.abs(px - x) < eps && Math.abs(py - y) < eps) return n;
+        }
+        const px = n.position?.x ?? 0;
+        const py = n.position?.y ?? 0;
+        if (Math.abs(px - x) < eps && Math.abs(py - y) < eps) {
+          return n;
+        }
         changed = true;
         changedAnchorId = n.id;
         return { ...n, position: { x, y } };
       });
       return changed ? updated : nds;
     });
-    // Sync to Yjs so peers get the anchor update without requiring local recompute
+
+    // Sync to Yjs so peers get the anchor update or a forced re-write
     try {
-      if (changedAnchorId && yNodesMap && ydoc && canWrite) {
-        (ydoc as any).transact(() => {
-          const base = (yNodesMap as any).get(changedAnchorId as any);
-          if (base)
-            (yNodesMap as any).set(changedAnchorId as any, {
-              ...base,
-              position: { x, y },
-            });
-        }, localOrigin || {});
+      if (yNodesMap && ydoc && canWrite) {
+        const idToWrite = ((): string | null => {
+          if (changedAnchorId) return changedAnchorId;
+          // Fallback to deterministic id when forcing a sync
+          if (force && (yNodesMap as any).has(anchorId)) return anchorId;
+          return null;
+        })();
+
+        if (idToWrite) {
+          (ydoc as any).transact(() => {
+            const base = (yNodesMap as any).get(idToWrite as any);
+            if (base) {
+              (yNodesMap as any).set(idToWrite as any, {
+                ...base,
+                position: { x, y },
+              });
+            }
+          }, localOrigin || {});
+        }
       }
     } catch {}
   };

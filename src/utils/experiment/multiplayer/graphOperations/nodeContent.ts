@@ -99,6 +99,38 @@ export const createUpdateNodeHidden = (
   };
 };
 
+export const createUpdateNodePosition = (
+  yNodesMap: any,
+  ydoc: any,
+  canWrite: boolean,
+  localOrigin: object,
+  setNodes: (updater: (nodes: any[]) => any[]) => void
+) => {
+  const eps = 0.01;
+  return (nodeId: string, x: number, y: number) => {
+    let changedLocally = false;
+    setNodes((nds) =>
+      nds.map((n: any) => {
+        if (n.id !== nodeId) return n;
+        const px = n.position?.x ?? 0;
+        const py = n.position?.y ?? 0;
+        if (Math.abs(px - x) < eps && Math.abs(py - y) < eps) return n;
+        changedLocally = true;
+        return { ...n, position: { x, y } };
+      })
+    );
+    if (!changedLocally) return;
+    if (yNodesMap && ydoc && canWrite) {
+      ydoc.transact(() => {
+        const base = yNodesMap.get(nodeId);
+        if (base) {
+          yNodesMap.set(nodeId, { ...base, position: { x, y } });
+        }
+      }, localOrigin);
+    }
+  };
+};
+
 export const createUpdateNodeType = (
   yNodesMap: any,
   yTextMap: any,

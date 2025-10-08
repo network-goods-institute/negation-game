@@ -2,6 +2,8 @@ import { createContext, useContext } from 'react';
 
 type GraphActions = {
     updateNodeContent: (nodeId: string, content: string) => void;
+    updateNodePosition?: (nodeId: string, x: number, y: number) => void;
+    ensureEdgeAnchor?: (anchorId: string, parentEdgeId: string, x: number, y: number) => void;
     autoFocusNodeId?: string | null;
     setAutoFocusNodeId?: (nodeId: string | null) => void;
     updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
@@ -24,7 +26,7 @@ type GraphActions = {
     updateEdgeType?: (edgeId: string, newType: "negation" | "support") => void;
     selectedEdgeId?: string | null;
     setSelectedEdge?: (edgeId: string | null) => void;
-    updateEdgeAnchorPosition: (edgeId: string, x: number, y: number) => void;
+    updateEdgeAnchorPosition: (edgeId: string, x: number, y: number, force?: boolean) => void;
     startEditingNode?: (nodeId: string) => void;
     stopEditingNode?: (nodeId: string) => void;
     startEditingNodeProgrammatically?: (nodeId: string) => void;
@@ -63,6 +65,8 @@ export const useGraphActions = () => {
     if (!ctx) {
         return {
             updateNodeContent: () => { },
+            updateNodePosition: () => { },
+            ensureEdgeAnchor: () => { },
             updateNodeHidden: () => { },
             updateNodeFavor: () => { },
 

@@ -3,10 +3,12 @@ import { Node, Edge } from "@xyflow/react";
 import {
   createUpdateNodeContent,
   createUpdateNodeHidden,
+  createUpdateNodePosition,
   createDeleteNode,
   createAddPointBelow,
   createAddObjectionForEdge,
   createUpdateEdgeAnchorPosition,
+  createEnsureEdgeAnchor,
   createAddNodeAtPosition,
   createUpdateNodeType,
   createInversePair,
@@ -91,6 +93,18 @@ export const useGraphOperations = ({
   const updateNodeHidden = useMemo(
     () =>
       createUpdateNodeHidden(
+        yNodesMap,
+        ydoc,
+        canWrite,
+        localOrigin,
+        setNodes
+      ),
+    [yNodesMap, ydoc, canWrite, localOrigin, setNodes]
+  );
+
+  const updateNodePosition = useMemo(
+    () =>
+      createUpdateNodePosition(
         yNodesMap,
         ydoc,
         canWrite,
@@ -352,14 +366,21 @@ export const useGraphOperations = ({
     [setEdges, yEdgesMap, ydoc, canWrite, localOrigin]
   );
 
+  const ensureEdgeAnchor = useMemo(
+    () => createEnsureEdgeAnchor(yNodesMap, ydoc, canWrite, localOrigin),
+    [yNodesMap, ydoc, canWrite, localOrigin]
+  );
+
   return {
     updateNodeContent,
     updateNodeHidden,
+    updateNodePosition,
     updateNodeFavor,
     deleteNode,
     addPointBelow,
     addObjectionForEdge,
     updateEdgeAnchorPosition,
+    ensureEdgeAnchor,
     addNodeAtPosition,
     updateNodeType,
     createInversePair: createInversePairOp,
