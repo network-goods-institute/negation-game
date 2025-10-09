@@ -77,6 +77,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const graph = useGraphActions();
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
+  const suppressEdgeDeselectRef = React.useRef(false);
+  const lastSelectionChangeRef = React.useRef<number>(0);
 
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
     connectMode: !!connectMode,
@@ -285,34 +287,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const isLabel = !!target.closest('.react-flow__edge-labels');
     const isPane = !!target.closest('.react-flow__pane');
     const isOverlay = isLabel || isMinimap || isControl;
+    // Do not clear selection on mousedown; only clear text selection
     if (!isNode && !isEdge && (isPane || isOverlay)) {
-      try { graph.clearNodeSelection?.(); } catch {}
-      try { graph.setSelectedEdge?.(null); } catch {}
-      try { window.getSelection()?.removeAllRanges(); } catch {}
-      // Do not preventDefault or stopPropagation here to preserve React Flow panning.
+      try { window.getSelection()?.removeAllRanges(); } catch { }
     }
   };
 
   React.useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const root = containerRef.current;
-      if (!root) return;
-      const rect = root.getBoundingClientRect();
-      const x = e.clientX;
-      const y = e.clientY;
-      const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-      if (!inside) return;
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const isNode = !!target.closest('.react-flow__node');
-      const isEdge = !!target.closest('.react-flow__edge');
-      if (isNode || isEdge) return;
-      try { (graph as any)?.clearNodeSelection?.(); } catch { }
-      try { (graph as any)?.setSelectedEdge?.(null); } catch { }
-      try { if ((graph as any)?.connectMode) onBackgroundMouseUp?.(); } catch { }
-    };
-    window.addEventListener('click', handler, { capture: true });
-    return () => window.removeEventListener('click', handler as any, { capture: true } as any);
+    return;
   }, [graph, onBackgroundMouseUp]);
 
   return (
@@ -405,7 +387,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                   return;
                 }
               }
-            } catch {}
+            } catch { }
 
             if ((node as any)?.type === 'objection') {
               const allEdges = rf.getEdges();
@@ -436,6 +418,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
               }
             }
           } catch { }
+
+
         };
 
         return (
@@ -446,18 +430,21 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onEdgesChange={handleEdgesChange}
             onConnect={authenticated ? onConnect : undefined}
             onNodeClick={handleNodeClickInternal}
-            onPaneClick={() => {
-              try { graph.clearNodeSelection?.(); } catch {}
-              try { graph.setSelectedEdge?.(null); } catch {}
-              try { window.getSelection()?.removeAllRanges(); } catch {}
+            onPaneClick={(e) => {
+              const shift = e && (e as any).shiftKey;
+              if (shift && !connectMode) return;
+              if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
+              try { graph.clearNodeSelection?.(); } catch { }
+              try { graph.setSelectedEdge?.(null); } catch { }
+              try { window.getSelection()?.removeAllRanges(); } catch { }
               if (connectMode) onBackgroundMouseUp?.();
             }}
             onEdgeClick={handleEdgeClickInternal}
             onNodeDragStart={authenticated ? handleNodeDragStartInternal : undefined}
             onNodeDrag={authenticated ? ((_: any, node: any) => {
-              try { graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0); } catch {}
+              try { graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0); } catch { }
             }) : undefined}
-            onNodeDragStop={authenticated ? ((e: any, node: any) => { try { onNodeDragStop?.(e, node); } catch {} try { graph.stopCapturing?.(); } catch {} }) : undefined}
+            onNodeDragStop={authenticated ? ((e: any, node: any) => { try { onNodeDragStop?.(e, node); } catch { } try { graph.stopCapturing?.(); } catch { } }) : undefined}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
@@ -476,10 +463,22 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             multiSelectionKeyCode="Shift"
             selectionMode={SelectionMode.Partial}
             onSelectionChange={grabMode ? undefined : ({ nodes, edges }) => {
-              if (edges.length > 0) {
-                const edgeChanges = edges.map(edge => ({ id: edge.id, type: 'select', selected: false }));
-                setTimeout(() => onEdgesChange?.(edgeChanges), 0);
-              }
+              try {
+                if (Array.isArray(nodes)) {
+                  const anySelected = nodes.some((n: any) => (n as any)?.selected);
+                  if (anySelected) lastSelectionChangeRef.current = Date.now();
+                }
+                if (edges && edges.length > 0) {
+                  if (suppressEdgeDeselectRef.current) return;
+                  suppressEdgeDeselectRef.current = true;
+                  const edgeChanges = edges.map(edge => ({ id: edge.id, type: 'select', selected: false }));
+                  requestAnimationFrame(() => {
+                    try { onEdgesChange?.(edgeChanges); } finally {
+                      suppressEdgeDeselectRef.current = false;
+                    }
+                  });
+                }
+              } catch { }
             }}
             proOptions={{ hideAttribution: true }}
           >

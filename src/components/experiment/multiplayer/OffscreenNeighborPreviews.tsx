@@ -66,11 +66,15 @@ export const OffscreenNeighborPreviews: React.FC = () => {
 
       // If we have no center node, clear previews immediately
       if (!center) {
-        setPreviewsByZone({
+        const empty = {
           'top-left': [],
           'top-right': [],
           'bottom-left': [],
           'bottom-right': []
+        } as Record<DirectionZone, Preview[]>;
+        setPreviewsByZone((prev) => {
+          const anyItems = Object.values(prev).some((arr) => (arr?.length || 0) > 0);
+          return anyItems ? empty : prev;
         });
         return;
       }
@@ -215,11 +219,37 @@ export const OffscreenNeighborPreviews: React.FC = () => {
         });
       }
 
-      setPreviewsByZone(zoneGroups);
+      const zones: DirectionZone[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+      setPreviewsByZone((prev) => {
+        const isSame = zones.every((z) => {
+          const a = prev[z] || [];
+          const b = zoneGroups[z] || [];
+          if (a.length !== b.length) return false;
+          for (let i = 0; i < a.length; i++) {
+            const pa = a[i];
+            const pb = b[i];
+            if (
+              pa.id !== pb.id ||
+              pa.text !== pb.text ||
+              pa.type !== pb.type ||
+              pa.x !== pb.x ||
+              pa.y !== pb.y ||
+              pa.width !== pb.width ||
+              pa.height !== pb.height ||
+              pa.maxHeight !== pb.maxHeight
+            ) {
+              return false;
+            }
+          }
+          return true;
+        });
+        return isSame ? prev : zoneGroups;
+      });
     } catch (err) {
       // No logs
     }
-  }, [rf, hoveredNodeId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoveredNodeId]);
 
   React.useEffect(() => {
     compute();
