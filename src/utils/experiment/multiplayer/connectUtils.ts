@@ -1,23 +1,23 @@
 import { deterministicEdgeId } from "./graphSync";
 
-export const chooseEdgeType = (sourceType?: string, targetType?: string) => {
+export const chooseEdgeType = (
+  sourceType?: string,
+  targetType?: string,
+  preferredEdgeType?: "support" | "negation"
+) => {
+  // Any connection involving a title uses option
   if (sourceType === "title" || targetType === "title") {
     return "option";
   }
 
-  // Point connections TO a statement node use option edge (for options/positions)
-  if (targetType === "statement" && sourceType === "point") {
+  // All edges TO a statement (question) use option
+  if (targetType === "statement") {
     return "option";
   }
 
-  // Objection connections TO a statement node use statement edge
-  if (targetType === "statement") {
-    return "statement";
-  }
-
-  // Edge-to-edge connections use objection edge (handled separately)
-  // All other cases use negation edge
-  return "negation";
+  // For point-to-point connections, use the preferred type (support or negation)
+  // If no preference is provided, default to negation
+  return preferredEdgeType || "negation";
 };
 
 export const buildConnectionEdge = (
@@ -28,9 +28,7 @@ export const buildConnectionEdge = (
 ) => {
   const parentType = nodes.find((n) => n.id === parentId)?.type;
   const childType = nodes.find((n) => n.id === childId)?.type;
-  const computed = chooseEdgeType(childType, parentType);
-  const edgeType =
-    computed === "negation" && preferredEdgeType ? preferredEdgeType : computed;
+  const edgeType = chooseEdgeType(childType, parentType, preferredEdgeType);
   const id = deterministicEdgeId(
     edgeType,
     childId,

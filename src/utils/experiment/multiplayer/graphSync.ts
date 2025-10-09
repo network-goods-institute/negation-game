@@ -67,7 +67,8 @@ export const createGraphChangeHandlers = (
     arr: T[]
   ) => void,
   localOrigin?: any,
-  getCurrentNodes?: () => Node[]
+  getCurrentNodes?: () => Node[],
+  getPreferredEdgeType?: () => "support" | "negation"
 ) => {
   let rafEdgesId: number | null = null;
   let pendingEdges: Edge[] | null = null;
@@ -183,7 +184,8 @@ export const createGraphChangeHandlers = (
     const currentNodes = getCurrentNodes?.() || [];
     const sourceNode = currentNodes.find((n: any) => n.id === params.source);
     const targetNode = currentNodes.find((n: any) => n.id === params.target);
-    const edgeType = chooseEdgeType(sourceNode?.type, targetNode?.type);
+    const preferredType = getPreferredEdgeType?.();
+    const edgeType = chooseEdgeType(sourceNode?.type, targetNode?.type, preferredType);
 
     const edge = createEdgeByType(
       edgeType,

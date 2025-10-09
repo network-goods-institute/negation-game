@@ -281,14 +281,20 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
               pointerEvents: 'none',
             }}
           >
-            {/* Persistence area - slightly larger invisible buffer around HUD */}
+            {/* Persistence area - buffer only on the top to avoid blocking below */}
             <div
               style={{
                 transform: `scale(${zoom})`,
                 transformOrigin: 'center',
                 pointerEvents: 'auto',
-                padding: `${PERSISTENCE_PADDING}px`,
-                margin: `-${PERSISTENCE_PADDING}px`,
+                paddingTop: PERSISTENCE_PADDING,
+                paddingBottom: 0,
+                paddingLeft: 0,
+                paddingRight: 0,
+                marginTop: -PERSISTENCE_PADDING,
+                marginBottom: 0,
+                marginLeft: 0,
+                marginRight: 0,
               }}
               onMouseEnter={() => setIsTooltipHovered(true)}
               onMouseLeave={() => {

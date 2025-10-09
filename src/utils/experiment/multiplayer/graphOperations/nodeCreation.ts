@@ -265,16 +265,8 @@ export const createAddPointBelow = (
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
     const parentType = parent.type;
-    const fallbackEdgeType = chooseEdgeType("point", parentType);
-    let edgeType = fallbackEdgeType;
-    if (parentType === "point" || parentType === "objection") {
-      const preferred = options?.getPreferredEdgeType?.({ parent });
-      if (preferred === "support" || preferred === "negation") {
-        edgeType = preferred;
-      } else if (fallbackEdgeType === "option") {
-        edgeType = "support";
-      }
-    }
+    const preferred = options?.getPreferredEdgeType?.({ parent });
+    const edgeType = chooseEdgeType("point", parentType, preferred);
 
     const newPos = calculateNodePositionBelow(parent, nodes, getViewportOffset);
     const defaultContent =
