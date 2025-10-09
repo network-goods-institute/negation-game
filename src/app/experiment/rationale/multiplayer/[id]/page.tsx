@@ -320,7 +320,8 @@ export default function MultiplayerBoardDetailPage() {
         canWrite && writeSynced ? ydoc : null,
         syncYMapFromArray,
         localOriginRef.current,
-        () => nodes as any[]
+        () => nodes as any[],
+        () => preferredEdgeTypeRef.current
     );
 
     const {
