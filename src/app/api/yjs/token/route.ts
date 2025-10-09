@@ -21,7 +21,7 @@ export async function POST() {
     );
   }
   const timestamp = Math.floor(Date.now() / 1000);
-  const expiry = timestamp + 60 * 60;
+  const expiry = timestamp + 60 * 60 * 8;
   const payload = JSON.stringify({ userId, expiry });
   const payloadB64 = Buffer.from(payload).toString("base64");
   const signature = createHash("sha256")
@@ -30,8 +30,13 @@ export async function POST() {
 
   const token = `${payloadB64}.${signature}`;
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     token,
     expiresAt: expiry * 1000,
   });
+  try {
+    res.headers.set("x-yjs-expires-at", String(expiry * 1000));
+    res.headers.set("cache-control", "no-store");
+  } catch {}
+  return res;
 }

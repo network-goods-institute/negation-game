@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { gzipSync } from "zlib";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { sql } from "drizzle-orm";
@@ -48,7 +49,8 @@ export async function GET(req: Request, ctx: any) {
   // If client provides a state vector (sv=base64), return only missing updates
   const svB64 = url.searchParams.get("sv");
   if (svB64) {
-    try { } catch {}
+    try {
+    } catch {}
     let baseDocBuf: Buffer | null = null;
     try {
       const snap = (await db.execute(
@@ -84,16 +86,49 @@ export async function GET(req: Request, ctx: any) {
     } catch {}
     if (!sv) return new NextResponse(new Uint8Array(), { status: 204 });
     const diff = Y.encodeStateAsUpdate(ydoc, sv);
-    if (!diff || diff.byteLength === 0)
+    if (!diff || diff.byteLength === 0) {
+      try {
+        console.log(
+          JSON.stringify({
+            event: "yjs_state",
+            kind: "diff",
+            status: 204,
+            id,
+            bytes: 0,
+          })
+        );
+      } catch {}
       return new NextResponse(new Uint8Array(), { status: 204 });
-    try { } catch {}
-    return new NextResponse(Buffer.from(diff), {
-      headers: {
-        "content-type": "application/octet-stream",
-        "x-yjs-format": "binary",
-        "x-yjs-diff": "1",
-      },
-    });
+    }
+    try {
+    } catch {}
+    const accept =
+      (req.headers as any).get?.("accept-encoding") ||
+      (req as any).headers?.get?.("accept-encoding") ||
+      "";
+    const supportGzip = /\bgzip\b/i.test(accept);
+    const threshold = 16384;
+    let payload: Uint8Array = diff;
+    const dheaders: Record<string, string> = {
+      "content-type": "application/octet-stream",
+      "x-yjs-format": "binary",
+      "x-yjs-diff": "1",
+      "x-yjs-diff-bytes": String(diff.byteLength),
+      "cache-control": "no-store",
+      Vary: "Accept-Encoding",
+    };
+    if (supportGzip && payload.byteLength >= threshold) {
+      try {
+        const gz = gzipSync(Buffer.from(payload));
+        if (gz && gz.byteLength < payload.byteLength) {
+          payload = gz as unknown as Uint8Array;
+          dheaders["content-encoding"] = "gzip";
+          dheaders["x-yjs-compressed"] = "gzip";
+          dheaders["x-yjs-compressed-bytes"] = String(gz.byteLength);
+        }
+      } catch {}
+    }
+    return new NextResponse(Buffer.from(payload), { headers: dheaders });
   }
 
   // Default: binary snapshot; prefer cached snapshot on mp_docs, fallback to merge
@@ -131,11 +166,31 @@ export async function GET(req: Request, ctx: any) {
     (req.headers as any).get?.("if-modified-since") ||
     (req as any).headers?.get?.("if-modified-since");
   if (etag && ifNoneMatch === etag) {
+    try {
+      console.log(
+        JSON.stringify({
+          event: "yjs_state",
+          kind: "snapshot",
+          status: 304,
+          id,
+        })
+      );
+    } catch {}
     return new NextResponse(null, { status: 304 });
   }
   if (lastModified && ifModifiedSince) {
     const ims = new Date(ifModifiedSince);
     if (!isNaN(ims.getTime()) && ims >= lastModified) {
+      try {
+        console.log(
+          JSON.stringify({
+            event: "yjs_state",
+            kind: "snapshot",
+            status: 304,
+            id,
+          })
+        );
+      } catch {}
       return new NextResponse(null, { status: 304 });
     }
   }
@@ -147,8 +202,8 @@ export async function GET(req: Request, ctx: any) {
       buffer.byteLength ?? (buffer as any).length ?? 0
     ),
   };
-  // Encourage client caches to revalidate with ETag/Last-Modified quickly
   headers["cache-control"] = "public, max-age=60";
+  headers["Vary"] = "Accept-Encoding";
   if (etag) headers["etag"] = etag;
   if (lastModified) headers["last-modified"] = lastModified.toUTCString();
   if (url.searchParams.get("debug") === "1") {
@@ -162,7 +217,44 @@ export async function GET(req: Request, ctx: any) {
     headers["x-yjs-updates-count"] = String(updates.length);
     headers["x-yjs-prev-base64-bytes"] = String(prevBytes);
   }
-  try { } catch {}
-  const res = new NextResponse(buffer, { headers });
+  try {
+  } catch {}
+  try {
+    console.log(
+      JSON.stringify({
+        event: "yjs_state",
+        kind: "snapshot",
+        status: 200,
+        id,
+        bytes: buffer?.byteLength ?? (buffer as any)?.length ?? 0,
+        etag,
+      })
+    );
+  } catch {}
+  const accept =
+    (req.headers as any).get?.("accept-encoding") ||
+    (req as any).headers?.get?.("accept-encoding") ||
+    "";
+  const supportGzip = /\bgzip\b/i.test(accept);
+  const threshold = 16384;
+  let payload: Uint8Array = buffer as unknown as Uint8Array;
+  if (
+    supportGzip &&
+    payload &&
+    (payload as Uint8Array).byteLength >= threshold
+  ) {
+    try {
+      const gz = gzipSync(Buffer.from(payload));
+      if (gz && gz.byteLength < (payload as Uint8Array).byteLength) {
+        payload = gz as unknown as Uint8Array;
+        headers["content-encoding"] = "gzip";
+        headers["x-yjs-compressed"] = "gzip";
+        headers["x-yjs-compressed-bytes"] = String(gz.byteLength);
+      }
+    } catch (error) {
+      console.error("Failed to compress payload with gzip:", error);
+    }
+  }
+  const res = new NextResponse(Buffer.from(payload), { headers });
   return res;
 }

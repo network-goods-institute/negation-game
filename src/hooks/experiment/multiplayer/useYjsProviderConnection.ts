@@ -57,6 +57,7 @@ export const useYjsProviderConnection = ({
   const refreshTimerRef = useRef<number | null>(null);
   const fallbackSeedingTimerRef = useRef<number | null>(null);
   const isRefreshingTokenRef = useRef(false);
+  const suppressNextResyncRef = useRef(false);
   const restartProviderWithNewTokenRef = useRef<(() => Promise<void>) | null>(
     null
   );
@@ -176,7 +177,14 @@ export const useYjsProviderConnection = ({
       if (typeof window === "undefined") return;
       const delay = getRefreshDelayMs(expiresAt);
       refreshTimerRef.current = window.setTimeout(() => {
-        restartProviderWithNewTokenRef.current?.().catch(() => undefined);
+        suppressNextResyncRef.current = true;
+        isRefreshingTokenRef.current = true;
+        restartProviderWithNewTokenRef.current
+          ?.()
+          .catch(() => undefined)
+          .finally(() => {
+            isRefreshingTokenRef.current = false;
+          });
       }, delay);
     },
     [clearRefreshTimer]
@@ -205,7 +213,13 @@ export const useYjsProviderConnection = ({
           seededOnce: seededOnceRef.current,
         });
 
-        if (!didResyncOnConnectRef.current) {
+        if (suppressNextResyncRef.current) {
+          didResyncOnConnectRef.current = true;
+          suppressNextResyncRef.current = false;
+          console.log(
+            "[YJS Provider] sync - suppressed HTTP resync on token refresh"
+          );
+        } else if (!didResyncOnConnectRef.current) {
           console.log(
             "[YJS Provider] sync - first sync, calling onResyncFromServer"
           );
@@ -376,6 +390,8 @@ export const useYjsProviderConnection = ({
   const restartProviderWithNewToken = useCallback(async () => {
     console.log("[YJS Provider] restartProviderWithNewToken called");
     try {
+      suppressNextResyncRef.current = true;
+      isRefreshingTokenRef.current = true;
       console.log(
         "[YJS Provider] restartProviderWithNewToken - destroying existing provider"
       );
@@ -411,6 +427,8 @@ export const useYjsProviderConnection = ({
       );
       setConnectionError(message);
       setConnectionState("failed");
+    } finally {
+      isRefreshingTokenRef.current = false;
     }
   }, [createProvider, destroyProvider, setConnectionError, setConnectionState]);
 

@@ -6,6 +6,7 @@ import { spacesTable, currentPointFavorView } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { FeedPoint } from "@/actions/feed/fetchFeed";
 import { decodeId } from "@/lib/negation-game/decodeId";
+import { withRetry, isStatementTimeoutError } from "@/lib/db/withRetry";
 
 export interface FetchPinnedPointParams {
   spaceId: string;
@@ -20,20 +21,24 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
   const userId = await getUserId();
 
   // First, get the pinnedPointId from the space
-  const space = await db.query.spacesTable.findFirst({
-    where: eq(spacesTable.id, spaceId),
-    columns: {
-      pinnedPointId: true,
-    },
-  });
+  const space = await withRetry(
+    async () =>
+      db.query.spacesTable.findFirst({
+        where: eq(spacesTable.id, spaceId),
+        columns: { pinnedPointId: true },
+      }),
+    { retries: 2, baseDelayMs: 300, shouldRetry: isStatementTimeoutError }
+  );
 
   if (!space || !space.pinnedPointId) {
     return null;
   }
 
   // Get all pin commands with the highest favor
-  const commandPoints = await db.execute(
-    sql`
+  const commandPoints = await withRetry(
+    async () =>
+      db.execute(
+        sql`
     WITH RECURSIVE command_points AS (
       SELECT 
         p.*,
@@ -124,6 +129,8 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
     SELECT id, favor, created_at as "createdAt", target_point_id_encoded as "targetPointIdEncoded"
     FROM highest_favor_commands
   `
+      ),
+    { retries: 2, baseDelayMs: 300, shouldRetry: isStatementTimeoutError }
   );
 
   // Convert all encoded IDs to numerical IDs
@@ -156,8 +163,10 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
       : [];
 
   // Get the complete point data with favor, etc.
-  const result = await db.execute(
-    sql`
+  const result = await withRetry(
+    async () =>
+      db.execute(
+        sql`
       WITH point_data AS (
         SELECT
           p.id as "pointId",
@@ -247,6 +256,8 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
         pd."slashedAmount", pd."doubtedAmount", pd."totalRestakeAmount",
         dd.id, dd.amount, dd."userAmount", dd."isUserDoubt"
     `
+      ),
+    { retries: 2, baseDelayMs: 300, shouldRetry: isStatementTimeoutError }
   );
 
   // Extract the results
@@ -268,9 +279,13 @@ export async function fetchPinnedPoint({ spaceId }: FetchPinnedPointParams) {
 
   if (!points || points.length === 0) return null;
   const [point] = points;
-  const favorRow = await db
-    .select({ favor: currentPointFavorView.favor })
-    .from(currentPointFavorView)
-    .where(sql`${currentPointFavorView.pointId} = ${point.pointId}`);
+  const favorRow = await withRetry(
+    async () =>
+      db
+        .select({ favor: currentPointFavorView.favor })
+        .from(currentPointFavorView)
+        .where(sql`${currentPointFavorView.pointId} = ${point.pointId}`),
+    { retries: 2, baseDelayMs: 300, shouldRetry: isStatementTimeoutError }
+  );
   return { ...point, favor: favorRow[0]?.favor ?? 0 } as FeedPoint;
 }

@@ -489,6 +489,7 @@ export default function MultiplayerBoardDetailPage() {
                             nodes={nodes as any}
                             edges={edges as any}
                             authenticated={authenticated}
+                            canWrite={canWrite}
                             onNodesChange={onNodesChange}
                             onEdgesChange={onEdgesChange}
                             onConnect={onConnect}

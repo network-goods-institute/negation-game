@@ -31,6 +31,7 @@ interface GraphCanvasProps {
   grabMode?: boolean;
   username: string;
   userColor: string;
+  canWrite?: boolean;
   panOnDrag?: boolean | number[];
   panOnScroll?: boolean | number[];
   zoomOnScroll?: boolean;
@@ -59,6 +60,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   cursors,
   username,
   userColor,
+  canWrite,
   grabMode,
   panOnDrag,
   panOnScroll,
@@ -506,7 +508,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       {authenticated && <CursorOverlay cursors={cursors} />}
       <OffscreenNeighborPreviews />
       {authenticated && (
-        <CursorReporter provider={provider} username={username} userColor={userColor} grabMode={Boolean(grabMode)} />
+        <CursorReporter
+          provider={provider}
+          username={username}
+          userColor={userColor}
+          grabMode={Boolean(grabMode)}
+          canWrite={canWrite ?? true}
+        />
       )}
     </div>
   );

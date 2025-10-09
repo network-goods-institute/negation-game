@@ -160,5 +160,18 @@ export async function POST(req: Request, ctx: any) {
     console.error(`[Board Title Sync] Error:`, e);
   }
 
-  return NextResponse.json({ ok: true });
+  try {
+    console.log(
+      JSON.stringify({
+        event: "yjs_update",
+        id,
+        bytes: updateBuf.byteLength,
+      })
+    );
+  } catch {}
+
+  return NextResponse.json(
+    { ok: true },
+    { headers: { "x-yjs-update-bytes": String(updateBuf.byteLength) } }
+  );
 }
