@@ -5,6 +5,7 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
+import { usePerformanceMode } from './PerformanceContext';
 import { inversePairEnabled } from '@/config/experiments';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
@@ -45,6 +46,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     isLockedForMe,
     getLockOwner,
     setPairNodeHeight,
+    grabMode,
   } = useGraphActions() as any;
 
   const locked = isLockedForMe?.(id) || false;
@@ -278,6 +280,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     'data-selected': selected,
   } as React.HTMLAttributes<HTMLDivElement>;
 
+  const { perfMode } = usePerformanceMode();
   return (
     <>
       <NodeShell
@@ -366,7 +369,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             />
           </div>
         )}
-        {!hidden && (
+        {!hidden && !perfMode && !grabMode && (
           <NodeActionPill
             label="Add Point"
             visible={shouldShowPill}

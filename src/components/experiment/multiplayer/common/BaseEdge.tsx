@@ -10,12 +10,13 @@ import { useEdgeNodeMasking } from './useEdgeNodeMasking';
 import { useStrapGeometry } from './EdgeStrapGeometry';
 import { EDGE_CONFIGURATIONS, EdgeType } from './EdgeConfiguration';
 import { edgeIsObjectionStyle } from './edgeStyle';
+import { usePerformanceMode } from '../PerformanceContext';
 
 export interface BaseEdgeProps extends EdgeProps {
   edgeType: EdgeType;
 }
 
-export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
+const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const config = EDGE_CONFIGURATIONS[props.edgeType];
   const { visual, behavior } = config;
 
@@ -77,9 +78,12 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
   // Node masking data
   const maskingData = useEdgeNodeMasking(sourceNode, targetNode);
 
-  // Strap geometry for strap-based edges
+  const { perfMode } = usePerformanceMode();
+  const lightMode = (perfMode || grabMode) && !selected && !isHovered && !connectMode;
+
+  // Strap geometry for strap-based edges (skip in perf/light mode)
   const strapGeometry = useStrapGeometry(
-    visual.useStrap ? {
+    (visual.useStrap && !lightMode) ? {
       sourceX: sourceX ?? 0,
       sourceY: sourceY ?? 0,
       targetX: targetX ?? 0,
@@ -241,20 +245,22 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     <>
       {/* Edge elements with opacity */}
       <g style={{ opacity: edgeOpacity, pointerEvents: grabMode ? 'none' : undefined }}>
-        <EdgeMaskDefs
-          edgeId={props.id as string}
-          maskingData={maskingData}
-          sourceNode={sourceNode}
-          targetNode={targetNode}
-          shouldRenderEllipses={shouldRenderEllipses}
-          gradientConfig={visual.gradientStops ? {
-            id: visual.gradientId!,
-            stops: visual.gradientStops,
-          } : undefined}
-        />
+        {(!lightMode) && (
+          <EdgeMaskDefs
+            edgeId={props.id as string}
+            maskingData={maskingData}
+            sourceNode={sourceNode}
+            targetNode={targetNode}
+            shouldRenderEllipses={shouldRenderEllipses}
+            gradientConfig={visual.gradientStops ? {
+              id: visual.gradientId!,
+              stops: visual.gradientStops,
+            } : undefined}
+          />
+        )}
         <g mask={`url(#edge-mask-${props.id})`}>
           {/* Strap background for strap-based edges */}
-          {visual.useStrap && strapGeometry && (
+          {(visual.useStrap && strapGeometry) && (
             <>
               <path d={strapGeometry.path} fill={`url(#${visual.gradientId})`} />
               <path d={strapGeometry.path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
@@ -365,3 +371,17 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     </>
   );
 };
+
+export const BaseEdge = React.memo(BaseEdgeImpl, (a, b) => {
+  return (
+    a.id === b.id &&
+    a.source === b.source &&
+    a.target === b.target &&
+    (a as any).sourceX === (b as any).sourceX &&
+    (a as any).sourceY === (b as any).sourceY &&
+    (a as any).targetX === (b as any).targetX &&
+    (a as any).targetY === (b as any).targetY &&
+    a.edgeType === b.edgeType &&
+    JSON.stringify(a.data) === JSON.stringify(b.data)
+  );
+});

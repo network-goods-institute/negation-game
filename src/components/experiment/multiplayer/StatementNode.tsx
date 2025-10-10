@@ -4,6 +4,7 @@ import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
+import { usePerformanceMode } from './PerformanceContext';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { NodeShell } from './common/NodeShell';
@@ -26,7 +27,9 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     stopEditingNode,
     isLockedForMe,
     getLockOwner,
+    grabMode,
   } = useGraphActions() as any;
+  const { perfMode } = usePerformanceMode();
 
   const content = data?.statement || '';
 
@@ -188,7 +191,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             <div className="text-sm text-stone-600 italic animate-fade-in">Hidden</div>
           </div>
         )}
-        {!hidden && (
+        {!hidden && !perfMode && !grabMode && (
           <NodeActionPill
             label="Add Option"
             visible={shouldShowPill}

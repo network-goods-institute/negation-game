@@ -37,6 +37,7 @@ import { TypeSelectorDropdown } from '@/components/experiment/multiplayer/TypeSe
 import { toast } from 'sonner';
 import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
+import { PerfProvider } from '@/components/experiment/multiplayer/PerformanceContext';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -57,6 +58,7 @@ export default function MultiplayerBoardDetailPage() {
     } = useConnectionMode();
 
     const [grabMode, setGrabMode] = useState<boolean>(false);
+    const [perfBoost, setPerfBoost] = useState<boolean>(false);
     const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
 
     const { hoveredEdgeId, setHoveredEdgeId, selectedEdgeId, setSelectedEdgeId, revealEdgeTemporarily } = useEdgeSelection();
@@ -424,6 +426,7 @@ export default function MultiplayerBoardDetailPage() {
             )}
 
             <ReactFlowProvider>
+                <PerfProvider value={{ perfMode: (((nodes?.length || 0) + (edges?.length || 0)) > 600) || perfBoost || grabMode, setPerfMode: setPerfBoost }}>
                 <GraphProvider value={{
                     updateNodeContent,
                     updateNodeHidden,
@@ -558,6 +561,7 @@ export default function MultiplayerBoardDetailPage() {
                     </div>
                     <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />
                 </GraphProvider>
+                </PerfProvider>
 
                 {newNodeWithDropdown && (
                     <TypeSelectorDropdown

@@ -5,6 +5,7 @@ import { useGraphActions } from '../GraphContext';
 import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
+import { usePerformanceMode } from '../PerformanceContext';
 import { useNodeChrome } from '../common/useNodeChrome';
 import { useContextMenuHandler } from '../common/useContextMenuHandler';
 import { useFavorOpacity } from '../common/useFavorOpacity';
@@ -215,6 +216,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         'data-selected': selected,
     } as React.HTMLAttributes<HTMLDivElement>;
 
+    const { perfMode } = usePerformanceMode();
+    const isGrabMode = Boolean((graph as any)?.grabMode);
     return (
         <>
             <NodeShell
@@ -298,7 +301,7 @@ items-center justify-center pointer-events-none select-none">
                         />
                     </div>
                 )}
-                {!hidden && (
+                {!hidden && !perfMode && !isGrabMode && (
                     <NodeActionPill
                         label="Add Point"
                         visible={shouldShowPill}

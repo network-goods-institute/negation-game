@@ -10,6 +10,7 @@ import { useGraphActions } from './GraphContext';
 import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
 import { useKeyboardPanning } from '@/hooks/experiment/multiplayer/useKeyboardPanning';
 import { useConnectionSnapping } from '@/hooks/experiment/multiplayer/useConnectionSnapping';
+import { usePerformanceMode } from './PerformanceContext';
 
 type YProvider = WebsocketProvider | null;
 
@@ -79,6 +80,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
   const suppressEdgeDeselectRef = React.useRef(false);
   const lastSelectionChangeRef = React.useRef<number>(0);
+  const { perfMode } = usePerformanceMode();
+  const { setPerfMode } = usePerformanceMode();
+  const midPanRef = React.useRef(false);
 
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
     connectMode: !!connectMode,
@@ -301,6 +305,30 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     <div
       ref={containerRef}
       className="w-full h-full relative"
+      onPointerDown={(e) => {
+        try {
+          if (e.button === 1 && e.pointerType === 'mouse') {
+            midPanRef.current = true;
+            setPerfMode?.(true);
+          }
+        } catch {}
+      }}
+      onPointerUp={(e) => {
+        try {
+          if (midPanRef.current && e.button === 1) {
+            midPanRef.current = false;
+            setPerfMode?.(false);
+          }
+        } catch {}
+      }}
+      onPointerCancel={() => {
+        try {
+          if (midPanRef.current) {
+            midPanRef.current = false;
+            setPerfMode?.(false);
+          }
+        } catch {}
+      }}
       onMouseDownCapture={handleBackgroundMouseDownCapture}
       onMouseMove={onCanvasMouseMove}
       onMouseLeave={() => graph.setHoveredNodeId?.(null)}
@@ -448,6 +476,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             edgeTypes={edgeTypes}
             fitView
             className="w-full h-full bg-gray-50"
+            style={{ willChange: 'transform' }}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
             onEdgeMouseLeave={grabMode ? undefined : onEdgeMouseLeave}
             panOnDrag={panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1])}
@@ -459,6 +488,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             elementsSelectable={!grabMode}
             nodesFocusable={!grabMode}
             edgesFocusable={!grabMode}
+            onlyRenderVisibleElements={perfMode}
             multiSelectionKeyCode="Shift"
             selectionMode={SelectionMode.Partial}
             onSelectionChange={grabMode ? undefined : ({ nodes, edges }) => {
@@ -482,7 +512,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             proOptions={{ hideAttribution: true }}
           >
             <Background />
-            <Controls />
+            {!perfMode && <Controls />}
             <MiniMap nodeColor={() => '#dbeafe'} className="bg-white" />
           </ReactFlow>
         );
@@ -505,7 +535,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       })(), edgesLayer)}
       {authenticated && <CursorOverlay cursors={cursors} />}
       <OffscreenNeighborPreviews />
-      {authenticated && (
+      {authenticated && !grabMode && !perfMode && (
         <CursorReporter
           provider={provider}
           username={username}

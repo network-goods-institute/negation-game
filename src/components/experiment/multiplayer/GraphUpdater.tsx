@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useReactFlow, useViewport, Node, Edge, getBezierPath, Position } from '@xyflow/react';
+import { useReactFlow, Node, Edge, getBezierPath, Position } from '@xyflow/react';
 
 interface GraphUpdaterProps {
     nodes: Node[];
@@ -9,15 +9,19 @@ interface GraphUpdaterProps {
 
 export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNodes }) => {
   const rf = useReactFlow();
-  const { x: vpX, y: vpY, zoom } = useViewport();
   const [dimsVersion, setDimsVersion] = useState(0);
 
   useEffect(() => {
     try {
       const layer = document.querySelector('.react-flow__nodes');
       if (!layer || typeof ResizeObserver === 'undefined') return;
+      let rafId: number | null = null;
       const ro = new ResizeObserver(() => {
-        setDimsVersion((v) => v + 1);
+        if (rafId != null) return;
+        rafId = window.requestAnimationFrame(() => {
+          rafId = null;
+          setDimsVersion((v) => v + 1);
+        });
       });
       const observeAll = () => {
         const els = document.querySelectorAll('.react-flow__node');
@@ -29,6 +33,10 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
       return () => {
         try { ro.disconnect(); } catch { }
         try { mo.disconnect(); } catch { }
+        if (rafId != null) {
+          try { window.cancelAnimationFrame(rafId); } catch { }
+          rafId = null;
+        }
       };
     } catch { }
   }, []);
@@ -190,7 +198,7 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         }).concat(out.filter((n) => !existing.has(n.id)));
       });
     } catch {}
-  }, [nodes, edges, rf, setNodes, vpX, vpY, zoom, dimsVersion]);
+  }, [nodes, edges, rf, setNodes, dimsVersion]);
 
   return null;
 };

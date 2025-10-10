@@ -2,6 +2,7 @@ import React from 'react';
 import { Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { NodeActionPill } from './common/NodeActionPill';
+import { usePerformanceMode } from './PerformanceContext';
 import { toast } from 'sonner';
 import { useNodeChrome } from './common/useNodeChrome';
 import { NodeShell } from './common/NodeShell';
@@ -26,7 +27,9 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
         stopEditingNode,
         isLockedForMe,
         getLockOwner,
+        grabMode,
     } = useGraphActions() as any;
+    const { perfMode } = usePerformanceMode();
 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
@@ -175,7 +178,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                     <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>
                 </div>
             )}
-            {!hidden && (
+            {!hidden && !perfMode && !grabMode && (
                 <NodeActionPill
                     label="Add Option"
                     visible={shouldShowPill}
