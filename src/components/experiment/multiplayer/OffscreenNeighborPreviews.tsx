@@ -5,6 +5,10 @@ import { useReactFlow } from '@xyflow/react';
 import { getOffscreenSide, OffscreenSide } from '@/utils/experiment/multiplayer/viewport';
 import { usePerformanceMode } from './PerformanceContext';
 
+interface OffscreenNeighborPreviewsProps {
+  blurAllNodes: number;
+}
+
 type Preview = {
   id: string;
   text: string;
@@ -46,7 +50,7 @@ const getDirectionZone = (rect: DOMRect, vw: number, vh: number): DirectionZone 
   return 'bottom-right';
 };
 
-export const OffscreenNeighborPreviews: React.FC = () => {
+export const OffscreenNeighborPreviews: React.FC<OffscreenNeighborPreviewsProps> = ({ blurAllNodes }) => {
   const { perfMode } = usePerformanceMode();
   const rf = useReactFlow();
   const { hoveredNodeId } = useGraphActions() as any;

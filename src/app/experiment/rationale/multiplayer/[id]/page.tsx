@@ -68,6 +68,11 @@ export default function MultiplayerBoardDetailPage() {
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
     const selectMode = useMemo(() => !connectMode && !grabMode, [connectMode, grabMode]);
+    const [forceBlurNodes, setForceBlurNodes] = useState(0);
+
+    const blurNodesImmediately = useCallback(() => {
+        setForceBlurNodes((v) => v + 1);
+    }, []);
 
     const { pairNodeHeights, pairHeights, setPairNodeHeight, commitGroupLayout: commitGroupLayoutBase } = usePairHeights();
 
@@ -490,6 +495,7 @@ export default function MultiplayerBoardDetailPage() {
                         commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
                             commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canWrite, localOriginRef.current, setNodes);
                         },
+                        blurNodesImmediately,
                     }}>
                         <div className="w-full h-full relative">
                             <GraphCanvas
@@ -516,6 +522,7 @@ export default function MultiplayerBoardDetailPage() {
                                 connectMode={connectMode}
                                 connectAnchorId={connectAnchorId}
                                 selectMode={selectMode}
+                                blurAllNodes={forceBlurNodes}
                                 onFlowMouseMove={(x, y) => {
                                     if (!connectAnchorRef.current) return;
                                     setConnectCursor({ x, y });

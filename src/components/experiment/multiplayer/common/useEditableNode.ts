@@ -10,6 +10,7 @@ interface UseEditableNodeArgs {
   stopEditingNode?: (nodeId: string) => void;
   // Whether the node is currently selected in the canvas (for click semantics)
   isSelected?: boolean;
+  blurImmediately?: boolean;
 }
 
 export const useEditableNode = ({
@@ -19,6 +20,7 @@ export const useEditableNode = ({
   startEditingNode,
   stopEditingNode,
   isSelected,
+  blurImmediately,
 }: UseEditableNodeArgs) => {
   const graph = useGraphActions();
   const isConnectMode = Boolean((graph as any)?.connectMode);
@@ -197,6 +199,29 @@ export const useEditableNode = ({
     }
   }, [value]);
 
+  const commit = useCallback(() => {
+    setIsEditing(false);
+    stopEditingNode?.(id);
+    selectionBookmarkRef.current = null;
+    if (draftRef.current !== value) {
+      setValue(draftRef.current);
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+        updateTimerRef.current = null;
+      }
+      updateNodeContent(id, draftRef.current);
+    }
+    if (contentRef.current) {
+      contentRef.current.innerText = draftRef.current;
+    }
+    justCommittedRef.current = Date.now();
+    window.setTimeout(() => {
+      if (Date.now() - justCommittedRef.current >= 1400) {
+        justCommittedRef.current = 0;
+      }
+    }, 1500);
+  }, [id, stopEditingNode, updateNodeContent, value]);
+
   // cleanup timers
   useEffect(() => {
     return () => {
@@ -206,6 +231,12 @@ export const useEditableNode = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (blurImmediately && isEditing) {
+      commit();
+    }
+  }, [blurImmediately, isEditing, commit]);
 
   const focusSelectAll = () => {
     const el = contentRef.current;
@@ -345,8 +376,8 @@ export const useEditableNode = ({
 
   const onPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
+    const text = e.clipboardData.getData("text/plain");
+    document.execCommand("insertText", false, text);
   };
 
   const onInput = (e: React.FormEvent<HTMLDivElement>) => {
@@ -392,32 +423,6 @@ export const useEditableNode = ({
       }
     } catch {}
   };
-
-  const commit = useCallback(() => {
-    setIsEditing(false);
-    stopEditingNode?.(id);
-    selectionBookmarkRef.current = null;
-    if (draftRef.current !== value) {
-      // After finishing edit, reflect the latest draft locally.
-      setValue(draftRef.current);
-      if (updateTimerRef.current) {
-        clearTimeout(updateTimerRef.current);
-        updateTimerRef.current = null;
-      }
-      updateNodeContent(id, draftRef.current);
-    }
-    // Force DOM to reflect final value so text updates immediately for the editor
-    if (contentRef.current) {
-      contentRef.current.innerText = draftRef.current;
-    }
-    // Prevent immediate prop-sync from clobbering our local commit
-    justCommittedRef.current = Date.now();
-    window.setTimeout(() => {
-      if (Date.now() - justCommittedRef.current >= 1400) {
-        justCommittedRef.current = 0;
-      }
-    }, 1500);
-  }, [id, stopEditingNode, updateNodeContent, value]);
 
   useEffect(() => {
     if (!isConnectMode) return;
@@ -469,7 +474,10 @@ export const useEditableNode = ({
     // Defer briefly: if focus returns to our content element, do nothing; otherwise, commit.
     if (!relatedTarget) {
       setTimeout(() => {
-        if (contentRef.current && document.activeElement === contentRef.current) {
+        if (
+          contentRef.current &&
+          document.activeElement === contentRef.current
+        ) {
           return;
         }
         if (isEditing && document.activeElement !== contentRef.current) {

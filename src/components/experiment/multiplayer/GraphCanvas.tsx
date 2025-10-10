@@ -43,6 +43,7 @@ interface GraphCanvasProps {
   onBackgroundMouseUp?: () => void;
   onBackgroundDoubleClick?: (flowX: number, flowY: number) => void;
   selectMode: boolean;
+  blurAllNodes: number;
 }
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
@@ -74,6 +75,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   onBackgroundMouseUp,
   onBackgroundDoubleClick,
   selectMode,
+  blurAllNodes,
 }) => {
   const rf = useReactFlow();
   const viewport = useViewport();
@@ -464,6 +466,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                 try { graph.clearNodeSelection?.(); } catch { }
                 try { graph.setSelectedEdge?.(null); } catch { }
                 try { window.getSelection()?.removeAllRanges(); } catch { }
+                try { graph.blurNodesImmediately?.(); } catch { }
               } else if (connectMode) {
                 onBackgroundMouseUp?.();
               }
@@ -482,8 +485,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             selectionOnDrag={selectMode}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
             onEdgeMouseLeave={grabMode ? undefined : onEdgeMouseLeave}
-            panOnDrag={selectMode ? false : (panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1]))}
-            panOnScroll={panOnScroll !== undefined ? (panOnScroll as any) : true}
+            panOnDrag={selectMode ? [1, 2] : (panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1]))}
+            panOnScroll={true}
             zoomOnScroll={false}
             zoomOnDoubleClick={false}
             nodesDraggable={!connectMode && !grabMode}
@@ -536,7 +539,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         );
       })(), edgesLayer)}
       <CursorOverlay cursors={cursors} />
-      <OffscreenNeighborPreviews />
+      <OffscreenNeighborPreviews blurAllNodes={blurAllNodes} />
       {!grabMode && !perfMode && (
         <CursorReporter
           provider={provider}

@@ -55,6 +55,7 @@ type GraphActions = {
     ) => void;
     grabMode?: boolean;
     clearNodeSelection?: () => void;
+    blurNodesImmediately?: () => void;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -105,6 +106,7 @@ export const useGraphActions = () => {
             setHoveredNodeId: () => { },
             grabMode: false,
             clearNodeSelection: () => { },
+            blurNodesImmediately: () => { },
         } as GraphActions;
     }
     return ctx;
