@@ -67,6 +67,7 @@ export default function MultiplayerBoardDetailPage() {
     const lastAddRef = useRef<Record<string, number>>({});
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
+    const selectMode = useMemo(() => !connectMode && !grabMode, [connectMode, grabMode]);
 
     const { pairNodeHeights, pairHeights, setPairNodeHeight, commitGroupLayout: commitGroupLayoutBase } = usePairHeights();
 
@@ -514,6 +515,7 @@ export default function MultiplayerBoardDetailPage() {
                                 zoomOnScroll={false}
                                 connectMode={connectMode}
                                 connectAnchorId={connectAnchorId}
+                                selectMode={selectMode}
                                 onFlowMouseMove={(x, y) => {
                                     if (!connectAnchorRef.current) return;
                                     setConnectCursor({ x, y });
@@ -563,6 +565,7 @@ export default function MultiplayerBoardDetailPage() {
                                 readOnly={!canWrite}
                                 grabMode={grabMode}
                                 setGrabMode={setGrabMode}
+                                selectMode={selectMode}
 
                             />
                         </div>

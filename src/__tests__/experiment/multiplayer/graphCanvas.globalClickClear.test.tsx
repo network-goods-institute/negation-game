@@ -53,6 +53,7 @@ describe('GraphCanvas global click clearing', () => {
           panOnDrag={[1]}
           panOnScroll={true}
           zoomOnScroll={false}
+          selectMode={true}
         />
       </GraphProvider>
     );

@@ -42,6 +42,7 @@ interface GraphCanvasProps {
   connectCursor?: { x: number; y: number } | null;
   onBackgroundMouseUp?: () => void;
   onBackgroundDoubleClick?: (flowX: number, flowY: number) => void;
+  selectMode: boolean;
 }
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
@@ -72,6 +73,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   connectCursor,
   onBackgroundMouseUp,
   onBackgroundDoubleClick,
+  selectMode,
 }) => {
   const rf = useReactFlow();
   const viewport = useViewport();
@@ -456,13 +458,15 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onConnect={onConnect}
             onNodeClick={handleNodeClickInternal}
             onPaneClick={(e) => {
-              const shift = e && (e as any).shiftKey;
-              if (shift && !connectMode) return;
-              if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
-              try { graph.clearNodeSelection?.(); } catch { }
-              try { graph.setSelectedEdge?.(null); } catch { }
-              try { window.getSelection()?.removeAllRanges(); } catch { }
-              if (connectMode) onBackgroundMouseUp?.();
+              // If in select mode, clear selections. Otherwise, do nothing for clicks on the pane.
+              if (selectMode) {
+                if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
+                try { graph.clearNodeSelection?.(); } catch { }
+                try { graph.setSelectedEdge?.(null); } catch { }
+                try { window.getSelection()?.removeAllRanges(); } catch { }
+              } else if (connectMode) {
+                onBackgroundMouseUp?.();
+              }
             }}
             onEdgeClick={handleEdgeClickInternal}
             onNodeDragStart={handleNodeDragStartInternal}
@@ -475,21 +479,21 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             fitView
             className="w-full h-full bg-gray-50"
             style={{ willChange: 'transform' }}
+            selectionOnDrag={selectMode}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
             onEdgeMouseLeave={grabMode ? undefined : onEdgeMouseLeave}
-            panOnDrag={panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1])}
+            panOnDrag={selectMode ? false : (panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1]))}
             panOnScroll={panOnScroll !== undefined ? (panOnScroll as any) : true}
             zoomOnScroll={false}
             zoomOnDoubleClick={false}
             nodesDraggable={!connectMode && !grabMode}
             nodesConnectable={!grabMode}
-            elementsSelectable={!grabMode}
-            nodesFocusable={!grabMode}
-            edgesFocusable={!grabMode}
+            elementsSelectable={selectMode}
+            nodesFocusable={selectMode}
+            edgesFocusable={selectMode}
             onlyRenderVisibleElements={perfMode}
-            multiSelectionKeyCode="Shift"
             selectionMode={SelectionMode.Partial}
-            onSelectionChange={grabMode ? undefined : ({ nodes, edges }) => {
+            onSelectionChange={selectMode ? ({ nodes, edges }) => {
               try {
                 if (Array.isArray(nodes)) {
                   const anySelected = nodes.some((n: any) => (n as any)?.selected);
@@ -506,7 +510,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                   });
                 }
               } catch { }
-            }}
+            } : undefined}
             proOptions={{ hideAttribution: true }}
           >
             <Background />
