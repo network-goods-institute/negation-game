@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
-import { eq, sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { isProductionRequest } from "@/utils/hosts";
@@ -23,7 +23,7 @@ export async function POST(req: Request, ctx: any) {
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) {
+  if (!/^[a-zA-Z0-9:_-]{1,256}$/.test(id)) {
     return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
   }
   const body = await req.arrayBuffer();
@@ -36,15 +36,28 @@ export async function POST(req: Request, ctx: any) {
     return NextResponse.json({ error: "Payload too large" }, { status: 413 });
   }
 
-  await db.insert(mpDocsTable).values({ id }).onConflictDoNothing();
+  // Resolve slug to canonical id if needed
+  let canonicalId = id;
+  try {
+    const rows = await db
+      .select({ id: mpDocsTable.id })
+      .from(mpDocsTable)
+      .where(or(eq(mpDocsTable.id, id), eq(mpDocsTable.slug, id)))
+      .limit(1);
+    if (rows.length === 1) canonicalId = rows[0].id;
+  } catch {}
+  await db
+    .insert(mpDocsTable)
+    .values({ id: canonicalId })
+    .onConflictDoNothing();
 
   await db
     .insert(mpDocUpdatesTable)
-    .values({ docId: id, updateBin: updateBuf, userId });
+    .values({ docId: canonicalId, updateBin: updateBuf, userId });
   await db
     .update(mpDocsTable)
     .set({ updatedAt: new Date() })
-    .where(eq(mpDocsTable.id, id));
+    .where(eq(mpDocsTable.id, canonicalId));
   try {
   } catch {}
 
@@ -58,7 +71,7 @@ export async function POST(req: Request, ctx: any) {
     const threshold = 30;
     if (count > threshold) {
       // Keep a small tail to avoid losing very recent fine-grained deltas
-      await compactDocUpdates(id, { keepLast: 3 });
+      await compactDocUpdates(canonicalId, { keepLast: 3 });
     }
   } catch (e) {}
 
@@ -70,7 +83,7 @@ export async function POST(req: Request, ctx: any) {
 
     if (!currentBoardTitle || currentBoardTitle === "Untitled") {
       const { getDocSnapshotBuffer } = await import("@/services/yjsCompaction");
-      const docBuffer = await getDocSnapshotBuffer(id);
+      const docBuffer = await getDocSnapshotBuffer(canonicalId);
 
       if (docBuffer && docBuffer.length > 0) {
         const Y = await import("yjs");
@@ -140,7 +153,7 @@ export async function POST(req: Request, ctx: any) {
               // Apply this fix to the YJS document by creating an update
               const update = Y.encodeStateAsUpdate(ydoc);
               await db.insert(mpDocUpdatesTable).values({
-                docId: id,
+                docId: canonicalId,
                 updateBin: Buffer.from(update),
                 userId,
               });
@@ -156,7 +169,7 @@ export async function POST(req: Request, ctx: any) {
           await db
             .update(mpDocsTable)
             .set({ title: titleNodeContent, updatedAt: new Date() })
-            .where(eq(mpDocsTable.id, id));
+            .where(eq(mpDocsTable.id, canonicalId));
         }
       }
     }
@@ -168,7 +181,7 @@ export async function POST(req: Request, ctx: any) {
     console.log(
       JSON.stringify({
         event: "yjs_update",
-        id,
+        id: canonicalId,
         bytes: updateBuf.byteLength,
       })
     );

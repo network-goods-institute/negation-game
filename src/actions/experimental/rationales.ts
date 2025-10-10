@@ -7,6 +7,7 @@ import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { generateUniqueSlug } from "@/utils/slugify";
 
 const DEFAULT_OWNER = "connormcmk";
 const DEFAULT_TITLE = "Untitled";
@@ -17,6 +18,7 @@ export async function listMyRationales() {
   const rows = (await db.execute(sql`
     SELECT d.id,
            d.title,
+           d.slug as "slug",
            COALESCE(d.owner_id, ${DEFAULT_OWNER}) AS "ownerId",
            u.username AS "ownerUsername",
            d.created_at AS "createdAt",
@@ -39,6 +41,7 @@ export async function listMyRationales() {
   `)) as unknown as Array<{
     id: string;
     title: string | null;
+    slug: string | null;
     ownerId: string;
     ownerUsername: string | null;
     createdAt: Date;
@@ -54,6 +57,7 @@ export async function listOwnedRationales() {
   const rows = (await db.execute(sql`
     SELECT d.id,
            d.title,
+           d.slug as "slug",
            COALESCE(d.owner_id, ${userId}) AS "ownerId",
            u.username AS "ownerUsername",
            d.created_at AS "createdAt",
@@ -75,6 +79,7 @@ export async function listOwnedRationales() {
   `)) as unknown as Array<{
     id: string;
     title: string | null;
+    slug: string | null;
     ownerId: string;
     ownerUsername: string | null;
     createdAt: Date;
@@ -90,6 +95,7 @@ export async function listVisitedRationales() {
   const rows = (await db.execute(sql`
     SELECT d.id,
            d.title,
+           d.slug as "slug",
            COALESCE(d.owner_id, ${DEFAULT_OWNER}) AS "ownerId",
            u.username AS "ownerUsername",
            d.created_at AS "createdAt",
@@ -104,6 +110,7 @@ export async function listVisitedRationales() {
   `)) as unknown as Array<{
     id: string;
     title: string | null;
+    slug: string | null;
     ownerId: string;
     ownerUsername: string | null;
     createdAt: Date;
@@ -189,6 +196,18 @@ export async function createRationale(params?: {
       .insert(mpDocAccessTable)
       .values({ docId: id, userId })
       .onConflictDoNothing();
+    try {
+      const exists = async (slug: string) => {
+        const rows = await tx
+          .select({ id: mpDocsTable.id })
+          .from(mpDocsTable)
+          .where(eq(mpDocsTable.slug, slug))
+          .limit(1);
+        return rows.length > 0;
+      };
+      const slug = await generateUniqueSlug(title, exists);
+      await tx.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
+    } catch {}
   });
 
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -225,6 +244,19 @@ export async function renameRationale(id: string, title: string) {
     .set({ title: t, updatedAt: new Date() })
     .where(eq(mpDocsTable.id, id));
 
+  try {
+    const exists = async (slug: string) => {
+      const rows = await db
+        .select({ id: mpDocsTable.id })
+        .from(mpDocsTable)
+        .where(eq(mpDocsTable.slug, slug))
+        .limit(1);
+      return rows.length > 0;
+    };
+    const slug = await generateUniqueSlug(t, exists);
+    await db.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
+  } catch {}
+
   return { ok: true } as const;
 }
 
@@ -260,7 +292,7 @@ export async function updateNodeTitle(id: string, nodeTitle: string) {
     .set({
       nodeTitle,
       ...(shouldSyncBoardTitle && { title: nodeTitle.trim() }),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     })
     .where(eq(mpDocsTable.id, id));
 

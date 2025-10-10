@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { gzipSync } from "zlib";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
-import { sql } from "drizzle-orm";
+import { or, eq, sql } from "drizzle-orm";
 import {
   getDocSnapshotBase64,
   getDocSnapshotBuffer,
@@ -19,17 +19,30 @@ export async function GET(req: Request, ctx: any) {
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) {
+  if (!/^[a-zA-Z0-9:_-]{1,256}$/.test(id)) {
     return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
   }
-  await db.insert(mpDocsTable).values({ id }).onConflictDoNothing();
+  // Resolve slug to canonical id if it exists
+  let canonicalId = id;
+  try {
+    const rows = await db
+      .select({ id: mpDocsTable.id })
+      .from(mpDocsTable)
+      .where(or(eq(mpDocsTable.id, id), eq(mpDocsTable.slug, id)))
+      .limit(1);
+    if (rows.length === 1) canonicalId = rows[0].id;
+  } catch {}
+  await db
+    .insert(mpDocsTable)
+    .values({ id: canonicalId })
+    .onConflictDoNothing();
 
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode");
 
   if (mode === "updates") {
     const rows = (await db.execute(
-      sql`SELECT "update_bin" FROM "mp_doc_updates" WHERE "doc_id" = ${id} ORDER BY "created_at" ASC`
+      sql`SELECT "update_bin" FROM "mp_doc_updates" WHERE "doc_id" = ${canonicalId} ORDER BY "created_at" ASC`
     )) as unknown as Array<{ update_bin: Buffer }>;
     const updates = rows.map((r) =>
       r.update_bin ? Buffer.from(r.update_bin).toString("base64") : ""
@@ -50,7 +63,7 @@ export async function GET(req: Request, ctx: any) {
     let baseDocBuf: Buffer | null = null;
     try {
       const snap = (await db.execute(
-        sql`SELECT "snapshot" FROM "mp_docs" WHERE id = ${id} LIMIT 1`
+        sql`SELECT "snapshot" FROM "mp_docs" WHERE id = ${canonicalId} LIMIT 1`
       )) as unknown as Array<{ snapshot: Buffer | null }>;
       if (snap?.[0]?.snapshot && (snap[0].snapshot as any).length) {
         baseDocBuf = Buffer.from(snap[0].snapshot as any);
@@ -64,7 +77,7 @@ export async function GET(req: Request, ctx: any) {
       } catch {}
     } else {
       const all = (await db.execute(
-        sql`SELECT "update_bin" FROM "mp_doc_updates" WHERE "doc_id" = ${id} ORDER BY "created_at" ASC`
+        sql`SELECT "update_bin" FROM "mp_doc_updates" WHERE "doc_id" = ${canonicalId} ORDER BY "created_at" ASC`
       )) as unknown as Array<{ update_bin: Buffer }>;
       for (const r of all as any[]) {
         const b = r.update_bin as Buffer;
@@ -89,7 +102,7 @@ export async function GET(req: Request, ctx: any) {
             event: "yjs_state",
             kind: "diff",
             status: 204,
-            id,
+            id: canonicalId,
             bytes: 0,
           })
         );
@@ -145,7 +158,7 @@ export async function GET(req: Request, ctx: any) {
   let lastModified: Date | null = null;
   try {
     const meta = (await db.execute(
-      sql`SELECT "snapshot_at" FROM "mp_docs" WHERE id = ${id} LIMIT 1`
+      sql`SELECT "snapshot_at" FROM "mp_docs" WHERE id = ${canonicalId} LIMIT 1`
     )) as unknown as Array<{ snapshot_at: Date | null }>;
     if (meta?.[0]?.snapshot_at) {
       lastModified =
@@ -168,7 +181,7 @@ export async function GET(req: Request, ctx: any) {
           event: "yjs_state",
           kind: "snapshot",
           status: 304,
-          id,
+          id: canonicalId,
         })
       );
     } catch {}
@@ -183,7 +196,7 @@ export async function GET(req: Request, ctx: any) {
             event: "yjs_state",
             kind: "snapshot",
             status: 304,
-            id,
+            id: canonicalId,
           })
         );
       } catch {}
@@ -204,7 +217,7 @@ export async function GET(req: Request, ctx: any) {
   if (lastModified) headers["last-modified"] = lastModified.toUTCString();
   if (url.searchParams.get("debug") === "1") {
     const updates = (await db.execute(
-      sql`SELECT "update_bin" FROM "mp_doc_updates" WHERE "doc_id" = ${id}`
+      sql`SELECT "update_bin" FROM "mp_doc_updates" WHERE "doc_id" = ${canonicalId}`
     )) as unknown as Array<{ update_bin: Buffer }>;
     const prevBytes = updates.reduce(
       (sum, u) => sum + ((u.update_bin?.length as number) || 0),
@@ -221,7 +234,7 @@ export async function GET(req: Request, ctx: any) {
         event: "yjs_state",
         kind: "snapshot",
         status: 200,
-        id,
+        id: canonicalId,
         bytes: buffer?.byteLength ?? (buffer as any)?.length ?? 0,
         etag,
       })

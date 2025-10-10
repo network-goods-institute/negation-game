@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
 
 export const runtime = "nodejs";
@@ -15,13 +15,13 @@ export async function GET(_req: Request, ctx: any) {
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) {
+  if (!/^[a-zA-Z0-9:_-]{1,256}$/.test(id)) {
     return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
   }
   const rows = await db
     .select()
     .from(mpDocsTable)
-    .where(eq(mpDocsTable.id, id))
+    .where(or(eq(mpDocsTable.id, id), eq(mpDocsTable.slug, id)))
     .limit(1);
   const doc = rows[0] as any;
   if (!doc) return NextResponse.json({ id, title: null, ownerId: null });
@@ -29,6 +29,7 @@ export async function GET(_req: Request, ctx: any) {
     id: doc.id,
     title: doc.title || null,
     ownerId: doc.ownerId || null,
+    slug: doc.slug || null,
   });
 }
 
@@ -46,7 +47,7 @@ export async function DELETE(_req: Request, ctx: any) {
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
 
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) {
+  if (!/^[a-zA-Z0-9:_-]{1,256}$/.test(id)) {
     return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
   }
 
