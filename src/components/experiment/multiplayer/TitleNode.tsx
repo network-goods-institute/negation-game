@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { NodeActionPill } from './common/NodeActionPill';
@@ -44,11 +44,6 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
         stopEditingNode,
         locked,
         hidden,
-        hidePillWhileEditing: false,
-        autoFocus: {
-            createdAt: data.editedBy ? Date.now() : undefined,
-            isQuestionNode: true,
-        },
     });
 
     const {
@@ -79,6 +74,8 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
         onHoverLeave: onMouseLeave,
     });
 
+    const rootRef = useRef<HTMLDivElement | null>(null);
+
     return (
         <NodeShell
             handles={[
@@ -95,6 +92,19 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                     style: { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' },
                 },
             ]}
+            rootRef={rootRef}
+            rootProps={{
+                onMouseEnter: (e) => {
+                    e.stopPropagation();
+                    onMouseEnter();
+                    handleMouseEnter();
+                },
+                onMouseLeave: (e) => {
+                    e.stopPropagation();
+                    onMouseLeave();
+                    handleMouseLeave();
+                },
+            }}
             wrapperRef={wrapperRef}
             wrapperClassName={`px-4 py-3 rounded-lg ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} ${isActive ? 'border-0' : 'border-2'} min-w-[220px] max-w-[360px] relative z-10 ${cursorClass} transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${isActive ? '' : (hidden ? 'border-blue-300' : 'border-blue-200')}
@@ -102,22 +112,11 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
             wrapperStyle={innerScaleStyle as any}
             wrapperProps={{
-                onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
-                    e.stopPropagation();
-                    onMouseEnter();
-                    handleMouseEnter();
-                },
-                onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
-                    e.stopPropagation();
-                    onMouseLeave();
-                    handleMouseLeave();
-                },
                 onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
                     if (isConnectMode) {
                         e.stopPropagation();
                         return;
                     }
-                    if (isEditing) return;
                 },
                 onClick: (e: React.MouseEvent<HTMLDivElement>) => {
                     if (isConnectMode) {
@@ -146,7 +145,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                 <div className="pointer-events-none">
                     <div className="absolute -top-2 -right-2 z-20" title={lockOwner ? `Locked by ${lockOwner.name}` : 'Locked'}>
                         <div className="h-6 w-6 rounded-full bg-rose-600 border-2 border-white text-white shadow flex items-center justify-center">
-                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm-3 8V7a3 3 0 116 0v3H9z"/></svg>
+                            <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm-3 8V7a3 3 0 116 0v3H9z" /></svg>
                         </div>
                     </div>
                 </div>
@@ -169,7 +168,6 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
                 onBlur={onBlur}
                 onKeyDown={onKeyDown}
                 className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-blue-900'}`}
-                style={{ userSelect: hidden ? 'none' : 'text' }}
             >
                 {value}
             </div>
