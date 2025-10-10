@@ -21,7 +21,8 @@ describe("yjs token endpoint", () => {
 
   it("404s when experiment flag is disabled", async () => {
     await withEnv({ NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "false" }, async () => {
-      const res = (await tokenPOST()) as Response;
+      const req = new Request("http://test/api/yjs/token", { method: "POST" });
+      const res = (await tokenPOST(req)) as Response;
       expect(res.status).toBe(404);
     });
   });
@@ -29,7 +30,8 @@ describe("yjs token endpoint", () => {
   it("401s when user not authenticated", async () => {
     getUserId.mockResolvedValueOnce(null);
     await withEnv({ NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "true" }, async () => {
-      const res = (await tokenPOST()) as Response;
+      const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST" });
+      const res = (await tokenPOST(req)) as Response;
       expect(res.status).toBe(401);
     });
   });
@@ -38,7 +40,8 @@ describe("yjs token endpoint", () => {
     getUserId.mockResolvedValueOnce("user-2");
     await withEnv({ NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "true" }, async () => {
       delete process.env.YJS_AUTH_SECRET;
-      const res = (await tokenPOST()) as Response;
+      const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST" });
+      const res = (await tokenPOST(req)) as Response;
       expect(res.status).toBe(500);
     });
   });
@@ -48,7 +51,8 @@ describe("yjs token endpoint", () => {
     await withEnv(
       { NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "true", YJS_AUTH_SECRET: "test-secret" },
       async () => {
-        const res = (await tokenPOST()) as Response;
+        const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST" });
+        const res = (await tokenPOST(req)) as Response;
         expect(res.status).toBe(200);
       }
     );

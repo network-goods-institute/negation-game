@@ -23,6 +23,7 @@ interface UseMultiplayerEditingProps {
   username: string;
   userColor: string;
   canWrite?: boolean;
+  broadcastLocks?: boolean;
 }
 
 export const useMultiplayerEditing = ({
@@ -31,6 +32,7 @@ export const useMultiplayerEditing = ({
   username,
   userColor,
   canWrite = true,
+  broadcastLocks = true,
 }: UseMultiplayerEditingProps) => {
   const [editors, setEditors] = useState<EditorsMap>(new Map());
   const [locks, setLocks] = useState<LockMap>(new Map());
@@ -179,7 +181,7 @@ export const useMultiplayerEditing = ({
   }, [provider, sessionId]);
 
   const renewLocks = useCallback(() => {
-    if (!provider || !canWrite) return;
+    if (!provider || !canWrite || !broadcastLocks) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     const now = Date.now();
@@ -193,11 +195,12 @@ export const useMultiplayerEditing = ({
       ...prev,
       locks: nextLocks,
     });
-  }, [provider, canWrite, sessionId]);
+  }, [provider, canWrite, sessionId, broadcastLocks]);
 
   const startEditing = (nodeId: string) => {
     if (!provider || !canWrite) return;
     localEditingRef.current.add(nodeId);
+    if (!broadcastLocks) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     const now = Date.now();
@@ -238,6 +241,7 @@ export const useMultiplayerEditing = ({
       lockRenewalTimerRef.current = null;
     }
 
+    if (!broadcastLocks) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     const prevLocks = (prev as any).locks || {};
@@ -262,7 +266,7 @@ export const useMultiplayerEditing = ({
   };
 
   const lockNode = (nodeId: string, kind: "edit" | "drag") => {
-    if (!provider || !canWrite) return;
+    if (!provider || !canWrite || !broadcastLocks) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     const prevLocks = (prev as any).locks || {};
@@ -278,7 +282,7 @@ export const useMultiplayerEditing = ({
   };
 
   const unlockNode = (nodeId: string) => {
-    if (!provider || !canWrite) return;
+    if (!provider || !canWrite || !broadcastLocks) return;
     const awareness = provider.awareness;
     const prev = awareness.getLocalState() || {};
     const prevLocks = (prev as any).locks || {};

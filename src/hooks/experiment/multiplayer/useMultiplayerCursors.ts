@@ -16,6 +16,7 @@ interface UseMultiplayerCursorsProps {
   username: string;
   userColor: string;
   canWrite?: boolean;
+  broadcastCursor?: boolean;
 }
 
 export const useMultiplayerCursors = ({
@@ -24,6 +25,7 @@ export const useMultiplayerCursors = ({
   username,
   userColor,
   canWrite = true,
+  broadcastCursor = true,
 }: UseMultiplayerCursorsProps) => {
   const [cursors, setCursors] = useState<Map<number, CursorData>>(new Map());
 
@@ -31,7 +33,7 @@ export const useMultiplayerCursors = ({
   useEffect(() => {
     if (!provider || !username) return;
 
-    if (!canWrite) {
+    if (!canWrite || !broadcastCursor) {
       // In proxy mode, clear any awareness state to hide from others
       const prev = provider.awareness.getLocalState() || {};
       const { user, editing, lock, ...rest } = prev as any;
@@ -49,7 +51,7 @@ export const useMultiplayerCursors = ({
         cursor: { fx: 0, fy: 0 },
       },
     });
-  }, [provider, userId, username, userColor, canWrite]);
+  }, [provider, userId, username, userColor, canWrite, broadcastCursor]);
 
   // Listen for awareness changes (other users' cursors)
   useEffect(() => {
@@ -92,4 +94,3 @@ export const useMultiplayerCursors = ({
 
   return cursors;
 };
-

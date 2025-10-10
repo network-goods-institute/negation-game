@@ -1,15 +1,27 @@
 import { NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
+import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
+import { isProductionRequest } from "@/utils/hosts";
 import { createHash } from "crypto";
 
-export async function POST() {
+export async function POST(req: Request) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const url = new URL(req.url);
+  const hostname = url.hostname;
+  // Require auth on production requests; allow anon only on non-production requests
+  const nonProd = !isProductionRequest(hostname);
+
+  let userId: string | null = null;
+  if (nonProd) {
+    userId = await getUserIdOrAnonymous();
+  } else {
+    userId = await getUserId();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const secret = process.env.YJS_AUTH_SECRET;

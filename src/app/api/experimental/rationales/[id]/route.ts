@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
 
 export const runtime = "nodejs";
@@ -11,10 +11,6 @@ export const dynamic = "force-dynamic";
 export async function GET(_req: Request, ctx: any) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-  const userId = await getUserId();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const raw = ctx?.params;
   const { id } =

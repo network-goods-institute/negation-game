@@ -311,7 +311,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             midPanRef.current = true;
             setPerfMode?.(true);
           }
-        } catch {}
+        } catch { }
       }}
       onPointerUp={(e) => {
         try {
@@ -319,7 +319,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             midPanRef.current = false;
             setPerfMode?.(false);
           }
-        } catch {}
+        } catch { }
       }}
       onPointerCancel={() => {
         try {
@@ -327,7 +327,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             midPanRef.current = false;
             setPerfMode?.(false);
           }
-        } catch {}
+        } catch { }
       }}
       onMouseDownCapture={handleBackgroundMouseDownCapture}
       onMouseMove={onCanvasMouseMove}
@@ -339,7 +339,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       {(() => {
         // Wrap changes to intercept removals and route through multiplayer delete
         const handleNodesChange = (changes: any[]) => {
-          if (!authenticated) return onNodesChange?.(changes);
           const passthrough: any[] = [];
           let nodeSelected = false;
           for (const c of changes || []) {
@@ -358,7 +357,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           if (passthrough.length) onNodesChange?.(passthrough);
         };
         const handleEdgesChange = (changes: any[]) => {
-          if (!authenticated) return onEdgesChange?.(changes);
           const passthrough: any[] = [];
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
@@ -455,7 +453,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             edges={edges}
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
-            onConnect={authenticated ? onConnect : undefined}
+            onConnect={onConnect}
             onNodeClick={handleNodeClickInternal}
             onPaneClick={(e) => {
               const shift = e && (e as any).shiftKey;
@@ -467,11 +465,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
               if (connectMode) onBackgroundMouseUp?.();
             }}
             onEdgeClick={handleEdgeClickInternal}
-            onNodeDragStart={authenticated ? handleNodeDragStartInternal : undefined}
-            onNodeDrag={authenticated ? ((_: any, node: any) => {
+            onNodeDragStart={handleNodeDragStartInternal}
+            onNodeDrag={((_: any, node: any) => {
               try { graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0); } catch { }
-            }) : undefined}
-            onNodeDragStop={authenticated ? ((e: any, node: any) => { try { onNodeDragStop?.(e, node); } catch { } try { graph.stopCapturing?.(); } catch { } }) : undefined}
+            })}
+            onNodeDragStop={((e: any, node: any) => { try { onNodeDragStop?.(e, node); } catch { } try { graph.stopCapturing?.(); } catch { } })}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
@@ -533,15 +531,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           </g>
         );
       })(), edgesLayer)}
-      {authenticated && <CursorOverlay cursors={cursors} />}
+      <CursorOverlay cursors={cursors} />
       <OffscreenNeighborPreviews />
-      {authenticated && !grabMode && !perfMode && (
+      {!grabMode && !perfMode && (
         <CursorReporter
           provider={provider}
           username={username}
           userColor={userColor}
           grabMode={Boolean(grabMode)}
           canWrite={canWrite ?? true}
+          broadcastCursor={true}
         />
       )}
     </div>
