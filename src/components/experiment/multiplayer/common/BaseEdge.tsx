@@ -6,7 +6,6 @@ import { EdgeMidpointControl } from './EdgeMidpointControl';
 import { EdgeInteractionOverlay } from './EdgeInteractionOverlay';
 import { EdgeMaskDefs } from './EdgeMaskDefs';
 import { useEdgeState } from './useEdgeState';
-import { useEdgeAnchorPosition } from './useEdgeAnchorPosition';
 import { useEdgeNodeMasking } from './useEdgeNodeMasking';
 import { useStrapGeometry } from './EdgeStrapGeometry';
 import { EDGE_CONFIGURATIONS, EdgeType } from './EdgeConfiguration';
@@ -165,12 +164,7 @@ export const BaseEdge: React.FC<BaseEdgeProps> = (props) => {
     }
   }, [sourceNode, targetNode, labelX, labelY]);
 
-  useEdgeAnchorPosition({
-    id: props.id as string,
-    x: (labelX ?? cx),
-    y: (labelY ?? cy),
-    updateEdgeAnchorPosition: graphActions.updateEdgeAnchorPosition,
-  });
+  // Anchor positions are derived and updated centrally in GraphUpdater.
 
   // Dynamic edge styles
   const edgeStyles = useMemo(() => {

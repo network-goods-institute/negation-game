@@ -399,7 +399,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                   const parentEdgeId: string | undefined = anchor.data?.parentEdgeId;
                   if (parentEdgeId) {
                     graph.ensureEdgeAnchor?.(anchor.id, parentEdgeId, anchor.position?.x ?? 0, anchor.position?.y ?? 0);
-                    graph.updateEdgeAnchorPosition?.(parentEdgeId, anchor.position?.x ?? 0, anchor.position?.y ?? 0, true);
                   }
                 } else {
                   // Anchor not in local RF yet; derive parent edge id from target and ensure presence using midpoint

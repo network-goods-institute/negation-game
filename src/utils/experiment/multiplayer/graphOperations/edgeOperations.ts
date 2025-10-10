@@ -76,10 +76,10 @@ export const createAddObjectionForEdge = (
       return newEdges;
     });
 
-    // Also sync to Yjs if available
+    // Sync objection node/edge to Yjs (anchor nodes are local-only)
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
-        if (!yNodesMap.has(anchorId)) yNodesMap.set(anchorId, anchorNode);
+        // Do NOT sync anchor node
         yNodesMap.set(objectionId, objectionNode);
         if (!yEdgesMap.has(objectionEdge.id))
           yEdgesMap.set(objectionEdge.id, objectionEdge);
@@ -139,26 +139,20 @@ export const createUpdateEdgeType = (
 };
 
 export const createEnsureEdgeAnchor = (
-  yNodesMap: any,
-  ydoc: any,
-  canWrite: boolean,
-  localOrigin: object
+  setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
   return (anchorId: string, parentEdgeId: string, x: number, y: number) => {
-    if (!yNodesMap || !ydoc || !canWrite) return;
-    try {
-      if (typeof anchorId !== 'string' || !anchorId) return;
-      ydoc.transact(() => {
-        if (!yNodesMap.has(anchorId)) {
-          yNodesMap.set(anchorId, {
-            id: anchorId,
-            type: 'edge_anchor',
-            position: { x, y },
-            data: { parentEdgeId },
-          });
-        }
-      }, ORIGIN.RUNTIME);
-    } catch {}
+    if (typeof anchorId !== 'string' || !anchorId) return;
+    setNodes((nds) => {
+      if (nds.some((n: any) => n.id === anchorId)) return nds;
+      const anchorNode = {
+        id: anchorId,
+        type: 'edge_anchor',
+        position: { x, y },
+        data: { parentEdgeId },
+      };
+      return [...nds, anchorNode];
+    });
   };
 };
 

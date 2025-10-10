@@ -76,6 +76,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const activeEdgeTone = isSupportEdge ? "text-emerald-600" : isNegationEdge ? "text-rose-600" : "text-stone-500";
 
 
+  const wheelUpdateRef = React.useRef<number | null>(null);
+  const pendingWheelDeltaRef = React.useRef({ x: 0, y: 0 });
+
   const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     if (!reactFlow) return;
 
@@ -85,15 +88,32 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     event.preventDefault();
     event.stopPropagation();
 
-    const viewport = reactFlow.getViewport?.();
-    if (!viewport) return;
+    // Accumulate deltas
+    pendingWheelDeltaRef.current.x += event.deltaX;
+    pendingWheelDeltaRef.current.y += event.deltaY;
 
-    const nextViewport = {
-      x: viewport.x + event.deltaX,
-      y: viewport.y + event.deltaY,
-      zoom: viewport.zoom,
-    };
-    reactFlow.setViewport?.(nextViewport, { duration: 0 });
+    // Cancel any pending update
+    if (wheelUpdateRef.current !== null) {
+      cancelAnimationFrame(wheelUpdateRef.current);
+    }
+
+    // Batch updates with RAF
+    wheelUpdateRef.current = requestAnimationFrame(() => {
+      const viewport = reactFlow.getViewport?.();
+      if (!viewport) return;
+
+      const nextViewport = {
+        x: viewport.x + pendingWheelDeltaRef.current.x,
+        y: viewport.y + pendingWheelDeltaRef.current.y,
+        zoom: viewport.zoom,
+      };
+
+      reactFlow.setViewport?.(nextViewport, { duration: 0 });
+
+      // Reset deltas
+      pendingWheelDeltaRef.current = { x: 0, y: 0 };
+      wheelUpdateRef.current = null;
+    });
   }, [reactFlow]);
 
   const [isSpacePressed, setIsSpacePressed] = React.useState(false);
@@ -103,6 +123,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     lastY: number;
     viewport: { x: number; y: number; zoom: number };
   } | null>(null);
+  const pointerUpdateRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -132,6 +153,23 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   const stopPanSession = React.useCallback(() => {
     panSessionRef.current = null;
+    // Cancel any pending RAF updates
+    if (pointerUpdateRef.current !== null) {
+      cancelAnimationFrame(pointerUpdateRef.current);
+      pointerUpdateRef.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (wheelUpdateRef.current !== null) {
+        cancelAnimationFrame(wheelUpdateRef.current);
+      }
+      if (pointerUpdateRef.current !== null) {
+        cancelAnimationFrame(pointerUpdateRef.current);
+      }
+    };
   }, []);
 
   const handlePersistencePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -194,7 +232,17 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     };
 
     session.viewport = nextViewport;
-    reactFlow?.setViewport(nextViewport, { duration: 0 });
+
+    // Cancel any pending update
+    if (pointerUpdateRef.current !== null) {
+      cancelAnimationFrame(pointerUpdateRef.current);
+    }
+
+    // Batch updates with RAF for smoother panning
+    pointerUpdateRef.current = requestAnimationFrame(() => {
+      reactFlow?.setViewport(nextViewport, { duration: 0 });
+      pointerUpdateRef.current = null;
+    });
   }, [reactFlow]);
 
   const handlePersistencePointerUp = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {

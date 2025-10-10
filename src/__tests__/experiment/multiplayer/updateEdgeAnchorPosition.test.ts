@@ -2,7 +2,7 @@ import * as Y from 'yjs';
 import { createUpdateEdgeAnchorPosition } from '@/utils/experiment/multiplayer/graphOperations';
 
 describe('createUpdateEdgeAnchorPosition', () => {
-  it('updates local anchor node position and syncs to yNodesMap', () => {
+  it('updates local anchor node position without syncing to yNodesMap', () => {
     const edgeId = 'edge-abc';
     const anchorId = `anchor:${edgeId}`;
 
@@ -17,7 +17,7 @@ describe('createUpdateEdgeAnchorPosition', () => {
     const yNodesMap = ydoc.getMap<any>('nodes');
     yNodesMap.set(anchorId, { id: anchorId, type: 'edge_anchor', position: { x: 10, y: 20 }, data: { parentEdgeId: edgeId } });
 
-    const update = createUpdateEdgeAnchorPosition(setNodes, yNodesMap, ydoc, true, {});
+    const update = createUpdateEdgeAnchorPosition(setNodes, null as any, null as any, false, {});
 
     update(edgeId, 30, 40);
 
@@ -25,7 +25,6 @@ describe('createUpdateEdgeAnchorPosition', () => {
     expect(local.position).toEqual({ x: 30, y: 40 });
 
     const remote = yNodesMap.get(anchorId);
-    expect(remote.position).toEqual({ x: 30, y: 40 });
+    expect(remote.position).toEqual({ x: 10, y: 20 });
   });
 });
-

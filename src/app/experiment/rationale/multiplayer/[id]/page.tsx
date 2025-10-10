@@ -159,11 +159,7 @@ export default function MultiplayerBoardDetailPage() {
                 const anchorNode: Node = { id: anchorId, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: e.id } } as Node;
                 additions.push(anchorNode);
                 existing.add(anchorId);
-                if (yNodesMap && ydoc && canWrite) {
-                    try {
-                        ydoc.transact(() => { if (!yNodesMap.has(anchorId)) yNodesMap.set(anchorId, anchorNode as any); }, localOriginRef.current);
-                    } catch { }
-                }
+                // Anchor nodes are local-only; do not sync to Yjs
             }
             return additions.length ? [...current, ...additions] : current;
         });

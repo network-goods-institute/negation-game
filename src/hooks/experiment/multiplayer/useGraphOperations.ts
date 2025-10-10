@@ -226,13 +226,13 @@ export const useGraphOperations = ({
     () =>
       createUpdateEdgeAnchorPosition(
         setNodes,
-        canWrite && writeSynced ? yNodesMap : null,
-        canWrite && writeSynced ? ydoc : null,
-        canWrite && writeSynced,
+        null,
+        null,
+        false,
         localOrigin,
         undefined
       ),
-    [setNodes, canWrite, writeSynced, yNodesMap, ydoc, localOrigin]
+    [setNodes, localOrigin]
   );
 
   const addNodeAtPosition = useMemo(
@@ -367,8 +367,8 @@ export const useGraphOperations = ({
   );
 
   const ensureEdgeAnchor = useMemo(
-    () => createEnsureEdgeAnchor(yNodesMap, ydoc, canWrite, localOrigin),
-    [yNodesMap, ydoc, canWrite, localOrigin]
+    () => createEnsureEdgeAnchor(setNodes),
+    [setNodes]
   );
 
   return {

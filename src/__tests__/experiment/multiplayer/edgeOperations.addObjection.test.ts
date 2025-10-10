@@ -2,7 +2,7 @@ import * as Y from 'yjs';
 import { createAddObjectionForEdge } from '@/utils/experiment/multiplayer/graphOperations';
 
 describe('createAddObjectionForEdge', () => {
-  it('creates anchor, objection node, objection edge, and Y.Text', () => {
+  it('creates local-only anchor, plus objection node/edge, and Y.Text', () => {
     const doc = new Y.Doc();
     const yNodes = doc.getMap<any>('nodes');
     const yEdges = doc.getMap<any>('edges');
@@ -44,12 +44,10 @@ describe('createAddObjectionForEdge', () => {
     expect(objection).toBeTruthy();
     expect(objEdge).toBeTruthy();
 
-    // Yjs synced
     const yAnchor = Array.from(yNodes.values()).find((n: any) => n?.type === 'edge_anchor' && n?.data?.parentEdgeId === baseEdgeId);
-    expect(yAnchor).toBeTruthy();
+    expect(yAnchor).toBeFalsy();
     const yTextEntry = yText.get((objection as any).id);
     expect(yTextEntry instanceof Y.Text).toBe(true);
     expect((yTextEntry as Y.Text).toString().length).toBeGreaterThan(0);
   });
 });
-
