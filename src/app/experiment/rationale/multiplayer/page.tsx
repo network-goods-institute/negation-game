@@ -37,6 +37,25 @@ const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
 type MpDoc = { id: string; title: string | null; updatedAt: string | Date; createdAt: string | Date; ownerId?: string | null; lastOpenAt?: string | Date | null };
 
+const formatRelativeTime = (date: Date | string) => {
+  const dateObj = new Date(date);
+  const now = new Date();
+  const diffMs = now.getTime() - dateObj.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays >= 1) {
+    return dateObj.toLocaleString();
+  } else if (diffHours >= 1) {
+    return `${diffHours} hours ago`;
+  } else if (diffMinutes >= 1) {
+    return `${diffMinutes} minutes ago`;
+  } else {
+    return 'seconds ago';
+  }
+};
+
 export default function MultiplayerRationaleIndexPage() {
   const { authenticated, ready, login, user } = usePrivy();
   const router = useRouter();
@@ -314,9 +333,9 @@ export default function MultiplayerRationaleIndexPage() {
                                 <Avatar className="h-6 w-6"><AvatarFallback>{((d as any).ownerUsername || ownerId || 'U').slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>
                                 <span className="">{(d as any).ownerUsername || ownerId || '—'}</span>
                                 <span className="text-stone-400">•</span>
-                                <span>{lastOpenAt ? `Opened ${lastOpenAt.toLocaleString()}` : updatedAt ? `Updated ${updatedAt.toLocaleString()}` : ''}</span>
+                                <span>{lastOpenAt ? `Opened ${formatRelativeTime(lastOpenAt)}` : updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : ''}</span>
                                 <span className="text-stone-400">•</span>
-                                <span>Created {new Date(d.createdAt as any).toLocaleString()}</span>
+                                <span>Created {formatRelativeTime(d.createdAt as any)}</span>
                               </div>
                             </div>
                             <DropdownMenu>
@@ -435,9 +454,9 @@ export default function MultiplayerRationaleIndexPage() {
                                     <Avatar className="h-6 w-6"><AvatarFallback>{((d as any).ownerUsername || ownerId || 'U').slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>
                                     <span className="">{(d as any).ownerUsername || ownerId || '—'}</span>
                                     <span className="text-stone-400">•</span>
-                                    <span>{lastOpenAt ? `Opened ${lastOpenAt.toLocaleString()}` : updatedAt ? `Updated ${updatedAt.toLocaleString()}` : ''}</span>
+                                    <span>{lastOpenAt ? `Opened ${formatRelativeTime(lastOpenAt)}` : updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : ''}</span>
                                     <span className="text-stone-400">•</span>
-                                    <span>Created {new Date(d.createdAt as any).toLocaleString()}</span>
+                                    <span>Created {formatRelativeTime(d.createdAt as any)}</span>
                                   </div>
                                 </div>
                                 <DropdownMenu>
