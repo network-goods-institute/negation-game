@@ -239,8 +239,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       // Prevent page scroll; pan viewport instead
       event.preventDefault();
 
-      pendingWheelDeltaRef.current.x += event.deltaX;
-      pendingWheelDeltaRef.current.y += event.deltaY;
+      // Reverse deltas for natural trackpad scrolling direction
+      pendingWheelDeltaRef.current.x += -event.deltaX;
+      pendingWheelDeltaRef.current.y += -event.deltaY;
 
       if (wheelUpdateRef.current !== null) {
         cancelAnimationFrame(wheelUpdateRef.current);
