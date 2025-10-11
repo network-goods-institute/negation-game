@@ -76,45 +76,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const activeEdgeTone = isSupportEdge ? "text-emerald-600" : isNegationEdge ? "text-rose-600" : "text-stone-500";
 
 
-  const wheelUpdateRef = React.useRef<number | null>(null);
-  const pendingWheelDeltaRef = React.useRef({ x: 0, y: 0 });
-
-  const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-    if (!reactFlow) return;
-
-    // Treat two-finger trackpad scroll as pan; ignore pinch zoom
-    if (event.ctrlKey || event.metaKey) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    // Accumulate deltas
-    pendingWheelDeltaRef.current.x += event.deltaX;
-    pendingWheelDeltaRef.current.y += event.deltaY;
-
-    // Cancel any pending update
-    if (wheelUpdateRef.current !== null) {
-      cancelAnimationFrame(wheelUpdateRef.current);
-    }
-
-    // Batch updates with RAF
-    wheelUpdateRef.current = requestAnimationFrame(() => {
-      const viewport = reactFlow.getViewport?.();
-      if (!viewport) return;
-
-      const nextViewport = {
-        x: viewport.x + pendingWheelDeltaRef.current.x,
-        y: viewport.y + pendingWheelDeltaRef.current.y,
-        zoom: viewport.zoom,
-      };
-
-      reactFlow.setViewport?.(nextViewport, { duration: 0 });
-
-      // Reset deltas
-      pendingWheelDeltaRef.current = { x: 0, y: 0 };
-      wheelUpdateRef.current = null;
-    });
-  }, [reactFlow]);
+  
 
   const [isSpacePressed, setIsSpacePressed] = React.useState(false);
   const panSessionRef = React.useRef<{
@@ -163,9 +125,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   // Cleanup on unmount
   React.useEffect(() => {
     return () => {
-      if (wheelUpdateRef.current !== null) {
-        cancelAnimationFrame(wheelUpdateRef.current);
-      }
       if (pointerUpdateRef.current !== null) {
         cancelAnimationFrame(pointerUpdateRef.current);
       }
@@ -348,7 +307,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
               onMouseLeave={() => {
                 setIsTooltipHovered(false);
               }}
-              onWheelCapture={handleWheelCapture}
               onPointerDown={handlePersistencePointerDown}
               onPointerMove={handlePersistencePointerMove}
               onPointerUp={handlePersistencePointerUp}
