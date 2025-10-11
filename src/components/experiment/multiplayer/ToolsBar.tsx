@@ -249,6 +249,52 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
                     </div>
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-stone-600">Node Duplication</div>
+                  <div className="grid grid-cols-1 gap-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Copy node</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⌘C / Ctrl+C</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Paste node</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⌘V / Ctrl+V</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Duplicate while dragging</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Alt + Drag</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-stone-600">Advanced Navigation</div>
+                  <div className="grid grid-cols-1 gap-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Pan canvas (WASD)</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">W A S D</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pan canvas (Arrows)</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">↑ ↓ ← →</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Temporary hand mode</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Space (hold)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-stone-600">Text Editing</div>
+                  <div className="grid grid-cols-1 gap-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>New line in node</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⇧ Enter</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </TooltipContent>
           </Tooltip>
