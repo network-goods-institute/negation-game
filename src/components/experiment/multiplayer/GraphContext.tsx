@@ -35,6 +35,7 @@ type GraphActions = {
     unlockNode?: (nodeId: string) => void;
     isLockedForMe?: (nodeId: string) => boolean;
     getLockOwner?: (nodeId: string) => { name: string; color: string; kind: 'edit' | 'drag' } | null;
+    markNodeActive?: (nodeId: string) => void;
     proxyMode?: boolean;
     undo?: () => void;
     redo?: () => void;
@@ -99,6 +100,7 @@ export const useGraphActions = () => {
             unlockNode: () => { },
             isLockedForMe: () => false,
             getLockOwner: () => null,
+            markNodeActive: () => { },
             proxyMode: false,
             undo: () => { },
             redo: () => { },

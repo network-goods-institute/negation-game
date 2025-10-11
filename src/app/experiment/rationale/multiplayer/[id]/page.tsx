@@ -220,7 +220,7 @@ export default function MultiplayerBoardDetailPage() {
     const broadcastLocks = true;
 
     const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite, broadcastCursor });
-    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite, broadcastLocks });
+    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite, broadcastLocks });
 
     const { preferredEdgeTypeRef, updateEdgeType } = useEdgeTypeManager({
         nodes,
@@ -513,6 +513,7 @@ export default function MultiplayerBoardDetailPage() {
                         ensureEdgeAnchor,
                         lockNode,
                         unlockNode,
+                        markNodeActive,
                         proxyMode: !canWrite,
                         undo,
                         redo,

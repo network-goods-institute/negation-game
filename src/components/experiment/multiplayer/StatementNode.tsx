@@ -9,6 +9,7 @@ import { useNodeChrome } from './common/useNodeChrome';
 import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
+import { LockIndicator } from './common/LockIndicator';
 
 interface StatementNodeProps {
   id: string;
@@ -155,15 +156,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
         } as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-blue-600 opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
       >
-        {locked && (
-          <div className="pointer-events-none">
-            <div className="absolute -top-2 -right-2 z-20" title={lockOwner ? `Locked by ${lockOwner.name}` : 'Locked'}>
-              <div className="h-6 w-6 rounded-full bg-rose-600 border-2 border-white text-white shadow flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm-3 8V7a3 3 0 116 0v3H9z" /></svg>
-              </div>
-            </div>
-          </div>
-        )}
+        <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
         {isConnectingFromNodeId === id && (
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
         )}
