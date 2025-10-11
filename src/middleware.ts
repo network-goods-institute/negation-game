@@ -96,9 +96,9 @@ function handleSubdomain(
     }
     const boardMatch = path.match(/^\/board\/([^/]+)\/?$/);
     if (boardMatch) {
-      const id = boardMatch[1];
+      const idOrSlug = boardMatch[1];
       const dest = new URL(
-        `/experiment/rationale/multiplayer/${encodeURIComponent(id)}`,
+        `/experiment/rationale/multiplayer/${encodeURIComponent(idOrSlug)}`,
         req.url
       );
       url.searchParams.forEach((value, key) => {

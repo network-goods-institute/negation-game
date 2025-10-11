@@ -8,7 +8,6 @@ import { usePrivy } from '@privy-io/react-auth';
 import { userQueryKey } from '@/queries/users/useUser';
 import { useQueryClient } from '@tanstack/react-query';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { AuthGate } from '@/components/auth/AuthGate';
 import { useUserColor } from '@/hooks/experiment/multiplayer/useUserColor';
 import { useKeyboardShortcuts } from '@/hooks/experiment/multiplayer/useKeyboardShortcuts';
 import { useInitialGraph } from '@/hooks/experiment/multiplayer/useInitialGraph';
@@ -92,10 +91,37 @@ export default function MultiplayerBoardDetailPage() {
 
     const userColor = useUserColor(userId);
 
+    const [resolvedId, setResolvedId] = useState<string | null>(null);
+    useEffect(() => {
+        const raw = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
+        if (!raw) return;
+        // Resolve slug to id if needed
+        (async () => {
+            try {
+                const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(raw)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.id) {
+                        setResolvedId(data.id);
+                    } else {
+                        console.error('[Slug Resolution] API returned invalid data:', data);
+                        setResolvedId(raw);
+                    }
+                } else {
+                    console.error('[Slug Resolution] API request failed:', res.status, res.statusText);
+                    setResolvedId(raw);
+                }
+            } catch (err) {
+                console.error('[Slug Resolution] Failed to resolve slug:', err);
+                setResolvedId(raw);
+            }
+        })();
+    }, [routeParams?.id]);
+
     const roomName = useMemo(() => {
-        const id = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
-        return `rationale:${id}`;
-    }, [routeParams]);
+        const idPart = resolvedId || '';
+        return `rationale:${idPart}`;
+    }, [resolvedId]);
 
     const {
         nodes,
@@ -126,15 +152,14 @@ export default function MultiplayerBoardDetailPage() {
         roomName,
         initialNodes: initialGraph?.nodes || [],
         initialEdges: initialGraph?.edges || [],
-        enabled: ready && Boolean(initialGraph), // Allow unauthenticated access
+        enabled: ready && Boolean(initialGraph) && Boolean(resolvedId),
         localOrigin: localOriginRef.current,
     });
 
     useEffect(() => {
-        if (!routeParams?.id || !authenticated) return;
-        const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
-        recordOpen(rid).catch(() => { });
-    }, [routeParams?.id, authenticated]);
+        if (!resolvedId || !authenticated) return;
+        recordOpen(resolvedId).catch(() => { });
+    }, [resolvedId, authenticated]);
 
     const {
         dbTitle,
@@ -426,7 +451,7 @@ export default function MultiplayerBoardDetailPage() {
                     proxyMode={!canWrite}
                     userId={userId}
                     title={dbTitle || 'Untitled'}
-                    documentId={typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '')}
+                    documentId={resolvedId || ''}
                     onTitleChange={handleTitleChange}
                     onTitleEditingStart={handleTitleEditingStart}
                     onTitleEditingStop={handleTitleEditingStop}

@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
+import { generateUniqueSlug } from "@/utils/slugify";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,13 +17,18 @@ export async function GET(_req: Request, ctx: any) {
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) {
-    return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
+
+  if (!isValidSlugOrId(id)) {
+    return NextResponse.json(
+      { error: "Invalid doc id or slug" },
+      { status: 400 }
+    );
   }
+
   const rows = await db
     .select()
     .from(mpDocsTable)
-    .where(eq(mpDocsTable.id, id))
+    .where(or(eq(mpDocsTable.id, id), eq(mpDocsTable.slug, id)))
     .limit(1);
   const doc = rows[0] as any;
   if (!doc) return NextResponse.json({ id, title: null, ownerId: null });
@@ -29,6 +36,7 @@ export async function GET(_req: Request, ctx: any) {
     id: doc.id,
     title: doc.title || null,
     ownerId: doc.ownerId || null,
+    slug: doc.slug || null,
   });
 }
 
@@ -46,15 +54,21 @@ export async function DELETE(_req: Request, ctx: any) {
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
 
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) {
-    return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
+  if (!isValidSlugOrId(id)) {
+    return NextResponse.json(
+      { error: "Invalid doc id or slug" },
+      { status: 400 }
+    );
   }
+
+  // Resolve slug to canonical id if needed
+  const canonicalId = await resolveSlugToId(id);
 
   try {
     const ownerRow = await db
       .select({ ownerId: mpDocsTable.ownerId })
       .from(mpDocsTable)
-      .where(eq(mpDocsTable.id, id))
+      .where(eq(mpDocsTable.id, canonicalId))
       .limit(1);
     if (ownerRow.length === 0)
       return NextResponse.json(
@@ -66,15 +80,17 @@ export async function DELETE(_req: Request, ctx: any) {
       await db
         .update(mpDocsTable)
         .set({ ownerId: userId })
-        .where(eq(mpDocsTable.id, id));
+        .where(eq(mpDocsTable.id, canonicalId));
     }
     if (ownerId !== userId)
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     // Delete all updates first
-    await db.delete(mpDocUpdatesTable).where(eq(mpDocUpdatesTable.docId, id));
+    await db
+      .delete(mpDocUpdatesTable)
+      .where(eq(mpDocUpdatesTable.docId, canonicalId));
 
     // Delete the document
-    await db.delete(mpDocsTable).where(eq(mpDocsTable.id, id));
+    await db.delete(mpDocsTable).where(eq(mpDocsTable.id, canonicalId));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -94,9 +110,16 @@ export async function PATCH(req: Request, ctx: any) {
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) {
-    return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
+
+  if (!isValidSlugOrId(id)) {
+    return NextResponse.json(
+      { error: "Invalid doc id or slug" },
+      { status: 400 }
+    );
   }
+
+  const canonicalId = await resolveSlugToId(id);
+
   let json: any = null;
   try {
     json = await req.json();
@@ -105,30 +128,71 @@ export async function PATCH(req: Request, ctx: any) {
   try {
     await db
       .insert(mpDocsTable)
-      .values({ id, ownerId: userId || null })
+      .values({ id: canonicalId, ownerId: userId || null })
       .onConflictDoNothing();
-    const ownerRows = await db
-      .select({ ownerId: mpDocsTable.ownerId })
+    const docRows = await db
+      .select({ ownerId: mpDocsTable.ownerId, title: mpDocsTable.title })
       .from(mpDocsTable)
-      .where(eq(mpDocsTable.id, id))
+      .where(eq(mpDocsTable.id, canonicalId))
       .limit(1);
-    if (ownerRows.length === 0)
+    if (docRows.length === 0)
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
       );
-    const currentOwner = ownerRows[0].ownerId || "connormcmk";
-    if (!ownerRows[0].ownerId) {
+    const currentOwner = docRows[0].ownerId || "connormcmk";
+    if (!docRows[0].ownerId) {
       await db
         .update(mpDocsTable)
         .set({ ownerId: userId })
-        .where(eq(mpDocsTable.id, id));
+        .where(eq(mpDocsTable.id, canonicalId));
     }
-    if (title) {
+    if (title && title !== docRows[0].title) {
+      const exists = async (slug: string) => {
+        const rows = await db
+          .select({ id: mpDocsTable.id })
+          .from(mpDocsTable)
+          .where(eq(mpDocsTable.slug, slug))
+          .limit(1);
+        return rows.length > 0;
+      };
+
+      let attempts = 0;
+      const maxAttempts = 5;
+      let success = false;
+
+      while (attempts < maxAttempts && !success) {
+        try {
+          const slug = await generateUniqueSlug(title, exists);
+          await db
+            .update(mpDocsTable)
+            .set({ title, slug, updatedAt: new Date() })
+            .where(eq(mpDocsTable.id, canonicalId));
+          success = true;
+        } catch (err: any) {
+          if (err?.code === "23505" || err?.message?.includes("unique")) {
+            attempts++;
+            if (attempts >= maxAttempts) {
+              console.error(
+                `[Slug Update] Failed after ${maxAttempts} attempts for doc ${canonicalId}:`,
+                err
+              );
+              await db
+                .update(mpDocsTable)
+                .set({ title, updatedAt: new Date() })
+                .where(eq(mpDocsTable.id, canonicalId));
+              success = true;
+            }
+          } else {
+            throw err;
+          }
+        }
+      }
+    } else if (title) {
       await db
         .update(mpDocsTable)
         .set({ title, updatedAt: new Date() })
-        .where(eq(mpDocsTable.id, id));
+        .where(eq(mpDocsTable.id, canonicalId));
     }
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -16,6 +16,13 @@ jest.mock("@/services/db", () => ({
   db: mockDb,
 }));
 
+jest.mock("@/utils/slugify", () => ({
+  generateUniqueSlug: jest.fn(
+    async (title: string) =>
+      (title || "").trim().toLowerCase().replace(/\s+/g, "-") || "board"
+  ),
+}));
+
 const chainInsert = () => {
   const chain: any = {
     values: jest.fn(() => chain),
@@ -136,6 +143,12 @@ describe("rationales actions", () => {
 
   it("createRationale returns id and default title", async () => {
     mockDb.insert.mockReturnValue(chainInsert());
+    mockDb.update = jest.fn(() => ({
+      where: jest.fn(() => Promise.resolve()),
+    }));
+    mockDb.select = jest.fn(() => ({
+      from: () => ({ where: () => ({ limit: async () => [] }) }),
+    }));
     const { createRationale } = await import(
       "@/actions/experimental/rationales"
     );

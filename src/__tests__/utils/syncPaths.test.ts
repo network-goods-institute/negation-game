@@ -37,6 +37,11 @@ describe("syncPaths helpers", () => {
         "/board/a%20b%2Fc"
       );
     });
+
+    it("accepts slug as well as id", () => {
+      expect(
+        buildRationaleDetailPath("my-board", "sync.negationgame.com")
+      ).toBe("/board/my-board");
+    });
   });
 });
-

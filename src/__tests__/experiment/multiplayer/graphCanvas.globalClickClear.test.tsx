@@ -54,6 +54,7 @@ describe('GraphCanvas global click clearing', () => {
           panOnScroll={true}
           zoomOnScroll={false}
           selectMode={true}
+          blurAllNodes={0}
         />
       </GraphProvider>
     );

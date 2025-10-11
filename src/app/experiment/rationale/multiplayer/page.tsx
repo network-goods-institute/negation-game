@@ -278,6 +278,7 @@ export default function MultiplayerRationaleIndexPage() {
                     })
                     .map((d) => {
                       const title = (d.title || 'Untitled').trim() || 'Untitled';
+                      const idOrSlug = (d as any).slug || d.id;
                       const ownerId = (d as any).ownerId || '';
                       const lastOpenAt = d.lastOpenAt ? new Date(d.lastOpenAt as any) : null;
                       const updatedAt = d.updatedAt ? new Date(d.updatedAt as any) : null;
@@ -292,7 +293,7 @@ export default function MultiplayerRationaleIndexPage() {
                             try {
                               try { await recordOpen(d.id); } catch { }
                               const host = typeof window !== 'undefined' ? window.location.host : '';
-                              router.push(buildRationaleDetailPath(d.id, host));
+                              router.push(buildRationaleDetailPath(idOrSlug, host));
                             } catch (e: any) {
                               const msg = (e?.message || '').toLowerCase();
                               if (msg.includes('unauthorized')) { toast.error('Session expired. Please log in again.'); try { (login as any)?.(); } catch { } }
@@ -306,7 +307,7 @@ export default function MultiplayerRationaleIndexPage() {
                           )}
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(d.id, host); })()} className="text-base font-medium text-blue-600 hover:underline">
+                              <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(idOrSlug, host); })()} className="text-base font-medium text-blue-600 hover:underline">
                                 {title}
                               </Link>
                               <div className="mt-2 flex items-center gap-2 text-xs text-stone-600">
@@ -327,7 +328,7 @@ export default function MultiplayerRationaleIndexPage() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const host = typeof window !== 'undefined' ? window.location.host : '';
-                                    const url = buildRationaleDetailPath(d.id, host);
+                                    const url = buildRationaleDetailPath(idOrSlug, host);
                                     const fullUrl = `${window.location.protocol}//${host}${url}`;
                                     handleCopyUrl(fullUrl);
                                   }}
@@ -398,6 +399,7 @@ export default function MultiplayerRationaleIndexPage() {
                         })
                         .map((d) => {
                           const title = (d.title || 'Untitled').trim() || 'Untitled';
+                          const idOrSlug = (d as any).slug || d.id;
                           const ownerId = (d as any).ownerId || '';
                           const lastOpenAt = d.lastOpenAt ? new Date(d.lastOpenAt as any) : null;
                           const updatedAt = d.updatedAt ? new Date(d.updatedAt as any) : null;
@@ -412,7 +414,7 @@ export default function MultiplayerRationaleIndexPage() {
                                 try {
                                   try { await recordOpen(d.id); } catch { }
                                   const host = typeof window !== 'undefined' ? window.location.host : '';
-                                  router.push(buildRationaleDetailPath(d.id, host));
+                                  router.push(buildRationaleDetailPath(idOrSlug, host));
                                 } catch (e: any) {
                                   const msg = (e?.message || '').toLowerCase();
                                   if (msg.includes('unauthorized')) { toast.error('Session expired. Please log in again.'); try { (login as any)?.(); } catch { } }
@@ -426,7 +428,7 @@ export default function MultiplayerRationaleIndexPage() {
                               )}
                               <div className="flex items-start justify-between gap-2">
                                 <div>
-                                  <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(d.id, host); })()} className="text-base font-medium text-blue-600 hover:underline">
+                                  <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(idOrSlug, host); })()} className="text-base font-medium text-blue-600 hover:underline">
                                     {title}
                                   </Link>
                                   <div className="mt-2 flex items-center gap-2 text-xs text-stone-600">
@@ -447,7 +449,7 @@ export default function MultiplayerRationaleIndexPage() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         const host = typeof window !== 'undefined' ? window.location.host : '';
-                                        const url = buildRationaleDetailPath(d.id, host);
+                                        const url = buildRationaleDetailPath(idOrSlug, host);
                                         const fullUrl = `${window.location.protocol}//${host}${url}`;
                                         handleCopyUrl(fullUrl);
                                       }}

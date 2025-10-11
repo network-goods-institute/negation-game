@@ -54,6 +54,7 @@ describe('GraphCanvas selection clearing', () => {
           panOnScroll={true}
           zoomOnScroll={false}
           selectMode={true}
+          blurAllNodes={0}
         />
       </GraphProvider>
     );

@@ -23,7 +23,9 @@ describe("GET /api/experimental/rationales/[id]", () => {
     mockDb.select.mockImplementation(() => ({
       from: () => ({
         where: () => ({
-          limit: async () => [{ id: "doc1", title: "T", ownerId: "me" }],
+          limit: async () => [
+            { id: "doc1", title: "T", ownerId: "me", slug: "t" },
+          ],
         }),
       }),
     }));

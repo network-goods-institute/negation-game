@@ -2,19 +2,20 @@ export const isSyncHost = (host: string | undefined | null): boolean => {
   if (!host) return false;
   const h = host.toLowerCase();
   const withoutPort = h.split(":")[0];
-  return withoutPort === "sync.negationgame.com" || withoutPort.startsWith("sync.");
+  return (
+    withoutPort === "sync.negationgame.com" || withoutPort.startsWith("sync.")
+  );
 };
 
 export const buildRationaleDetailPath = (
-  id: string,
+  idOrSlug: string,
   host?: string | null
 ): string => {
-  return isSyncHost(host) ? `/board/${encodeURIComponent(id)}` : `/experiment/rationale/multiplayer/${encodeURIComponent(id)}`;
+  return isSyncHost(host)
+    ? `/board/${encodeURIComponent(idOrSlug)}`
+    : `/experiment/rationale/multiplayer/${encodeURIComponent(idOrSlug)}`;
 };
 
-export const buildRationaleIndexPath = (
-  host?: string | null
-): string => {
+export const buildRationaleIndexPath = (host?: string | null): string => {
   return isSyncHost(host) ? "/" : "/experiment/rationale/multiplayer";
 };
-
