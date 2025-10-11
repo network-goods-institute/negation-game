@@ -128,32 +128,6 @@ export const OffscreenNeighborPreviews: React.FC<OffscreenNeighborPreviewsProps>
         }
       }
 
-      // Find objections to edges involving any of the relevant nodes (including offscreen ones)
-      // This ensures objections to offscreen connections are also shown in previews
-      const allRelevantNodes = Array.from(relevantIds);
-      for (const nodeId of allRelevantNodes) {
-        // Find all edges involving this node
-        const nodeEdges = edges.filter(e => e.source === nodeId || e.target === nodeId);
-        for (const edge of nodeEdges) {
-          // Skip objection edges themselves
-          if ((edge as any).type === 'objection') continue;
-
-          // Find anchors for this edge
-          const edgeAnchors = nodes.filter(n => (n as any).type === 'edge_anchor' && ((n as any).data?.parentEdgeId) === (edge as any).id);
-          for (const anchor of edgeAnchors) {
-            // Find objections connected to this anchor
-            const objectionEdges = edges.filter(oe => (oe as any).type === 'objection' && oe.target === anchor.id);
-            for (const objEdge of objectionEdges) {
-              const objectionNodeId = objEdge.source as string;
-              const objectionNode = nodeById[objectionNodeId];
-              if (objectionNode && (objectionNode as any).type === 'objection') {
-                relevantIds.add(objectionNodeId);
-              }
-            }
-          }
-        }
-      }
-
       const allRelevantIds = relevantIds;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
