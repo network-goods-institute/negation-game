@@ -1,0 +1,1 @@
+ALTER TABLE "mp_docs" DROP CONSTRAINT "mp_docs_slug_unique";

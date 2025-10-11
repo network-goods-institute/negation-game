@@ -7,7 +7,7 @@ import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { generateUniqueSlug } from "@/utils/slugify";
+import { slugify } from "@/utils/slugify";
 import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 
 const DEFAULT_OWNER = "connormcmk";
@@ -192,6 +192,7 @@ export async function createRationale(params?: {
   const id = params?.id || `m-${nanoid()}`;
   const title = (params?.title || DEFAULT_TITLE).trim() || DEFAULT_TITLE;
 
+  let createdSlug: string | null = null;
   await db.transaction(async (tx) => {
     await tx
       .insert(mpDocsTable)
@@ -202,16 +203,9 @@ export async function createRationale(params?: {
       .values({ docId: id, userId })
       .onConflictDoNothing();
     try {
-      const exists = async (slug: string) => {
-        const rows = await tx
-          .select({ id: mpDocsTable.id })
-          .from(mpDocsTable)
-          .where(eq(mpDocsTable.slug, slug))
-          .limit(1);
-        return rows.length > 0;
-      };
-      const slug = await generateUniqueSlug(title, exists);
+      const slug = slugify(title);
       await tx.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
+      createdSlug = slug;
     } catch (err) {
       console.error(
         "[Create Rationale] Failed to generate slug for doc %s:",
@@ -223,7 +217,7 @@ export async function createRationale(params?: {
 
   await new Promise((resolve) => setTimeout(resolve, 100));
 
-  return { id, title };
+  return { id, title, slug: createdSlug };
 }
 
 export async function renameRationale(id: string, title: string) {
@@ -264,22 +258,14 @@ export async function renameRationale(id: string, title: string) {
 
   while (attempts < maxAttempts && !slugUpdated) {
     try {
-      const exists = async (slug: string) => {
-        const rows = await db
-          .select({ id: mpDocsTable.id })
-          .from(mpDocsTable)
-          .where(eq(mpDocsTable.slug, slug))
-          .limit(1);
-        return rows.length > 0;
-      };
-      const slug = await generateUniqueSlug(t, exists);
+      const slug = slugify(t);
       await db
         .update(mpDocsTable)
         .set({ slug })
         .where(eq(mpDocsTable.id, canonicalId));
       slugUpdated = true;
     } catch (err: any) {
-      if (err?.code === "23505" || err?.message?.includes("unique")) {
+      if (false) {
         attempts++;
         if (attempts >= maxAttempts) {
           console.error(

@@ -4,7 +4,7 @@ import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { eq, or } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
-import { generateUniqueSlug } from "@/utils/slugify";
+import { slugify } from "@/utils/slugify";
 import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 
 export const runtime = "nodejs";
@@ -25,10 +25,12 @@ export async function GET(_req: Request, ctx: any) {
     );
   }
 
+  // Support combined slug_id ("slug_m-123"): try to resolve via helper first
+  const canonicalId = await resolveSlugToId(id);
   const rows = await db
     .select()
     .from(mpDocsTable)
-    .where(or(eq(mpDocsTable.id, id), eq(mpDocsTable.slug, id)))
+    .where(or(eq(mpDocsTable.id, canonicalId), eq(mpDocsTable.slug, id)))
     .limit(1);
   const doc = rows[0] as any;
   if (!doc) return NextResponse.json({ id, title: null, ownerId: null });
@@ -148,46 +150,11 @@ export async function PATCH(req: Request, ctx: any) {
         .where(eq(mpDocsTable.id, canonicalId));
     }
     if (title && title !== docRows[0].title) {
-      const exists = async (slug: string) => {
-        const rows = await db
-          .select({ id: mpDocsTable.id })
-          .from(mpDocsTable)
-          .where(eq(mpDocsTable.slug, slug))
-          .limit(1);
-        return rows.length > 0;
-      };
-
-      let attempts = 0;
-      const maxAttempts = 5;
-      let success = false;
-
-      while (attempts < maxAttempts && !success) {
-        try {
-          const slug = await generateUniqueSlug(title, exists);
-          await db
-            .update(mpDocsTable)
-            .set({ title, slug, updatedAt: new Date() })
-            .where(eq(mpDocsTable.id, canonicalId));
-          success = true;
-        } catch (err: any) {
-          if (err?.code === "23505" || err?.message?.includes("unique")) {
-            attempts++;
-            if (attempts >= maxAttempts) {
-              console.error(
-                `[Slug Update] Failed after ${maxAttempts} attempts for doc ${canonicalId}:`,
-                err
-              );
-              await db
-                .update(mpDocsTable)
-                .set({ title, updatedAt: new Date() })
-                .where(eq(mpDocsTable.id, canonicalId));
-              success = true;
-            }
-          } else {
-            throw err;
-          }
-        }
-      }
+      const newSlug = slugify(title);
+      await db
+        .update(mpDocsTable)
+        .set({ title, slug: newSlug, updatedAt: new Date() })
+        .where(eq(mpDocsTable.id, canonicalId));
     } else if (title) {
       await db
         .update(mpDocsTable)

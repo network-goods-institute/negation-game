@@ -38,10 +38,16 @@ describe("syncPaths helpers", () => {
       );
     });
 
-    it("accepts slug as well as id", () => {
+    it("combines slug and id into one segment when provided (sync)", () => {
       expect(
-        buildRationaleDetailPath("my-board", "sync.negationgame.com")
-      ).toBe("/board/my-board");
+        buildRationaleDetailPath("m-123", "sync.negationgame.com", "my-board")
+      ).toBe("/board/my-board_m-123");
+    });
+
+    it("encodes slug in combined segment (non-sync)", () => {
+      expect(
+        buildRationaleDetailPath("m-123", "play.negationgame.com", "a b/c")
+      ).toBe("/experiment/rationale/multiplayer/a%20b%2Fc_m-123");
     });
   });
 });

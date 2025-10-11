@@ -8,12 +8,18 @@ export const isSyncHost = (host: string | undefined | null): boolean => {
 };
 
 export const buildRationaleDetailPath = (
-  idOrSlug: string,
-  host?: string | null
+  id: string,
+  host?: string | null,
+  slug?: string | null
 ): string => {
+  // Use a single combined path segment in the form `${slug}_${id}` when slug is present,
+  // otherwise fall back to just `id`.
+  const idPart = encodeURIComponent(id);
+  const combined =
+    slug && slug.trim() ? `${encodeURIComponent(slug)}` + "_" + idPart : idPart;
   return isSyncHost(host)
-    ? `/board/${encodeURIComponent(idOrSlug)}`
-    : `/experiment/rationale/multiplayer/${encodeURIComponent(idOrSlug)}`;
+    ? `/board/${combined}`
+    : `/experiment/rationale/multiplayer/${combined}`;
 };
 
 export const buildRationaleIndexPath = (host?: string | null): string => {

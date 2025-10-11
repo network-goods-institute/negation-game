@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ReactFlowProvider, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { usePrivy } from '@privy-io/react-auth';
@@ -38,11 +38,13 @@ import { toast } from 'sonner';
 import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
 import { PerfProvider } from '@/components/experiment/multiplayer/PerformanceContext';
+import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
 export default function MultiplayerBoardDetailPage() {
     const routeParams = useParams<{ id: string }>();
+    const router = useRouter();
     const { authenticated, ready, login, user: privyUser } = usePrivy();
 
     const {
@@ -92,6 +94,7 @@ export default function MultiplayerBoardDetailPage() {
     const userColor = useUserColor(userId);
 
     const [resolvedId, setResolvedId] = useState<string | null>(null);
+    const [resolvedSlug, setResolvedSlug] = useState<string | null>(null);
     useEffect(() => {
         const raw = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
         if (!raw) return;
@@ -103,6 +106,15 @@ export default function MultiplayerBoardDetailPage() {
                     const data = await res.json();
                     if (data && data.id) {
                         setResolvedId(data.id);
+                        setResolvedSlug(data.slug || null);
+                        try {
+                            const host = typeof window !== 'undefined' ? window.location.host : '';
+                            const canonical = buildRationaleDetailPath(data.id, host, data.slug || undefined);
+                            const current = typeof window !== 'undefined' ? window.location.pathname : '';
+                            if (canonical && current && canonical !== current) {
+                                router.replace(canonical);
+                            }
+                        } catch {}
                     } else {
                         console.error('[Slug Resolution] API returned invalid data:', data);
                         setResolvedId(raw);
@@ -116,7 +128,7 @@ export default function MultiplayerBoardDetailPage() {
                 setResolvedId(raw);
             }
         })();
-    }, [routeParams?.id]);
+    }, [routeParams?.id, router]);
 
     const roomName = useMemo(() => {
         const idPart = resolvedId || '';

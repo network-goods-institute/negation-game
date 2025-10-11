@@ -17,8 +17,8 @@ jest.mock("@/services/db", () => ({
 }));
 
 jest.mock("@/utils/slugify", () => ({
-  generateUniqueSlug: jest.fn(
-    async (title: string) =>
+  slugify: jest.fn(
+    (title: string) =>
       (title || "").trim().toLowerCase().replace(/\s+/g, "-") || "board"
   ),
 }));

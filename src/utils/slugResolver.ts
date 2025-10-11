@@ -13,6 +13,26 @@ import { eq, or } from "drizzle-orm";
 export async function resolveSlugToId(idOrSlug: string): Promise<string> {
   if (!idOrSlug) return idOrSlug;
 
+  // Support combined slug_id format (e.g., "my-board_m-123").
+  // We extract the trailing id after the last underscore if it looks like an id.
+  // Otherwise, we try full-string match against id or slug.
+  // Prefer parsing a trailing `_m-...` pattern to avoid ambiguity when ids contain underscores
+  const mIdx = idOrSlug.lastIndexOf("_m-");
+  if (mIdx >= 0) {
+    const candidateId = idOrSlug.slice(mIdx + 1);
+    // quick path: if candidateId exists as an id, return it
+    try {
+      const byId = await db
+        .select({ id: mpDocsTable.id })
+        .from(mpDocsTable)
+        .where(eq(mpDocsTable.id, candidateId))
+        .limit(1);
+      if (byId.length === 1) {
+        return byId[0].id;
+      }
+    } catch {}
+  }
+
   try {
     const rows = await db
       .select({ id: mpDocsTable.id })
