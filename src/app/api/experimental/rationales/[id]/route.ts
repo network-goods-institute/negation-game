@@ -4,6 +4,7 @@ import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { eq, or } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
+import { generateUniqueSlug } from "@/utils/slugify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -108,24 +109,38 @@ export async function PATCH(req: Request, ctx: any) {
       .insert(mpDocsTable)
       .values({ id, ownerId: userId || null })
       .onConflictDoNothing();
-    const ownerRows = await db
-      .select({ ownerId: mpDocsTable.ownerId })
+    const docRows = await db
+      .select({ ownerId: mpDocsTable.ownerId, title: mpDocsTable.title })
       .from(mpDocsTable)
       .where(eq(mpDocsTable.id, id))
       .limit(1);
-    if (ownerRows.length === 0)
+    if (docRows.length === 0)
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
       );
-    const currentOwner = ownerRows[0].ownerId || "connormcmk";
-    if (!ownerRows[0].ownerId) {
+    const currentOwner = docRows[0].ownerId || "connormcmk";
+    if (!docRows[0].ownerId) {
       await db
         .update(mpDocsTable)
         .set({ ownerId: userId })
         .where(eq(mpDocsTable.id, id));
     }
-    if (title) {
+    if (title && title !== docRows[0].title) {
+      const exists = async (slug: string) => {
+        const rows = await db
+          .select({ id: mpDocsTable.id })
+          .from(mpDocsTable)
+          .where(eq(mpDocsTable.slug, slug))
+          .limit(1);
+        return rows.length > 0;
+      };
+      const slug = await generateUniqueSlug(title, exists);
+      await db
+        .update(mpDocsTable)
+        .set({ title, slug, updatedAt: new Date() })
+        .where(eq(mpDocsTable.id, id));
+    } else if (title) {
       await db
         .update(mpDocsTable)
         .set({ title, updatedAt: new Date() })
