@@ -157,16 +157,6 @@ export default function MultiplayerRationaleIndexPage() {
   useEffect(() => { if (ready && authenticated) { load(); } }, [ready, authenticated]);
 
 
-  if (!ready) {
-    return (
-      <div className="fixed inset-0 top-16 bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-sync border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!authenticated) {
     return (
@@ -192,7 +182,7 @@ export default function MultiplayerRationaleIndexPage() {
             </div>
             <Button onClick={handleCreate} disabled={creating} aria-busy={creating} className="h-9 px-4 bg-sync hover:bg-sync-hover text-white">
               {creating ? (
-                <span className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               ) : (
                 "New Board"
               )}
@@ -322,7 +312,7 @@ export default function MultiplayerRationaleIndexPage() {
                           role="button"
                         >
                           {openingId === d.id && (
-                            <div className="absolute top-3 right-3 h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            <div className="absolute top-3 right-3 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                           )}
                           <div className="flex items-start justify-between gap-2">
                             <div>
@@ -443,7 +433,7 @@ export default function MultiplayerRationaleIndexPage() {
                               role="button"
                             >
                               {openingId === d.id && (
-                                <div className="absolute top-3 right-3 h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                <div className="absolute top-3 right-3 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                               )}
                               <div className="flex items-start justify-between gap-2">
                                 <div>
