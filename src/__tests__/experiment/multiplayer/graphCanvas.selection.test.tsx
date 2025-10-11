@@ -41,10 +41,10 @@ describe('GraphCanvas selection clearing', () => {
           nodes={[] as any}
           edges={[] as any}
           authenticated={true}
-          onNodesChange={() => {}}
-          onEdgesChange={() => {}}
-          onConnect={() => {}}
-          onNodeClick={() => {}}
+          onNodesChange={() => { }}
+          onEdgesChange={() => { }}
+          onConnect={() => { }}
+          onNodeClick={() => { }}
           provider={null as any}
           cursors={new Map()}
           username={'u'}
@@ -53,6 +53,7 @@ describe('GraphCanvas selection clearing', () => {
           panOnDrag={[1]}
           panOnScroll={true}
           zoomOnScroll={false}
+          selectMode={true}
         />
       </GraphProvider>
     );

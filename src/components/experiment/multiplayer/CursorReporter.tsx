@@ -11,9 +11,10 @@ interface CursorReporterProps {
   userColor: string;
   grabMode?: boolean;
   canWrite?: boolean;
+  broadcastCursor?: boolean;
 }
 
-export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, username, userColor, grabMode = false, canWrite = true }) => {
+export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, username, userColor, grabMode = false, canWrite = true, broadcastCursor = true }) => {
   const rf = useReactFlow();
   const isPanning = usePanDetection({ grabMode });
   const latestPointerRef = useRef<{ clientX: number; clientY: number } | null>(null);
@@ -25,7 +26,7 @@ export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, userna
   const IDLE_MS = 30000;
 
   useEffect(() => {
-    if (!provider || !username || !canWrite) return;
+    if (!provider || !username || !broadcastCursor) return;
 
     const cancelScheduled = () => {
       if (pointerRafIdRef.current != null && typeof window !== 'undefined') {
@@ -114,7 +115,7 @@ export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, userna
       latestPointerRef.current = null;
       cancelScheduled();
     };
-  }, [rf, provider, username, userColor, grabMode, isPanning, canWrite]);
+  }, [rf, provider, username, userColor, grabMode, isPanning, broadcastCursor]);
 
   return null;
 };

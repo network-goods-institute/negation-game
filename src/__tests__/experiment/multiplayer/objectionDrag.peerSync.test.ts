@@ -1,5 +1,4 @@
 import * as Y from 'yjs';
-import { createEnsureEdgeAnchor } from '@/utils/experiment/multiplayer/graphOperations';
 
 describe('objection drag peer sync (anchor intact)', () => {
   const makeDoc = () => {
@@ -14,7 +13,7 @@ describe('objection drag peer sync (anchor intact)', () => {
     Y.applyUpdate(to, update);
   };
 
-  it('keeps objection edge targeted at anchor for peers while the objection node moves', () => {
+  it('does not sync anchor nodes; objection edge targets anchor id across peers', () => {
     const A = makeDoc();
     const B = makeDoc();
 
@@ -33,17 +32,13 @@ describe('objection drag peer sync (anchor intact)', () => {
     A.edges.set(baseEdge.id, baseEdge);
     A.edges.set(objEdge.id, objEdge);
 
-    // Ensure anchor exists before drag
-    const ensure = createEnsureEdgeAnchor(A.nodes, A.doc, true, {});
-    ensure(anchorId, baseEdgeId, 100, 0);
-
     // Sync to B
     sync(A.doc, B.doc);
 
-    // Sanity: B sees anchor and objection edge to anchor
+    // Sanity: B sees objection edge referencing anchor id, but no anchor node is synced
     const bAnchor1 = B.nodes.get(anchorId);
     const bObjEdge1 = B.edges.get(objEdge.id);
-    expect(bAnchor1?.id).toBe(anchorId);
+    expect(bAnchor1).toBeUndefined();
     expect(bObjEdge1?.target).toBe(anchorId);
 
     // Drag: move objection node on A
@@ -55,12 +50,10 @@ describe('objection drag peer sync (anchor intact)', () => {
     // Sync delta to B
     sync(A.doc, B.doc);
 
-    // Anchor still exists on B and objection edge still targets it
+    // Anchor still not synced on B; objection edge continues to target anchor id
     const bAnchor2 = B.nodes.get(anchorId);
     const bObjEdge2 = B.edges.get(objEdge.id);
-    expect(bAnchor2?.id).toBe(anchorId);
+    expect(bAnchor2).toBeUndefined();
     expect(bObjEdge2?.target).toBe(anchorId);
-    expect(bAnchor2?.data?.parentEdgeId).toBe(baseEdgeId);
   });
 });
-

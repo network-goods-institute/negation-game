@@ -18,6 +18,7 @@ interface ToolsBarProps {
   readOnly?: boolean;
   grabMode?: boolean;
   setGrabMode?: (v: boolean) => void;
+  selectMode: boolean;
 }
 
 export const ToolsBar: React.FC<ToolsBarProps> = ({
@@ -32,6 +33,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   readOnly,
   grabMode,
   setGrabMode,
+  selectMode,
 }) => {
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
   // Focused (connect) mode UI
@@ -74,7 +76,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
           <ToolbarButton
             label="Select"
             shortcut="V"
-            active={!connectMode && !grabMode}
+            active={selectMode}
             onClick={() => { setConnectMode(false); setConnectAnchorId(null); setGrabMode?.(false); }}
           >
             <PointerIcon className="h-5 w-5" />

@@ -76,25 +76,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const activeEdgeTone = isSupportEdge ? "text-emerald-600" : isNegationEdge ? "text-rose-600" : "text-stone-500";
 
 
-  const handleWheelCapture = React.useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-    if (!reactFlow) return;
-
-    // Treat two-finger trackpad scroll as pan; ignore pinch zoom
-    if (event.ctrlKey || event.metaKey) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const viewport = reactFlow.getViewport?.();
-    if (!viewport) return;
-
-    const nextViewport = {
-      x: viewport.x + event.deltaX,
-      y: viewport.y + event.deltaY,
-      zoom: viewport.zoom,
-    };
-    reactFlow.setViewport?.(nextViewport, { duration: 0 });
-  }, [reactFlow]);
+  
 
   const [isSpacePressed, setIsSpacePressed] = React.useState(false);
   const panSessionRef = React.useRef<{
@@ -103,6 +85,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     lastY: number;
     viewport: { x: number; y: number; zoom: number };
   } | null>(null);
+  const pointerUpdateRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -132,6 +115,20 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   const stopPanSession = React.useCallback(() => {
     panSessionRef.current = null;
+    // Cancel any pending RAF updates
+    if (pointerUpdateRef.current !== null) {
+      cancelAnimationFrame(pointerUpdateRef.current);
+      pointerUpdateRef.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (pointerUpdateRef.current !== null) {
+        cancelAnimationFrame(pointerUpdateRef.current);
+      }
+    };
   }, []);
 
   const handlePersistencePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -194,7 +191,17 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     };
 
     session.viewport = nextViewport;
-    reactFlow?.setViewport(nextViewport, { duration: 0 });
+
+    // Cancel any pending update
+    if (pointerUpdateRef.current !== null) {
+      cancelAnimationFrame(pointerUpdateRef.current);
+    }
+
+    // Batch updates with RAF for smoother panning
+    pointerUpdateRef.current = requestAnimationFrame(() => {
+      reactFlow?.setViewport(nextViewport, { duration: 0 });
+      pointerUpdateRef.current = null;
+    });
   }, [reactFlow]);
 
   const handlePersistencePointerUp = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -300,7 +307,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
               onMouseLeave={() => {
                 setIsTooltipHovered(false);
               }}
-              onWheelCapture={handleWheelCapture}
               onPointerDown={handlePersistencePointerDown}
               onPointerMove={handlePersistencePointerMove}
               onPointerUp={handlePersistencePointerUp}

@@ -21,6 +21,7 @@ import { useConnectionHandlers } from '@/hooks/experiment/multiplayer/useConnect
 import { useNodeHelpers } from '@/hooks/experiment/multiplayer/useNodeHelpers';
 import { usePairHeights } from '@/hooks/experiment/multiplayer/usePairHeights';
 import { useEdgeSelection } from '@/hooks/experiment/multiplayer/useEdgeSelection';
+import { useAnonymousId } from '@/hooks/experiment/multiplayer/useAnonymousId';
 import { MultiplayerHeader } from '@/components/experiment/multiplayer/MultiplayerHeader';
 import { ToolsBar } from '@/components/experiment/multiplayer/ToolsBar';
 import { GraphCanvas } from '@/components/experiment/multiplayer/GraphCanvas';
@@ -37,6 +38,7 @@ import { TypeSelectorDropdown } from '@/components/experiment/multiplayer/TypeSe
 import { toast } from 'sonner';
 import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
+import { PerfProvider } from '@/components/experiment/multiplayer/PerformanceContext';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -57,6 +59,7 @@ export default function MultiplayerBoardDetailPage() {
     } = useConnectionMode();
 
     const [grabMode, setGrabMode] = useState<boolean>(false);
+    const [perfBoost, setPerfBoost] = useState<boolean>(false);
     const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
 
     const { hoveredEdgeId, setHoveredEdgeId, selectedEdgeId, setSelectedEdgeId, revealEdgeTemporarily } = useEdgeSelection();
@@ -64,6 +67,12 @@ export default function MultiplayerBoardDetailPage() {
     const lastAddRef = useRef<Record<string, number>>({});
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
+    const selectMode = useMemo(() => !connectMode && !grabMode, [connectMode, grabMode]);
+    const [forceBlurNodes, setForceBlurNodes] = useState(0);
+
+    const blurNodesImmediately = useCallback(() => {
+        setForceBlurNodes((v) => v + 1);
+    }, []);
 
     const { pairNodeHeights, pairHeights, setPairNodeHeight, commitGroupLayout: commitGroupLayoutBase } = usePairHeights();
 
@@ -72,8 +81,14 @@ export default function MultiplayerBoardDetailPage() {
 
     const queryClient = useQueryClient();
     const cachedUser = queryClient.getQueryData(userQueryKey(privyUser?.id));
-    const username = (cachedUser as any)?.username || 'Anonymous';
-    const userId = privyUser?.id || '';
+
+    const anonymousId = useAnonymousId(authenticated);
+
+    const userId = privyUser?.id || anonymousId;
+
+    const authenticatedUsername = (cachedUser as any)?.username;
+    const anonymousSuffix = anonymousId ? anonymousId.slice(-4) : '0000';
+    const username = authenticatedUsername || (authenticated ? 'Anonymous' : `Viewer #${anonymousSuffix}`);
 
     const userColor = useUserColor(userId);
 
@@ -111,16 +126,15 @@ export default function MultiplayerBoardDetailPage() {
         roomName,
         initialNodes: initialGraph?.nodes || [],
         initialEdges: initialGraph?.edges || [],
-        enabled: ready && authenticated && Boolean(initialGraph),
+        enabled: ready && Boolean(initialGraph), // Allow unauthenticated access
         localOrigin: localOriginRef.current,
     });
 
-    // Record page open
     useEffect(() => {
-        if (!routeParams?.id) return;
+        if (!routeParams?.id || !authenticated) return;
         const rid = typeof routeParams.id === 'string' ? routeParams.id : String(routeParams.id);
         recordOpen(rid).catch(() => { });
-    }, [routeParams?.id]);
+    }, [routeParams?.id, authenticated]);
 
     const {
         dbTitle,
@@ -159,18 +173,17 @@ export default function MultiplayerBoardDetailPage() {
                 const anchorNode: Node = { id: anchorId, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: e.id } } as Node;
                 additions.push(anchorNode);
                 existing.add(anchorId);
-                if (yNodesMap && ydoc && canWrite) {
-                    try {
-                        ydoc.transact(() => { if (!yNodesMap.has(anchorId)) yNodesMap.set(anchorId, anchorNode as any); }, localOriginRef.current);
-                    } catch { }
-                }
+                // Anchor nodes are local-only; do not sync to Yjs
             }
             return additions.length ? [...current, ...additions] : current;
         });
     }, [connectMode, edges, getEdgeMidpoint, setNodes, yNodesMap, ydoc, canWrite]);
 
-    const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite });
-    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite });
+    const broadcastCursor = true;
+    const broadcastLocks = true;
+
+    const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite, broadcastCursor });
+    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite, broadcastLocks });
 
     const { preferredEdgeTypeRef, updateEdgeType } = useEdgeTypeManager({
         nodes,
@@ -382,17 +395,15 @@ export default function MultiplayerBoardDetailPage() {
         return <LoadingState />;
     }
 
-    if (!authenticated) {
-        return <AuthGate onLogin={login} />;
-    }
+
 
 
 
 
     return (
-        <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`}>
+        <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
             {(!nodes || nodes.length === 0) && (
-                <div className="fixed inset-0 top-16 bg-gray-50/80 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 top-16 bg-gray-50/80 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(249, 250, 251, 0.8)' }}>
                     <div className="text-center bg-white/80 px-6 py-4 rounded-lg border shadow-sm">
                         <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                         <div className="text-sm text-gray-600">Loading board…</div>
@@ -428,140 +439,146 @@ export default function MultiplayerBoardDetailPage() {
             )}
 
             <ReactFlowProvider>
-                <GraphProvider value={{
-                    updateNodeContent,
-                    updateNodeHidden,
-                    updateNodePosition,
-                    updateNodeFavor,
-                    addPointBelow,
-                    preferredEdgeType: preferredEdgeTypeRef.current,
-                    createInversePair: inversePair,
-                    deleteNode,
-                    startEditingNode: startEditingNodeCtx,
-                    stopEditingNode: stopEditingNodeCtx,
-                    getEditorsForNode,
-                    isLockedForMe,
-                    getLockOwner,
-                    isAnyNodeEditing,
-                    grabMode,
-                    clearNodeSelection,
-                    beginConnectFromNode,
-                    beginConnectFromEdge,
-                    completeConnectToNode,
-                    completeConnectToEdge,
-                    cancelConnect: cancelConnectHandler,
-                    isConnectingFromNodeId: connectAnchorId,
-                    connectMode,
-                    addObjectionForEdge,
-                    hoveredEdgeId,
-                    setHoveredEdge: setHoveredEdgeId,
-                    updateEdgeRelevance,
-                    updateEdgeType,
-                    selectedEdgeId,
-                    setSelectedEdge: setSelectedEdgeId,
-                    updateEdgeAnchorPosition,
-                    ensureEdgeAnchor,
-                    lockNode,
-                    unlockNode,
-                    proxyMode: !canWrite,
-                    undo,
-                    redo,
-                    stopCapturing,
-                    addNodeAtPosition,
-                    updateNodeType,
-                    deleteInversePair,
-                    setPairNodeHeight,
-                    pairHeights,
-                    hoveredNodeId: hoveredNodeId,
-                    setHoveredNodeId: (nid: string | null) => {
-                        // Ensure only one node can be hovered at a time
-                        if (nid !== null && hoveredNodeId === nid) {
-                            return; // Already hovering this node
-                        }
-                        setHoveredNodeId(nid);
-                    },
-                    commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
-                        commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canWrite, localOriginRef.current, setNodes);
-                    },
-                }}>
-                    <div className="w-full h-full relative">
-                        <GraphCanvas
-                            nodes={nodes as any}
-                            edges={edges as any}
-                            authenticated={authenticated}
-                            canWrite={canWrite}
-                            onNodesChange={onNodesChange}
-                            onEdgesChange={onEdgesChange}
-                            onConnect={onConnect}
-                            onNodeClick={() => { /* selection/editing handled inside nodes; do not link on click */ }}
-                            onNodeDragStart={handleNodeDragStart}
-                            onNodeDragStop={handleNodeDragStop}
-                            onEdgeMouseEnter={(_: any, edge: any) => setHoveredEdgeId(edge.id)}
-                            onEdgeMouseLeave={() => setHoveredEdgeId(null)}
-                            provider={provider}
-                            cursors={cursors as any}
-                            username={username}
-                            userColor={userColor}
-                            grabMode={grabMode}
-                            panOnDrag={grabMode ? [0, 1, 2] : [1]}
-                            panOnScroll={true}
-                            zoomOnScroll={false}
-                            connectMode={connectMode}
-                            connectAnchorId={connectAnchorId}
-                            onFlowMouseMove={(x, y) => {
-                                if (!connectAnchorRef.current) return;
-                                setConnectCursor({ x, y });
-                            }}
-                            connectCursor={connectCursor}
-                            onBackgroundMouseUp={() => {
-                                setConnectAnchorId(null);
-                                connectAnchorRef.current = null;
-                                setConnectCursor(null);
-                            }}
-                            onBackgroundDoubleClick={(flowX, flowY) => {
-                                if (connectMode) return;
-                                if (!canWrite) {
-                                    toast.warning("Read-only mode: Changes won't be saved");
-                                    return;
-                                }
-                                const nodeId = addNodeAtPosition('point', flowX, flowY);
-
-                                setTimeout(() => {
-                                    const element = document.querySelector(`[data-id="${nodeId}"]`);
-                                    if (element) {
-                                        const rect = element.getBoundingClientRect();
-                                        setNewNodeWithDropdown({
-                                            id: nodeId,
-                                            x: rect.right + 16,
-                                            y: rect.top - 8
-                                        });
-                                    } else {
-                                        setNewNodeWithDropdown({
-                                            id: nodeId,
-                                            x: window.innerWidth / 2 - 120,
-                                            y: window.innerHeight / 2 - 50
-                                        });
+                <PerfProvider value={{ perfMode: (((nodes?.length || 0) + (edges?.length || 0)) > 600) || perfBoost || grabMode, setPerfMode: setPerfBoost }}>
+                    <GraphProvider value={{
+                        updateNodeContent,
+                        updateNodeHidden,
+                        updateNodePosition,
+                        updateNodeFavor,
+                        addPointBelow,
+                        preferredEdgeType: preferredEdgeTypeRef.current,
+                        createInversePair: inversePair,
+                        deleteNode,
+                        startEditingNode: startEditingNodeCtx,
+                        stopEditingNode: stopEditingNodeCtx,
+                        getEditorsForNode,
+                        isLockedForMe,
+                        getLockOwner,
+                        isAnyNodeEditing,
+                        grabMode,
+                        clearNodeSelection,
+                        beginConnectFromNode,
+                        beginConnectFromEdge,
+                        completeConnectToNode,
+                        completeConnectToEdge,
+                        cancelConnect: cancelConnectHandler,
+                        isConnectingFromNodeId: connectAnchorId,
+                        connectMode,
+                        addObjectionForEdge,
+                        hoveredEdgeId,
+                        setHoveredEdge: setHoveredEdgeId,
+                        updateEdgeRelevance,
+                        updateEdgeType,
+                        selectedEdgeId,
+                        setSelectedEdge: setSelectedEdgeId,
+                        updateEdgeAnchorPosition,
+                        ensureEdgeAnchor,
+                        lockNode,
+                        unlockNode,
+                        proxyMode: !canWrite,
+                        undo,
+                        redo,
+                        stopCapturing,
+                        addNodeAtPosition,
+                        updateNodeType,
+                        deleteInversePair,
+                        setPairNodeHeight,
+                        pairHeights,
+                        hoveredNodeId: hoveredNodeId,
+                        setHoveredNodeId: (nid: string | null) => {
+                            // Ensure only one node can be hovered at a time
+                            if (nid !== null && hoveredNodeId === nid) {
+                                return; // Already hovering this node
+                            }
+                            setHoveredNodeId(nid);
+                        },
+                        commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
+                            commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canWrite, localOriginRef.current, setNodes);
+                        },
+                        blurNodesImmediately,
+                    }}>
+                        <div className="w-full h-full relative">
+                            <GraphCanvas
+                                nodes={nodes as any}
+                                edges={edges as any}
+                                authenticated={authenticated}
+                                canWrite={canWrite}
+                                onNodesChange={onNodesChange}
+                                onEdgesChange={onEdgesChange}
+                                onConnect={onConnect}
+                                onNodeClick={() => { /* selection/editing handled inside nodes; do not link on click */ }}
+                                onNodeDragStart={handleNodeDragStart}
+                                onNodeDragStop={handleNodeDragStop}
+                                onEdgeMouseEnter={(_: any, edge: any) => setHoveredEdgeId(edge.id)}
+                                onEdgeMouseLeave={() => setHoveredEdgeId(null)}
+                                provider={provider}
+                                cursors={cursors as any}
+                                username={username}
+                                userColor={userColor}
+                                grabMode={grabMode}
+                                panOnDrag={grabMode ? [0, 1, 2] : [1]}
+                                panOnScroll={true}
+                                zoomOnScroll={false}
+                                connectMode={connectMode}
+                                connectAnchorId={connectAnchorId}
+                                selectMode={selectMode}
+                                blurAllNodes={forceBlurNodes}
+                                onFlowMouseMove={(x, y) => {
+                                    if (!connectAnchorRef.current) return;
+                                    setConnectCursor({ x, y });
+                                }}
+                                connectCursor={connectCursor}
+                                onBackgroundMouseUp={() => {
+                                    setConnectAnchorId(null);
+                                    connectAnchorRef.current = null;
+                                    setConnectCursor(null);
+                                }}
+                                onBackgroundDoubleClick={(flowX, flowY) => {
+                                    if (connectMode) return;
+                                    if (!canWrite) {
+                                        toast.warning("Read-only mode: Changes won't be saved");
+                                        return;
                                     }
-                                }, 50);
-                            }}
-                        />
-                        <ToolsBar
-                            connectMode={connectMode}
-                            setConnectMode={setConnectMode as any}
-                            setConnectAnchorId={setConnectAnchorId}
-                            canUndo={!!canUndo}
-                            canRedo={!!canRedo}
-                            undo={undo}
-                            redo={redo}
-                            connectAnchorId={connectAnchorId}
-                            readOnly={!canWrite}
-                            grabMode={grabMode}
-                            setGrabMode={setGrabMode}
+                                    const nodeId = addNodeAtPosition('point', flowX, flowY);
 
-                        />
-                    </div>
-                    <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />
-                </GraphProvider>
+                                    setTimeout(() => {
+                                        const element = document.querySelector(`[data-id="${nodeId}"]`);
+                                        if (element) {
+                                            const rect = element.getBoundingClientRect();
+                                            setNewNodeWithDropdown({
+                                                id: nodeId,
+                                                x: rect.right + 16,
+                                                y: rect.top - 8
+                                            });
+                                        } else {
+                                            setNewNodeWithDropdown({
+                                                id: nodeId,
+                                                x: window.innerWidth / 2 - 120,
+                                                y: window.innerHeight / 2 - 50
+                                            });
+                                        }
+                                    }, 50);
+                                }}
+                            />
+                            <ToolsBar
+                                connectMode={connectMode}
+                                setConnectMode={setConnectMode as any}
+                                setConnectAnchorId={setConnectAnchorId}
+                                canUndo={!!canUndo}
+                                canRedo={!!canRedo}
+                                undo={undo}
+                                redo={redo}
+                                connectAnchorId={connectAnchorId}
+                                readOnly={!canWrite}
+                                grabMode={grabMode}
+                                setGrabMode={setGrabMode}
+                                selectMode={selectMode}
+
+                            />
+                        </div>
+                        <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />
+                    </GraphProvider>
+                </PerfProvider>
 
                 {newNodeWithDropdown && (
                     <TypeSelectorDropdown

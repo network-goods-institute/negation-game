@@ -191,6 +191,7 @@ Real-time collaborative rationale editor powered by Yjs CRDT documents, WebSocke
 - `useWritableSync` replays the authoritative doc locally before reenabling mutators when a replica regains write privileges.
 - `useYjsProviderConnection` and `useYjsSynchronization` coordinate provider attachment, awareness broadcast, throttled saves, and failure handling.
 - UI affordances (toolbar, node editing, connect mode) subscribe to `canWrite` so read-only sessions never enqueue mutations and receive explicit warnings when attempting to edit.
+ - Anonymous sessions receive an `anon-…` user id via cookies and are eligible for write access only in non‑production environments; in production, authentication is required. Arbitration treats user ids (including `anon-…`) the same wherever anonymous participation is enabled.
 
 ## Summary Statistics
 - **App Router Pages**: 6 files / 1,730 lines

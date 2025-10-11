@@ -56,7 +56,8 @@ describe("graph operations: objection", () => {
     expect(obj).toBeTruthy();
     const objEdge = stateEdges.find((e) => e.type === "objection");
     expect(objEdge).toBeTruthy();
-    expect(yNodesMap._map.size).toBeGreaterThan(0);
+    expect(yNodesMap._map.has((obj as any).id)).toBe(true);
+    expect(yNodesMap._map.has("anchor:e1")).toBe(false);
     expect(yEdgesMap._map.size).toBeGreaterThan(0);
     const t = yTextMap.get((obj as any).id);
     expect(t).toBeTruthy();

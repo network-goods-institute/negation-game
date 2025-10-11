@@ -12,7 +12,8 @@ describe("yjs token expiry", () => {
 
   it("issues an 8-hour expiry token", async () => {
     const before = Math.floor(Date.now() / 1000);
-    const res = (await tokenPOST()) as any;
+    const req = new Request("http://test/api/yjs/token", { method: "POST" });
+    const res = (await tokenPOST(req)) as any;
     expect((res as any).status).toBe(200);
     const expiresHeader = Number((res as any).headers?.get?.("x-yjs-expires-at") || 0);
     expect(Number.isFinite(expiresHeader)).toBe(true);

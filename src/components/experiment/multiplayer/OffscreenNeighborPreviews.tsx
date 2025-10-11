@@ -3,6 +3,11 @@ import { createPortal } from 'react-dom';
 import { useGraphActions } from './GraphContext';
 import { useReactFlow } from '@xyflow/react';
 import { getOffscreenSide, OffscreenSide } from '@/utils/experiment/multiplayer/viewport';
+import { usePerformanceMode } from './PerformanceContext';
+
+interface OffscreenNeighborPreviewsProps {
+  blurAllNodes: number;
+}
 
 type Preview = {
   id: string;
@@ -45,7 +50,8 @@ const getDirectionZone = (rect: DOMRect, vw: number, vh: number): DirectionZone 
   return 'bottom-right';
 };
 
-export const OffscreenNeighborPreviews: React.FC = () => {
+export const OffscreenNeighborPreviews: React.FC<OffscreenNeighborPreviewsProps> = ({ blurAllNodes }) => {
+  const { perfMode } = usePerformanceMode();
   const rf = useReactFlow();
   const { hoveredNodeId } = useGraphActions() as any;
   const [previewsByZone, setPreviewsByZone] = React.useState<Record<DirectionZone, Preview[]>>({
@@ -57,6 +63,7 @@ export const OffscreenNeighborPreviews: React.FC = () => {
   // Removed expandedZone state - no longer needed
 
   const compute = React.useCallback(() => {
+    if (perfMode) return;
     try {
       const nodes = rf.getNodes();
       const edges = rf.getEdges();
@@ -249,13 +256,18 @@ export const OffscreenNeighborPreviews: React.FC = () => {
       // No logs
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hoveredNodeId]);
+  }, [hoveredNodeId, perfMode, rf]);
 
   React.useEffect(() => {
+    if (perfMode) {
+      setPreviewsByZone({ 'top-left': [], 'top-right': [], 'bottom-left': [], 'bottom-right': [] });
+      return;
+    }
     compute();
-  }, [compute]);
+  }, [compute, perfMode]);
 
   React.useEffect(() => {
+    if (perfMode) return;
     const handler = () => { compute(); };
     window.addEventListener('resize', handler);
     window.addEventListener('scroll', handler, true);
@@ -263,10 +275,10 @@ export const OffscreenNeighborPreviews: React.FC = () => {
       window.removeEventListener('resize', handler);
       window.removeEventListener('scroll', handler, true);
     };
-  }, [compute]);
+  }, [compute, perfMode]);
 
   const totalPreviews = Object.values(previewsByZone).reduce((sum, previews) => sum + previews.length, 0);
-  if (totalPreviews === 0) return null;
+  if (perfMode || totalPreviews === 0) return null;
 
   const renderZoneStack = (zone: DirectionZone, previews: Preview[]) => {
     if (previews.length === 0) return null;

@@ -143,12 +143,6 @@ export const useConnectionHandlers = ({
               ? nds
               : [...nds, anchorNode]
           );
-          if (yNodesMap && ydoc && canWrite) {
-            ydoc.transact(() => {
-              if (!yNodesMap.has(anchorIdForEdge))
-                yNodesMap.set(anchorIdForEdge, anchorNode);
-            }, localOrigin);
-          }
         }
         const newEdge: Edge = {
           id: generateEdgeId(),
@@ -189,12 +183,6 @@ export const useConnectionHandlers = ({
               ? nds
               : [...nds, anchorNode]
           );
-          if (yNodesMap && ydoc && canWrite) {
-            ydoc.transact(() => {
-              if (!yNodesMap.has(anchorIdForEdge))
-                yNodesMap.set(anchorIdForEdge, anchorNode);
-            }, localOrigin);
-          }
         }
         const newObjEdge: Edge = {
           id: generateEdgeId(),
@@ -259,7 +247,6 @@ export const useConnectionHandlers = ({
       connectAnchorRef,
       nodes,
       edges,
-      yNodesMap,
       yEdgesMap,
       ydoc,
       localOrigin,
@@ -308,11 +295,6 @@ export const useConnectionHandlers = ({
           setNodes((nds) =>
             nds.some((n) => n.id === anchorId) ? nds : [...nds, anchorNode]
           );
-          if (yNodesMap && ydoc && canWrite) {
-            ydoc.transact(() => {
-              if (!yNodesMap.has(anchorId)) yNodesMap.set(anchorId, anchorNode);
-            }, localOrigin);
-          }
         }
         const newEdge: Edge = {
           id: generateEdgeId(),
@@ -339,7 +321,6 @@ export const useConnectionHandlers = ({
       connectMode,
       connectAnchorRef,
       nodes,
-      yNodesMap,
       yEdgesMap,
       ydoc,
       canWrite,

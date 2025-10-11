@@ -5,6 +5,7 @@ import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
+import { usePerformanceMode } from './PerformanceContext';
 import { inversePairEnabled } from '@/config/experiments';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
@@ -45,6 +46,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     isLockedForMe,
     getLockOwner,
     setPairNodeHeight,
+    grabMode,
   } = useGraphActions() as any;
 
   const locked = isLockedForMe?.(id) || false;
@@ -278,6 +280,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     'data-selected': selected,
   } as React.HTMLAttributes<HTMLDivElement>;
 
+  const { perfMode } = usePerformanceMode();
   return (
     <>
       <NodeShell
@@ -306,11 +309,11 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       >
         {locked && (
           <div className="pointer-events-none">
-            { /* small lock indicator */ }
+            { /* small lock indicator */}
             <div className="absolute -top-2 -right-2 z-20" title={lockOwner ? `Locked by ${lockOwner.name}` : 'Locked'}>
               <div className="h-6 w-6 rounded-full bg-rose-600 border-2 border-white text-white shadow flex items-center justify-center">
                 {/* inline icon to avoid extra imports here */}
-                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm-3 8V7a3 3 0 116 0v3H9z"/></svg>
+                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor"><path d="M12 2a5 5 0 00-5 5v3H6a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2v-6a2 2 0 00-2-2h-1V7a5 5 0 00-5-5zm-3 8V7a3 3 0 116 0v3H9z" /></svg>
               </div>
             </div>
           </div>
@@ -345,7 +348,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onBlur={onBlur}
           onKeyDown={onKeyDown}
           className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
-          style={{ userSelect: hidden || isConnectMode ? 'none' : 'text' }}
           title={typeof value === 'string' ? value : undefined}
         >
           {value || 'New point'}
@@ -366,7 +368,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             />
           </div>
         )}
-        {!hidden && (
+        {!hidden && !perfMode && !grabMode && (
           <NodeActionPill
             label="Add Point"
             visible={shouldShowPill}

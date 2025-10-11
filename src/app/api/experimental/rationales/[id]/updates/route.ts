@@ -3,7 +3,9 @@ import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { eq, sql } from "drizzle-orm";
+import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
+import { isProductionRequest } from "@/utils/hosts";
 import { compactDocUpdates } from "@/services/yjsCompaction";
 
 export const runtime = "nodejs";
@@ -13,7 +15,9 @@ export async function POST(req: Request, ctx: any) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const userId = await getUserId();
+  const url = new URL(req.url);
+  const nonProd = !isProductionRequest(url.hostname);
+  const userId = nonProd ? await getUserIdOrAnonymous() : await getUserId();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const raw = ctx?.params;

@@ -8,7 +8,6 @@ import {
   getDocSnapshotBuffer,
 } from "@/services/yjsCompaction";
 import * as Y from "yjs";
-import { getUserId } from "@/actions/users/getUserId";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,9 +16,6 @@ export async function GET(req: Request, ctx: any) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const userId = await getUserId();
-  if (!userId)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });

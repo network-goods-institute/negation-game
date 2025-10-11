@@ -10,6 +10,7 @@ import { useGraphActions } from './GraphContext';
 import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
 import { useKeyboardPanning } from '@/hooks/experiment/multiplayer/useKeyboardPanning';
 import { useConnectionSnapping } from '@/hooks/experiment/multiplayer/useConnectionSnapping';
+import { usePerformanceMode } from './PerformanceContext';
 
 type YProvider = WebsocketProvider | null;
 
@@ -41,6 +42,8 @@ interface GraphCanvasProps {
   connectCursor?: { x: number; y: number } | null;
   onBackgroundMouseUp?: () => void;
   onBackgroundDoubleClick?: (flowX: number, flowY: number) => void;
+  selectMode: boolean;
+  blurAllNodes?: number;
 }
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
@@ -71,6 +74,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   connectCursor,
   onBackgroundMouseUp,
   onBackgroundDoubleClick,
+  selectMode,
+  blurAllNodes = 0,
 }) => {
   const rf = useReactFlow();
   const viewport = useViewport();
@@ -79,6 +84,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
   const suppressEdgeDeselectRef = React.useRef(false);
   const lastSelectionChangeRef = React.useRef<number>(0);
+  const { perfMode } = usePerformanceMode();
+  const { setPerfMode } = usePerformanceMode();
+  const midPanRef = React.useRef(false);
+  const wheelUpdateRef = React.useRef<number | null>(null);
+  const pendingWheelDeltaRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
     connectMode: !!connectMode,
@@ -165,6 +175,74 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       window.removeEventListener('keydown', onKey as any, { capture: true } as any);
     };
   }, [rf, graph]);
+
+  React.useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+
+    const isEditable = (el: HTMLElement | null) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (el.isContentEditable) return true;
+      return false;
+    };
+
+    const withinCanvasBounds = (x: number, y: number) => {
+      const rect = root.getBoundingClientRect();
+      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    };
+
+    const onWheel = (event: WheelEvent) => {
+      // Ignore pinch-zoom and modified scrolls
+      if (event.ctrlKey || event.metaKey) return;
+
+      // Only handle if pointer is over the canvas area (including portaled HUDs)
+      if (!withinCanvasBounds(event.clientX, event.clientY)) return;
+
+      // Skip when interacting with editable controls
+      const topEl = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      if (isEditable(topEl)) return;
+
+      // Prevent page scroll; pan viewport instead
+      event.preventDefault();
+
+      pendingWheelDeltaRef.current.x += event.deltaX;
+      pendingWheelDeltaRef.current.y += event.deltaY;
+
+      if (wheelUpdateRef.current !== null) {
+        cancelAnimationFrame(wheelUpdateRef.current);
+      }
+
+      wheelUpdateRef.current = requestAnimationFrame(() => {
+        const viewport = rf.getViewport?.();
+        if (!viewport) {
+          pendingWheelDeltaRef.current = { x: 0, y: 0 };
+          wheelUpdateRef.current = null;
+          return;
+        }
+        const nextViewport = {
+          x: viewport.x + pendingWheelDeltaRef.current.x,
+          y: viewport.y + pendingWheelDeltaRef.current.y,
+          zoom: viewport.zoom,
+        };
+        rf.setViewport?.(nextViewport, { duration: 0 });
+        pendingWheelDeltaRef.current = { x: 0, y: 0 };
+        wheelUpdateRef.current = null;
+      });
+    };
+
+    // Capture phase to ensure we run even when overlay HUDs are above
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true } as any);
+    return () => {
+      window.removeEventListener('wheel', onWheel as any, { capture: true } as any);
+      if (wheelUpdateRef.current !== null) {
+        cancelAnimationFrame(wheelUpdateRef.current);
+        wheelUpdateRef.current = null;
+      }
+      pendingWheelDeltaRef.current = { x: 0, y: 0 };
+    };
+  }, [rf]);
   React.useEffect(() => {
     if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const handler = (e: MouseEvent) => {
@@ -301,6 +379,30 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     <div
       ref={containerRef}
       className="w-full h-full relative"
+      onPointerDown={(e) => {
+        try {
+          if (e.button === 1 && e.pointerType === 'mouse') {
+            midPanRef.current = true;
+            setPerfMode?.(true);
+          }
+        } catch { }
+      }}
+      onPointerUp={(e) => {
+        try {
+          if (midPanRef.current && e.button === 1) {
+            midPanRef.current = false;
+            setPerfMode?.(false);
+          }
+        } catch { }
+      }}
+      onPointerCancel={() => {
+        try {
+          if (midPanRef.current) {
+            midPanRef.current = false;
+            setPerfMode?.(false);
+          }
+        } catch { }
+      }}
       onMouseDownCapture={handleBackgroundMouseDownCapture}
       onMouseMove={onCanvasMouseMove}
       onMouseLeave={() => graph.setHoveredNodeId?.(null)}
@@ -311,7 +413,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       {(() => {
         // Wrap changes to intercept removals and route through multiplayer delete
         const handleNodesChange = (changes: any[]) => {
-          if (!authenticated) return onNodesChange?.(changes);
           const passthrough: any[] = [];
           let nodeSelected = false;
           for (const c of changes || []) {
@@ -330,7 +431,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           if (passthrough.length) onNodesChange?.(passthrough);
         };
         const handleEdgesChange = (changes: any[]) => {
-          if (!authenticated) return onEdgesChange?.(changes);
           const passthrough: any[] = [];
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
@@ -399,7 +499,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                   const parentEdgeId: string | undefined = anchor.data?.parentEdgeId;
                   if (parentEdgeId) {
                     graph.ensureEdgeAnchor?.(anchor.id, parentEdgeId, anchor.position?.x ?? 0, anchor.position?.y ?? 0);
-                    graph.updateEdgeAnchorPosition?.(parentEdgeId, anchor.position?.x ?? 0, anchor.position?.y ?? 0, true);
                   }
                 } else {
                   // Anchor not in local RF yet; derive parent edge id from target and ensure presence using midpoint
@@ -428,41 +527,48 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             edges={edges}
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
-            onConnect={authenticated ? onConnect : undefined}
+            onConnect={onConnect}
             onNodeClick={handleNodeClickInternal}
             onPaneClick={(e) => {
-              const shift = e && (e as any).shiftKey;
-              if (shift && !connectMode) return;
-              if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
-              try { graph.clearNodeSelection?.(); } catch { }
-              try { graph.setSelectedEdge?.(null); } catch { }
-              try { window.getSelection()?.removeAllRanges(); } catch { }
-              if (connectMode) onBackgroundMouseUp?.();
+              // If in select mode, clear selections. Otherwise, do nothing for clicks on the pane.
+              if (selectMode) {
+                if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
+                try { graph.clearNodeSelection?.(); } catch { }
+                try { graph.setSelectedEdge?.(null); } catch { }
+                try { window.getSelection()?.removeAllRanges(); } catch { }
+                try { graph.blurNodesImmediately?.(); } catch { }
+              } else if (connectMode) {
+                onBackgroundMouseUp?.();
+              }
             }}
             onEdgeClick={handleEdgeClickInternal}
-            onNodeDragStart={authenticated ? handleNodeDragStartInternal : undefined}
-            onNodeDrag={authenticated ? ((_: any, node: any) => {
+            onNodeDragStart={handleNodeDragStartInternal}
+            onNodeDrag={((_: any, node: any) => {
               try { graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0); } catch { }
-            }) : undefined}
-            onNodeDragStop={authenticated ? ((e: any, node: any) => { try { onNodeDragStop?.(e, node); } catch { } try { graph.stopCapturing?.(); } catch { } }) : undefined}
+            })}
+            onNodeDragStop={((e: any, node: any) => { try { onNodeDragStop?.(e, node); } catch { } try { graph.stopCapturing?.(); } catch { } })}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
             className="w-full h-full bg-gray-50"
+            style={{ willChange: 'transform' }}
+            selectionOnDrag={selectMode}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
             onEdgeMouseLeave={grabMode ? undefined : onEdgeMouseLeave}
-            panOnDrag={panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1])}
-            panOnScroll={panOnScroll !== undefined ? (panOnScroll as any) : true}
+            panOnDrag={selectMode ? [1, 2] : (panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1]))}
+            panOnScroll={false}
             zoomOnScroll={false}
             zoomOnDoubleClick={false}
+            minZoom={0.1}
+            maxZoom={10}
             nodesDraggable={!connectMode && !grabMode}
             nodesConnectable={!grabMode}
-            elementsSelectable={!grabMode}
-            nodesFocusable={!grabMode}
-            edgesFocusable={!grabMode}
-            multiSelectionKeyCode="Shift"
+            elementsSelectable={selectMode}
+            nodesFocusable={selectMode}
+            edgesFocusable={selectMode}
+            onlyRenderVisibleElements={perfMode}
             selectionMode={SelectionMode.Partial}
-            onSelectionChange={grabMode ? undefined : ({ nodes, edges }) => {
+            onSelectionChange={selectMode ? ({ nodes, edges }) => {
               try {
                 if (Array.isArray(nodes)) {
                   const anySelected = nodes.some((n: any) => (n as any)?.selected);
@@ -479,11 +585,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                   });
                 }
               } catch { }
-            }}
+            } : undefined}
             proOptions={{ hideAttribution: true }}
           >
             <Background />
-            <Controls />
+            {!perfMode && <Controls />}
             <MiniMap nodeColor={() => '#dbeafe'} className="bg-white" />
           </ReactFlow>
         );
@@ -504,15 +610,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           </g>
         );
       })(), edgesLayer)}
-      {authenticated && <CursorOverlay cursors={cursors} />}
-      <OffscreenNeighborPreviews />
-      {authenticated && (
+      <CursorOverlay cursors={cursors} />
+      <OffscreenNeighborPreviews blurAllNodes={blurAllNodes} />
+      {!grabMode && !perfMode && (
         <CursorReporter
           provider={provider}
           username={username}
           userColor={userColor}
           grabMode={Boolean(grabMode)}
           canWrite={canWrite ?? true}
+          broadcastCursor={true}
         />
       )}
     </div>
