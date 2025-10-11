@@ -125,7 +125,8 @@ export const useMultiplayerEditing = ({
               if (!existing) {
                 lockRes.set(nodeId, info);
               } else {
-                // First lock wins: only refresh if same session; otherwise keep existing owner
+                const existingIsLocal = existing.sessionId === sessionId;
+                const incomingIsLocal = info.sessionId === sessionId;
                 if (
                   existing.sessionId &&
                   info.sessionId &&
@@ -137,8 +138,12 @@ export const useMultiplayerEditing = ({
                     ts: Math.max(existing.ts, info.ts),
                     kind: info.kind || existing.kind,
                   });
+                } else if (existingIsLocal && !incomingIsLocal) {
+                  // prefer remote over local so local sees node as locked
+                  lockRes.set(nodeId, info);
+                } else {
+                  // keep existing
                 }
-                // different session: do nothing (keep first lock)
               }
             }
           );
@@ -158,7 +163,8 @@ export const useMultiplayerEditing = ({
           if (!existing) {
             lockRes.set(legacy.nodeId, info);
           } else {
-            // First lock wins: only refresh if same session; otherwise keep existing owner
+            const existingIsLocal = existing.sessionId === sessionId;
+            const incomingIsLocal = info.sessionId === sessionId;
             if (
               existing.sessionId &&
               info.sessionId &&
@@ -169,6 +175,10 @@ export const useMultiplayerEditing = ({
                 ts: Math.max(existing.ts, info.ts),
                 kind: info.kind || existing.kind,
               });
+            } else if (existingIsLocal && !incomingIsLocal) {
+              lockRes.set(legacy.nodeId, info);
+            } else {
+              // keep existing
             }
           }
         }
@@ -224,6 +234,7 @@ export const useMultiplayerEditing = ({
       const lastUsed = activeNodeUsageRef.current.get(nodeId);
       if (!lastUsed || now - lastUsed >= recentThreshold) {
         delete nextLocks[nodeId];
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
         localLockedRef.current.delete(nodeId);
       }
     });
@@ -266,6 +277,7 @@ export const useMultiplayerEditing = ({
       const now = Date.now();
       activeNodeUsageRef.current.forEach((lastUsed, nodeId) => {
         if (!localLockedRef.current.has(nodeId) && now - lastUsed > 60000) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
           activeNodeUsageRef.current.delete(nodeId);
         }
       });
@@ -295,6 +307,7 @@ export const useMultiplayerEditing = ({
     delete nextLocks[nodeId];
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     localLockedRef.current.delete(nodeId);
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     activeNodeUsageRef.current.delete(nodeId); // Clean up activity tracking
     const { editing, lock, ...rest } = prev as any;
     const nextState: any = { ...rest, locks: nextLocks };
@@ -349,6 +362,7 @@ export const useMultiplayerEditing = ({
     delete nextLocks[nodeId];
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     localLockedRef.current.delete(nodeId);
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     activeNodeUsageRef.current.delete(nodeId); // Clean up activity tracking
     awareness.setLocalState({ ...prev, locks: nextLocks });
   };
