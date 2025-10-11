@@ -214,7 +214,8 @@ export async function createRationale(params?: {
       await tx.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
     } catch (err) {
       console.error(
-        `[Create Rationale] Failed to generate slug for doc ${id}:`,
+        "[Create Rationale] Failed to generate slug for doc %s:",
+        id,
         err
       );
     }
