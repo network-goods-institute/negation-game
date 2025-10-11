@@ -89,6 +89,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const midPanRef = React.useRef(false);
   const wheelUpdateRef = React.useRef<number | null>(null);
   const pendingWheelDeltaRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const copiedNodeIdRef = React.useRef<string | null>(null);
+  const altCloneMapRef = React.useRef<Map<string, { dupId: string; origin: { x: number; y: number } }>>(new Map());
 
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
     connectMode: !!connectMode,
@@ -120,6 +122,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         return false;
       };
       if (isEditable(target) || isEditable(active)) return;
+
+      const selection = window.getSelection?.();
+      if (selection && !selection.isCollapsed) return;
 
       const isDeleteKey = key === 'delete' || key === 'backspace';
       if (isDeleteKey) {
@@ -167,6 +172,33 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         try { (graph as any)?.setSelectedEdge?.(null); } catch { }
         e.preventDefault();
         return;
+      }
+      if ((e.metaKey || e.ctrlKey) && key === 'c') {
+        const sel = rf.getNodes().filter((n) => (n as any).selected);
+        if (sel.length === 1) {
+          const only = sel[0] as any;
+          if (only?.type === 'point' || only?.type === 'objection') {
+            copiedNodeIdRef.current = String(only.id);
+            e.preventDefault();
+            e.stopPropagation();
+            try { toast.success('Copied node'); } catch { }
+            return;
+          }
+        }
+      }
+      if ((e.metaKey || e.ctrlKey) && key === 'v') {
+        const targetId = copiedNodeIdRef.current;
+        if (targetId) {
+          const exists = !!rf.getNode(targetId as any);
+          if (exists) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+              (graph as any)?.duplicateNodeWithConnections?.(targetId, { x: 16, y: 16 });
+            } catch {}
+            return;
+          }
+        }
       }
     };
 
@@ -418,6 +450,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
+            } else if (c?.type === 'position' && c?.id && altCloneMapRef.current.has(String(c.id))) {
+              const mapping = altCloneMapRef.current.get(String(c.id));
+              if (mapping) {
+                const cloneChange = { ...c, id: mapping.dupId };
+                passthrough.push(cloneChange);
+                continue;
+              }
             } else {
               if (c?.type === 'select' && c?.selected) {
                 nodeSelected = true;
@@ -518,7 +557,33 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             }
           } catch { }
 
+            // Option/Alt-drag to duplicate: create duplicate at start and route movement to it
+            try {
+              if ((e?.altKey || e?.nativeEvent?.altKey) && (node?.type === 'point' || node?.type === 'objection')) {
+                const originX = node?.position?.x ?? 0;
+                const originY = node?.position?.y ?? 0;
+                const flowPos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+                const dx = (flowPos.x - originX);
+                const dy = (flowPos.y - originY);
+                const dupId = (graph as any)?.duplicateNodeWithConnections?.(node.id, { x: dx, y: dy });
+                if (dupId) {
+                  altCloneMapRef.current.set(String(node.id), { dupId: String(dupId), origin: { x: originX, y: originY } });
+                  try { (graph as any)?.unlockNode?.(node.id); } catch {}
+                  try { (graph as any)?.lockNode?.(String(dupId), 'drag'); } catch {}
+                }
+              }
+            } catch {}
+        };
 
+        const handleNodeDragStopInternal = (e: any, node: any) => {
+          onNodeDragStop?.(e, node);
+          (graph as any)?.stopCapturing?.();
+          const mapping = altCloneMapRef.current.get(String(node.id));
+          if (mapping) {
+            (graph as any)?.unlockNode?.(mapping.dupId);
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            altCloneMapRef.current.delete(String(node.id));
+          }
         };
 
         return (
@@ -545,9 +610,18 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onEdgeClick={handleEdgeClickInternal}
             onNodeDragStart={handleNodeDragStartInternal}
             onNodeDrag={((_: any, node: any) => {
-              try { graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0); } catch { }
+              try {
+                const mapping = altCloneMapRef.current.get(String(node.id));
+                if (mapping) {
+                  graph.updateNodePosition?.(mapping.dupId, node.position?.x ?? 0, node.position?.y ?? 0);
+                  graph.updateNodePosition?.(node.id, mapping.origin.x, mapping.origin.y);
+                } else {
+                  graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0);
+                }
+              } catch { }
             })}
-            onNodeDragStop={((e: any, node: any) => { try { onNodeDragStop?.(e, node); } catch { } try { graph.stopCapturing?.(); } catch { } })}
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            onNodeDragStop={handleNodeDragStopInternal}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView

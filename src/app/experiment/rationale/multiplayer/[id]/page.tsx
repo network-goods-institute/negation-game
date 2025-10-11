@@ -313,6 +313,7 @@ export default function MultiplayerBoardDetailPage() {
         createInversePair: inversePair,
         deleteInversePair,
         updateEdgeRelevance,
+        duplicateNodeWithConnections,
     } = useGraphOperations({
         nodes,
         edges,
@@ -507,6 +508,7 @@ export default function MultiplayerBoardDetailPage() {
                         addNodeAtPosition,
                         updateNodeType,
                         deleteInversePair,
+                        duplicateNodeWithConnections,
                         setPairNodeHeight,
                         pairHeights,
                         hoveredNodeId: hoveredNodeId,

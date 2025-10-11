@@ -14,6 +14,7 @@ import {
   createInversePair,
   createDeleteInversePair,
 } from "@/utils/experiment/multiplayer/graphOperations";
+import { createDuplicateNodeWithConnections } from "@/utils/experiment/multiplayer/graphOperations/nodeDuplication";
 import type {
   YjsDoc,
   YNodesMap,
@@ -80,25 +81,13 @@ export const useGraphOperations = ({
 }: UseGraphOperationsProps) => {
   const updateNodeContent = useMemo(
     () =>
-      createUpdateNodeContent(
-        yTextMap,
-        ydoc,
-        canWrite,
-        localOrigin,
-        setNodes
-      ),
+      createUpdateNodeContent(yTextMap, ydoc, canWrite, localOrigin, setNodes),
     [yTextMap, ydoc, canWrite, localOrigin, setNodes]
   );
 
   const updateNodeHidden = useMemo(
     () =>
-      createUpdateNodeHidden(
-        yNodesMap,
-        ydoc,
-        canWrite,
-        localOrigin,
-        setNodes
-      ),
+      createUpdateNodeHidden(yNodesMap, ydoc, canWrite, localOrigin, setNodes),
     [yNodesMap, ydoc, canWrite, localOrigin, setNodes]
   );
 
@@ -246,7 +235,15 @@ export const useGraphOperations = ({
         setNodes,
         onClearSelections
       ),
-    [yNodesMap, yTextMap, ydoc, canWrite, localOrigin, setNodes, onClearSelections]
+    [
+      yNodesMap,
+      yTextMap,
+      ydoc,
+      canWrite,
+      localOrigin,
+      setNodes,
+      onClearSelections,
+    ]
   );
 
   const updateNodeType = useMemo(
@@ -371,6 +368,38 @@ export const useGraphOperations = ({
     [setNodes]
   );
 
+  const duplicateNodeWithConnections = useMemo(
+    () =>
+      createDuplicateNodeWithConnections(
+        nodes,
+        edges,
+        yNodesMap,
+        yEdgesMap,
+        yTextMap,
+        ydoc,
+        canWrite,
+        localOrigin,
+        setNodes,
+        setEdges,
+        isLockedForMe,
+        getLockOwner
+      ),
+    [
+      nodes,
+      edges,
+      yNodesMap,
+      yEdgesMap,
+      yTextMap,
+      ydoc,
+      canWrite,
+      localOrigin,
+      setNodes,
+      setEdges,
+      isLockedForMe,
+      getLockOwner,
+    ]
+  );
+
   return {
     updateNodeContent,
     updateNodeHidden,
@@ -386,5 +415,6 @@ export const useGraphOperations = ({
     createInversePair: createInversePairOp,
     deleteInversePair,
     updateEdgeRelevance,
+    duplicateNodeWithConnections,
   };
 };

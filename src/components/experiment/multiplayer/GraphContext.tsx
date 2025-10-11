@@ -42,6 +42,7 @@ type GraphActions = {
     addNodeAtPosition?: (type: 'point' | 'statement' | 'title' | 'objection', x: number, y: number) => string;
     updateNodeType?: (nodeId: string, newType: 'point' | 'statement' | 'title' | 'objection') => void;
     deleteInversePair?: (inverseNodeId: string) => void;
+    duplicateNodeWithConnections?: (nodeId: string, offset?: { x?: number; y?: number }) => string | null;
     setPairNodeHeight?: (groupId: string, nodeId: string, height: number) => void;
     pairHeights?: Record<string, number>;
     isAnyNodeEditing?: boolean;
