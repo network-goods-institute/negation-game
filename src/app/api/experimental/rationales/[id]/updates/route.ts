@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
-import { eq, or, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { isProductionRequest } from "@/utils/hosts";
 import { compactDocUpdates } from "@/services/yjsCompaction";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,13 +24,16 @@ export async function POST(req: Request, ctx: any) {
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
-  if (!/^[a-zA-Z0-9:_-]{1,256}$/.test(id)) {
-    return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
+
+  if (!isValidSlugOrId(id)) {
+    return NextResponse.json(
+      { error: "Invalid doc id or slug" },
+      { status: 400 }
+    );
   }
+
   const body = await req.arrayBuffer();
   const updateBuf = Buffer.from(body);
-  try {
-  } catch {}
 
   // basic size cap ~ 1MB
   if (updateBuf.byteLength > 1_000_000) {
@@ -37,15 +41,7 @@ export async function POST(req: Request, ctx: any) {
   }
 
   // Resolve slug to canonical id if needed
-  let canonicalId = id;
-  try {
-    const rows = await db
-      .select({ id: mpDocsTable.id })
-      .from(mpDocsTable)
-      .where(or(eq(mpDocsTable.id, id), eq(mpDocsTable.slug, id)))
-      .limit(1);
-    if (rows.length === 1) canonicalId = rows[0].id;
-  } catch {}
+  const canonicalId = await resolveSlugToId(id);
   await db
     .insert(mpDocsTable)
     .values({ id: canonicalId })
@@ -58,26 +54,29 @@ export async function POST(req: Request, ctx: any) {
     .update(mpDocsTable)
     .set({ updatedAt: new Date() })
     .where(eq(mpDocsTable.id, canonicalId));
-  try {
-  } catch {}
 
   // Inline fast compaction when threshold exceeded
   try {
     const countRows = await db
       .select({ count: sql<number>`count(*)` })
       .from(mpDocUpdatesTable)
-      .where(eq(mpDocUpdatesTable.docId, id));
+      .where(eq(mpDocUpdatesTable.docId, canonicalId));
     const count = Number(countRows?.[0]?.count || 0);
     const threshold = 30;
     if (count > threshold) {
       // Keep a small tail to avoid losing very recent fine-grained deltas
       await compactDocUpdates(canonicalId, { keepLast: 3 });
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error(
+      `[YJS Updates] Failed to compact document ${canonicalId}:`,
+      e
+    );
+  }
 
   try {
     const currentDoc = await db.execute(sql`
-      SELECT title FROM mp_docs WHERE id = ${id} LIMIT 1
+      SELECT title FROM mp_docs WHERE id = ${canonicalId} LIMIT 1
     `);
     const currentBoardTitle = (currentDoc as any[])?.[0]?.title;
 
@@ -185,7 +184,9 @@ export async function POST(req: Request, ctx: any) {
         bytes: updateBuf.byteLength,
       })
     );
-  } catch {}
+  } catch (e) {
+    console.error("[YJS Updates] Failed to log update event:", e);
+  }
 
   return NextResponse.json(
     { ok: true },

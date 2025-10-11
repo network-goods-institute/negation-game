@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { gzipSync } from "zlib";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
-import { or, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   getDocSnapshotBase64,
   getDocSnapshotBuffer,
 } from "@/services/yjsCompaction";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 import * as Y from "yjs";
 
 export const runtime = "nodejs";
@@ -19,19 +20,13 @@ export async function GET(req: Request, ctx: any) {
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
-  if (!/^[a-zA-Z0-9:_-]{1,256}$/.test(id)) {
-    return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
+
+  if (!isValidSlugOrId(id)) {
+    return NextResponse.json({ error: "Invalid doc id or slug" }, { status: 400 });
   }
+
   // Resolve slug to canonical id if it exists
-  let canonicalId = id;
-  try {
-    const rows = await db
-      .select({ id: mpDocsTable.id })
-      .from(mpDocsTable)
-      .where(or(eq(mpDocsTable.id, id), eq(mpDocsTable.slug, id)))
-      .limit(1);
-    if (rows.length === 1) canonicalId = rows[0].id;
-  } catch {}
+  const canonicalId = await resolveSlugToId(id);
   await db
     .insert(mpDocsTable)
     .values({ id: canonicalId })

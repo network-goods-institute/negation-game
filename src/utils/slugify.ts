@@ -1,5 +1,5 @@
-export function slugify(raw: string): string {
-  return (raw || "")
+export function slugify(raw: string, maxLength: number = 100): string {
+  const slug = (raw || "")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -8,6 +8,17 @@ export function slugify(raw: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+
+  if (!slug || slug.length === 0) {
+    return "board";
+  }
+
+  if (slug.length > maxLength) {
+    const truncated = slug.substring(0, maxLength);
+    return truncated.replace(/-+$/g, "");
+  }
+
+  return slug;
 }
 
 export function isReservedSlug(slug: string): boolean {

@@ -207,7 +207,12 @@ export async function createRationale(params?: {
       };
       const slug = await generateUniqueSlug(title, exists);
       await tx.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
-    } catch {}
+    } catch (err) {
+      console.error(
+        `[Create Rationale] Failed to generate slug for doc ${id}:`,
+        err
+      );
+    }
   });
 
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -244,18 +249,41 @@ export async function renameRationale(id: string, title: string) {
     .set({ title: t, updatedAt: new Date() })
     .where(eq(mpDocsTable.id, id));
 
-  try {
-    const exists = async (slug: string) => {
-      const rows = await db
-        .select({ id: mpDocsTable.id })
-        .from(mpDocsTable)
-        .where(eq(mpDocsTable.slug, slug))
-        .limit(1);
-      return rows.length > 0;
-    };
-    const slug = await generateUniqueSlug(t, exists);
-    await db.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
-  } catch {}
+  let attempts = 0;
+  const maxAttempts = 3;
+  let slugUpdated = false;
+
+  while (attempts < maxAttempts && !slugUpdated) {
+    try {
+      const exists = async (slug: string) => {
+        const rows = await db
+          .select({ id: mpDocsTable.id })
+          .from(mpDocsTable)
+          .where(eq(mpDocsTable.slug, slug))
+          .limit(1);
+        return rows.length > 0;
+      };
+      const slug = await generateUniqueSlug(t, exists);
+      await db.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
+      slugUpdated = true;
+    } catch (err: any) {
+      if (err?.code === "23505" || err?.message?.includes("unique")) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          console.error(
+            `[Rename Rationale] Failed to update slug after ${maxAttempts} attempts for doc ${id}:`,
+            err
+          );
+        }
+      } else {
+        console.error(
+          `[Rename Rationale] Failed to generate slug for doc ${id}:`,
+          err
+        );
+        break;
+      }
+    }
+  }
 
   return { ok: true } as const;
 }
