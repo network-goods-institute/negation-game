@@ -530,16 +530,17 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onConnect={onConnect}
             onNodeClick={handleNodeClickInternal}
             onPaneClick={(e) => {
-              // If in select mode, clear selections. Otherwise, do nothing for clicks on the pane.
-              if (selectMode) {
-                if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
-                try { graph.clearNodeSelection?.(); } catch { }
-                try { graph.setSelectedEdge?.(null); } catch { }
-                try { window.getSelection()?.removeAllRanges(); } catch { }
-                try { graph.blurNodesImmediately?.(); } catch { }
-              } else if (connectMode) {
+              // In connect mode, route to background mouse up handler
+              if (connectMode) {
                 onBackgroundMouseUp?.();
+                return;
               }
+              // Always clear selections when clicking empty pane (avoid race after selection changes)
+              if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
+              try { graph.clearNodeSelection?.(); } catch { }
+              try { graph.setSelectedEdge?.(null); } catch { }
+              try { window.getSelection()?.removeAllRanges(); } catch { }
+              try { graph.blurNodesImmediately?.(); } catch { }
             }}
             onEdgeClick={handleEdgeClickInternal}
             onNodeDragStart={handleNodeDragStartInternal}

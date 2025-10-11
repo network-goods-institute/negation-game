@@ -45,6 +45,7 @@ export const HeaderActions = () => {
     const { mobileFiltersOpen } = useSpaceSearch();
 
     const isSpacePage = pathname.match(/^\/s\/[^\/]+$/) !== null;
+    const isExperimentPage = pathname.startsWith('/experiment');
 
     useEffect(() => {
         // Get the search container element for portal rendering
@@ -96,11 +97,13 @@ export const HeaderActions = () => {
                     </Tooltip>
                 </div>
 
-                <div className="hidden sm:block flex-shrink-0">
-                    <Dynamic>
-                        <ModeToggle />
-                    </Dynamic>
-                </div>
+                {!isExperimentPage && (
+                    <div className="hidden sm:block flex-shrink-0">
+                        <Dynamic>
+                            <ModeToggle />
+                        </Dynamic>
+                    </div>
+                )}
 
                 <ConnectButton />
 
@@ -131,14 +134,16 @@ export const HeaderActions = () => {
                                 <span>AI Assistant</span>
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                                {theme === 'dark' ? (
-                                    <Sun className="mr-2 h-4 w-4" />
-                                ) : (
-                                    <Moon className="mr-2 h-4 w-4" />
-                                )}
-                                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-                            </DropdownMenuItem>
+                            {!isExperimentPage && (
+                                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                                    {theme === 'dark' ? (
+                                        <Sun className="mr-2 h-4 w-4" />
+                                    ) : (
+                                        <Moon className="mr-2 h-4 w-4" />
+                                    )}
+                                    <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                                </DropdownMenuItem>
+                            )}
 
                             <DropdownMenuSeparator />
 
@@ -210,14 +215,16 @@ export const HeaderActions = () => {
                             </DropdownMenuItem>
 
                             {/* Enhanced inline theme toggle for mobile */}
-                            <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                                {theme === 'dark' ? (
-                                    <Sun className="mr-2 h-4 w-4" />
-                                ) : (
-                                    <Moon className="mr-2 h-4 w-4" />
-                                )}
-                                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
-                            </DropdownMenuItem>
+                            {!isExperimentPage && (
+                                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                                    {theme === 'dark' ? (
+                                        <Sun className="mr-2 h-4 w-4" />
+                                    ) : (
+                                        <Moon className="mr-2 h-4 w-4" />
+                                    )}
+                                    <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                                </DropdownMenuItem>
+                            )}
 
                             <DropdownMenuSeparator />
 
