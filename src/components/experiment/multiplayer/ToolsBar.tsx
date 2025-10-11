@@ -236,7 +236,11 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
                       <span className="font-mono bg-stone-100 px-1 rounded">⇧ + Click</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Move node</span>
+                      <span>Box select (empty area)</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">Click + Drag</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Move selected node(s)</span>
                       <span className="font-mono bg-stone-100 px-1 rounded">Click + Drag</span>
                     </div>
                     <div className="flex justify-between">

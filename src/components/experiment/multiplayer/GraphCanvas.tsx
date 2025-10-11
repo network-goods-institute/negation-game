@@ -503,6 +503,23 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             e.stopPropagation();
             return;
           }
+
+          if (e.shiftKey && selectMode) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const currentNodes = rf.getNodes();
+            const currentNode = currentNodes.find((n: any) => n.id === node.id);
+
+            if (currentNode) {
+              const updatedNodes = currentNodes.map((n: any) =>
+                n.id === node.id ? { ...n, selected: !n.selected } : n
+              );
+              rf.setNodes(updatedNodes);
+            }
+            return;
+          }
+
           onNodeClick?.(e, node);
         };
 
