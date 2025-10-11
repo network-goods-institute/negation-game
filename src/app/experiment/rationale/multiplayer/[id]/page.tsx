@@ -101,11 +101,20 @@ export default function MultiplayerBoardDetailPage() {
                 const res = await fetch(`/api/experimental/rationales/${encodeURIComponent(raw)}`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (data && (data.ownerId != null || data.title != null)) {
+                    if (data && data.id) {
                         setResolvedId(data.id);
+                    } else {
+                        console.error('[Slug Resolution] API returned invalid data:', data);
+                        setResolvedId(raw);
                     }
+                } else {
+                    console.error('[Slug Resolution] API request failed:', res.status, res.statusText);
+                    setResolvedId(raw);
                 }
-            } catch { }
+            } catch (err) {
+                console.error('[Slug Resolution] Failed to resolve slug:', err);
+                setResolvedId(raw);
+            }
         })();
     }, [routeParams?.id]);
 

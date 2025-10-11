@@ -8,6 +8,7 @@ import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { generateUniqueSlug } from "@/utils/slugify";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 
 const DEFAULT_OWNER = "connormcmk";
 const DEFAULT_TITLE = "Untitled";
@@ -123,43 +124,47 @@ export async function listVisitedRationales() {
 export async function recordOpen(docId: string) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(docId)) throw new Error("Invalid doc id");
+  if (!isValidSlugOrId(docId)) throw new Error("Invalid doc id or slug");
+
+  // Resolve slug to canonical id if needed
+  const canonicalId = await resolveSlugToId(docId);
+
   await db
     .insert(mpDocsTable)
-    .values({ id: docId, ownerId: userId, title: DEFAULT_TITLE })
+    .values({ id: canonicalId, ownerId: userId, title: DEFAULT_TITLE })
     .onConflictDoNothing();
   const row = (
     await db
       .select()
       .from(mpDocsTable)
-      .where(eq(mpDocsTable.id, docId))
+      .where(eq(mpDocsTable.id, canonicalId))
       .limit(1)
   )[0] as any;
   if (row && !row.ownerId) {
     await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
-      .where(eq(mpDocsTable.id, docId));
+      .where(eq(mpDocsTable.id, canonicalId));
   }
   const existing = await db
     .select({ id: mpDocAccessTable.id })
     .from(mpDocAccessTable)
     .where(
       and(
-        eq(mpDocAccessTable.docId, docId),
+        eq(mpDocAccessTable.docId, canonicalId),
         eq(mpDocAccessTable.userId, userId)
       )
     )
     .limit(1);
   if (existing.length === 0) {
-    await db.insert(mpDocAccessTable).values({ docId, userId });
+    await db.insert(mpDocAccessTable).values({ docId: canonicalId, userId });
   } else {
     await db
       .update(mpDocAccessTable)
       .set({ lastOpenAt: new Date() })
       .where(
         and(
-          eq(mpDocAccessTable.docId, docId),
+          eq(mpDocAccessTable.docId, canonicalId),
           eq(mpDocAccessTable.userId, userId)
         )
       );
@@ -168,7 +173,7 @@ export async function recordOpen(docId: string) {
     await db
       .select()
       .from(mpDocsTable)
-      .where(eq(mpDocsTable.id, docId))
+      .where(eq(mpDocsTable.id, canonicalId))
       .limit(1)
   )[0] as any;
   return {
@@ -223,14 +228,17 @@ export async function createRationale(params?: {
 export async function renameRationale(id: string, title: string) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) throw new Error("Invalid doc id");
+  if (!isValidSlugOrId(id)) throw new Error("Invalid doc id or slug");
   const t = (title || "").trim();
   if (!t) throw new Error("Empty title");
+
+  // Resolve slug to canonical id if needed
+  const canonicalId = await resolveSlugToId(id);
 
   const row = await db
     .select({ ownerId: mpDocsTable.ownerId })
     .from(mpDocsTable)
-    .where(eq(mpDocsTable.id, id))
+    .where(eq(mpDocsTable.id, canonicalId))
     .limit(1);
 
   if (row.length === 0) throw new Error("Document not found");
@@ -241,13 +249,13 @@ export async function renameRationale(id: string, title: string) {
     await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
-      .where(eq(mpDocsTable.id, id));
+      .where(eq(mpDocsTable.id, canonicalId));
   }
 
   await db
     .update(mpDocsTable)
     .set({ title: t, updatedAt: new Date() })
-    .where(eq(mpDocsTable.id, id));
+    .where(eq(mpDocsTable.id, canonicalId));
 
   let attempts = 0;
   const maxAttempts = 3;
@@ -264,20 +272,23 @@ export async function renameRationale(id: string, title: string) {
         return rows.length > 0;
       };
       const slug = await generateUniqueSlug(t, exists);
-      await db.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
+      await db
+        .update(mpDocsTable)
+        .set({ slug })
+        .where(eq(mpDocsTable.id, canonicalId));
       slugUpdated = true;
     } catch (err: any) {
       if (err?.code === "23505" || err?.message?.includes("unique")) {
         attempts++;
         if (attempts >= maxAttempts) {
           console.error(
-            `[Rename Rationale] Failed to update slug after ${maxAttempts} attempts for doc ${id}:`,
+            `[Rename Rationale] Failed to update slug after ${maxAttempts} attempts for doc ${canonicalId}:`,
             err
           );
         }
       } else {
         console.error(
-          `[Rename Rationale] Failed to generate slug for doc ${id}:`,
+          `[Rename Rationale] Failed to generate slug for doc ${canonicalId}:`,
           err
         );
         break;
@@ -291,20 +302,23 @@ export async function renameRationale(id: string, title: string) {
 export async function updateNodeTitle(id: string, nodeTitle: string) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) throw new Error("Invalid doc id");
+  if (!isValidSlugOrId(id)) throw new Error("Invalid doc id or slug");
+
+  // Resolve slug to canonical id if needed
+  const canonicalId = await resolveSlugToId(id);
 
   const can = await db.execute(sql`
     SELECT 1
     FROM mp_docs d
     LEFT JOIN mp_doc_access a ON a.doc_id = d.id AND a.user_id = ${userId}
-    WHERE d.id = ${id} AND (d.owner_id = ${userId} OR a.user_id = ${userId})
+    WHERE d.id = ${canonicalId} AND (d.owner_id = ${userId} OR a.user_id = ${userId})
     LIMIT 1
   `);
   if ((can as any[]).length === 0) throw new Error("Forbidden");
 
   // Get current board title to check if we should sync
   const current = await db.execute(sql`
-    SELECT title FROM mp_docs WHERE id = ${id} LIMIT 1
+    SELECT title FROM mp_docs WHERE id = ${canonicalId} LIMIT 1
   `);
   const currentBoardTitle = (current as any[])?.[0]?.title;
 
@@ -322,7 +336,7 @@ export async function updateNodeTitle(id: string, nodeTitle: string) {
       ...(shouldSyncBoardTitle && { title: nodeTitle.trim() }),
       updatedAt: new Date(),
     })
-    .where(eq(mpDocsTable.id, id));
+    .where(eq(mpDocsTable.id, canonicalId));
 
   return { ok: true } as const;
 }
@@ -348,12 +362,15 @@ export async function getDocumentTitles(id: string) {
 export async function deleteRationale(id: string) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) throw new Error("Invalid doc id");
+  if (!isValidSlugOrId(id)) throw new Error("Invalid doc id or slug");
+
+  // Resolve slug to canonical id if needed
+  const canonicalId = await resolveSlugToId(id);
 
   const row = await db
     .select({ ownerId: mpDocsTable.ownerId })
     .from(mpDocsTable)
-    .where(eq(mpDocsTable.id, id))
+    .where(eq(mpDocsTable.id, canonicalId))
     .limit(1);
   if (row.length === 0) throw new Error("Document not found");
 
@@ -362,12 +379,14 @@ export async function deleteRationale(id: string) {
     await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
-      .where(eq(mpDocsTable.id, id));
+      .where(eq(mpDocsTable.id, canonicalId));
   } else if (currentOwner !== userId) {
     throw new Error("Forbidden");
   }
 
-  await db.delete(mpDocUpdatesTable).where(eq(mpDocUpdatesTable.docId, id));
-  await db.delete(mpDocsTable).where(eq(mpDocsTable.id, id));
+  await db
+    .delete(mpDocUpdatesTable)
+    .where(eq(mpDocUpdatesTable.docId, canonicalId));
+  await db.delete(mpDocsTable).where(eq(mpDocsTable.id, canonicalId));
   return { ok: true } as const;
 }

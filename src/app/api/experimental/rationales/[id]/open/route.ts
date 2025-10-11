@@ -4,6 +4,7 @@ import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, eq } from "drizzle-orm";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,45 +19,63 @@ export async function POST(_req: Request, ctx: any) {
   const raw = ctx?.params;
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
-  if (!/^[a-zA-Z0-9:_-]{1,128}$/.test(id)) {
-    return NextResponse.json({ error: "Invalid doc id" }, { status: 400 });
+
+  if (!isValidSlugOrId(id)) {
+    return NextResponse.json(
+      { error: "Invalid doc id or slug" },
+      { status: 400 }
+    );
   }
+
+  const canonicalId = await resolveSlugToId(id);
+
   try {
     await db
       .insert(mpDocsTable)
-      .values({ id, ownerId: userId, title: "Untitled" })
+      .values({ id: canonicalId, ownerId: userId, title: "Untitled" })
       .onConflictDoNothing();
     const row = (
-      await db.select().from(mpDocsTable).where(eq(mpDocsTable.id, id)).limit(1)
+      await db
+        .select()
+        .from(mpDocsTable)
+        .where(eq(mpDocsTable.id, canonicalId))
+        .limit(1)
     )[0] as any;
     if (row && !row.ownerId) {
       await db
         .update(mpDocsTable)
         .set({ ownerId: userId })
-        .where(eq(mpDocsTable.id, id));
+        .where(eq(mpDocsTable.id, canonicalId));
     }
     const existing = await db
       .select({ id: mpDocAccessTable.id })
       .from(mpDocAccessTable)
       .where(
-        and(eq(mpDocAccessTable.docId, id), eq(mpDocAccessTable.userId, userId))
+        and(
+          eq(mpDocAccessTable.docId, canonicalId),
+          eq(mpDocAccessTable.userId, userId)
+        )
       )
       .limit(1);
     if (existing.length === 0) {
-      await db.insert(mpDocAccessTable).values({ docId: id, userId });
+      await db.insert(mpDocAccessTable).values({ docId: canonicalId, userId });
     } else {
       await db
         .update(mpDocAccessTable)
         .set({ lastOpenAt: new Date() })
         .where(
           and(
-            eq(mpDocAccessTable.docId, id),
+            eq(mpDocAccessTable.docId, canonicalId),
             eq(mpDocAccessTable.userId, userId)
           )
         );
     }
     const doc = (
-      await db.select().from(mpDocsTable).where(eq(mpDocsTable.id, id)).limit(1)
+      await db
+        .select()
+        .from(mpDocsTable)
+        .where(eq(mpDocsTable.id, canonicalId))
+        .limit(1)
     )[0] as any;
     return NextResponse.json({
       ok: true,
@@ -64,6 +83,7 @@ export async function POST(_req: Request, ctx: any) {
       title: doc?.title || null,
     });
   } catch (e) {
+    console.error("[Record Open] Failed to record open:", e);
     return NextResponse.json(
       { error: "Failed to record open" },
       { status: 500 }

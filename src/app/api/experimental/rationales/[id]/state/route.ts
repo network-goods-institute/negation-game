@@ -46,7 +46,7 @@ export async function GET(req: Request, ctx: any) {
   }
 
   if (mode === "json-snapshot") {
-    const snapshot = await getDocSnapshotBase64(id);
+    const snapshot = await getDocSnapshotBase64(canonicalId);
     return NextResponse.json({ snapshot });
   }
 
@@ -139,14 +139,14 @@ export async function GET(req: Request, ctx: any) {
   let buffer: Buffer | null = null;
   try {
     const snap = (await db.execute(
-      sql`SELECT "snapshot" FROM "mp_docs" WHERE id = ${id} LIMIT 1`
+      sql`SELECT "snapshot" FROM "mp_docs" WHERE id = ${canonicalId} LIMIT 1`
     )) as unknown as Array<{ snapshot: Buffer | null }>;
     if (snap?.[0]?.snapshot && (snap[0].snapshot as any).length) {
       buffer = Buffer.from(snap[0].snapshot as any);
     }
   } catch {}
   if (!buffer) {
-    buffer = await getDocSnapshotBuffer(id);
+    buffer = await getDocSnapshotBuffer(canonicalId);
   }
   // ETag/304 support using snapshot_at timestamp
   let etag: string | null = null;
