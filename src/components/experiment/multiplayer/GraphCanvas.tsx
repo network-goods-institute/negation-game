@@ -329,23 +329,18 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const nodesLayer = root.querySelector('.react-flow__nodes') as HTMLElement | null;
     const edgesLayerDiv = root.querySelector('.react-flow__edges') as HTMLElement | null;
     const edgeLabelsLayer = root.querySelector('.react-flow__edge-labels') as HTMLElement | null;
-    const prevNodesPE = nodesLayer?.style.pointerEvents || '';
-    const prevEdgesPE = edgesLayerDiv?.style.pointerEvents || '';
-    const prevEdgeLabelsPE = edgeLabelsLayer?.style.pointerEvents || '';
+
+    // In normal mode, nodes layer must not block the pane; edges remain interactive
+    // In grab mode, disable interaction on all layers for panning
     if (grabMode) {
       if (nodesLayer) nodesLayer.style.pointerEvents = 'none';
       if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = 'none';
       if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = 'none';
     } else {
-      if (nodesLayer) nodesLayer.style.pointerEvents = prevNodesPE || 'all';
-      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = prevEdgesPE || 'all';
-      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = prevEdgeLabelsPE || 'all';
+      if (nodesLayer) nodesLayer.style.pointerEvents = 'none';
+      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = 'all';
+      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = 'none';
     }
-    return () => {
-      if (nodesLayer) nodesLayer.style.pointerEvents = prevNodesPE;
-      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = prevEdgesPE;
-      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = prevEdgeLabelsPE;
-    };
   }, [grabMode]);
 
 
@@ -643,7 +638,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
-            className="w-full h-full bg-gray-50"
+            className={`w-full h-full bg-gray-50 ${connectMode ? 'connect-mode' : ''}`}
             style={{ willChange: 'transform' }}
             selectionOnDrag={selectMode}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}

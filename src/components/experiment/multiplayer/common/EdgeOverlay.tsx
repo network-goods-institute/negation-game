@@ -278,7 +278,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             width: EDGE_ANCHOR_SIZE,
             height: EDGE_ANCHOR_SIZE,
             zIndex: 1,
-            pointerEvents: connectMode ? 'none' : 'all',
+            pointerEvents: 'none',
           }}
           onMouseEnter={() => { onMouseEnter(); setIsAnchorHovered(true); }}
           onMouseLeave={() => { onMouseLeave(); setIsAnchorHovered(false); }}
@@ -313,7 +313,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
               style={{
                 transform: `scale(${zoom})`,
                 transformOrigin: 'center',
-                pointerEvents: 'auto',
+                pointerEvents: 'none',
                 paddingTop: PERSISTENCE_PADDING,
                 paddingBottom: 0,
                 paddingLeft: 0,
@@ -323,21 +323,21 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                 marginLeft: 0,
                 marginRight: 0,
               }}
-              onMouseEnter={() => setIsTooltipHovered(true)}
-              onMouseLeave={() => {
-                setIsTooltipHovered(false);
-              }}
-              onPointerDown={handlePersistencePointerDown}
-              onPointerMove={handlePersistencePointerMove}
-              onPointerUp={handlePersistencePointerUp}
-              onPointerCancel={handlePersistencePointerUp}
-              onPointerLeave={handlePersistencePointerLeave}
             >
               <div
                 className="flex items-center justify-center gap-3 bg-white/95 backdrop-blur-sm border rounded-md shadow px-2 py-1 transition-opacity duration-300"
                 style={{
                   pointerEvents: 'auto',
                 }}
+                onMouseEnter={() => setIsTooltipHovered(true)}
+                onMouseLeave={() => {
+                  setIsTooltipHovered(false);
+                }}
+                onPointerDown={handlePersistencePointerDown}
+                onPointerMove={handlePersistencePointerMove}
+                onPointerUp={handlePersistencePointerUp}
+                onPointerCancel={handlePersistencePointerUp}
+                onPointerLeave={handlePersistencePointerLeave}
               >
                 {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && (
                   <div className="flex items-center gap-3 text-[11px] select-none relative">

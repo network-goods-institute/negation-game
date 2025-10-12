@@ -184,7 +184,7 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         desired.forEach(({ x, y, parentEdgeId }, anchorId) => {
           const current = existing.get(anchorId);
           if (!current) {
-            out.push({ id: anchorId, type: 'edge_anchor', position: { x, y }, data: { parentEdgeId } });
+            out.push({ id: anchorId, type: 'edge_anchor', position: { x, y }, data: { parentEdgeId }, draggable: false, selectable: false } as any);
             changed = true;
           } else {
             const px = current?.position?.x ?? 0;
