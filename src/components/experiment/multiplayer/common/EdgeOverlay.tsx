@@ -70,6 +70,14 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     setIsAnchorHovered(isHovered);
   }, [isHovered]);
 
+  // Clear tooltip hover state when edge is programmatically deselected/dehovered
+  React.useEffect(() => {
+    if (!selected && !isHovered) {
+      setIsTooltipHovered(false);
+      setIsAnchorHovered(false);
+    }
+  }, [selected, isHovered]);
+
   const isSupportEdge = edgeType === "support";
   const isNegationEdge = edgeType === "negation";
   const activeEdgeLabel = isSupportEdge ? "Supports" : isNegationEdge ? "Negates" : null;

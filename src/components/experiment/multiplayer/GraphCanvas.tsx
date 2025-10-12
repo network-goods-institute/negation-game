@@ -613,10 +613,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                 onBackgroundMouseUp?.();
                 return;
               }
-              // Always clear selections when clicking empty pane (avoid race after selection changes)
-              if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
-              try { graph.clearNodeSelection?.(); } catch { }
+              // Clear edge selection and hover immediately, but delay node deselection to avoid race after selection changes
+              const timeSinceLastSelection = Date.now() - (lastSelectionChangeRef.current || 0);
               try { graph.setSelectedEdge?.(null); } catch { }
+              try { graph.setHoveredEdge?.(null); } catch { }
+              if (timeSinceLastSelection >= 200) {
+                try { graph.clearNodeSelection?.(); } catch { }
+              }
               try { window.getSelection()?.removeAllRanges(); } catch { }
               try { graph.blurNodesImmediately?.(); } catch { }
             }}
