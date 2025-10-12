@@ -49,6 +49,28 @@ const mergeContent = (
   } as Node;
 };
 
+const shallowEqual = (a: any, b: any): boolean => {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) {
+    return false;
+  }
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const key of keysA) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+};
+
+const nodesAreEqual = (a: Node, b: Node): boolean => {
+  if (a.id !== b.id || a.type !== b.type) return false;
+  if (a.draggable !== b.draggable || a.selected !== b.selected) return false;
+  if (!shallowEqual(a.position, b.position)) return false;
+  if (!shallowEqual(a.data, b.data)) return false;
+  return true;
+};
+
 export const mergeNodesWithText = (
   nodes: Node[],
   yTextMap: Y.Map<Y.Text> | null,
@@ -62,16 +84,16 @@ export const mergeNodesWithText = (
     const base = sanitizeNode(node, isLockedForMe);
     const selected = previous?.selected === true;
 
+    let result: Node;
+
     if (text) {
       const value = text.toString();
       const updated =
         base.type === "statement"
           ? mergeContent(base, value, "statement")
           : mergeContent(base, value, "content");
-      return applySelection(updated, selected);
-    }
-
-    if (previous && previous.data) {
+      result = applySelection(updated, selected);
+    } else if (previous && previous.data) {
       const previousData = previous.data as Record<string, unknown>;
       const fallbackValue =
         typeof previousData["title"] === "string"
@@ -84,10 +106,18 @@ export const mergeNodesWithText = (
           base.type === "statement"
             ? mergeContent(base, fallbackValue, "statement")
             : mergeContent(base, fallbackValue, "content");
-        return applySelection(updated, selected);
+        result = applySelection(updated, selected);
+      } else {
+        result = applySelection(base, selected);
       }
+    } else {
+      result = applySelection(base, selected);
     }
 
-    return applySelection(base, selected);
+    if (previous && nodesAreEqual(previous, result)) {
+      return previous;
+    }
+
+    return result;
   });
 };

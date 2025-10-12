@@ -69,4 +69,66 @@ describe("mergeNodesWithText", () => {
     expect(result.draggable).toBe(false);
     expect(result.selected).toBe(false);
   });
+
+  it("preserves object references for unchanged nodes", () => {
+    const doc = new Y.Doc();
+    const yTextMap = doc.getMap<Y.Text>("node_text");
+    const text1 = new Y.Text();
+    text1.insert(0, "node 1 text");
+    yTextMap.set("n1", text1);
+    const text2 = new Y.Text();
+    text2.insert(0, "node 2 text");
+    yTextMap.set("n2", text2);
+
+    const node1: Node = {
+      id: "n1",
+      type: "point",
+      position: { x: 100, y: 100 },
+      data: { content: "node 1 text", title: "node 1 text", favor: 3 },
+      draggable: true,
+      selected: false,
+    };
+
+    const node2: Node = {
+      id: "n2",
+      type: "point",
+      position: { x: 200, y: 200 },
+      data: { content: "node 2 text", title: "node 2 text", favor: 4 },
+      draggable: true,
+      selected: false,
+    };
+
+    const previous = new Map<string, Node>([
+      ["n1", node1],
+      ["n2", node2],
+    ]);
+
+    const incomingNode1 = {
+      id: "n1",
+      type: "point",
+      position: { x: 100, y: 100 },
+      data: { content: "node 1 text", favor: 3 },
+      draggable: true,
+      selected: false,
+    };
+
+    const incomingNode2 = {
+      id: "n2",
+      type: "point",
+      position: { x: 250, y: 200 },
+      data: { content: "node 2 text", favor: 4 },
+      draggable: true,
+      selected: false,
+    };
+
+    const [result1, result2] = mergeNodesWithText(
+      [incomingNode1, incomingNode2] as Node[],
+      yTextMap,
+      previous
+    );
+
+    expect(result1).toBe(node1);
+    expect(result2).not.toBe(node2);
+    expect(result2.position.x).toBe(250);
+  });
 });
