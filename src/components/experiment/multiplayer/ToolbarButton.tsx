@@ -37,7 +37,7 @@ export const ToolbarButton: React.FC<ToolbarButtonProps> = ({
           {children}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="top">
+      <TooltipContent side="top" className="z-[1100]">
         <div className="flex items-center gap-2">
           <span className="text-sm">{label}</span>
           {shortcut && (

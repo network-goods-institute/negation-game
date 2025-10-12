@@ -385,7 +385,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                                 </span>
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs !z-30">
+                            <TooltipContent side="top" className="text-xs z-[70]">
                               Relevance: {i}/5
                             </TooltipContent>
                           </Tooltip>
@@ -411,7 +411,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                                 <span className={`text-sm ${i <= relevance ? starColor : 'text-stone-300'}`}>★</span>
                               </button>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs !z-30">
+                            <TooltipContent side="top" className="text-xs z-[70]">
                               Relevance: {i}/5
                             </TooltipContent>
                           </Tooltip>

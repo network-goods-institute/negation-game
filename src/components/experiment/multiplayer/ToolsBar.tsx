@@ -154,7 +154,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
                 <HelpCircle className="h-5 w-5" />
               </div>
             </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-sm">
+            <TooltipContent side="top" className="max-w-sm z-[1100]">
               <div className="space-y-3">
                 <div className="font-semibold text-sm">Keyboard Shortcuts</div>
 
