@@ -33,7 +33,12 @@ export async function GET(_req: Request, ctx: any) {
     .where(or(eq(mpDocsTable.id, canonicalId), eq(mpDocsTable.slug, id)))
     .limit(1);
   const doc = rows[0] as any;
-  if (!doc) return NextResponse.json({ id, title: null, ownerId: null });
+  if (!doc) {
+    return NextResponse.json(
+      { error: "Document not found" },
+      { status: 404 }
+    );
+  }
   return NextResponse.json({
     id: doc.id,
     title: doc.title || null,
@@ -142,7 +147,6 @@ export async function PATCH(req: Request, ctx: any) {
         { error: "Document not found" },
         { status: 404 }
       );
-    const currentOwner = docRows[0].ownerId || "connormcmk";
     if (!docRows[0].ownerId) {
       await db
         .update(mpDocsTable)

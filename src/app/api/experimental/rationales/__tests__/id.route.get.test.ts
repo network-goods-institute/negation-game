@@ -24,7 +24,7 @@ describe("GET /api/experimental/rationales/[id]", () => {
     (process as any).env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED = "true";
   });
   beforeEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
     (getUserId as unknown as jest.Mock).mockResolvedValue("me");
   });
 
@@ -67,5 +67,28 @@ describe("GET /api/experimental/rationales/[id]", () => {
     });
     // Verify we performed resolution (resolver select + final select)
     expect(mockDb.select).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns 404 when document does not exist", async () => {
+    const { GET } = await import("../[id]/route");
+    const makeChain = (rows: any[]) => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => rows,
+        }),
+      }),
+    });
+    // First select: resolveSlugToId returns empty (not found)
+    // Second select: route handler returns empty (not found)
+    (mockDb.select as jest.Mock)
+      .mockImplementationOnce(() => makeChain([]))
+      .mockImplementationOnce(() => makeChain([]));
+
+    const res: any = await GET(new Request("http://test"), {
+      params: { id: "non-existent-id" },
+    });
+    expect(res.status).toBe(404);
+    const data = await res.json();
+    expect(data.error).toBe("Document not found");
   });
 });

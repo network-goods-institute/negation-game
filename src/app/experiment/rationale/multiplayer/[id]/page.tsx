@@ -95,6 +95,7 @@ export default function MultiplayerBoardDetailPage() {
 
     const [resolvedId, setResolvedId] = useState<string | null>(null);
     const [resolvedSlug, setResolvedSlug] = useState<string | null>(null);
+    const [notFound, setNotFound] = useState(false);
     useEffect(() => {
         const raw = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
         if (!raw) return;
@@ -119,6 +120,9 @@ export default function MultiplayerBoardDetailPage() {
                         console.error('[Slug Resolution] API returned invalid data:', data);
                         setResolvedId(raw);
                     }
+                } else if (res.status === 404) {
+                    console.error('[Slug Resolution] Document not found:', raw);
+                    setNotFound(true);
                 } else {
                     console.error('[Slug Resolution] API request failed:', res.status, res.statusText);
                     setResolvedId(raw);
@@ -431,6 +435,25 @@ export default function MultiplayerBoardDetailPage() {
 
     if (!ready) {
         return <LoadingState />;
+    }
+
+    if (notFound) {
+        return (
+            <div className="fixed inset-0 top-16 bg-gray-50 flex items-center justify-center">
+                <div className="text-center bg-white px-8 py-6 rounded-lg border shadow-sm max-w-md">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Board Not Found</h2>
+                    <p className="text-gray-600 mb-4">
+                        The board you're looking for doesn't exist or may have been deleted.
+                    </p>
+                    <button
+                        onClick={() => router.push('/experiment/rationale/multiplayer')}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    >
+                        Go to Boards List
+                    </button>
+                </div>
+            </div>
+        );
     }
 
 
