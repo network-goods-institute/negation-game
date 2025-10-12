@@ -462,31 +462,28 @@ export const useEditableNode = ({
   const onBlur = (e: React.FocusEvent<HTMLDivElement>) => {
     if (document.activeElement === e.currentTarget) return;
 
-    // Check if focus is moving to a related element (within same node wrapper)
     const relatedTarget = e.relatedTarget as HTMLElement | null;
+
+    // Focus moving inside this node wrapper: ignore
     if (relatedTarget && wrapperRef.current?.contains(relatedTarget)) {
       return;
     }
 
-    // If relatedTarget is null, it could be either:
-    // - A user clicked away to a non-focusable surface (we should commit/exit), or
-    // - A transient layout/DOM update (focus will return; we should NOT exit).
-    // Defer briefly: if focus returns to our content element, do nothing; otherwise, commit.
+    // Unknown blur target (often caused by transient re-renders during remote updates):
+    // preserve editing by re-focusing the content element if still editing.
     if (!relatedTarget) {
       setTimeout(() => {
-        if (
-          contentRef.current &&
-          document.activeElement === contentRef.current
-        ) {
-          return;
-        }
-        if (isEditing && document.activeElement !== contentRef.current) {
-          commit();
-        }
-      }, 50);
+        if (!isEditing) return;
+        const el = contentRef.current;
+        if (!el) return;
+        try {
+          el.focus();
+        } catch {}
+      }, 0);
       return;
     }
 
+    // Explicit blur to a known element outside this node: commit
     commit();
   };
 
