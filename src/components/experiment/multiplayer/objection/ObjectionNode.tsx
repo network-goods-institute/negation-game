@@ -45,6 +45,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
+    const lockedForEditing = Boolean(lockOwner && (lockOwner as any).kind === 'edit');
     const hidden = (data as any)?.hidden === true;
 
     const rf = useReactFlow();
@@ -260,7 +261,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
                 <div
                     ref={contentRef}
-                    contentEditable={isEditing && !locked && !hidden}
+                    contentEditable={isEditing && !lockedForEditing && !hidden}
                     spellCheck={true}
                     suppressContentEditableWarning
                     onInput={onInput}

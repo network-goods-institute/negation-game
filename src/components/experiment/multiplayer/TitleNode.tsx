@@ -34,6 +34,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
+    const lockedForEditing = Boolean(lockOwner && (lockOwner as any).kind === 'edit');
     const hidden = (data as any)?.hidden === true;
 
     const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
@@ -148,7 +149,7 @@ export const TitleNode: React.FC<TitleNodeProps> = ({ data, id, selected }) => {
             )}
             <div
                 ref={contentRef}
-                contentEditable={isEditing && !locked && !hidden}
+                contentEditable={isEditing && !lockedForEditing && !hidden}
                 spellCheck={true}
                 suppressContentEditableWarning
                 onInput={onInput}
