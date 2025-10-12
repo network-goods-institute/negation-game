@@ -182,7 +182,7 @@ export default function MultiplayerRationaleIndexPage() {
             </div>
             <Button onClick={handleCreate} disabled={creating} aria-busy={creating} className="h-9 px-4 bg-sync hover:bg-sync-hover text-white">
               {creating ? (
-                <span className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="h-5 w-5 border-2 border-sync border-t-transparent rounded-full animate-spin" />
               ) : (
                 "New Board"
               )}
@@ -264,7 +264,7 @@ export default function MultiplayerRationaleIndexPage() {
                   >
                     {creating && (
                       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
-                        <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <div className="size-5 border-2 border-sync border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
                     <div className="flex flex-col items-center justify-center text-center h-full">
@@ -312,7 +312,7 @@ export default function MultiplayerRationaleIndexPage() {
                           role="button"
                         >
                           {openingId === d.id && (
-                            <div className="absolute top-3 right-3 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <div className="absolute top-3 right-3 h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
                           )}
                           <div className="flex items-start justify-between gap-2">
                             <div>
@@ -433,7 +433,7 @@ export default function MultiplayerRationaleIndexPage() {
                               role="button"
                             >
                               {openingId === d.id && (
-                                <div className="absolute top-3 right-3 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                <div className="absolute top-3 right-3 h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
                               )}
                               <div className="flex items-start justify-between gap-2">
                                 <div>
@@ -549,7 +549,7 @@ export default function MultiplayerRationaleIndexPage() {
               disabled={renameLoading || !renamingDraft.trim()}
             >
               {renameLoading ? (
-                <span className="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
               ) : (
                 'Save'
               )}
@@ -580,7 +580,7 @@ export default function MultiplayerRationaleIndexPage() {
               className="bg-red-600 hover:bg-red-700"
             >
               {deleteLoading ? (
-                <span className="h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                <span className="h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
               ) : (
                 'Delete'
               )}
