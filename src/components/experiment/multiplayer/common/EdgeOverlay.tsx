@@ -247,6 +247,25 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     normalAction();
   }, [connectMode, onConnectionClick]);
 
+  const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    const el = portalContainerRef.current;
+    if (!el) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      // Block ALL wheel events including browser page zoom (pinch-to-zoom with ctrlKey)
+      // This prevents the page from zooming when hovering over the edge overlay
+      event.stopPropagation();
+      event.preventDefault();
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+
+    return () => {
+      el.removeEventListener('wheel', handleWheel, { capture: true } as any);
+    };
+  }, [showHUD]);
+
   return (
     <React.Fragment>
       {/* 1) Small hover anchor stays in the edge-label layer */}
@@ -270,6 +289,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
       {portalTarget && showHUD && createPortal(
         // Outer: position at the anchor in screen-space, anchor X center / Y top
         <div
+          ref={portalContainerRef}
           style={{
             position: 'fixed',
             left: screenLeft,

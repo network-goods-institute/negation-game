@@ -36,10 +36,28 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   selectMode,
 }) => {
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  const toolbarRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.stopPropagation();
+      event.preventDefault();
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+
+    return () => {
+      el.removeEventListener('wheel', handleWheel, { capture: true } as any);
+    };
+  }, [connectMode]);
+
   // Focused (connect) mode UI
   if (connectMode) {
     const content = (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
+      <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
         <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
           <div className="flex items-center gap-2 px-1 text-blue-700">
             <LinkIcon className="h-5 w-5" />
@@ -69,7 +87,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
 
   // Default toolbar (idle)
   const content = (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
+    <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
       <TooltipProvider>
         <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-2 transition-all">
           {/* Select (pointer) */}

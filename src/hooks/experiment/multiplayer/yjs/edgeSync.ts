@@ -48,9 +48,18 @@ export const createUpdateEdgesFromY = (
       } catch {}
     }
 
-    const sorted = [...normalised].sort((a, b) =>
-      (a.id || "").localeCompare(b.id || "")
-    );
+    // Sort edges to control z-index: objection edges render first (below), then other edges
+    const sorted = [...normalised].sort((a, b) => {
+      const aIsObjection = a.type === "objection";
+      const bIsObjection = b.type === "objection";
+
+      // Objection edges go first (render below)
+      if (aIsObjection && !bIsObjection) return -1;
+      if (!aIsObjection && bIsObjection) return 1;
+
+      // Within same type, sort by ID for stability
+      return (a.id || "").localeCompare(b.id || "");
+    });
     const signature = JSON.stringify(sorted.map(toComparableEdge));
     if (signature === lastEdgesSigRef.current) {
       if (isLocalOrigin && !isUndoRedoRef?.current) {

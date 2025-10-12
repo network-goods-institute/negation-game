@@ -43,7 +43,8 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
 
   useEffect(() => {
     try {
-      const eps = 0.5;
+      // Reduced epsilon for more accurate anchor positioning
+      const eps = 0.1;
       const edgesList = edges as any[];
       const edgesById = new Map<string, any>();
       for (const e of edgesList) edgesById.set(String(e?.id || ''), e);
@@ -64,12 +65,16 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
       const betweenBorders = (sa: any, ta: any) => {
         const sx = sa.x, sy = sa.y, tx = ta.x, ty = ta.y;
         const sw = sa.w, sh = sa.h, tw = ta.w, th = ta.h;
-        if (!Number.isFinite(sw) || !Number.isFinite(sh) || !Number.isFinite(tw) || !Number.isFinite(th)) {
+
+        // Require valid dimensions for accurate border calculation
+        if (!Number.isFinite(sw) || !Number.isFinite(sh) || !Number.isFinite(tw) || !Number.isFinite(th) || sw <= 0 || sh <= 0 || tw <= 0 || th <= 0) {
           return { x: (sx + tx) / 2, y: (sy + ty) / 2 };
         }
+
         const dx = tx - sx;
         const dy = ty - sy;
         if (dx === 0 && dy === 0) return { x: sx, y: sy };
+
         const intersectRect = (cx: number, cy: number, halfW: number, halfH: number, dirX: number, dirY: number) => {
           const adx = Math.abs(dirX);
           const ady = Math.abs(dirY);
@@ -79,6 +84,7 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
           const t = Math.min(txScale, tyScale);
           return { x: cx + dirX * t, y: cy + dirY * t };
         };
+
         const fromS = intersectRect(sx, sy, sw / 2, sh / 2, dx, dy);
         const fromT = intersectRect(tx, ty, tw / 2, th / 2, -dx, -dy);
         return { x: (fromS.x + fromT.x) / 2, y: (fromS.y + fromT.y) / 2 };
