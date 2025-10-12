@@ -443,7 +443,7 @@ export default function MultiplayerBoardDetailPage() {
                 <div className="text-center bg-white px-8 py-6 rounded-lg border shadow-sm max-w-md">
                     <h2 className="text-xl font-semibold text-gray-900 mb-2">Board Not Found</h2>
                     <p className="text-gray-600 mb-4">
-                        The board you're looking for doesn't exist or may have been deleted.
+                        The board you&apos;re looking for doesn&apos;t exist or may have been deleted.
                     </p>
                     <button
                         onClick={() => router.push('/experiment/rationale/multiplayer')}
