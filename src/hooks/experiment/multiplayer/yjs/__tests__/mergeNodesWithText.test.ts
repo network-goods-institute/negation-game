@@ -69,4 +69,88 @@ describe("mergeNodesWithText", () => {
     expect(result.draggable).toBe(false);
     expect(result.selected).toBe(false);
   });
+
+  it("preserves object identity when only position changes (critical for concurrent drag + edit)", () => {
+    const doc = new Y.Doc();
+    const yTextMap = doc.getMap<Y.Text>("node_text");
+    const text = new Y.Text();
+    text.insert(0, "stable content");
+    yTextMap.set("n1", text);
+
+    // First render: establish previous node
+    const initialNode: Node = {
+      id: "n1",
+      type: "point",
+      position: { x: 0, y: 0 },
+      data: { content: "stable content", favor: 5 },
+      draggable: true,
+      selected: false,
+    };
+
+    const [firstResult] = mergeNodesWithText([initialNode], yTextMap, undefined);
+
+    // Build previous map with the first result
+    const previous = new Map<string, Node>([["n1", firstResult]]);
+
+    // Second render: same content, different position (simulating remote drag)
+    const movedNode: Node = {
+      id: "n1",
+      type: "point",
+      position: { x: 100, y: 50 }, // Position changed
+      data: { content: "stable content", favor: 5 }, // Content unchanged
+      draggable: true,
+      selected: false,
+    };
+
+    const [secondResult] = mergeNodesWithText([movedNode], yTextMap, previous);
+
+    // Critical assertion: object identity preserved when only position changed
+    // This prevents React from reconciling the component and losing contentEditable focus
+    expect(secondResult).toBe(firstResult); // Same object reference!
+
+    // Position should still be updated
+    expect(secondResult.position).toEqual({ x: 100, y: 50 });
+  });
+
+  it("creates new object when content changes (does not preserve identity)", () => {
+    const doc = new Y.Doc();
+    const yTextMap = doc.getMap<Y.Text>("node_text");
+
+    // First render with initial content
+    const initialText = new Y.Text();
+    initialText.insert(0, "initial content");
+    yTextMap.set("n1", initialText);
+
+    const initialNode: Node = {
+      id: "n1",
+      type: "point",
+      position: { x: 0, y: 0 },
+      data: { content: "initial content", favor: 5 },
+      draggable: true,
+      selected: false,
+    };
+
+    const [firstResult] = mergeNodesWithText([initialNode], yTextMap, undefined);
+    const previous = new Map<string, Node>([["n1", firstResult]]);
+
+    // Second render: content changed (simulating user edit)
+    const editedText = new Y.Text();
+    editedText.insert(0, "edited content");
+    yTextMap.set("n1", editedText);
+
+    const editedNode: Node = {
+      id: "n1",
+      type: "point",
+      position: { x: 0, y: 0 }, // Position unchanged
+      data: { content: "edited content", favor: 5 }, // Content changed
+      draggable: true,
+      selected: false,
+    };
+
+    const [secondResult] = mergeNodesWithText([editedNode], yTextMap, previous);
+
+    // When content changes, we SHOULD create a new object to trigger re-render
+    expect(secondResult).not.toBe(firstResult);
+    expect(secondResult.data?.content).toBe("edited content");
+  });
 });
