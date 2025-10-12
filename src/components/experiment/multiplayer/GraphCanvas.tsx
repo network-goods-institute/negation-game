@@ -1,7 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ReactFlow, Background, Controls, MiniMap, Edge, Node, useReactFlow, useViewport, SelectionMode } from '@xyflow/react';
-import { toast } from 'sonner';
+import { ReactFlow, Background, Controls, MiniMap, Edge, Node, useReactFlow, SelectionMode } from '@xyflow/react';
 import { CursorOverlay } from './CursorOverlay';
 import { CursorReporter } from './CursorReporter';
 import { nodeTypes, edgeTypes } from '@/components/experiment/multiplayer/componentRegistry';
@@ -11,6 +10,11 @@ import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
 import { useKeyboardPanning } from '@/hooks/experiment/multiplayer/useKeyboardPanning';
 import { useConnectionSnapping } from '@/hooks/experiment/multiplayer/useConnectionSnapping';
 import { usePerformanceMode } from './PerformanceContext';
+import { ContextMenu } from './common/ContextMenu';
+import { useGraphKeyboardHandlers } from '@/hooks/experiment/multiplayer/useGraphKeyboardHandlers';
+import { useGraphWheelHandler } from '@/hooks/experiment/multiplayer/useGraphWheelHandler';
+import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNodeHandlers';
+import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
 
 type YProvider = WebsocketProvider | null;
 
@@ -78,7 +82,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   blurAllNodes = 0,
 }) => {
   const rf = useReactFlow();
-  const viewport = useViewport();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const graph = useGraphActions();
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
@@ -87,8 +90,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const { perfMode } = usePerformanceMode();
   const { setPerfMode } = usePerformanceMode();
   const midPanRef = React.useRef(false);
-  const wheelUpdateRef = React.useRef<number | null>(null);
-  const pendingWheelDeltaRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const copiedNodeIdRef = React.useRef<string | null>(null);
   const altCloneMapRef = React.useRef<Map<string, { dupId: string; origin: { x: number; y: number } }>>(new Map());
 
@@ -99,6 +100,34 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     edgesLayer,
     containerRef,
   });
+
+  // Custom hooks for managing complex logic
+  useGraphKeyboardHandlers({ graph, copiedNodeIdRef });
+  useGraphWheelHandler({ containerRef });
+
+  const {
+    multiSelectMenuOpen,
+    multiSelectMenuPos,
+    handleMultiSelectContextMenu,
+    handleDeleteSelectedNodes,
+    setMultiSelectMenuOpen,
+  } = useGraphContextMenu({ graph });
+
+  const {
+    handleNodeClick: handleNodeClickInternal,
+    handleNodeDragStart: handleNodeDragStartInternal,
+    handleNodeDrag,
+    handleNodeDragStop: handleNodeDragStopInternal,
+  } = useGraphNodeHandlers({
+    graph,
+    grabMode,
+    selectMode,
+    onNodeClick,
+    onNodeDragStart,
+    onNodeDragStop,
+    altCloneMapRef,
+  });
+
   const deselectAllNodes = React.useCallback(() => {
     try {
       (graph as any)?.clearNodeSelection?.();
@@ -109,173 +138,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     connectMode,
     onCancelConnect: graph.cancelConnect,
   });
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      const target = e.target as HTMLElement | null;
-      const active = (document.activeElement as HTMLElement | null) || null;
-      const isEditable = (el: HTMLElement | null) => {
-        if (!el) return false;
-        const tag = el.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
-        if (el.isContentEditable) return true;
-        return false;
-      };
-      if (isEditable(target) || isEditable(active)) return;
-
-      const selection = window.getSelection?.();
-      if (selection && !selection.isCollapsed) return;
-
-      const isDeleteKey = key === 'delete' || key === 'backspace';
-      if (isDeleteKey) {
-        // Block deletions while any node is in edit mode
-        if ((graph as any)?.isAnyNodeEditing) {
-          e.preventDefault();
-          return;
-        }
-        const sel = rf.getNodes().filter((n) => (n as any).selected);
-        const selectedEdgeId = (graph as any)?.selectedEdgeId as string | null;
-        if (selectedEdgeId) {
-          e.preventDefault();
-          graph.deleteNode?.(selectedEdgeId);
-          graph.setSelectedEdge?.(null);
-          return;
-        }
-        if (sel.length > 0) {
-          e.preventDefault();
-          const ids = new Set<string>();
-          sel.forEach((n) => {
-            const node: any = n as any;
-            if (node.type === 'group') {
-              ids.add(node.id);
-              return;
-            }
-            const pid = node.parentId;
-            if (pid) {
-              const p = rf.getNode(pid) as any;
-              if (p && p.type === 'group') {
-                ids.add(p.id);
-                return;
-              }
-            }
-            ids.add(node.id);
-          });
-          ids.forEach((id) => graph.deleteNode?.(id));
-          return;
-        }
-        // Nothing selected: prevent browser navigation on Backspace/Delete
-        e.preventDefault();
-        return;
-      }
-      if (key === 'escape') {
-        try { (graph as any)?.clearNodeSelection?.(); } catch { }
-        try { (graph as any)?.setSelectedEdge?.(null); } catch { }
-        e.preventDefault();
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && key === 'c') {
-        const sel = rf.getNodes().filter((n) => (n as any).selected);
-        if (sel.length === 1) {
-          const only = sel[0] as any;
-          if (only?.type === 'point' || only?.type === 'objection') {
-            copiedNodeIdRef.current = String(only.id);
-            e.preventDefault();
-            e.stopPropagation();
-            try { toast.success('Copied node'); } catch { }
-            return;
-          }
-        }
-      }
-      if ((e.metaKey || e.ctrlKey) && key === 'v') {
-        const targetId = copiedNodeIdRef.current;
-        if (targetId) {
-          const exists = !!rf.getNode(targetId as any);
-          if (exists) {
-            e.preventDefault();
-            e.stopPropagation();
-            try {
-              (graph as any)?.duplicateNodeWithConnections?.(targetId, { x: 16, y: 16 });
-            } catch {}
-            return;
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', onKey, { capture: true });
-    return () => {
-      window.removeEventListener('keydown', onKey as any, { capture: true } as any);
-    };
-  }, [rf, graph]);
-
-  React.useEffect(() => {
-    const root = containerRef.current;
-    if (!root) return;
-
-    const isEditable = (el: HTMLElement | null) => {
-      if (!el) return false;
-      const tag = el.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-      if (el.isContentEditable) return true;
-      return false;
-    };
-
-    const withinCanvasBounds = (x: number, y: number) => {
-      const rect = root.getBoundingClientRect();
-      return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    };
-
-    const onWheel = (event: WheelEvent) => {
-      // Ignore pinch-zoom and modified scrolls
-      if (event.ctrlKey || event.metaKey) return;
-
-      // Only handle if pointer is over the canvas area (including portaled HUDs)
-      if (!withinCanvasBounds(event.clientX, event.clientY)) return;
-
-      // Skip when interacting with editable controls
-      const topEl = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-      if (isEditable(topEl)) return;
-
-      // Prevent page scroll; pan viewport instead
-      event.preventDefault();
-
-      // Reverse deltas for natural trackpad scrolling direction
-      pendingWheelDeltaRef.current.x += -event.deltaX;
-      pendingWheelDeltaRef.current.y += -event.deltaY;
-
-      if (wheelUpdateRef.current !== null) {
-        cancelAnimationFrame(wheelUpdateRef.current);
-      }
-
-      wheelUpdateRef.current = requestAnimationFrame(() => {
-        const viewport = rf.getViewport?.();
-        if (!viewport) {
-          pendingWheelDeltaRef.current = { x: 0, y: 0 };
-          wheelUpdateRef.current = null;
-          return;
-        }
-        const nextViewport = {
-          x: viewport.x + pendingWheelDeltaRef.current.x,
-          y: viewport.y + pendingWheelDeltaRef.current.y,
-          zoom: viewport.zoom,
-        };
-        rf.setViewport?.(nextViewport, { duration: 0 });
-        pendingWheelDeltaRef.current = { x: 0, y: 0 };
-        wheelUpdateRef.current = null;
-      });
-    };
-
-    // Capture phase to ensure we run even when overlay HUDs are above
-    window.addEventListener('wheel', onWheel, { passive: false, capture: true } as any);
-    return () => {
-      window.removeEventListener('wheel', onWheel as any, { capture: true } as any);
-      if (wheelUpdateRef.current !== null) {
-        cancelAnimationFrame(wheelUpdateRef.current);
-        wheelUpdateRef.current = null;
-      }
-      pendingWheelDeltaRef.current = { x: 0, y: 0 };
-    };
-  }, [rf]);
   React.useEffect(() => {
     if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const handler = (e: MouseEvent) => {
@@ -329,23 +191,18 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const nodesLayer = root.querySelector('.react-flow__nodes') as HTMLElement | null;
     const edgesLayerDiv = root.querySelector('.react-flow__edges') as HTMLElement | null;
     const edgeLabelsLayer = root.querySelector('.react-flow__edge-labels') as HTMLElement | null;
-    const prevNodesPE = nodesLayer?.style.pointerEvents || '';
-    const prevEdgesPE = edgesLayerDiv?.style.pointerEvents || '';
-    const prevEdgeLabelsPE = edgeLabelsLayer?.style.pointerEvents || '';
+
+    // In normal mode, nodes layer must not block the pane; edges remain interactive
+    // In grab mode, disable interaction on all layers for panning
     if (grabMode) {
       if (nodesLayer) nodesLayer.style.pointerEvents = 'none';
       if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = 'none';
       if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = 'none';
     } else {
-      if (nodesLayer) nodesLayer.style.pointerEvents = prevNodesPE || 'all';
-      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = prevEdgesPE || 'all';
-      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = prevEdgeLabelsPE || 'all';
+      if (nodesLayer) nodesLayer.style.pointerEvents = 'none';
+      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = 'all';
+      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = 'none';
     }
-    return () => {
-      if (nodesLayer) nodesLayer.style.pointerEvents = prevNodesPE;
-      if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = prevEdgesPE;
-      if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = prevEdgeLabelsPE;
-    };
   }, [grabMode]);
 
 
@@ -412,6 +269,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     <div
       ref={containerRef}
       className="w-full h-full relative"
+      onContextMenu={handleMultiSelectContextMenu}
       onPointerDown={(e) => {
         try {
           if (e.button === 1 && e.pointerType === 'mouse') {
@@ -497,113 +355,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           onEdgeClick?.(e, edge);
         };
 
-        const handleNodeClickInternal = (e: any, node: any) => {
-          if (grabMode) {
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-          }
-
-          if (e.shiftKey && selectMode) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const currentNodes = rf.getNodes();
-            const currentNode = currentNodes.find((n: any) => n.id === node.id);
-
-            if (currentNode) {
-              const updatedNodes = currentNodes.map((n: any) =>
-                n.id === node.id ? { ...n, selected: !n.selected } : n
-              );
-              rf.setNodes(updatedNodes);
-            }
-            return;
-          }
-
-          onNodeClick?.(e, node);
-        };
-
-        const handleNodeDragStartInternal = (e: any, node: any) => {
-          onNodeDragStart?.(e, node);
-          try {
-            // Block dragging a node if any objection connected to an edge with this node as endpoint is being edited
-            try {
-              const edgesAll = rf.getEdges();
-              const nodesAll = rf.getNodes();
-              const relatedObjections = nodesAll.filter((n: any) => n.type === 'objection' && n.data?.parentEdgeId);
-              for (const obj of relatedObjections) {
-                const base = edgesAll.find((ed: any) => ed.id === obj.data.parentEdgeId);
-                if (!base) continue;
-                const isEndpoint = String(base.source) === node.id || String(base.target) === node.id;
-                if (!isEndpoint) continue;
-                const editors = (graph as any)?.getEditorsForNode?.(obj.id) || [];
-                if (editors.length > 0) {
-                  e?.preventDefault?.();
-                  e?.stopPropagation?.();
-                  toast.warning(`Locked by ${editors[0]?.name || 'another user'}`);
-                  return;
-                }
-              }
-            } catch { }
-
-            if ((node as any)?.type === 'objection') {
-              const allEdges = rf.getEdges();
-              const objEdge = allEdges.find((ed: any) => (ed.type || '') === 'objection' && ed.source === node.id);
-              if (objEdge) {
-                const anchorId = String(objEdge.target || '');
-                const anchor: any = rf.getNode(anchorId);
-                if (anchor && anchor.type === 'edge_anchor') {
-                  const parentEdgeId: string | undefined = anchor.data?.parentEdgeId;
-                  if (parentEdgeId) {
-                    graph.ensureEdgeAnchor?.(anchor.id, parentEdgeId, anchor.position?.x ?? 0, anchor.position?.y ?? 0);
-                  }
-                } else {
-                  // Anchor not in local RF yet; derive parent edge id from target and ensure presence using midpoint
-                  const parentEdgeId = anchorId.startsWith('anchor:') ? anchorId.slice('anchor:'.length) : null;
-                  if (parentEdgeId) {
-                    const base = allEdges.find((e: any) => e.id === parentEdgeId);
-                    if (base) {
-                      const src = rf.getNode(String(base.source));
-                      const tgt = rf.getNode(String(base.target));
-                      const midX = (((src as any)?.position?.x ?? 0) + ((tgt as any)?.position?.x ?? 0)) / 2;
-                      const midY = (((src as any)?.position?.y ?? 0) + ((tgt as any)?.position?.y ?? 0)) / 2;
-                      graph.ensureEdgeAnchor?.(anchorId, parentEdgeId, midX, midY);
-                    }
-                  }
-                }
-              }
-            }
-          } catch { }
-
-            // Option/Alt-drag to duplicate: create duplicate at start and route movement to it
-            try {
-              if ((e?.altKey || e?.nativeEvent?.altKey) && (node?.type === 'point' || node?.type === 'objection')) {
-                const originX = node?.position?.x ?? 0;
-                const originY = node?.position?.y ?? 0;
-                const flowPos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-                const dx = (flowPos.x - originX);
-                const dy = (flowPos.y - originY);
-                const dupId = (graph as any)?.duplicateNodeWithConnections?.(node.id, { x: dx, y: dy });
-                if (dupId) {
-                  altCloneMapRef.current.set(String(node.id), { dupId: String(dupId), origin: { x: originX, y: originY } });
-                  try { (graph as any)?.unlockNode?.(node.id); } catch {}
-                  try { (graph as any)?.lockNode?.(String(dupId), 'drag'); } catch {}
-                }
-              }
-            } catch {}
-        };
-
-        const handleNodeDragStopInternal = (e: any, node: any) => {
-          onNodeDragStop?.(e, node);
-          (graph as any)?.stopCapturing?.();
-          const mapping = altCloneMapRef.current.get(String(node.id));
-          if (mapping) {
-            (graph as any)?.unlockNode?.(mapping.dupId);
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
-            altCloneMapRef.current.delete(String(node.id));
-          }
-        };
-
         return (
           <ReactFlow
             nodes={nodes}
@@ -612,38 +363,30 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onEdgesChange={handleEdgesChange}
             onConnect={onConnect}
             onNodeClick={handleNodeClickInternal}
-            onPaneClick={(e) => {
+            onPaneClick={(_) => {
               // In connect mode, route to background mouse up handler
               if (connectMode) {
                 onBackgroundMouseUp?.();
                 return;
               }
-              // Always clear selections when clicking empty pane (avoid race after selection changes)
-              if (Date.now() - (lastSelectionChangeRef.current || 0) < 200) return;
-              try { graph.clearNodeSelection?.(); } catch { }
+              // Clear edge selection and hover immediately, but delay node deselection to avoid race after selection changes
+              const timeSinceLastSelection = Date.now() - (lastSelectionChangeRef.current || 0);
               try { graph.setSelectedEdge?.(null); } catch { }
+              try { graph.setHoveredEdge?.(null); } catch { }
+              if (timeSinceLastSelection >= 200) {
+                try { graph.clearNodeSelection?.(); } catch { }
+              }
               try { window.getSelection()?.removeAllRanges(); } catch { }
               try { graph.blurNodesImmediately?.(); } catch { }
             }}
             onEdgeClick={handleEdgeClickInternal}
             onNodeDragStart={handleNodeDragStartInternal}
-            onNodeDrag={((_: any, node: any) => {
-              try {
-                const mapping = altCloneMapRef.current.get(String(node.id));
-                if (mapping) {
-                  graph.updateNodePosition?.(mapping.dupId, node.position?.x ?? 0, node.position?.y ?? 0);
-                  graph.updateNodePosition?.(node.id, mapping.origin.x, mapping.origin.y);
-                } else {
-                  graph.updateNodePosition?.(node.id, node.position?.x ?? 0, node.position?.y ?? 0);
-                }
-              } catch { }
-            })}
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            onNodeDrag={handleNodeDrag}
             onNodeDragStop={handleNodeDragStopInternal}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
-            className="w-full h-full bg-gray-50"
+            className={`w-full h-full bg-gray-50 ${connectMode ? 'connect-mode' : ''}`}
             style={{ willChange: 'transform' }}
             selectionOnDrag={selectMode}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
@@ -715,6 +458,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           broadcastCursor={true}
         />
       )}
+      <ContextMenu
+        open={multiSelectMenuOpen}
+        x={multiSelectMenuPos.x}
+        y={multiSelectMenuPos.y}
+        onClose={() => setMultiSelectMenuOpen(false)}
+        items={[
+          {
+            label: 'Delete selected',
+            danger: true,
+            onClick: handleDeleteSelectedNodes,
+          },
+        ]}
+      />
     </div>
   );
 };

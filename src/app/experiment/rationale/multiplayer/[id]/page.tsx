@@ -207,7 +207,7 @@ export default function MultiplayerBoardDetailPage() {
                 const anchorId = `anchor:${e.id}`;
                 if (existing.has(anchorId)) continue;
                 const midpoint = getEdgeMidpoint(e.id) || { x: 0, y: 0 };
-                const anchorNode: Node = { id: anchorId, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: e.id } } as Node;
+                const anchorNode: Node = { id: anchorId, type: 'edge_anchor', position: midpoint, data: { parentEdgeId: e.id }, draggable: false, selectable: false } as Node;
                 additions.push(anchorNode);
                 existing.add(anchorId);
                 // Anchor nodes are local-only; do not sync to Yjs

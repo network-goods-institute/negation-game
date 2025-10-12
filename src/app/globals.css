@@ -236,7 +236,25 @@
   z-index: 10 !important;
 }
 
+/* Prevent any edge-label HTML from intercepting pointer events over the canvas */
+.react-flow__edge-labels,
+.react-flow__edge-labels * {
+  pointer-events: none !important;
+}
+
+/* In connect mode, allow edge_anchor nodes to intercept clicks; otherwise anchors must not block */
+.connect-mode .react-flow__node-edge_anchor {
+  pointer-events: auto !important;
+}
+.react-flow__node-edge_anchor {
+  pointer-events: none !important;
+}
+
 .react-flow__nodes {
   position: relative !important;
   z-index: 1000 !important;
 }
+
+/* Ensure empty canvas clicks pass through the nodes layer */
+.react-flow__nodes { pointer-events: none !important; }
+.react-flow__node { pointer-events: auto !important; }
