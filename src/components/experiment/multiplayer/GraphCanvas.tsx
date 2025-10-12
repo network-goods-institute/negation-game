@@ -11,6 +11,7 @@ import OffscreenNeighborPreviews from './OffscreenNeighborPreviews';
 import { useKeyboardPanning } from '@/hooks/experiment/multiplayer/useKeyboardPanning';
 import { useConnectionSnapping } from '@/hooks/experiment/multiplayer/useConnectionSnapping';
 import { usePerformanceMode } from './PerformanceContext';
+import { ContextMenu } from './common/ContextMenu';
 
 type YProvider = WebsocketProvider | null;
 
@@ -91,6 +92,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const pendingWheelDeltaRef = React.useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const copiedNodeIdRef = React.useRef<string | null>(null);
   const altCloneMapRef = React.useRef<Map<string, { dupId: string; origin: { x: number; y: number } }>>(new Map());
+  const [multiSelectMenuOpen, setMultiSelectMenuOpen] = React.useState(false);
+  const [multiSelectMenuPos, setMultiSelectMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
     connectMode: !!connectMode,
@@ -104,6 +107,41 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       (graph as any)?.clearNodeSelection?.();
     } catch { }
   }, [graph]);
+
+  const handleMultiSelectContextMenu = React.useCallback((e: React.MouseEvent) => {
+    const selectedNodes = rf.getNodes().filter((n) => (n as any).selected);
+    if (selectedNodes.length > 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      setMultiSelectMenuPos({ x: e.clientX, y: e.clientY });
+      setMultiSelectMenuOpen(true);
+    }
+  }, [rf]);
+
+  const handleDeleteSelectedNodes = React.useCallback(() => {
+    const sel = rf.getNodes().filter((n) => (n as any).selected);
+    if (sel.length > 0) {
+      const ids = new Set<string>();
+      sel.forEach((n) => {
+        const node: any = n as any;
+        if (node.type === 'group') {
+          ids.add(node.id);
+          return;
+        }
+        const pid = node.parentId;
+        if (pid) {
+          const p = rf.getNode(pid) as any;
+          if (p && p.type === 'group') {
+            ids.add(p.id);
+            return;
+          }
+        }
+        ids.add(node.id);
+      });
+      ids.forEach((id) => graph.deleteNode?.(id));
+    }
+    setMultiSelectMenuOpen(false);
+  }, [rf, graph]);
 
   useKeyboardPanning({
     connectMode,
@@ -407,6 +445,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     <div
       ref={containerRef}
       className="w-full h-full relative"
+      onContextMenu={handleMultiSelectContextMenu}
       onPointerDown={(e) => {
         try {
           if (e.button === 1 && e.pointerType === 'mouse') {
@@ -713,6 +752,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           broadcastCursor={true}
         />
       )}
+      <ContextMenu
+        open={multiSelectMenuOpen}
+        x={multiSelectMenuPos.x}
+        y={multiSelectMenuPos.y}
+        onClose={() => setMultiSelectMenuOpen(false)}
+        items={[
+          {
+            label: 'Delete selected',
+            danger: true,
+            onClick: handleDeleteSelectedNodes,
+          },
+        ]}
+      />
     </div>
   );
 };
