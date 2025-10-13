@@ -21,7 +21,8 @@ import {
 } from "@/components/header/DynamicHeaderContent";
 import { getCurrentUser } from "@/lib/privy/auth";
 import { headers } from "next/headers";
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
+import { LoginRedirectHandler } from "@/components/LoginRedirectHandler";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -192,6 +193,7 @@ export default async function RootLayout({
               initialUserData={clientUser}
               initialUserId={serverUser?.id}
             >
+              <LoginRedirectHandler />
               <KnowledgeBaseProvider>
                 <WriteupProvider>
                   <OnboardingProvider>

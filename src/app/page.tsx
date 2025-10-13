@@ -11,6 +11,7 @@ import { WriteupProvider } from "@/components/contexts/WriteupContext";
 import { OnboardingSection } from "@/components/OnboardingSection";
 import { HomePageDialogs } from "@/components/HomePageDialogs";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
+import { RedirectLoggedInUsers } from "@/components/RedirectLoggedInUsers";
 
 
 export const metadata: Metadata = {
@@ -105,6 +106,7 @@ export default async function HomePage() {
 
     return (
         <>
+            <RedirectLoggedInUsers />
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
