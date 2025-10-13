@@ -586,6 +586,7 @@ export default function MultiplayerBoardDetailPage() {
                                 connectAnchorId={connectAnchorId}
                                 selectMode={selectMode}
                                 blurAllNodes={forceBlurNodes}
+                                forceSave={forceSave}
                                 onFlowMouseMove={(x, y) => {
                                     if (!connectAnchorRef.current) return;
                                     setConnectCursor({ x, y });

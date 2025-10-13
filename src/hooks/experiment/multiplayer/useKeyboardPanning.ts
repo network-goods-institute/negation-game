@@ -5,6 +5,7 @@ interface UseKeyboardPanningOptions {
   connectMode?: boolean;
   onCancelConnect?: () => void;
   enabled?: boolean;
+  forceSave?: () => Promise<void> | void;
 }
 
 /**
@@ -12,7 +13,7 @@ interface UseKeyboardPanningOptions {
  * Implements press-and-hold behavior with requestAnimationFrame for smooth movement.
  */
 export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
-  const { connectMode, onCancelConnect, enabled = true } = options;
+  const { connectMode, onCancelConnect, enabled = true, forceSave } = options;
   const rf = useReactFlow();
   const heldKeysRef = useRef<{ [k: string]: boolean }>({});
   const rafRef = useRef<number | null>(null);
@@ -42,6 +43,13 @@ export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
         return;
       }
 
+      // Handle Cmd+S / Ctrl+S for save
+      if ((e.metaKey || e.ctrlKey) && key === 's') {
+        e.preventDefault();
+        forceSave?.();
+        return;
+      }
+
       // Smooth WASD/Arrow key panning (press-and-hold)
       const isPanKey = (
         key === 'arrowleft' || key === 'arrowright' || key === 'arrowup' || key === 'arrowdown' ||
@@ -49,6 +57,11 @@ export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
       );
 
       if (isPanKey) {
+        // Block panning if any modifier keys are pressed (except for Cmd+S which is handled above)
+        if (e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) {
+          return;
+        }
+
         heldKeysRef.current[key] = true;
         e.preventDefault();
 
@@ -133,5 +146,5 @@ export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [enabled, connectMode, onCancelConnect, rf]);
+  }, [enabled, connectMode, onCancelConnect, forceSave, rf]);
 }

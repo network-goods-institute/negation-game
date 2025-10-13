@@ -48,6 +48,7 @@ interface GraphCanvasProps {
   onBackgroundDoubleClick?: (flowX: number, flowY: number) => void;
   selectMode: boolean;
   blurAllNodes?: number;
+  forceSave?: () => Promise<void> | void;
 }
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
@@ -80,6 +81,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   onBackgroundDoubleClick,
   selectMode,
   blurAllNodes = 0,
+  forceSave,
 }) => {
   const rf = useReactFlow();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -137,6 +139,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   useKeyboardPanning({
     connectMode,
     onCancelConnect: graph.cancelConnect,
+    forceSave,
   });
   React.useEffect(() => {
     if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;

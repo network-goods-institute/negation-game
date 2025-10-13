@@ -195,6 +195,10 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
                       <span>Redo</span>
                       <span className="font-mono bg-stone-100 px-1 rounded">⇧⌘Z / Ctrl+Y</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span>Save</span>
+                      <span className="font-mono bg-stone-100 px-1 rounded">⌘S / Ctrl+S</span>
+                    </div>
                   </div>
                 </div>
 
