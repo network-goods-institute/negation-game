@@ -7,6 +7,9 @@ interface GraphUpdaterProps {
     setNodes: (updater: (nodes: Node[]) => Node[]) => void;
 }
 
+// Track nodes that need centering after measurement
+const nodesCenteredRef = new Map<string, boolean>();
+
 export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNodes }) => {
   const rf = useReactFlow();
   const [dimsVersion, setDimsVersion] = useState(0);
@@ -43,7 +46,6 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
 
   useEffect(() => {
     try {
-      // Reduced epsilon for more accurate anchor positioning
       const eps = 0.1;
       const edgesList = edges as any[];
       const edgesById = new Map<string, any>();
@@ -66,7 +68,6 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         const sx = sa.x, sy = sa.y, tx = ta.x, ty = ta.y;
         const sw = sa.w, sh = sa.h, tw = ta.w, th = ta.h;
 
-        // Require valid dimensions for accurate border calculation
         if (!Number.isFinite(sw) || !Number.isFinite(sh) || !Number.isFinite(tw) || !Number.isFinite(th) || sw <= 0 || sh <= 0 || tw <= 0 || th <= 0) {
           return { x: (sx + tx) / 2, y: (sy + ty) / 2 };
         }
@@ -143,7 +144,6 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
       for (const w of wanted) {
         if (String(w.parent?.type || '') !== 'objection') continue;
 
-        // If target anchor of this parent edge is missing in RF, try using desired map for that anchor
         const s = rf.getNode(String(w.parent.source));
         let t = rf.getNode(String(w.parent.target));
         let sc = s ? center(s) : null;
@@ -205,6 +205,73 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
       });
     } catch {}
   }, [nodes, edges, rf, setNodes, dimsVersion]);
+
+  // Center newly-created nodes under their parents after measurement
+  useEffect(() => {
+    try {
+      const eps = 0.1;
+      const nodesToCenter: Array<{ nodeId: string; newX: number }> = [];
+
+      for (const node of nodes) {
+        const nodeId = node.id;
+
+        if (nodesCenteredRef.get(nodeId)) continue;
+        if (node.type !== 'point' && node.type !== 'objection') continue;
+
+        const measured = (node as any).measured;
+        if (!measured?.width || !measured?.height) continue;
+
+        const parentEdge = edges.find((e: any) => e.source === nodeId);
+        if (!parentEdge) continue;
+
+        const parentNode = nodes.find((n) => n.id === parentEdge.target);
+        if (!parentNode) continue;
+
+        const parentMeasured = (parentNode as any).measured;
+        if (!parentMeasured?.width) continue;
+
+        const getAbsoluteX = (n: any) => {
+          let x = n.position.x;
+          if (n.parentId) {
+            const parent = nodes.find((p) => p.id === n.parentId);
+            if (parent) x += parent.position.x;
+          }
+          return x;
+        };
+
+        const parentAbsX = getAbsoluteX(parentNode);
+        const nodeAbsX = getAbsoluteX(node);
+
+        const centeredX = parentAbsX + (parentMeasured.width / 2) - (measured.width / 2);
+
+        if (Math.abs(nodeAbsX - centeredX) > eps) {
+          nodesToCenter.push({ nodeId, newX: centeredX });
+        }
+
+        nodesCenteredRef.set(nodeId, true);
+      }
+
+      if (nodesToCenter.length === 0) return;
+
+      setNodes((nds: any[]) => {
+        return nds.map((n: any) => {
+          const update = nodesToCenter.find((u) => u.nodeId === n.id);
+          if (!update) return n;
+
+          let newX = update.newX;
+          if (n.parentId) {
+            const parent = nds.find((p: any) => p.id === n.parentId);
+            if (parent) newX -= parent.position.x;
+          }
+
+          return {
+            ...n,
+            position: { ...n.position, x: newX }
+          };
+        });
+      });
+    } catch {}
+  }, [nodes, edges, setNodes, dimsVersion]);
 
   return null;
 };
