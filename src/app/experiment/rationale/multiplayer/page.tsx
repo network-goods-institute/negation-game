@@ -156,7 +156,17 @@ export default function MultiplayerRationaleIndexPage() {
 
   useEffect(() => { if (ready && authenticated) { load(); } }, [ready, authenticated]);
 
-
+  // Wait for Privy to initialize before checking authentication
+  if (!ready) {
+    return (
+      <div className="fixed inset-0 top-16 bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-lg border text-center max-w-md">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!authenticated) {
     return (
