@@ -18,6 +18,7 @@ interface UseYjsMultiplayerProps {
   localOrigin?: unknown;
   isLockedForMe?: (nodeId: string) => boolean;
   onSaveComplete?: () => void;
+  onRemoteNodesAdded?: (ids: string[]) => void;
 }
 
 export const useYjsMultiplayer = ({
@@ -28,6 +29,7 @@ export const useYjsMultiplayer = ({
   localOrigin,
   isLockedForMe,
   onSaveComplete,
+  onRemoteNodesAdded,
 }: UseYjsMultiplayerProps) => {
   const [nodes, setNodes] = useNodesState(initialNodes);
   const [edges, setEdges] = useEdgesState(initialEdges);
@@ -126,6 +128,7 @@ export const useYjsMultiplayer = ({
     updateLocalStateVector,
     isLockedForMe,
     onSaveComplete,
+    onRemoteNodesAdded,
   });
 
   const {

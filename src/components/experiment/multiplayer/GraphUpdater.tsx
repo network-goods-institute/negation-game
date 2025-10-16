@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useReactFlow, Node, Edge, getBezierPath, Position } from '@xyflow/react';
 
 interface GraphUpdaterProps {
-    nodes: Node[];
-    edges: Edge[];
-    setNodes: (updater: (nodes: Node[]) => Node[]) => void;
+  nodes: Node[];
+  edges: Edge[];
+  setNodes: (updater: (nodes: Node[]) => Node[]) => void;
+  documentId?: string;
+  centerQueueVersion?: number;
+  consumeCenterQueue?: () => string[];
 }
 
-// Track nodes that need centering after measurement
-const nodesCenteredRef = new Map<string, boolean>();
-
-export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNodes }) => {
+export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNodes, documentId, centerQueueVersion, consumeCenterQueue }) => {
   const rf = useReactFlow();
   const [dimsVersion, setDimsVersion] = useState(0);
+  const pendingCenterIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     try {
@@ -43,6 +44,19 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
       };
     } catch { }
   }, []);
+
+  useEffect(() => {
+    pendingCenterIdsRef.current = new Set();
+  }, [documentId]);
+
+  useEffect(() => {
+    if (!consumeCenterQueue) return;
+    const ids = consumeCenterQueue();
+    if (Array.isArray(ids) && ids.length > 0) {
+      for (const id of ids) pendingCenterIdsRef.current.add(id);
+      setDimsVersion((v) => v + 1);
+    }
+  }, [centerQueueVersion, consumeCenterQueue]);
 
   useEffect(() => {
     try {
@@ -91,7 +105,7 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         return { x: (fromS.x + fromT.x) / 2, y: (fromS.y + fromT.y) / 2 };
       };
 
-      const wanted: Array<{ anchorId: string; parentEdgeId: string; parent: any }>= [];
+      const wanted: Array<{ anchorId: string; parentEdgeId: string; parent: any }> = [];
       for (const e of edgesList) {
         if ((e?.type || '') !== 'objection') continue;
         const targetId = String(e?.target || '');
@@ -203,7 +217,7 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
           return upd || n;
         }).concat(out.filter((n) => !existing.has(n.id)));
       });
-    } catch {}
+    } catch { }
   }, [nodes, edges, rf, setNodes, dimsVersion]);
 
   // Center newly-created nodes under their parents after measurement
@@ -211,11 +225,11 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
     try {
       const eps = 0.1;
       const nodesToCenter: Array<{ nodeId: string; newX: number }> = [];
+      const processedIds: string[] = [];
 
       for (const node of nodes) {
+        if (!pendingCenterIdsRef.current.has(node.id)) continue;
         const nodeId = node.id;
-
-        if (nodesCenteredRef.get(nodeId)) continue;
         if (node.type !== 'point' && node.type !== 'objection') continue;
 
         const measured = (node as any).measured;
@@ -247,8 +261,7 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         if (Math.abs(nodeAbsX - centeredX) > eps) {
           nodesToCenter.push({ nodeId, newX: centeredX });
         }
-
-        nodesCenteredRef.set(nodeId, true);
+        processedIds.push(nodeId);
       }
 
       if (nodesToCenter.length === 0) return;
@@ -270,7 +283,12 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
           };
         });
       });
-    } catch {}
+      // Clear processed ids so centering happens only once per node
+      for (const id of processedIds) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        pendingCenterIdsRef.current.delete(id);
+      }
+    } catch { }
   }, [nodes, edges, setNodes, dimsVersion]);
 
   return null;

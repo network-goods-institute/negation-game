@@ -20,6 +20,7 @@ interface CreateAddPointBelowOptions {
     edgeType: string;
   }) => void;
   onNodeCreated?: () => void;
+  onNodeAdded?: (id: string) => void;
 }
 
 export const createAddNodeAtPosition = (
@@ -29,7 +30,8 @@ export const createAddNodeAtPosition = (
   canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
-  onNodeCreated?: () => void
+  onNodeCreated?: () => void,
+  onNodeAdded?: (id: string) => void
 ) => {
   return (
     type: "point" | "statement" | "title" | "objection",
@@ -63,6 +65,7 @@ export const createAddNodeAtPosition = (
     // Clear all existing selections and add new node
     onNodeCreated?.();
     setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), node]);
+    onNodeAdded?.(id);
 
     if (yNodesMap && ydoc && canWrite) {
       ydoc.transact(() => {
@@ -98,7 +101,8 @@ export const createAddNegationBelow = (
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
   getViewportOffset?: () => { x: number; y: number },
-  onNodeCreated?: () => void
+  onNodeCreated?: () => void,
+  onNodeAdded?: (id: string) => void
 ) => {
   return (parentNodeId: string) => {
     if (isLockedForMe?.(parentNodeId)) {
@@ -142,6 +146,7 @@ export const createAddNegationBelow = (
       ...curr.map((n) => ({ ...n, selected: false })),
       newNode,
     ]);
+    onNodeAdded?.(newId);
     setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
@@ -173,7 +178,8 @@ export const createAddSupportBelow = (
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
   getViewportOffset?: () => { x: number; y: number },
-  onNodeCreated?: () => void
+  onNodeCreated?: () => void,
+  onNodeAdded?: (id: string) => void
 ) => {
   return (parentNodeId: string) => {
     if (isLockedForMe?.(parentNodeId)) {
@@ -215,6 +221,7 @@ export const createAddSupportBelow = (
       ...curr.map((n) => ({ ...n, selected: false })),
       newNode,
     ]);
+    onNodeAdded?.(newId);
     setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
@@ -301,6 +308,7 @@ export const createAddPointBelow = (
       newNode,
     ]);
     setEdges((eds) => [...eds, newEdge]);
+    options?.onNodeAdded?.(newId);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {

@@ -16,7 +16,8 @@ export const createAddObjectionForEdge = (
   setNodes: (updater: (nodes: any[]) => any[]) => void,
   setEdges: (updater: (edges: any[]) => any[]) => void,
   isLockedForMe?: (nodeId: string) => boolean,
-  getLockOwner?: (nodeId: string) => { name?: string } | null
+  getLockOwner?: (nodeId: string) => { name?: string } | null,
+  onNodeAdded?: (id: string) => void
 ) => {
   return (edgeId: string, overrideMidX?: number, overrideMidY?: number) => {
     if (!canWrite) {
@@ -75,6 +76,7 @@ export const createAddObjectionForEdge = (
       const newEdges = [...eds, objectionEdge];
       return newEdges;
     });
+    try { onNodeAdded?.(objectionId); } catch {}
 
     // Sync objection node/edge to Yjs (anchor nodes are local-only)
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {

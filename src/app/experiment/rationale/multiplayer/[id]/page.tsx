@@ -70,6 +70,18 @@ export default function MultiplayerBoardDetailPage() {
     const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
     const selectMode = useMemo(() => !connectMode && !grabMode, [connectMode, grabMode]);
     const [forceBlurNodes, setForceBlurNodes] = useState(0);
+    const centerOnceIdsRef = useRef<Set<string>>(new Set());
+    const [centerQueueVersion, setCenterQueueVersion] = useState(0);
+    const markNodeCenterOnce = useCallback((id: string) => {
+        if (!id) return;
+        centerOnceIdsRef.current.add(id);
+        setCenterQueueVersion((v) => v + 1);
+    }, []);
+    const consumeCenterQueue = useCallback(() => {
+        const out = Array.from(centerOnceIdsRef.current);
+        centerOnceIdsRef.current.clear();
+        return out;
+    }, []);
 
     const blurNodesImmediately = useCallback(() => {
         setForceBlurNodes((v) => v + 1);
@@ -170,6 +182,9 @@ export default function MultiplayerBoardDetailPage() {
         initialEdges: initialGraph?.edges || [],
         enabled: ready && Boolean(initialGraph) && Boolean(resolvedId),
         localOrigin: localOriginRef.current,
+        onRemoteNodesAdded: (ids: string[]) => {
+            for (const id of ids) markNodeCenterOnce(id);
+        }
     });
 
     useEffect(() => {
@@ -366,6 +381,7 @@ export default function MultiplayerBoardDetailPage() {
             setSelectedEdgeId(null);
             setHoveredEdgeId(null);
         },
+        onNodeAddedCenterOnce: markNodeCenterOnce,
     });
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
@@ -634,7 +650,7 @@ export default function MultiplayerBoardDetailPage() {
 
                             />
                         </div>
-                        <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} />
+                        <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} documentId={resolvedId || ''} centerQueueVersion={centerQueueVersion} consumeCenterQueue={consumeCenterQueue} />
                     </GraphProvider>
                 </PerfProvider>
 

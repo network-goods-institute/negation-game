@@ -35,6 +35,7 @@ interface UseYjsSynchronizationProps {
   updateLocalStateVector: () => void;
   isLockedForMe?: (nodeId: string) => boolean;
   onSaveComplete?: () => void;
+  onRemoteNodesAdded?: (ids: string[]) => void;
 }
 
 export interface SynchronizationHandlers {
@@ -68,6 +69,7 @@ export const useYjsSynchronization = ({
   updateLocalStateVector,
   isLockedForMe,
   onSaveComplete,
+  onRemoteNodesAdded,
 }: UseYjsSynchronizationProps): SynchronizationHandlers => {
   const lastNodesSignatureRef = useRef<string>("");
   const lastEdgesSignatureRef = useRef<string>("");
@@ -132,7 +134,8 @@ export const useYjsSynchronization = ({
       setNodes,
       localOriginRef,
       isUndoRedoRef,
-      isLockedForMe
+      isLockedForMe,
+      onRemoteNodesAdded
     );
 
     const updateEdgesFromY = createUpdateEdgesFromY(
@@ -203,6 +206,7 @@ export const useYjsSynchronization = ({
     ydocRef,
     isLockedForMe,
     onSaveComplete,
+    onRemoteNodesAdded,
   ]);
 
   const getForceSave = useCallback(() => forceSaveRef.current, []);

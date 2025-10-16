@@ -36,13 +36,15 @@ export const createUpdateNodesFromY = (
   setNodes: (updater: (nodes: Node[]) => Node[]) => void,
   localOriginRef?: MutableRefObject<unknown>,
   isUndoRedoRef?: MutableRefObject<boolean>,
-  isLockedForMe?: (nodeId: string) => boolean
+  isLockedForMe?: (nodeId: string) => boolean,
+  onRemoteNodesAdded?: (nodeIds: string[]) => void
 ) => {
   const knownNodeIds = new Set<string>();
 
   return (_event: Y.YMapEvent<Node>, transaction: Y.Transaction) => {
     const isLocalOrigin =
       localOriginRef && transaction.origin === localOriginRef.current;
+    const wasEmpty = knownNodeIds.size === 0;
 
     const nodes = Array.from(yNodes.values());
     const migrations: Node[] = [];
@@ -69,15 +71,28 @@ export const createUpdateNodesFromY = (
       } catch {}
     }
 
+    let addedIds: string[] = [];
     try {
       const currentIds = new Set(normalised.map((node) => node.id));
+      const toDelete: string[] = [];
       knownNodeIds.forEach((id) => {
-        if (!currentIds.has(id)) {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          knownNodeIds.delete(id);
-        }
+        if (!currentIds.has(id)) toDelete.push(id);
       });
-      currentIds.forEach((id) => knownNodeIds.add(id));
+      for (const id of toDelete) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        knownNodeIds.delete(id);
+      }
+      const newlyAdded: string[] = [];
+      currentIds.forEach((id) => {
+        if (!knownNodeIds.has(id)) newlyAdded.push(id);
+      });
+      for (const id of newlyAdded) knownNodeIds.add(id);
+      if (!isLocalOrigin && !wasEmpty && newlyAdded.length > 0) {
+        const addedSet = new Set(newlyAdded);
+        addedIds = normalised
+          .filter((n) => addedSet.has(n.id) && (n.type === 'point' || n.type === 'objection'))
+          .map((n) => n.id);
+      }
     } catch {}
 
     const sorted = [...normalised].sort((a, b) =>
@@ -105,5 +120,9 @@ export const createUpdateNodesFromY = (
         isLockedForMe
       )
     );
+
+    if (addedIds.length > 0) {
+      try { onRemoteNodesAdded?.(addedIds); } catch {}
+    }
   };
 };
