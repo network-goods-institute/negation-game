@@ -16,6 +16,8 @@ export const useInitialGraph = () => {
     const questionId = "title";
     const optionId1 = `p-${Date.now()}`;
     const optionId2 = `p-${Date.now() + 1}`;
+    const supportId1 = `p-${Date.now() + 2}`;
+    const negationId1 = `p-${Date.now() + 3}`;
 
     setInitialGraph({
       nodes: [
@@ -23,7 +25,7 @@ export const useInitialGraph = () => {
           id: questionId,
           type: "title",
           position: { x: 250, y: 120 },
-          data: { content: requestedTitle || "Untitled" },
+          data: { content: requestedTitle || "Question?" },
         },
         {
           id: optionId1,
@@ -36,6 +38,18 @@ export const useInitialGraph = () => {
           type: "point",
           position: { x: 350, y: 280 },
           data: { content: "Second option", favor: 5 },
+        },
+        {
+          id: supportId1,
+          type: "point",
+          position: { x: 70, y: 440 },
+          data: { content: "New Support", favor: 5 },
+        },
+        {
+          id: negationId1,
+          type: "point",
+          position: { x: 230, y: 440 },
+          data: { content: "New Negation", favor: 5 },
         },
       ],
       edges: [
@@ -54,6 +68,22 @@ export const useInitialGraph = () => {
           target: questionId,
           sourceHandle: `${optionId2}-source-handle`,
           targetHandle: `${questionId}-incoming-handle`,
+        },
+        {
+          id: generateEdgeId(),
+          type: "support",
+          source: supportId1,
+          target: optionId1,
+          sourceHandle: `${supportId1}-source-handle`,
+          targetHandle: `${optionId1}-incoming-handle`,
+        },
+        {
+          id: generateEdgeId(),
+          type: "negation",
+          source: negationId1,
+          target: optionId1,
+          sourceHandle: `${negationId1}-source-handle`,
+          targetHandle: `${optionId1}-incoming-handle`,
         },
       ],
     });
