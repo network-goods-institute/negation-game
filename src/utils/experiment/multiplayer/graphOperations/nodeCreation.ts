@@ -126,7 +126,7 @@ export const createAddNegationBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: { x: newPos.x, y: newPos.y + 96 },
+      position: { x: newPos.x, y: newPos.y + 32 },
       data: { content: "New point", favor: 5, createdAt: Date.now() },
       selected: false,
     };
@@ -202,7 +202,7 @@ export const createAddSupportBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: { x: newPos.x, y: newPos.y + 96 },
+      position: { x: newPos.x, y: newPos.y + 32 },
       data: { content: "New Support", favor: 5, createdAt: Date.now() },
       selected: false,
     };
@@ -288,7 +288,7 @@ export const createAddPointBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: { x: newPos.x, y: newPos.y + 96 },
+      position: { x: newPos.x, y: newPos.y + 32 },
       data: { content: defaultContent, favor: 5, createdAt: Date.now() },
       selected: false,
     };

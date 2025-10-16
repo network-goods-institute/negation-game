@@ -47,7 +47,7 @@ export const calculateNodePositionBelow = (
   const parentPosition = getAbsolutePosition(parentNode, allNodes);
   const viewportOffset = getViewportOffset?.() || { x: 0, y: 0 };
   const parentHeight = getParentNodeHeight(parentNode, allNodes);
-  const padding = 120;
+  const padding = 40;
 
   return {
     x: parentPosition.x + viewportOffset.x,
