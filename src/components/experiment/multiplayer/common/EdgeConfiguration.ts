@@ -114,7 +114,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
     visual: {
       stroke: "#f97316",
       borderColor: "#f97316",
-      starColor: "text-orange-600",
+      starColor: "text-yellow-500",
       strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
       strokeDasharray: "8,4",
       midpointContent: makeIcon("#f97316", [45], 12, 2),
