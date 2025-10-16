@@ -47,6 +47,18 @@ export default function MultiplayerBoardDetailPage() {
     const router = useRouter();
     const { authenticated, ready, login, user: privyUser } = usePrivy();
 
+    const [privyTimeout, setPrivyTimeout] = useState(false);
+    useEffect(() => {
+        if (ready) return;
+        const timer = setTimeout(() => {
+            console.log('[MultiplayerBoardDetailPage] Privy timeout - proceeding as anonymous');
+            setPrivyTimeout(true);
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [ready]);
+
+    const privyReady = ready || privyTimeout;
+
     const {
         connectMode,
         setConnectMode,
@@ -127,7 +139,7 @@ export default function MultiplayerBoardDetailPage() {
                             if (canonical && current && canonical !== current) {
                                 router.replace(canonical);
                             }
-                        } catch {}
+                        } catch { }
                     } else {
                         console.error('[Slug Resolution] API returned invalid data:', data);
                         setResolvedId(raw);
@@ -180,7 +192,7 @@ export default function MultiplayerBoardDetailPage() {
         roomName,
         initialNodes: initialGraph?.nodes || [],
         initialEdges: initialGraph?.edges || [],
-        enabled: ready && Boolean(initialGraph) && Boolean(resolvedId),
+        enabled: privyReady && Boolean(initialGraph) && Boolean(resolvedId),
         localOrigin: localOriginRef.current,
         onRemoteNodesAdded: (ids: string[]) => {
             for (const id of ids) markNodeCenterOnce(id);
@@ -468,8 +480,8 @@ export default function MultiplayerBoardDetailPage() {
         );
     }
 
-    // Show unified loading state until both Privy is ready AND board data is loaded
-    if (!ready || !nodes || nodes.length === 0) {
+    // Show loading state until Privy is ready (or timeout) AND board data is loaded
+    if (!privyReady || !nodes || nodes.length === 0) {
         return (
             <div className="fixed inset-0 top-16 bg-gray-50/80 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(249, 250, 251, 0.8)' }}>
                 <div className="text-center bg-white/80 px-6 py-4 rounded-lg border shadow-sm">
@@ -485,29 +497,29 @@ export default function MultiplayerBoardDetailPage() {
     return (
         <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
             <MultiplayerHeader
-                    username={username}
-                    userColor={userColor}
-                    provider={provider}
-                    isConnected={isConnected}
-                    connectionError={connectionError}
-                    connectionState={connectionState as any}
-                    isSaving={isSaving}
-                    forceSave={forceSave}
-                    interruptSave={interruptSave || undefined}
-                    nextSaveTime={nextSaveTime}
-                    proxyMode={!canWrite}
-                    userId={userId}
-                    title={dbTitle || 'Untitled'}
-                    documentId={resolvedId || ''}
-                    onTitleChange={handleTitleChange}
-                    onTitleEditingStart={handleTitleEditingStart}
-                    onTitleEditingStop={handleTitleEditingStop}
-                    onTitleCountdownStart={handleTitleCountdownStart}
-                    onTitleCountdownStop={handleTitleCountdownStop}
-                    onTitleSavingStart={handleTitleSavingStart}
-                    onTitleSavingStop={handleTitleSavingStop}
-                    titleEditingUser={titleEditingUser}
-                />
+                username={username}
+                userColor={userColor}
+                provider={provider}
+                isConnected={isConnected}
+                connectionError={connectionError}
+                connectionState={connectionState as any}
+                isSaving={isSaving}
+                forceSave={forceSave}
+                interruptSave={interruptSave || undefined}
+                nextSaveTime={nextSaveTime}
+                proxyMode={!canWrite}
+                userId={userId}
+                title={dbTitle || 'Untitled'}
+                documentId={resolvedId || ''}
+                onTitleChange={handleTitleChange}
+                onTitleEditingStart={handleTitleEditingStart}
+                onTitleEditingStop={handleTitleEditingStop}
+                onTitleCountdownStart={handleTitleCountdownStart}
+                onTitleCountdownStop={handleTitleCountdownStop}
+                onTitleSavingStart={handleTitleSavingStart}
+                onTitleSavingStop={handleTitleSavingStop}
+                titleEditingUser={titleEditingUser}
+            />
 
             <ReactFlowProvider>
                 <PerfProvider value={{ perfMode: (((nodes?.length || 0) + (edges?.length || 0)) > 600) || perfBoost || grabMode, setPerfMode: setPerfBoost }}>
