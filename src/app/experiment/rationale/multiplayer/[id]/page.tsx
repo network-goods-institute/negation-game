@@ -39,6 +39,9 @@ import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
 import { PerfProvider } from '@/components/experiment/multiplayer/PerformanceContext';
 import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
+import { AuthGate } from '@/components/auth/AuthGate';
+import { setMindchange as setMindchangeAction, getMindchangeBreakdown as getMindchangeBreakdownAction } from '@/actions/experimental/mindchange';
+import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -480,6 +483,10 @@ export default function MultiplayerBoardDetailPage() {
         );
     }
 
+    if (privyReady && !authenticated) {
+        return <AuthGate onLogin={login as any} />;
+    }
+
     // Show loading state until Privy is ready (or timeout) AND board data is loaded
     if (!privyReady || !nodes || nodes.length === 0) {
         return (
@@ -581,6 +588,31 @@ export default function MultiplayerBoardDetailPage() {
                             commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canWrite, localOriginRef.current, setNodes);
                         },
                         blurNodesImmediately,
+                        setMindchange: async (edgeId: string, params: { forward?: number; backward?: number }) => {
+                            const enableMindchange = ["true","1","yes","on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
+                            if (!enableMindchange) return;
+                            if (!resolvedId) return;
+                            try {
+                                const res = await setMindchangeAction(resolvedId, edgeId, params.forward, params.backward);
+                                if ((res as any)?.ok && ydoc && yMetaMap) {
+                                    const averages = (res as any).averages as { forward: number; backward: number; forwardCount: number; backwardCount: number };
+                                    const key = `mindchange:${edgeId}`;
+                                    try {
+                                        (ydoc as any).transact(() => {
+                                            (yMetaMap as any).set(key, averages);
+                                        }, ORIGIN.RUNTIME);
+                                    } catch { }
+                                }
+                            } catch { }
+                        },
+                        getMindchangeBreakdown: async (edgeId: string) => {
+                            if (!resolvedId) return { forward: [], backward: [] };
+                            try {
+                                return await getMindchangeBreakdownAction(resolvedId, edgeId);
+                            } catch {
+                                return { forward: [], backward: [] };
+                            }
+                        },
                     }}>
                         <div className="w-full h-full relative">
                             <GraphCanvas

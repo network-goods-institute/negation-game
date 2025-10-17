@@ -175,6 +175,44 @@ export const useYjsSynchronization = ({
     } catch {}
     yMetaMap.observe(onMetaChange);
 
+    const onMetaMindchange = (event: Y.YMapEvent<unknown>) => {
+      try {
+        const changedKeys = Array.from(event.keysChanged || []);
+        const mcKeys = changedKeys.filter((k) => typeof k === 'string' && (k as string).startsWith('mindchange:')) as string[];
+        if (mcKeys.length === 0) return;
+        const updates: Array<{ edgeId: string; payload: any }> = [];
+        for (const key of mcKeys) {
+          const payload = (yMetaMap as any).get(key);
+          const edgeId = key.slice('mindchange:'.length);
+          if (edgeId && payload) updates.push({ edgeId, payload });
+        }
+        if (updates.length === 0) return;
+        setEdges((prev) => {
+          let changed = false;
+          const map = new Map(prev.map((e) => [e.id, e]));
+          for (const { edgeId, payload } of updates) {
+            const e = map.get(edgeId);
+            if (!e) continue;
+            const prevData = (e as any).data || {};
+            const nextData = {
+              ...prevData,
+              mindchange: {
+                forward: { average: Number(payload.forward || 0), count: Number(payload.forwardCount || 0) },
+                backward: { average: Number(payload.backward || 0), count: Number(payload.backwardCount || 0) },
+                ...(prevData.mindchange?.userValue ? { userValue: prevData.mindchange.userValue } : {}),
+              },
+            };
+            if (JSON.stringify(prevData.mindchange) !== JSON.stringify(nextData.mindchange)) {
+              map.set(edgeId, { ...e, data: nextData } as any);
+              changed = true;
+            }
+          }
+          return changed ? Array.from(map.values()) : prev;
+        });
+      } catch {}
+    };
+    yMetaMap.observe(onMetaMindchange);
+
     updateNodesFromY({} as Y.YMapEvent<Node>, {} as Y.Transaction);
     updateEdgesFromY({} as Y.YMapEvent<Edge>, {} as Y.Transaction);
 
@@ -185,6 +223,7 @@ export const useYjsSynchronization = ({
       yTextMap.unobserveDeep(updateNodesFromText);
       yTextMap.unobserve(onTextMapChange);
       yMetaMap.unobserve(onMetaChange);
+      yMetaMap.unobserve(onMetaMindchange);
     };
   }, [
     persistId,

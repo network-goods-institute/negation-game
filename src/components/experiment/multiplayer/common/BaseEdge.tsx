@@ -172,9 +172,11 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   // Dynamic edge styles
   const edgeStyles = useMemo(() => {
+    const enableMindchange = typeof process !== 'undefined' && ["true","1","yes","on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
+    const fixedWidth = (props.edgeType !== 'objection' && enableMindchange) ? 2 : visual.strokeWidth(relevance);
     const baseStyle = {
       stroke: visual.stroke,
-      strokeWidth: visual.strokeWidth(relevance),
+      strokeWidth: fixedWidth,
     };
 
     if (visual.strokeDasharray) {
@@ -357,6 +359,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           onToggleEdgeType={() => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
           onConnectionClick={undefined}
           starColor={visual.starColor}
+          sourceLabel={(sourceNode as any)?.data?.content || (sourceNode as any)?.data?.statement}
+          targetLabel={(targetNode as any)?.data?.content || (targetNode as any)?.data?.statement}
+          mindchange={(props as any).data?.mindchange}
         />
       )}
 

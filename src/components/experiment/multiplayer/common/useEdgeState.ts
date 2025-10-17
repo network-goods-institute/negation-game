@@ -90,8 +90,12 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
 
   const isHovered = hoveredEdgeId === (config?.id || '') || (connectMode && isConnectHovered);
   const selected = useMemo(() => (selectedEdgeId || null) === (config?.id || ''), [selectedEdgeId, config?.id]);
+  const enableMindchange = typeof process !== 'undefined' && ["true","1","yes","on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
   const relevance = useMemo(() => Math.max(1, Math.min(5, (data?.relevance ?? 3))), [data?.relevance]);
-  const edgeOpacity = useMemo(() => selected || isHovered ? 1 : Math.max(0.3, Math.min(1, relevance / 5)), [selected, isHovered, relevance]);
+  const edgeOpacity = useMemo(() => {
+    if (enableMindchange) return selected || isHovered ? 1 : 0.7;
+    return selected || isHovered ? 1 : Math.max(0.3, Math.min(1, relevance / 5));
+  }, [selected, isHovered, relevance, enableMindchange]);
 
   const shouldRenderOverlay = useMemo(
     () =>

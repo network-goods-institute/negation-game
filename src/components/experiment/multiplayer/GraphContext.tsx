@@ -58,6 +58,11 @@ type GraphActions = {
     grabMode?: boolean;
     clearNodeSelection?: () => void;
     blurNodesImmediately?: () => void;
+    setMindchange?: (edgeId: string, params: { forward?: number; backward?: number }) => Promise<void>;
+    getMindchangeBreakdown?: (edgeId: string) => Promise<{
+        forward: Array<{ userId: string; username: string; value: number }>;
+        backward: Array<{ userId: string; username: string; value: number }>;
+    }>;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);

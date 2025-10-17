@@ -1,5 +1,5 @@
-import * as Y from 'yjs';
-import { Node, Edge } from '@xyflow/react';
+import * as Y from "yjs";
+import { Node, Edge } from "@xyflow/react";
 
 /**
  * Yjs document type for the multiplayer graph
@@ -54,14 +54,28 @@ export type GetViewportOffset = () => { x: number; y: number };
 /**
  * Preferred edge type getter
  */
-export type GetPreferredEdgeType = (params: { parent: Node }) => 'support' | 'negation';
+export type GetPreferredEdgeType = (params: {
+  parent: Node;
+}) => "support" | "negation";
 
 /**
  * Edge created callback type
  */
-export type OnEdgeCreated = (result: { nodeId: string; edgeId: string; edgeType: string }) => void;
+export type OnEdgeCreated = (result: {
+  nodeId: string;
+  edgeId: string;
+  edgeType: string;
+}) => void;
 
 /**
  * Show undo hint callback type
  */
 export type OnShowUndoHint = (position: { x: number; y: number }) => void;
+
+export type MindchangeEdgeData = {
+  mindchange?: {
+    forward: { average: number; count: number };
+    backward: { average: number; count: number };
+    userValue?: { forward: number; backward: number };
+  };
+};
