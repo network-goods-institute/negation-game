@@ -209,6 +209,14 @@ jest.mock("@/components/experiment/multiplayer/UndoHintOverlay", () => ({
   UndoHintOverlay: () => null,
 }));
 
+// Force production gating in this test so unauthenticated users see AuthGate
+jest.mock("@/utils/hosts", () => ({
+  isProductionHostname: () => true,
+  isNonProdHostname: () => false,
+  isProductionEnvironment: () => true,
+  isProductionRequest: () => true,
+}));
+
 jest.mock("@/components/experiment/multiplayer/GraphContext", () => ({
   GraphProvider: ({ children }: any) => <>{children}</>,
 }));

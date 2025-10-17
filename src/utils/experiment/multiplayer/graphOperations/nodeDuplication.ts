@@ -32,6 +32,7 @@ export const createDuplicateNodeWithConnections = (
     }
     if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
+      return null;
     }
 
     const type = String(original.type);

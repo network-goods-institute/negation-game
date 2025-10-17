@@ -13,7 +13,7 @@ describe('MultiplayerHeader status messaging', () => {
     isSaving: false,
     proxyMode: false,
     userId: 'u1',
-    onResyncNow: () => {},
+    onResyncNow: () => { },
   };
 
   it('does not show status when connected with no error', () => {
@@ -56,6 +56,20 @@ describe('MultiplayerHeader status messaging', () => {
       </TooltipProvider>
     );
     expect(screen.getByText(/Auth error/i)).toBeInTheDocument();
+  });
+
+  it('shows Not Connected with Retry when disconnected', () => {
+    render(
+      <TooltipProvider>
+        <MultiplayerHeader
+          {...baseProps}
+          isConnected={false}
+          connectionState="connecting"
+        />
+      </TooltipProvider>
+    );
+    expect(screen.getAllByText(/Not Connected/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Retry/i).length).toBeGreaterThan(0);
   });
 });
 

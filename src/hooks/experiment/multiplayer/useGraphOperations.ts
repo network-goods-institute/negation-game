@@ -331,6 +331,10 @@ export const useGraphOperations = ({
 
   const updateNodeFavor = useCallback(
     (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
+      if (!canWrite) {
+        try { (require('sonner') as any).toast?.warning?.("Read-only mode: Changes won't be saved"); } catch {}
+        return;
+      }
       setNodes((nds) =>
         nds.map((n) =>
           n.id === nodeId ? { ...n, data: { ...(n.data || {}), favor } } : n
@@ -352,6 +356,10 @@ export const useGraphOperations = ({
 
   const updateEdgeRelevance = useCallback(
     (edgeId: string, relevance: 1 | 2 | 3 | 4 | 5) => {
+      if (!canWrite) {
+        try { (require('sonner') as any).toast?.warning?.("Read-only mode: Changes won't be saved"); } catch {}
+        return;
+      }
       setEdges((eds) =>
         eds.map((e) =>
           e.id === edgeId ? { ...e, data: { ...(e.data || {}), relevance } } : e

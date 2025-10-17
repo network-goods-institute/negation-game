@@ -29,6 +29,7 @@ interface MultiplayerHeaderProps {
   onTitleSavingStart?: () => void;
   onTitleSavingStop?: () => void;
   titleEditingUser?: { name: string; color: string } | null;
+  onResyncNow?: () => void;
 }
 
 export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
@@ -54,6 +55,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   onTitleSavingStart,
   onTitleSavingStop,
   titleEditingUser,
+  onResyncNow,
 }) => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [localTitle, setLocalTitle] = useState(title || 'Untitled');
@@ -258,7 +260,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
             }}
             className="w-full px-2 py-1 text-sm bg-white border border-stone-300 rounded text-gray-700 hover:border-stone-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
             placeholder="Untitled"
-            disabled={proxyMode || !!titleEditingUser}
+            disabled={!!titleEditingUser}
           />
         </div>
         <p className="text-sm text-gray-600">
@@ -282,18 +284,31 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           currentUserId={userId}
           canWrite={!proxyMode}
         />
-        {(connectionError || connectionState === 'connecting' || connectionState === 'failed') && (
-          <div className="text-xs text-orange-600 mt-1 bg-orange-50 p-2 rounded">
-            <div className="flex items-center justify-between gap-2">
-              <span>
-                {connectionError || (connectionState === 'connecting' ? 'Connecting to server...' : connectionState === 'failed' ? 'Connection failed' : null)}
-              </span>
-              {connectionError?.includes('AUTH_EXPIRED') && (
+        {(!isConnected || connectionError || connectionState === 'connecting' || connectionState === 'failed') && (
+          <div className="text-xs mt-1 p-2 rounded flex items-center justify-between gap-2"
+            style={{ backgroundColor: '#fff7ed', color: '#9a3412' }}>
+            <span>
+              {connectionError || (!isConnected ? (connectionState === 'connecting' ? 'Connecting to server...' : connectionState === 'failed' ? 'Connection failed' : 'Not Connected') : null)}
+            </span>
+            <div className="flex items-center gap-2">
+              {connectionError?.includes('AUTH_EXPIRED') ? (
                 <button
                   onClick={() => window.location.reload()}
-                  className="text-xs bg-orange-600 hover:bg-orange-700 text-white px-2 py-1 rounded transition-colors whitespace-nowrap"
+                  className="text-xs text-white px-2 py-1 rounded transition-colors whitespace-nowrap"
+                  style={{ backgroundColor: '#ea580c' }}
                 >
                   Reload Auth
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    try { onResyncNow?.(); } catch { }
+                    try { provider?.connect(); } catch { }
+                  }}
+                  className="text-xs text-white px-2 py-1 rounded transition-colors whitespace-nowrap"
+                  style={{ backgroundColor: '#ea580c' }}
+                >
+                  Retry
                 </button>
               )}
             </div>
@@ -309,13 +324,28 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
             </>
           ) : (
             <>
-              {isSaving ? (
+              {!isConnected ? (
+                <>
+                  <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                  <span className="text-xs text-stone-700">Not Connected — changes won&apos;t be saved</span>
+                  <button
+                    onClick={() => {
+                      try { onResyncNow?.(); } catch { }
+                      try { provider?.connect(); } catch { }
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 border-l border-stone-200 pl-2 ml-1"
+                    title="Retry connect"
+                  >
+                    Retry
+                  </button>
+                </>
+              ) : isSaving ? (
                 <div className="h-3 w-3 rounded-full border-2 border-stone-300 border-t-stone-600 animate-spin" />
               ) : (
                 <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
               )}
               <span className="text-xs text-stone-700">
-                {isSaving ? 'Saving…' : (timeLeft !== null ? `Next save in ${formatTime(timeLeft)}` : 'Saved')}
+                {isSaving ? 'Saving…' : (!isConnected ? '' : (timeLeft !== null ? `Next save in ${formatTime(timeLeft)}` : 'Saved'))}
               </span>
               {forceSave && !isSaving && (
                 <button

@@ -79,6 +79,10 @@ export const createUpdateNodeHidden = (
   setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
   return (nodeId: string, hidden: boolean) => {
+    if (!canWrite) {
+      toast.warning("Read-only mode: Changes won't be saved");
+      return;
+    }
     let nextFromState: any | null = null;
     setNodes((nds) => {
       const updated = nds.map((n: any) => {
@@ -109,6 +113,10 @@ export const createUpdateNodePosition = (
 ) => {
   const eps = 0.01;
   return (nodeId: string, x: number, y: number) => {
+    if (!canWrite) {
+      toast.warning("Read-only mode: Changes won't be saved");
+      return;
+    }
     let changedLocally = false;
     setNodes((nds) =>
       nds.map((n: any) => {

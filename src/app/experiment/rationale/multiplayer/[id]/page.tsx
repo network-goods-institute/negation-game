@@ -39,6 +39,7 @@ import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
 import { PerfProvider } from '@/components/experiment/multiplayer/PerformanceContext';
 import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
+import { isProductionEnvironment, isProductionRequest } from '@/utils/hosts';
 import { AuthGate } from '@/components/auth/AuthGate';
 import { setMindchange as setMindchangeAction, getMindchangeBreakdown as getMindchangeBreakdownAction } from '@/actions/experimental/mindchange';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
@@ -231,6 +232,7 @@ export default function MultiplayerBoardDetailPage() {
 
 
     const { canWrite } = useWriteAccess(provider, userId);
+    const canEdit = Boolean(canWrite && isConnected);
     useEffect(() => {
         if (!connectMode) return;
         setNodes((current) => {
@@ -253,8 +255,8 @@ export default function MultiplayerBoardDetailPage() {
     const broadcastCursor = true;
     const broadcastLocks = true;
 
-    const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite, broadcastCursor });
-    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite, broadcastLocks });
+    const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite: canEdit, broadcastCursor });
+    const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite: canEdit, broadcastLocks });
 
     const { preferredEdgeTypeRef, updateEdgeType } = useEdgeTypeManager({
         nodes,
@@ -263,7 +265,7 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         ydoc,
-        canWrite,
+        canWrite: canEdit,
         localOrigin: localOriginRef.current,
         setNodes,
         setEdges,
@@ -321,7 +323,7 @@ export default function MultiplayerBoardDetailPage() {
     }, []);
 
     const writeSynced = useWritableSync({
-        canWrite,
+        canWrite: canEdit,
         yNodesMap: yNodesMap as any,
         yEdgesMap: yEdgesMap as any,
         yTextMap: yTextMap as any,
@@ -367,7 +369,7 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         ydoc,
-        canWrite,
+        canWrite: canEdit,
         writeSynced,
         localOrigin: localOriginRef.current,
         lastAddRef,
@@ -401,9 +403,9 @@ export default function MultiplayerBoardDetailPage() {
     const { onNodesChange, onEdgesChange, onConnect, commitNodePositions } = createGraphChangeHandlers(
         setNodes,
         setEdges,
-        canWrite && writeSynced ? yNodesMap : null,
-        canWrite && writeSynced ? yEdgesMap : null,
-        canWrite && writeSynced ? ydoc : null,
+        canEdit && writeSynced ? yNodesMap : null,
+        canEdit && writeSynced ? yEdgesMap : null,
+        canEdit && writeSynced ? ydoc : null,
         syncYMapFromArray,
         localOriginRef.current,
         () => nodes as any[],
@@ -422,7 +424,7 @@ export default function MultiplayerBoardDetailPage() {
         yNodesMap,
         yEdgesMap,
         ydoc,
-        canWrite,
+        canWrite: canEdit,
         localOrigin: localOriginRef.current,
         setNodes,
         setEdges,
@@ -442,7 +444,7 @@ export default function MultiplayerBoardDetailPage() {
 
     useKeyboardShortcuts(undo, redo, {
         onToggleConnect: () => {
-            if (!canWrite) return;
+            if (!canEdit) return;
             setConnectMode((v) => !v);
             setConnectAnchorId(null);
         },
@@ -483,7 +485,15 @@ export default function MultiplayerBoardDetailPage() {
         );
     }
 
-    if (privyReady && !authenticated) {
+    const [requireAuth, setRequireAuth] = useState<boolean>(isProductionEnvironment());
+    useEffect(() => {
+        try {
+            const host = typeof window !== 'undefined' ? window.location.hostname : '';
+            setRequireAuth(isProductionRequest(host));
+        } catch { }
+    }, []);
+
+    if (privyReady && !authenticated && requireAuth) {
         return <AuthGate onLogin={login as any} />;
     }
 
@@ -514,7 +524,7 @@ export default function MultiplayerBoardDetailPage() {
                 forceSave={forceSave}
                 interruptSave={interruptSave || undefined}
                 nextSaveTime={nextSaveTime}
-                proxyMode={!canWrite}
+                proxyMode={!canEdit}
                 userId={userId}
                 title={dbTitle || 'Untitled'}
                 documentId={resolvedId || ''}
@@ -526,6 +536,7 @@ export default function MultiplayerBoardDetailPage() {
                 onTitleSavingStart={handleTitleSavingStart}
                 onTitleSavingStop={handleTitleSavingStop}
                 titleEditingUser={titleEditingUser}
+                onResyncNow={resyncNow}
             />
 
             <ReactFlowProvider>
@@ -566,7 +577,7 @@ export default function MultiplayerBoardDetailPage() {
                         lockNode,
                         unlockNode,
                         markNodeActive,
-                        proxyMode: !canWrite,
+                        proxyMode: !canEdit,
                         undo,
                         redo,
                         stopCapturing,
@@ -585,11 +596,11 @@ export default function MultiplayerBoardDetailPage() {
                             setHoveredNodeId(nid);
                         },
                         commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
-                            commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canWrite, localOriginRef.current, setNodes);
+                        commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canEdit, localOriginRef.current, setNodes);
                         },
                         blurNodesImmediately,
                         setMindchange: async (edgeId: string, params: { forward?: number; backward?: number }) => {
-                            const enableMindchange = ["true","1","yes","on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
+                            const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
                             if (!enableMindchange) return;
                             if (!resolvedId) return;
                             try {
@@ -619,7 +630,7 @@ export default function MultiplayerBoardDetailPage() {
                                 nodes={nodes as any}
                                 edges={edges as any}
                                 authenticated={authenticated}
-                                canWrite={canWrite}
+                                canWrite={canEdit}
                                 onNodesChange={onNodesChange}
                                 onEdgesChange={onEdgesChange}
                                 onConnect={onConnect}
@@ -653,7 +664,7 @@ export default function MultiplayerBoardDetailPage() {
                                 }}
                                 onBackgroundDoubleClick={(flowX, flowY) => {
                                     if (connectMode) return;
-                                    if (!canWrite) {
+                                    if (!canEdit) {
                                         toast.warning("Read-only mode: Changes won't be saved");
                                         return;
                                     }
@@ -687,7 +698,7 @@ export default function MultiplayerBoardDetailPage() {
                                 undo={undo}
                                 redo={redo}
                                 connectAnchorId={connectAnchorId}
-                                readOnly={!canWrite}
+                                readOnly={!canEdit}
                                 grabMode={grabMode}
                                 setGrabMode={setGrabMode}
                                 selectMode={selectMode}

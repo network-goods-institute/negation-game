@@ -4,6 +4,8 @@ import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { eq, or } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
+import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
+import { isProductionRequest } from "@/utils/hosts";
 import { slugify } from "@/utils/slugify";
 import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 
@@ -110,7 +112,9 @@ export async function PATCH(req: Request, ctx: any) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const userId = await getUserId();
+  const url = new URL(req.url);
+  const nonProd = !isProductionRequest(url.hostname);
+  const userId = nonProd ? await getUserIdOrAnonymous() : await getUserId();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

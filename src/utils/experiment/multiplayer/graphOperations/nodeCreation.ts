@@ -38,6 +38,10 @@ export const createAddNodeAtPosition = (
     x: number,
     y: number
   ): string => {
+    if (!canWrite) {
+      toast.warning("Read-only mode: Changes won't be saved");
+      return "";
+    }
     const idBase =
       type === "statement"
         ? "s"
@@ -111,8 +115,8 @@ export const createAddNegationBelow = (
       return;
     }
     if (!canWrite) {
-      // Allow local-only preview; will not sync to Yjs
       toast.warning("Read-only mode: Changes won't be saved");
+      return;
     }
     const now = Date.now();
     const last = lastAddRef.current[parentNodeId] || 0;
@@ -189,6 +193,7 @@ export const createAddSupportBelow = (
     }
     if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
+      return;
     }
     const now = Date.now();
     const last = lastAddRef.current[parentNodeId] || 0;
@@ -262,6 +267,7 @@ export const createAddPointBelow = (
     }
     if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
+      return;
     }
     const now = Date.now();
     const last = lastAddRef.current[parentNodeId] || 0;
