@@ -419,6 +419,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       )}
                       <div
                         data-testid="toggle-edge-type"
+                        role="button"
+                        tabIndex={0}
+                        data-interactive="true"
                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-gray-300/50 shadow-inner transition-all duration-200 ${edgeType === "support" ? "bg-gradient-to-r from-emerald-400 to-emerald-500" : "bg-gradient-to-r from-rose-400 to-rose-500"}`}
                         onClick={(e) => handleConnectionAwareClick(e, () => onToggleEdgeType?.())}
                       >
@@ -444,6 +447,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                                   title={`Set relevance to ${i}`}
                                   onMouseDown={(e) => e.preventDefault()}
                                   onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance(i); })}
+                                  type="button"
+                                  data-interactive="true"
                                   className="transition-transform hover:scale-110 active:scale-95"
                                 >
                                   <span className={`text-base font-bold transition-all ${i <= relevance ? starColor : 'text-gray-300'}`}>
@@ -466,6 +471,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       )}
                       <div
                         data-testid="toggle-edge-type"
+                        role="button"
+                        tabIndex={0}
+                        data-interactive="true"
                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-gray-300/50 shadow-inner transition-all duration-200 ${edgeType === "support" ? "bg-gradient-to-r from-emerald-400 to-emerald-500" : "bg-gradient-to-r from-rose-400 to-rose-500"}`}
                         onClick={(e) => handleConnectionAwareClick(e, () => onToggleEdgeType?.())}
                       >
@@ -497,6 +505,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                                   title={`Set relevance to ${i}`}
                                   onMouseDown={(e) => e.preventDefault()}
                                   onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance(i); })}
+                                  type="button"
+                                  data-interactive="true"
                                   className="transition-transform hover:scale-125 active:scale-95"
                                 >
                                   <span className={`text-base transition-all ${i <= relevance ? starColor + ' drop-shadow-sm' : 'text-gray-300'}`}>★</span>
@@ -516,6 +526,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); })}
+                      type="button"
+                      data-interactive="true"
                       className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-gradient-to-b from-gray-800 to-gray-900 text-white shadow-md hover:shadow-lg hover:from-gray-700 hover:to-gray-800 active:scale-95 transition-all duration-150 border border-gray-700"
                       title="Add mitigation to this relation"
                     >
