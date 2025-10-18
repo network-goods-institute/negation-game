@@ -198,7 +198,7 @@ export const useGraphOperations = ({
         setEdges,
         isLockedForMe,
         getLockOwner,
-        onNodeAddedCenterOnce
+        undefined
       ),
     [
       nodes,
@@ -213,7 +213,6 @@ export const useGraphOperations = ({
       setEdges,
       isLockedForMe,
       getLockOwner,
-      onNodeAddedCenterOnce,
     ]
   );
 

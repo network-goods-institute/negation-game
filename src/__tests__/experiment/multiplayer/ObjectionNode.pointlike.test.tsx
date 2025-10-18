@@ -25,7 +25,7 @@ describe("ObjectionNode point-like rendering", () => {
                 <ObjectionNode {...baseProps} />
             </Harness>
         );
-        expect(getByText(/New mitigation/i)).toBeInTheDocument();
+        expect(getByText(/New point/i)).toBeInTheDocument();
     });
 });
 

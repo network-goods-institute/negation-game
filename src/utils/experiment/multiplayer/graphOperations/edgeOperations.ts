@@ -47,7 +47,7 @@ export const createAddObjectionForEdge = (
     const objectionNode: any = {
       id: objectionId,
       type: "objection",
-      position: { x: midX, y: midY + 60 },
+      position: { x: midX, y: midY - 48 },
       data: {
         content: "New mitigation",
         parentEdgeId: edgeId,

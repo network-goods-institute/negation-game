@@ -105,7 +105,12 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         isConnectMode,
     } = editable;
 
-    const pointLike = useStore((s: any) => (s.edges || []).some((edge: any) => (edge.type || '') === 'negation' && (edge.source === id || edge.target === id)));
+    const pointLike = useStore((s: any) => {
+        const edges: any[] = s.edges || [];
+        const touching = edges.filter((edge: any) => (edge.source === id || edge.target === id));
+        const isExactlyOneObjection = touching.length === 1 && (touching[0]?.type || '') === 'objection';
+        return !isExactlyOneObjection;
+    });
     const { hovered, onMouseEnter, onMouseLeave } = hover;
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { EdgeLabelRenderer, useReactFlow, useStore } from '@xyflow/react';
 import { createPortal } from 'react-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ContextMenu } from "../common/ContextMenu";
 import { useGraphActions } from '../GraphContext';
 
 const EDGE_ANCHOR_SIZE = 36;
@@ -96,22 +97,66 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   // Where we'll render the floating HUD
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
-  // Convert graph coords -> screen coords
-  const screenLeft = tx + cx * zoom;
-  const screenTop = ty + cy * zoom;
+  const anchorNode = useStore((s: any) => s.nodeInternals?.get?.(`anchor:${edgeId}`));
+  const baseX = typeof anchorNode?.position?.x === 'number' ? anchorNode.position.x : cx;
+  const baseY = typeof anchorNode?.position?.y === 'number' ? anchorNode.position.y : cy;
 
-  // Calculate offset based on actual scaled HUD size for proper positioning
-  // When zoomed in, HUD appears larger and needs more clearance
-  // When zoomed out, HUD appears smaller and needs less clearance
-  const baseHUDHeight = 43;
-  const scaledHUDHeight = baseHUDHeight * zoom;
-  const clearance = 30;
-  const offsetY = scaledHUDHeight + clearance;
+  const fallbackScreenLeft = tx + baseX * zoom;
+  const fallbackScreenTop = ty + baseY * zoom;
+
+  const [anchorScreenPos, setAnchorScreenPos] = React.useState<{ x: number; y: number } | null>(null);
+  React.useLayoutEffect(() => {
+    if (typeof document === 'undefined') {
+      setAnchorScreenPos(null);
+      return;
+    }
+    const anchorId = `anchor:${edgeId}`;
+    const compute = () => {
+      const el = document.querySelector(`[data-id="${anchorId}"]`) as HTMLElement | null;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+      } else {
+        setAnchorScreenPos(null);
+      }
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => {
+      window.removeEventListener('resize', compute);
+    };
+  }, [edgeId, tx, ty, zoom, baseX, baseY]);
+
+  React.useLayoutEffect(() => {
+    if (typeof document === 'undefined') return;
+    const labelEl = document.querySelector(`[data-anchor-edge-id="${edgeId}"]`) as HTMLElement | null;
+    if (labelEl) {
+      const rect = labelEl.getBoundingClientRect();
+      setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
+  }, [edgeId, tx, ty, zoom]);
 
   const showHUD = Boolean(selected || isAnchorHovered || isTooltipHovered);
   React.useEffect(() => {
     setIsAnchorHovered(isHovered);
   }, [isHovered]);
+
+  React.useLayoutEffect(() => {
+    if (!showHUD || typeof document === 'undefined') return;
+    try {
+      const labelEl = document.querySelector(`[data-anchor-edge-id="${edgeId}"]`) as HTMLElement | null;
+      if (labelEl) {
+        const rect = labelEl.getBoundingClientRect();
+        setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+        return;
+      }
+      const nodeEl = document.querySelector(`[data-id="anchor:${edgeId}"]`) as HTMLElement | null;
+      if (nodeEl) {
+        const rect = nodeEl.getBoundingClientRect();
+        setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+      }
+    } catch { }
+  }, [showHUD, edgeId, tx, ty, zoom]);
 
   // Clear tooltip hover state when edge is programmatically deselected/dehovered
   React.useEffect(() => {
@@ -321,6 +366,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const backwardAvg = Math.round(Number(mindchange?.backward?.average || 0));
   const [editDir, setEditDir] = React.useState<null | 'forward' | 'backward'>(null);
   const [sliderVal, setSliderVal] = React.useState<number>(forwardAvg);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   React.useEffect(() => {
     if (editDir === 'forward') setSliderVal(forwardAvg);
@@ -343,6 +390,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
       <EdgeLabelRenderer>
         <div
           data-testid="edge-overlay-anchor"
+          data-anchor-edge-id={edgeId}
           style={{
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${cx}px, ${cy}px)`,
@@ -351,7 +399,14 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             zIndex: 1,
             pointerEvents: 'none',
           }}
-          onMouseEnter={() => { onMouseEnter(); setIsAnchorHovered(true); }}
+          onMouseEnter={(e) => {
+            onMouseEnter();
+            setIsAnchorHovered(true);
+            try {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+            } catch { }
+          }}
           onMouseLeave={() => { onMouseLeave(); setIsAnchorHovered(false); }}
         />
       </EdgeLabelRenderer>
@@ -363,9 +418,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
           ref={portalContainerRef}
           style={{
             position: 'fixed',
-            left: screenLeft,
-            top: screenTop,
-            transform: 'translateX(-50%)',
+            left: anchorScreenPos?.x ?? fallbackScreenLeft,
+            top: anchorScreenPos?.y ?? fallbackScreenTop,
+            transform: 'translate(-50%, -50%)',
             zIndex: 60,
             pointerEvents: 'none',
           }}
@@ -374,7 +429,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
         >
           <div
             style={{
-              transform: `translateY(${offsetY}px)`,
               transformOrigin: 'center',
               pointerEvents: 'none',
             }}
@@ -382,7 +436,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             {/* Persistence area - buffer on top and sides, no bottom buffer */}
             <div
               style={{
-                transform: `scale(${zoom})`,
                 transformOrigin: 'center',
                 pointerEvents: 'none',
                 paddingTop: PERSISTENCE_PADDING,
@@ -404,6 +457,14 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   className="flex items-center justify-center gap-4 bg-gradient-to-b from-white to-gray-50/95 backdrop-blur-md border border-gray-200/80 rounded-xl shadow-lg shadow-black/10 px-4 py-2.5 transition-all duration-300 hover:shadow-xl hover:shadow-black/15"
                   style={{
                     pointerEvents: 'auto',
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    try { (graph as any)?.clearNodeSelection?.(); } catch { }
+                    try { (graph as any)?.setSelectedEdge?.(edgeId); } catch { }
+                    setMenuPos({ x: e.clientX, y: e.clientY });
+                    setMenuOpen(true);
                   }}
                   onDoubleClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
                   onPointerDown={handlePersistencePointerDown}
@@ -643,6 +704,15 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
               {/* Inline input replaces the Mindchange button above; no separate block here */}
             </div>
           </div>
+          <ContextMenu
+            open={menuOpen}
+            x={menuPos.x}
+            y={menuPos.y}
+            onClose={() => setMenuOpen(false)}
+            items={[
+              { label: 'Delete edge', danger: true, onClick: () => { try { (graph as any)?.deleteNode?.(edgeId); } catch { } } },
+            ]}
+          />
         </div>,
         portalTarget
       )}

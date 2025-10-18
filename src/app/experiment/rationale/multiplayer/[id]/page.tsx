@@ -208,6 +208,14 @@ export default function MultiplayerBoardDetailPage() {
         recordOpen(resolvedId).catch(() => { });
     }, [resolvedId, authenticated]);
 
+    const [requireAuth, setRequireAuth] = useState<boolean>(isProductionEnvironment());
+    useEffect(() => {
+        try {
+            const host = typeof window !== 'undefined' ? window.location.hostname : '';
+            setRequireAuth(isProductionRequest(host));
+        } catch { }
+    }, []);
+
     const {
         dbTitle,
         ownerId,
@@ -484,14 +492,6 @@ export default function MultiplayerBoardDetailPage() {
             </div>
         );
     }
-
-    const [requireAuth, setRequireAuth] = useState<boolean>(isProductionEnvironment());
-    useEffect(() => {
-        try {
-            const host = typeof window !== 'undefined' ? window.location.hostname : '';
-            setRequireAuth(isProductionRequest(host));
-        } catch { }
-    }, []);
 
     if (privyReady && !authenticated && requireAuth) {
         return <AuthGate onLogin={login as any} />;
