@@ -9,7 +9,7 @@ interface EdgeAnchorNodeProps {
 
 const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
     const graphActions = useGraphActions() as any;
-    const { connectMode, grabMode } = graphActions;
+    const { connectMode, grabMode, mindchangeMode } = graphActions;
 
     const handlePositions = useStore((s: any) => {
         const edges: any[] = s.edges || [];
@@ -43,7 +43,7 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
     });
 
     const handleClick = (e: React.MouseEvent) => {
-        if (!connectMode || grabMode) return;
+        if (!connectMode || grabMode || mindchangeMode) return;
         e.stopPropagation();
         const origin = (graphActions.isConnectingFromNodeId as string | null) || null;
         const parentEdgeId = data?.parentEdgeId as string | undefined;
@@ -58,7 +58,7 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
         graphActions.completeConnectToEdge?.(parentEdgeId);
     };
 
-    const isInteractable = connectMode && !grabMode;
+    const isInteractable = connectMode && !grabMode && !mindchangeMode;
 
     return (
         <div

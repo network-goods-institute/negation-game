@@ -41,7 +41,7 @@ import { PerfProvider } from '@/components/experiment/multiplayer/PerformanceCon
 import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
 import { isProductionEnvironment, isProductionRequest } from '@/utils/hosts';
 import { AuthGate } from '@/components/auth/AuthGate';
-import { setMindchange as setMindchangeAction, getMindchangeBreakdown as getMindchangeBreakdownAction } from '@/actions/experimental/mindchange';
+import { setMindchange as setMindchangeAction, getMindchangeBreakdown as getMindchangeBreakdownAction, getMindchangeAveragesForEdges } from '@/actions/experimental/mindchange';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
@@ -74,6 +74,9 @@ export default function MultiplayerBoardDetailPage() {
         clearConnect,
         cancelConnect,
     } = useConnectionMode();
+    const [mindchangeSelectMode, setMindchangeSelectMode] = useState(false);
+    const [mindchangeEdgeId, setMindchangeEdgeId] = useState<string | null>(null);
+    const [mindchangeNextDir, setMindchangeNextDir] = useState<null | 'forward' | 'backward'>(null);
 
     const [grabMode, setGrabMode] = useState<boolean>(false);
     const [perfBoost, setPerfBoost] = useState<boolean>(false);
@@ -84,7 +87,8 @@ export default function MultiplayerBoardDetailPage() {
     const lastAddRef = useRef<Record<string, number>>({});
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
     const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
-    const selectMode = useMemo(() => !connectMode && !grabMode, [connectMode, grabMode]);
+    const [overlayActiveEdgeId, setOverlayActiveEdgeId] = useState<string | null>(null);
+    const selectMode = useMemo(() => !connectMode && !grabMode && !mindchangeSelectMode, [connectMode, grabMode, mindchangeSelectMode]);
     const [forceBlurNodes, setForceBlurNodes] = useState(0);
     const centerOnceIdsRef = useRef<Set<string>>(new Set());
     const [centerQueueVersion, setCenterQueueVersion] = useState(0);
@@ -110,6 +114,7 @@ export default function MultiplayerBoardDetailPage() {
 
     const queryClient = useQueryClient();
     const cachedUser = queryClient.getQueryData(userQueryKey(privyUser?.id));
+    const mcCacheRef = useRef<Map<string, { ts: number; data: { forward: Array<{ userId: string; username: string; value: number }>; backward: Array<{ userId: string; username: string; value: number }> } }>>(new Map());
 
     const anonymousId = useAnonymousId(authenticated);
 
@@ -198,10 +203,34 @@ export default function MultiplayerBoardDetailPage() {
         initialEdges: initialGraph?.edges || [],
         enabled: privyReady && Boolean(initialGraph) && Boolean(resolvedId),
         localOrigin: localOriginRef.current,
+        currentUserId: userId,
         onRemoteNodesAdded: (ids: string[]) => {
             for (const id of ids) markNodeCenterOnce(id);
         }
     });
+    useEffect(() => {
+        const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
+        if (!enableMindchange) return;
+        if (!resolvedId || !ydoc || !yMetaMap) return;
+        if (!edges || edges.length === 0) return;
+        (async () => {
+            try {
+                const ids = edges.map((e) => e.id);
+                const map = await getMindchangeAveragesForEdges(resolvedId, ids);
+                if (!map) return;
+                (ydoc as any).transact(() => {
+                    for (const [eid, averages] of Object.entries(map)) {
+                        const key = `mindchange:${eid}`;
+                        const existing = (yMetaMap as any).get(key);
+                        if (!existing) {
+                            (yMetaMap as any).set(key, averages);
+                        }
+                    }
+                }, ORIGIN.RUNTIME);
+            } catch { }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [resolvedId, ydoc, yMetaMap, edges]);
 
     useEffect(() => {
         if (!resolvedId || !authenticated) return;
@@ -377,6 +406,8 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         ydoc,
+        yMetaMap,
+        documentId: resolvedId || undefined,
         canWrite: canEdit,
         writeSynced,
         localOrigin: localOriginRef.current,
@@ -447,6 +478,10 @@ export default function MultiplayerBoardDetailPage() {
         getNodeCenter,
         getEdgeMidpoint,
         getPreferredEdgeType: () => preferredEdgeTypeRef.current,
+        mindchangeSelectMode,
+        setSelectedEdgeId: setSelectedEdgeId,
+        mindchangeEdgeId,
+        setMindchangeNextDir,
     });
 
 
@@ -455,20 +490,24 @@ export default function MultiplayerBoardDetailPage() {
             if (!canEdit) return;
             setConnectMode((v) => !v);
             setConnectAnchorId(null);
+            setMindchangeSelectMode(false);
         },
         onExitConnect: () => {
             setConnectMode(false);
             setConnectAnchorId(null);
+            setMindchangeSelectMode(false);
         },
         onPointerMode: () => {
             setConnectMode(false);
             setGrabMode(false);
             setConnectAnchorId(null);
+            setMindchangeSelectMode(false);
         },
         onToggleGrab: () => {
             setConnectMode(false);
             setGrabMode((g) => !g);
             setConnectAnchorId(null);
+            setMindchangeSelectMode(false);
         }
     });
 
@@ -572,6 +611,8 @@ export default function MultiplayerBoardDetailPage() {
                         updateEdgeType,
                         selectedEdgeId,
                         setSelectedEdge: setSelectedEdgeId,
+                        overlayActiveEdgeId,
+                        setOverlayActiveEdge: setOverlayActiveEdgeId,
                         updateEdgeAnchorPosition,
                         ensureEdgeAnchor,
                         lockNode,
@@ -596,15 +637,44 @@ export default function MultiplayerBoardDetailPage() {
                             setHoveredNodeId(nid);
                         },
                         commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
-                        commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canEdit, localOriginRef.current, setNodes);
+                            commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canEdit, localOriginRef.current, setNodes);
                         },
                         blurNodesImmediately,
+                        mindchangeMode: mindchangeSelectMode,
+                        mindchangeEdgeId,
+                        mindchangeNextDir,
+                        beginMindchangeSelection: () => {
+                            const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
+                            if (!enableMindchange) return;
+                            setMindchangeSelectMode(true);
+                            setConnectMode(true);
+                            setConnectAnchorId(null);
+                        },
+                        beginMindchangeOnEdge: (edgeId: string) => {
+                            const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
+                            if (!enableMindchange) return;
+                            try { console.debug('[Mindchange] begin on edge', edgeId); } catch { }
+                            setMindchangeSelectMode(true);
+                            setMindchangeEdgeId(edgeId);
+                            setMindchangeNextDir(null);
+                            setConnectMode(false);
+                            setConnectAnchorId(null);
+                        },
+                        cancelMindchangeSelection: () => {
+                            setMindchangeSelectMode(false);
+                            setMindchangeEdgeId(null);
+                            setMindchangeNextDir(null);
+                            setConnectMode(false);
+                            setConnectAnchorId(null);
+                        },
+                        setMindchangeNextDir: setMindchangeNextDir,
                         setMindchange: async (edgeId: string, params: { forward?: number; backward?: number }) => {
                             const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
                             if (!enableMindchange) return;
                             if (!resolvedId) return;
                             try {
-                                const res = await setMindchangeAction(resolvedId, edgeId, params.forward, params.backward);
+                                const edgeTypeNow = (edges.find((e: any) => e.id === edgeId)?.type === 'negation') ? 'negation' : 'support';
+                                const res = await setMindchangeAction(resolvedId, edgeId, params.forward, params.backward, edgeTypeNow as any, userId);
                                 if ((res as any)?.ok && ydoc && yMetaMap) {
                                     const averages = (res as any).averages as { forward: number; backward: number; forwardCount: number; backwardCount: number };
                                     const key = `mindchange:${edgeId}`;
@@ -613,13 +683,42 @@ export default function MultiplayerBoardDetailPage() {
                                             (yMetaMap as any).set(key, averages);
                                         }, ORIGIN.RUNTIME);
                                     } catch { }
+                                    try {
+                                        const ukey = `mindchange:user:${userId}:${edgeId}`;
+                                        const prev = (yMetaMap as any).get(ukey) || {};
+                                        const snapshot = {
+                                            forward: typeof params.forward === 'number' ? Math.max(0, Math.min(100, Math.round(params.forward))) : (typeof prev.forward === 'number' ? prev.forward : undefined),
+                                            backward: typeof params.backward === 'number' ? Math.max(0, Math.min(100, Math.round(params.backward))) : (typeof prev.backward === 'number' ? prev.backward : undefined),
+                                        } as any;
+                                        (ydoc as any).transact(() => {
+                                            (yMetaMap as any).set(ukey, snapshot);
+                                        }, localOriginRef.current);
+                                    } catch { }
+                                    // Optimistic local patch to avoid brief stale UI
+                                    try {
+                                        setEdges((prev) => prev.map((e: any) => e.id === edgeId ? { ...e, data: { ...(e.data || {}), mindchange: { forward: { average: averages.forward, count: averages.forwardCount }, backward: { average: averages.backward, count: averages.backwardCount } } } } : e));
+                                    } catch { }
+                                    try {
+                                        setMindchangeSelectMode(false);
+                                        setMindchangeEdgeId(null);
+                                        setMindchangeNextDir(null);
+                                        setSelectedEdgeId(null);
+                                    } catch { }
                                 }
                             } catch { }
                         },
                         getMindchangeBreakdown: async (edgeId: string) => {
                             if (!resolvedId) return { forward: [], backward: [] };
                             try {
-                                return await getMindchangeBreakdownAction(resolvedId, edgeId);
+                                const key = edgeId;
+                                const now = Date.now();
+                                const cached = mcCacheRef.current.get(key);
+                                if (cached && (now - cached.ts) < 30000) {
+                                    return cached.data;
+                                }
+                                const res = await getMindchangeBreakdownAction(resolvedId, edgeId);
+                                mcCacheRef.current.set(key, { ts: now, data: res });
+                                return res;
                             } catch {
                                 return { forward: [], backward: [] };
                             }
@@ -648,10 +747,12 @@ export default function MultiplayerBoardDetailPage() {
                                 panOnScroll={true}
                                 zoomOnScroll={false}
                                 connectMode={connectMode}
+                                mindchangeMode={mindchangeSelectMode}
                                 connectAnchorId={connectAnchorId}
                                 selectMode={selectMode}
                                 blurAllNodes={forceBlurNodes}
                                 forceSave={forceSave}
+                                yMetaMap={yMetaMap as any}
                                 onFlowMouseMove={(x, y) => {
                                     if (!connectAnchorRef.current) return;
                                     setConnectCursor({ x, y });
@@ -702,6 +803,14 @@ export default function MultiplayerBoardDetailPage() {
                                 grabMode={grabMode}
                                 setGrabMode={setGrabMode}
                                 selectMode={selectMode}
+                                mindchangeMode={mindchangeSelectMode}
+                                onMindchangeDone={() => {
+                                    setMindchangeSelectMode(false);
+                                    setConnectMode(false);
+                                    setConnectAnchorId(null);
+                                }}
+                                mindchangeNextDir={mindchangeNextDir}
+                                mindchangeEdgeType={(mindchangeEdgeId || connectAnchorId) ? edges.find((e: any) => e.id === (mindchangeEdgeId || connectAnchorId))?.type : undefined}
 
                             />
                         </div>

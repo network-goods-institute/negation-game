@@ -33,6 +33,33 @@ export const useGraphNodeHandlers = ({
         return;
       }
 
+      // Mindchange directional pick: if in mindchange mode and we have a base edge selected, a single click on an endpoint chooses direction
+      try {
+        if (
+          (graph as any)?.mindchangeMode &&
+          (graph as any)?.mindchangeEdgeId
+        ) {
+          const baseEdgeId = String((graph as any)?.mindchangeEdgeId);
+          const allEdges = rf.getEdges();
+          const base = allEdges.find((ed: any) => String(ed.id) === baseEdgeId);
+          if (base) {
+            const isSource = String(base.source) === String(node?.id);
+            const isTarget = String(base.target) === String(node?.id);
+            if (isSource || isTarget) {
+              (graph as any)?.setSelectedEdge?.(base.id);
+              (graph as any)?.setMindchangeNextDir?.(
+                isSource ? "forward" : "backward"
+              );
+              // Do not cancel here; allow the overlay to pick up nextDir and open the editor, then it can cancel.
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+          } else {
+          }
+        }
+      } catch {}
+
       if (e.shiftKey && selectMode) {
         e.preventDefault();
         e.stopPropagation();
@@ -51,7 +78,7 @@ export const useGraphNodeHandlers = ({
 
       onNodeClick?.(e, node);
     },
-    [grabMode, selectMode, rf, onNodeClick]
+    [grabMode, selectMode, rf, onNodeClick, graph]
   );
 
   const handleNodeDragStart = React.useCallback(

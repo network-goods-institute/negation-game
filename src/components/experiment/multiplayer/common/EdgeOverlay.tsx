@@ -12,6 +12,8 @@ const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea
 
 // commented to death because i spent like 3 hours on this
 
+const breakdownCache: Map<string, { ts: number; data: Array<{ userId: string; username: string; value: number }> }> = new Map();
+
 export interface EdgeOverlayProps {
   cx: number;
   cy: number;
@@ -20,6 +22,10 @@ export interface EdgeOverlayProps {
   relevance: number;
   edgeId: string;
   edgeType?: string;
+  srcX?: number;
+  srcY?: number;
+  tgtX?: number;
+  tgtY?: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onUpdateRelevance: (relevance: number) => void;
@@ -55,8 +61,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   targetLabel,
   mindchange,
 }) => {
-  const [isAnchorHovered, setIsAnchorHovered] = React.useState(false);
-  const [isTooltipHovered, setIsTooltipHovered] = React.useState(false);
+  const [overlayOpen, setOverlayOpen] = React.useState<boolean>(Boolean(selected));
+  const [anchorHover, setAnchorHover] = React.useState<boolean>(false);
+  const [isNearOverlay, setIsNearOverlay] = React.useState<boolean>(false);
   const reactFlow = useReactFlow();
   const { grabMode = false, connectMode = false } = useGraphActions();
   const graph = useGraphActions();
@@ -64,27 +71,44 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   const MindchangeBreakdown: React.FC<{ dir: 'forward' | 'backward'; edgeId: string }> = ({ dir, edgeId }) => {
     const [items, setItems] = React.useState<Array<{ userId: string; username: string; value: number }>>([]);
+    const [loading, setLoading] = React.useState<boolean>(true);
     React.useEffect(() => {
       let mounted = true;
       (async () => {
         if (!graph.getMindchangeBreakdown) return;
         try {
+          const key = `${edgeId}:${dir}`;
+          const now = Date.now();
+          const cached = breakdownCache.get(key);
+          if (cached && (now - cached.ts) < 30000) {
+            if (mounted) setItems(cached.data);
+            if (mounted) setLoading(false);
+            return;
+          }
           const res = await graph.getMindchangeBreakdown(edgeId);
+          const data = dir === 'forward' ? res.forward : res.backward;
+          breakdownCache.set(key, { ts: now, data });
           if (!mounted) return;
-          setItems(dir === 'forward' ? res.forward : res.backward);
+          setItems(data);
+          setLoading(false);
         } catch { }
       })();
       return () => { mounted = false; };
     }, [edgeId, dir]);
     return (
       <div className="text-xs">
-        {items.length === 0 ? (
-          <div>No data</div>
-        ) : (
+        <div className="mb-1 text-[11px] text-gray-600">{loading ? 'Loading…' : `Contributors: ${items.length}`}</div>
+        {loading ? (
+          <div className="flex items-center gap-2"><div className="h-3 w-3 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" /> Loading…</div>
+        ) : items.length === 0 ? <div>No data</div> : (
           <div className="max-h-40 overflow-auto min-w-40">
-            {items.map((it) => (
-              <div key={it.userId} className="flex justify-between gap-4"><span>{it.username}</span><span>{it.value}%</span></div>
-            ))}
+            {items.map((it) => {
+              const canon = Number(it.value) || 0;
+              const disp = edgeType === 'support' ? -canon : canon;
+              return (
+                <div key={it.userId} className="flex justify-between gap-4"><span>{it.username}</span><span>{disp > 0 ? `+${disp}%` : `${disp}%`}</span></div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -136,10 +160,54 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     }
   }, [edgeId, tx, ty, zoom]);
 
-  const showHUD = Boolean(selected || isAnchorHovered || isTooltipHovered);
+  const showHUD = Boolean(overlayOpen);
   React.useEffect(() => {
-    setIsAnchorHovered(isHovered);
-  }, [isHovered]);
+    try {
+      if (showHUD) (graph as any)?.setOverlayActiveEdge?.(edgeId);
+      else if ((graph as any)?.overlayActiveEdgeId === edgeId) (graph as any)?.setOverlayActiveEdge?.(null);
+    } catch { }
+    return () => {
+      try {
+        if ((graph as any)?.overlayActiveEdgeId === edgeId) (graph as any)?.setOverlayActiveEdge?.(null);
+      } catch { }
+    };
+  }, [showHUD, edgeId, graph]);
+  React.useEffect(() => {
+    // Overlay visibility policy:
+    // 1) If edge becomes selected, open; if it becomes unselected, close unless within proximity
+    // 2) If anchor hovered, open
+    // 3) If open and within proximity, keep open
+    if (selected) {
+      setOverlayOpen(true);
+      return;
+    }
+    if (anchorHover) {
+      setOverlayOpen(true);
+      return;
+    }
+    setOverlayOpen(isNearOverlay ? true : false);
+  }, [selected, anchorHover, isNearOverlay]);
+
+  React.useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const el = portalContainerRef.current;
+      if (!el || !overlayOpen) {
+        setIsNearOverlay(false);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const expanded = {
+        left: rect.left - 75,
+        top: rect.top - 75,
+        right: rect.right + 75,
+        bottom: rect.bottom + 75,
+      };
+      const inside = e.clientX >= expanded.left && e.clientX <= expanded.right && e.clientY >= expanded.top && e.clientY <= expanded.bottom;
+      setIsNearOverlay(inside);
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => window.removeEventListener('mousemove', onMove as any);
+  }, [overlayOpen]);
 
   React.useLayoutEffect(() => {
     if (!showHUD || typeof document === 'undefined') return;
@@ -158,11 +226,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     } catch { }
   }, [showHUD, edgeId, tx, ty, zoom]);
 
-  // Clear tooltip hover state when edge is programmatically deselected/dehovered
   React.useEffect(() => {
     if (!selected && !isHovered) {
-      setIsTooltipHovered(false);
-      setIsAnchorHovered(false);
+      setAnchorHover(false);
     }
   }, [selected, isHovered]);
 
@@ -362,25 +428,92 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     };
   }, [showHUD]);
 
-  const forwardAvg = Math.round(Number(mindchange?.forward?.average || 0));
-  const backwardAvg = Math.round(Number(mindchange?.backward?.average || 0));
+  const rawForwardAvg = Math.round(Number((mindchange as any)?.forward?.average ?? 0));
+  const rawBackwardAvg = Math.round(Number((mindchange as any)?.backward?.average ?? 0));
+  const signedForwardAvg = edgeType === 'support' ? -rawForwardAvg : rawForwardAvg;
+  const signedBackwardAvg = edgeType === 'support' ? -rawBackwardAvg : rawBackwardAvg;
+
+  const getCachedAvg = (dir: 'forward' | 'backward') => {
+    const key = `${edgeId}:${dir}`;
+    const cached = breakdownCache.get(key);
+    if (!cached || !cached.data || cached.data.length === 0) return null;
+    const sum = cached.data.reduce((a, b) => a + (Number(b.value) || 0), 0);
+    return Math.round(sum / cached.data.length);
+  };
+  const displayForwardAvg = signedForwardAvg === 0 ? (edgeType === 'support' ? -(getCachedAvg('forward') ?? 0) : (getCachedAvg('forward') ?? 0)) : signedForwardAvg;
+  const displayBackwardAvg = signedBackwardAvg === 0 ? (edgeType === 'support' ? -(getCachedAvg('backward') ?? 0) : (getCachedAvg('backward') ?? 0)) : signedBackwardAvg;
+  const fmtSign = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+
+  const [mcLoading, setMcLoading] = React.useState<{ forward: boolean; backward: boolean }>({ forward: false, backward: false });
+  const [, setCacheTick] = React.useState(0);
+
+  const prefetchBreakdowns = React.useCallback(async () => {
+    if (!graph.getMindchangeBreakdown) return;
+    const now = Date.now();
+    const fKey = `${edgeId}:forward`;
+    const bKey = `${edgeId}:backward`;
+    const fFresh = (() => { const c = breakdownCache.get(fKey); return !!c && (now - c.ts) < 30000; })();
+    const bFresh = (() => { const c = breakdownCache.get(bKey); return !!c && (now - c.ts) < 30000; })();
+    if (fFresh && bFresh) return;
+    setMcLoading({ forward: !fFresh, backward: !bFresh });
+    try {
+      const res = await graph.getMindchangeBreakdown(edgeId);
+      const ts = Date.now();
+      if (!fFresh) breakdownCache.set(fKey, { ts, data: res.forward });
+      if (!bFresh) breakdownCache.set(bKey, { ts, data: res.backward });
+    } catch { }
+    setMcLoading({ forward: false, backward: false });
+    setCacheTick((t) => t + 1);
+  }, [graph, edgeId]);
+
+
   const [editDir, setEditDir] = React.useState<null | 'forward' | 'backward'>(null);
-  const [sliderVal, setSliderVal] = React.useState<number>(forwardAvg);
+  const [value, setValue] = React.useState<number>(Math.abs(rawForwardAvg));
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
-    if (editDir === 'forward') setSliderVal(forwardAvg);
-    else if (editDir === 'backward') setSliderVal(backwardAvg);
-  }, [editDir, forwardAvg, backwardAvg]);
+    if (!editDir) return;
+    const user = (mindchange as any)?.userValue as { forward?: number; backward?: number } | undefined;
+    let seed: number | undefined;
+    if (user && typeof user[editDir] === 'number') {
+      seed = Math.abs(Number(user[editDir]));
+    } else {
+      const avg = editDir === 'forward' ? Number(displayForwardAvg) : Number(displayBackwardAvg);
+      seed = Math.abs(Number.isFinite(avg) ? avg : 0);
+    }
+    if (!Number.isFinite(seed) || (seed as number) <= 0) seed = 100;
+    setValue(Math.max(0, Math.min(100, Math.round(seed as number))));
+  }, [editDir, mindchange, displayForwardAvg, displayBackwardAvg]);
 
   const handleSaveMindchange = async () => {
-    if (!graph.setMindchange || !editDir) { setEditDir(null); return; }
-    const v = Math.max(0, Math.min(100, Math.round(sliderVal)));
-    const params = editDir === 'forward' ? { forward: v } : { backward: v };
-    await graph.setMindchange(edgeId, params);
-    setEditDir(null);
+    if (!graph.setMindchange || !editDir || isSaving) return;
+    setIsSaving(true);
+    try {
+      const v = Math.max(0, Math.min(100, Math.round(value)));
+      const params = editDir === 'forward' ? { forward: v } : { backward: v };
+      await graph.setMindchange(edgeId, params);
+      setEditDir(null);
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  React.useEffect(() => {
+    const nextDir = (graph as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
+    const activeEdgeId = (graph as any)?.mindchangeEdgeId as (string | null);
+    if (selected && activeEdgeId === edgeId && nextDir) {
+      setEditDir(nextDir);
+    }
+  }, [selected, edgeId, graph]);
+
+  React.useEffect(() => {
+    const isMindchange = Boolean((graph as any)?.mindchangeMode);
+    if (!isMindchange && editDir) {
+      setEditDir(null);
+    }
+  }, [graph, editDir]);
 
 
 
@@ -397,17 +530,18 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             width: EDGE_ANCHOR_SIZE,
             height: EDGE_ANCHOR_SIZE,
             zIndex: 1,
-            pointerEvents: 'none',
+            pointerEvents: 'auto',
           }}
           onMouseEnter={(e) => {
             onMouseEnter();
-            setIsAnchorHovered(true);
+            setAnchorHover(true);
+            prefetchBreakdowns();
             try {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
               setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
             } catch { }
           }}
-          onMouseLeave={() => { onMouseLeave(); setIsAnchorHovered(false); }}
+          onMouseLeave={() => { onMouseLeave(); setAnchorHover(false); }}
         />
       </EdgeLabelRenderer>
 
@@ -450,8 +584,12 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             >
               <div
                 className="relative inline-block"
-                onMouseEnter={() => setIsTooltipHovered(true)}
-                onMouseLeave={() => setIsTooltipHovered(false)}
+                style={{
+                  paddingLeft: enableMindchange ? '56px' : '0',
+                  paddingRight: enableMindchange ? '56px' : '0',
+                  marginLeft: enableMindchange ? '-56px' : '0',
+                  marginRight: enableMindchange ? '-56px' : '0',
+                }}
               >
                 <div
                   className="flex items-center justify-center gap-4 bg-gradient-to-b from-white to-gray-50/95 backdrop-blur-md border border-gray-200/80 rounded-xl shadow-lg shadow-black/10 px-4 py-2.5 transition-all duration-300 hover:shadow-xl hover:shadow-black/15"
@@ -473,7 +611,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   onPointerCancel={handlePersistencePointerUp}
                   onPointerLeave={handlePersistencePointerLeave}
                 >
-                  {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && !enableMindchange && (
+                  {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && !editDir && (
                     <div className="flex items-center gap-3 text-xs select-none relative">
                       {activeEdgeLabel && (
                         <span className={`font-bold tracking-tight ${activeEdgeTone}`}>{activeEdgeLabel}</span>
@@ -484,7 +622,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                         tabIndex={0}
                         data-interactive="true"
                         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-gray-300/50 shadow-inner transition-all duration-200 ${edgeType === "support" ? "bg-gradient-to-r from-emerald-400 to-emerald-500" : "bg-gradient-to-r from-rose-400 to-rose-500"}`}
-                        onClick={(e) => handleConnectionAwareClick(e, () => onToggleEdgeType?.())}
+                        onClickCapture={(e) => { e.stopPropagation(); onToggleEdgeType?.(); }}
+                        onMouseEnter={() => setIsNearOverlay(true)}
+                        onMouseLeave={() => setIsNearOverlay(false)}
                       >
                         <div className={`pointer-events-none flex items-center justify-center h-5 w-5 rounded-full bg-white shadow-md transition-all duration-200 ${edgeType === "support" ? "translate-x-5" : "translate-x-0.5"}`}>
                           <div style={{ position: "relative", width: "12px", height: "12px" }}>
@@ -525,36 +665,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     </div>
                   )}
 
-                  {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && enableMindchange && !editDir && (
-                    <div className="flex items-center gap-3 text-xs select-none relative">
-                      {activeEdgeLabel && (
-                        <span className={`font-bold tracking-tight ${activeEdgeTone}`}>{activeEdgeLabel}</span>
-                      )}
-                      <div
-                        data-testid="toggle-edge-type"
-                        role="button"
-                        tabIndex={0}
-                        data-interactive="true"
-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-gray-300/50 shadow-inner transition-all duration-200 ${edgeType === "support" ? "bg-gradient-to-r from-emerald-400 to-emerald-500" : "bg-gradient-to-r from-rose-400 to-rose-500"}`}
-                        onClick={(e) => handleConnectionAwareClick(e, () => onToggleEdgeType?.())}
-                      >
-                        <div className={`pointer-events-none flex items-center justify-center h-5 w-5 rounded-full bg-white shadow-md transition-all duration-200 ${edgeType === "support" ? "translate-x-5" : "translate-x-0.5"}`}>
-                          <div style={{ position: "relative", width: "12px", height: "12px" }}>
-                            {edgeType === "support" ? (
-                              <>
-                                <div style={{ position: "absolute", left: "50%", top: "50%", width: "10px", height: "2px", backgroundColor: "#10b981", transform: "translate(-50%, -50%) rotate(0deg)", borderRadius: "1px" }} />
-                                <div style={{ position: "absolute", left: "50%", top: "50%", width: "10px", height: "2px", backgroundColor: "#10b981", transform: "translate(-50%, -50%) rotate(90deg)", borderRadius: "1px" }} />
-                              </>
-                            ) : (
-                              <div style={{ position: "absolute", left: "50%", top: "50%", width: "10px", height: "2px", backgroundColor: "#f43f5e", transform: "translate(-50%, -50%) rotate(0deg)", borderRadius: "1px" }} />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {null}
 
-                  {(edgeType !== "support" && edgeType !== "negation") && !enableMindchange && (
+                  {(edgeType !== "support" && edgeType !== "negation") && (
                     <div className="flex items-center gap-2.5 text-xs select-none relative">
                       <span className="text-xs font-semibold text-gray-700">Relevance:</span>
                       <TooltipProvider>
@@ -599,7 +712,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   {enableMindchange && !editDir && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); setEditDir('forward'); })}
+                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); (graph as any)?.beginMindchangeOnEdge?.(edgeId); })}
                       className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-white text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 active:scale-95 transition-all duration-150 border border-gray-200"
                       title="Mindchange"
                     >
@@ -620,45 +733,56 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
                   {enableMindchange && editDir && (
                     <div className="flex items-center gap-3 transition-all duration-200 ease-out">
+                      <div className="relative flex items-center">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={value}
+                          onChange={(e) => {
+                            const n = Number(e.target.value);
+                            if (Number.isFinite(n)) setValue(Math.max(0, Math.min(100, Math.round(n))));
+                          }}
+                          className="w-20 border rounded px-2 py-1 text-xs pr-5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <span className="absolute right-2 text-xs text-gray-500 pointer-events-none">%</span>
+                      </div>
                       <button
-                        onClick={(e) => { e.stopPropagation(); setEditDir(editDir === 'forward' ? 'backward' : 'forward'); }}
-                        className="px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 active:scale-95 transition-all text-xs font-semibold text-gray-700 min-w-24 text-center"
-                        title="Toggle direction"
-                      >
-                        {editDir === 'forward' ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="truncate max-w-16">{sourceLabel || 'This'}</span>
-                            <span>→</span>
-                            <span className="truncate max-w-16">{targetLabel || 'That'}</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="truncate max-w-16">{targetLabel || 'That'}</span>
-                            <span>→</span>
-                            <span className="truncate max-w-16">{sourceLabel || 'This'}</span>
-                          </div>
-                        )}
-                      </button>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={sliderVal}
-                        onChange={(e) => setSliderVal(parseInt(e.target.value, 10))}
-                        className="w-24 accent-blue-600"
-                      />
-                      <span className="w-12 text-right font-semibold text-xs">{sliderVal}%</span>
-                      <button
-                        className="px-3 py-1.5 bg-gradient-to-b from-gray-800 to-gray-900 text-white rounded-lg text-xs font-semibold shadow-md hover:shadow-lg hover:from-gray-700 hover:to-gray-800 active:scale-95 transition-all"
-                        onClick={(e) => { e.stopPropagation(); handleSaveMindchange(); }}
-                      >
-                        Save
-                      </button>
-                      <button
-                        className="px-3 py-1.5 border-2 border-gray-300 rounded-lg text-xs font-semibold hover:bg-gray-100 active:scale-95 transition-all"
+                        className="relative w-6 h-6 rounded-full overflow-hidden transition-all hover:opacity-80 active:scale-95 bg-white border-2 border-gray-300"
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditDir(null); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const options = [10, 50, 100];
+                          const currentIndex = options.indexOf(value);
+                          const nextIndex = (currentIndex + 1) % options.length;
+                          setValue(options[nextIndex]);
+                        }}
+                        title="Toggle percentage"
+                      >
+                        <div
+                          className={`absolute bottom-0 left-0 right-0 transition-all duration-200 ${isSupportEdge ? 'bg-gradient-to-t from-emerald-500 to-emerald-400' :
+                              isNegationEdge ? 'bg-gradient-to-t from-rose-500 to-rose-400' :
+                                'bg-gradient-to-t from-blue-500 to-blue-400'
+                            }`}
+                          style={{ height: `${value}%` }}
+                        />
+                      </button>
+                      <button
+                        className="px-3 py-1.5 bg-gradient-to-b from-gray-800 to-gray-900 text-white rounded-lg text-xs font-semibold shadow-md hover:shadow-lg hover:from-gray-700 hover:to-gray-800 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                        onClick={(e) => { e.stopPropagation(); handleSaveMindchange(); }}
+                        disabled={isSaving}
+                      >
+                        {isSaving && (
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        )}
+                        {isSaving ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        className="px-3 py-1.5 border-2 border-gray-300 rounded-lg text-xs font-semibold hover:bg-gray-100 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setEditDir(null); try { (graph as any)?.setSelectedEdge?.(null); } catch { }; (graph as any)?.cancelMindchangeSelection?.(); }}
+                        disabled={isSaving}
                       >
                         Cancel
                       </button>
@@ -669,14 +793,13 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button
-                              className="absolute -left-14 top-1/2 -translate-y-1/2 rounded-full h-10 w-10 border-2 border-gray-200 bg-white shadow-lg hover:shadow-xl flex items-center justify-center text-xs font-bold text-gray-700 hover:scale-110 active:scale-95 transition-all duration-200"
-                              onClick={(e) => { e.stopPropagation(); setEditDir('backward'); }}
-                              title={`${targetLabel || 'Target'} → ${sourceLabel || 'Source'}`}
-                              style={{ pointerEvents: 'auto' }}
+                            <div
+                              className="absolute -left-14 top-1/2 -translate-y-1/2 rounded-full h-10 w-10 border-2 border-gray-200 bg-white shadow-lg flex items-center justify-center text-[11px] font-bold text-gray-700"
+                              style={{ pointerEvents: 'auto', position: 'absolute' }}
                             >
-                              {backwardAvg}%
-                            </button>
+                              <span>{(rawBackwardAvg === 0 && getCachedAvg('backward') == null) ? '…' : `${fmtSign(displayBackwardAvg)}%`}</span>
+                              {/* arrows removed */}
+                            </div>
                           </TooltipTrigger>
                           <TooltipContent side="left" className="z-[70]"><MindchangeBreakdown dir="backward" edgeId={edgeId} /></TooltipContent>
                         </Tooltip>
@@ -684,14 +807,12 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button
-                              className="absolute -right-14 top-1/2 -translate-y-1/2 rounded-full h-10 w-10 border-2 border-gray-200 bg-white shadow-lg hover:shadow-xl flex items-center justify-center text-xs font-bold text-gray-700 hover:scale-110 active:scale-95 transition-all duration-200"
-                              onClick={(e) => { e.stopPropagation(); setEditDir('forward'); }}
-                              title={`${sourceLabel || 'Source'} → ${targetLabel || 'Target'}`}
-                              style={{ pointerEvents: 'auto' }}
+                            <div
+                              className="absolute -right-14 top-1/2 -translate-y-1/2 rounded-full h-10 w-10 border-2 border-gray-200 bg-white shadow-lg flex items-center justify-center text-[11px] font-bold text-gray-700"
+                              style={{ pointerEvents: 'auto', position: 'absolute' }}
                             >
-                              {forwardAvg}%
-                            </button>
+                              <span>{(rawForwardAvg === 0 && getCachedAvg('forward') == null) ? '…' : `${fmtSign(displayForwardAvg)}%`}</span>
+                            </div>
                           </TooltipTrigger>
                           <TooltipContent side="right" className="z-[70]"><MindchangeBreakdown dir="forward" edgeId={edgeId} /></TooltipContent>
                         </Tooltip>

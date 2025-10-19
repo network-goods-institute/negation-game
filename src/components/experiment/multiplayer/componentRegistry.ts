@@ -5,6 +5,7 @@ import { SupportEdge } from "@/components/experiment/multiplayer/SupportEdge";
 import { ObjectionEdge } from "@/components/experiment/multiplayer/ObjectionEdge";
 import { StatementEdge } from "@/components/experiment/multiplayer/StatementEdge";
 import { OptionEdge } from "@/components/experiment/multiplayer/OptionEdge";
+import { MindchangeIndicatorEdge } from "@/components/experiment/multiplayer/MindchangeIndicatorEdge";
 import { StatementNode } from "@/components/experiment/multiplayer/StatementNode";
 import { TitleNode } from "@/components/experiment/multiplayer/TitleNode";
 import { GroupNode } from "@/components/experiment/multiplayer/GroupNode";
@@ -34,4 +35,5 @@ export const edgeTypes = {
   objection: ObjectionEdge,
   statement: StatementEdge,
   option: OptionEdge,
+  mindchange_indicator: MindchangeIndicatorEdge,
 };

@@ -19,6 +19,9 @@ type GraphActions = {
     cancelConnect: () => void;
     isConnectingFromNodeId: string | null;
     connectMode?: boolean;
+    mindchangeMode?: boolean;
+    mindchangeEdgeId?: string | null;
+    mindchangeNextDir?: 'forward' | 'backward' | null;
     addObjectionForEdge: (edgeId: string, midX?: number, midY?: number) => void;
     hoveredEdgeId: string | null;
     setHoveredEdge: (edgeId: string | null) => void;
@@ -26,6 +29,8 @@ type GraphActions = {
     updateEdgeType?: (edgeId: string, newType: "negation" | "support") => void;
     selectedEdgeId?: string | null;
     setSelectedEdge?: (edgeId: string | null) => void;
+    overlayActiveEdgeId?: string | null;
+    setOverlayActiveEdge?: (edgeId: string | null) => void;
     updateEdgeAnchorPosition: (edgeId: string, x: number, y: number, force?: boolean) => void;
     startEditingNode?: (nodeId: string) => void;
     stopEditingNode?: (nodeId: string) => void;
@@ -58,6 +63,10 @@ type GraphActions = {
     grabMode?: boolean;
     clearNodeSelection?: () => void;
     blurNodesImmediately?: () => void;
+    beginMindchangeSelection?: () => void; // deprecated
+    beginMindchangeOnEdge?: (edgeId: string) => void;
+    cancelMindchangeSelection?: () => void;
+    setMindchangeNextDir?: (dir: 'forward' | 'backward' | null) => void;
     setMindchange?: (edgeId: string, params: { forward?: number; backward?: number }) => Promise<void>;
     getMindchangeBreakdown?: (edgeId: string) => Promise<{
         forward: Array<{ userId: string; username: string; value: number }>;
@@ -89,6 +98,9 @@ export const useGraphActions = () => {
             cancelConnect: () => { },
             isConnectingFromNodeId: null,
             connectMode: false,
+            mindchangeMode: false,
+            mindchangeEdgeId: null,
+            mindchangeNextDir: null,
             addObjectionForEdge: () => { },
             hoveredEdgeId: null,
             setHoveredEdge: () => { },
@@ -96,6 +108,8 @@ export const useGraphActions = () => {
             updateEdgeType: () => { },
             selectedEdgeId: null,
             setSelectedEdge: () => { },
+            overlayActiveEdgeId: null,
+            setOverlayActiveEdge: () => { },
             updateEdgeAnchorPosition: () => { },
             startEditingNode: () => { },
             stopEditingNode: () => { },
@@ -115,6 +129,10 @@ export const useGraphActions = () => {
             grabMode: false,
             clearNodeSelection: () => { },
             blurNodesImmediately: () => { },
+            beginMindchangeSelection: () => { },
+            beginMindchangeOnEdge: () => { },
+            cancelMindchangeSelection: () => { },
+            setMindchangeNextDir: () => { },
         } as GraphActions;
     }
     return ctx;

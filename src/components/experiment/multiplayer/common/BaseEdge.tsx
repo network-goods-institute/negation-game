@@ -172,7 +172,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   // Dynamic edge styles
   const edgeStyles = useMemo(() => {
-    const enableMindchange = typeof process !== 'undefined' && ["true","1","yes","on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
+    const enableMindchange = typeof process !== 'undefined' && ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
     const fixedWidth = (props.edgeType !== 'objection' && enableMindchange) ? 2 : visual.strokeWidth(relevance);
     const baseStyle = {
       stroke: visual.stroke,
@@ -352,6 +352,10 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           relevance={relevance}
           edgeId={props.id as string}
           edgeType={props.edgeType}
+          srcX={sourceX ?? 0}
+          srcY={sourceY ?? 0}
+          tgtX={targetX ?? 0}
+          tgtY={targetY ?? 0}
           onMouseEnter={() => setHoveredEdge(props.id as string)}
           onMouseLeave={() => setHoveredEdge(null)}
           onUpdateRelevance={handleUpdateRelevance}
@@ -362,6 +366,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           sourceLabel={(sourceNode as any)?.data?.content || (sourceNode as any)?.data?.statement}
           targetLabel={(targetNode as any)?.data?.content || (targetNode as any)?.data?.statement}
           mindchange={(props as any).data?.mindchange}
+
         />
       )}
 

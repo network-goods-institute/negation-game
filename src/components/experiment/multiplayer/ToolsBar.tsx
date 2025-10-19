@@ -19,6 +19,10 @@ interface ToolsBarProps {
   grabMode?: boolean;
   setGrabMode?: (v: boolean) => void;
   selectMode: boolean;
+  mindchangeMode?: boolean;
+  onMindchangeDone?: () => void;
+  mindchangeNextDir?: 'forward' | 'backward' | null;
+  mindchangeEdgeType?: string;
 }
 
 export const ToolsBar: React.FC<ToolsBarProps> = ({
@@ -34,6 +38,10 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   grabMode,
   setGrabMode,
   selectMode,
+  mindchangeMode,
+  onMindchangeDone,
+  mindchangeNextDir,
+  mindchangeEdgeType,
 }) => {
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
   const toolbarRef = React.useRef<HTMLDivElement | null>(null);
@@ -53,6 +61,49 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
       el.removeEventListener('wheel', handleWheel, { capture: true } as any);
     };
   }, [connectMode]);
+
+  // Focused (mindchange) mode UI
+  if (mindchangeMode) {
+    let promptText = 'Select the point that changes your mind';
+    if (mindchangeNextDir) {
+      if (mindchangeEdgeType === 'support') {
+        promptText = 'Enter how much it would change your mind if it were false';
+      } else if (mindchangeEdgeType === 'negation') {
+        promptText = 'Enter how much it would change your mind if it were true';
+      } else {
+        promptText = 'Enter how much it changes your mind';
+      }
+    } else if (connectAnchorId) {
+      promptText = 'Select the target point';
+    }
+
+    const content = (
+      <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
+        <div className="bg-white/90 backdrop-blur border-2 border-amber-300 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
+          <div className="flex items-center gap-2 px-1 text-amber-700">
+            <span className="text-sm font-medium">Mindchange</span>
+          </div>
+          <span className="text-sm text-stone-700">
+            {promptText}
+          </span>
+          <div className="h-5 w-px bg-stone-200 mx-2" />
+          <button
+            onClick={() => setConnectAnchorId(null)}
+            className="text-sm rounded-full px-3 py-1 bg-stone-100 text-stone-900 hover:bg-stone-200"
+          >
+            Restart
+          </button>
+          <button
+            onClick={() => { onMindchangeDone?.(); setConnectAnchorId(null); }}
+            className="text-sm rounded-full px-3 py-1 bg-amber-600 text-white hover:bg-amber-700"
+          >
+            Done (Esc)
+          </button>
+        </div>
+      </div>
+    );
+    return portalTarget ? createPortal(content, portalTarget) : content;
+  }
 
   // Focused (connect) mode UI
   if (connectMode) {
