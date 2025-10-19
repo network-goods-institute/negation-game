@@ -430,8 +430,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   const rawForwardAvg = Math.round(Number((mindchange as any)?.forward?.average ?? 0));
   const rawBackwardAvg = Math.round(Number((mindchange as any)?.backward?.average ?? 0));
-  const signedForwardAvg = edgeType === 'support' ? -rawForwardAvg : rawForwardAvg;
-  const signedBackwardAvg = edgeType === 'support' ? -rawBackwardAvg : rawBackwardAvg;
 
   const getCachedAvg = (dir: 'forward' | 'backward') => {
     const key = `${edgeId}:${dir}`;
@@ -440,8 +438,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     const sum = cached.data.reduce((a, b) => a + (Number(b.value) || 0), 0);
     return Math.round(sum / cached.data.length);
   };
-  const displayForwardAvg = signedForwardAvg === 0 ? (edgeType === 'support' ? -(getCachedAvg('forward') ?? 0) : (getCachedAvg('forward') ?? 0)) : signedForwardAvg;
-  const displayBackwardAvg = signedBackwardAvg === 0 ? (edgeType === 'support' ? -(getCachedAvg('backward') ?? 0) : (getCachedAvg('backward') ?? 0)) : signedBackwardAvg;
+  const displayForwardAvg = rawForwardAvg === 0 ? (getCachedAvg('forward') ?? 0) : rawForwardAvg;
+  const displayBackwardAvg = rawBackwardAvg === 0 ? (getCachedAvg('backward') ?? 0) : rawBackwardAvg;
   const fmtSign = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
   const [mcLoading, setMcLoading] = React.useState<{ forward: boolean; backward: boolean }>({ forward: false, backward: false });
@@ -503,10 +501,11 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   React.useEffect(() => {
     const nextDir = (graph as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
     const activeEdgeId = (graph as any)?.mindchangeEdgeId as (string | null);
+    if (edgeType !== 'negation' && edgeType !== 'objection') return;
     if (selected && activeEdgeId === edgeId && nextDir) {
       setEditDir(nextDir);
     }
-  }, [selected, edgeId, graph]);
+  }, [selected, edgeId, graph, edgeType]);
 
   React.useEffect(() => {
     const isMindchange = Boolean((graph as any)?.mindchangeMode);
@@ -639,35 +638,37 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                           </div>
                         </div>
                       </div>
-                      <TooltipProvider>
-                        <div className="flex items-center gap-0.5 px-1">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <Tooltip key={`rel-${i}`}>
-                              <TooltipTrigger asChild>
-                                <button
-                                  title={`Set relevance to ${i}`}
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance(i); })}
-                                  type="button"
-                                  data-interactive="true"
-                                  className="transition-transform hover:scale-110 active:scale-95"
-                                >
-                                  <span className={`text-base font-bold transition-all ${i <= relevance ? starColor : 'text-gray-300'}`}>
-                                    {edgeType === "support" ? "+" : "-"}
-                                  </span>
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="text-xs z-[70]">Relevance: {i}/5</TooltipContent>
-                            </Tooltip>
-                          ))}
-                        </div>
-                      </TooltipProvider>
+                      {!enableMindchange && (
+                        <TooltipProvider>
+                          <div className="flex items-center gap-0.5 px-1">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                              <Tooltip key={`rel-${i}`}>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    title={`Set relevance to ${i}`}
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance(i); })}
+                                    type="button"
+                                    data-interactive="true"
+                                    className="transition-transform hover:scale-110 active:scale-95"
+                                  >
+                                    <span className={`text-base font-bold transition-all ${i <= relevance ? starColor : 'text-gray-300'}`}>
+                                      {edgeType === "support" ? "+" : "-"}
+                                    </span>
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs z-[70]">Relevance: {i}/5</TooltipContent>
+                              </Tooltip>
+                            ))}
+                          </div>
+                        </TooltipProvider>
+                      )}
                     </div>
                   )}
 
                   {null}
 
-                  {(edgeType !== "support" && edgeType !== "negation") && (
+                  {(edgeType !== "support" && edgeType !== "negation") && !enableMindchange && (
                     <div className="flex items-center gap-2.5 text-xs select-none relative">
                       <span className="text-xs font-semibold text-gray-700">Relevance:</span>
                       <TooltipProvider>
@@ -696,7 +697,18 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     </div>
                   )}
 
-                  {!enableMindchange && (
+                  {enableMindchange && (edgeType === 'negation' || edgeType === 'objection') && !editDir && (
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); (graph as any)?.beginMindchangeOnEdge?.(edgeId); })}
+                      className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-white text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 active:scale-95 transition-all duration-150 border border-gray-200"
+                      title="Mindchange"
+                    >
+                      Mindchange
+                    </button>
+                  )}
+
+                  {!editDir && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); })}
@@ -709,27 +721,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     </button>
                   )}
 
-                  {enableMindchange && !editDir && (
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); (graph as any)?.beginMindchangeOnEdge?.(edgeId); })}
-                      className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-white text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 active:scale-95 transition-all duration-150 border border-gray-200"
-                      title="Mindchange"
-                    >
-                      Mindchange
-                    </button>
-                  )}
-
-                  {enableMindchange && !editDir && (
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); })}
-                      className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-gradient-to-b from-gray-800 to-gray-900 text-white shadow-md hover:shadow-lg hover:from-gray-700 hover:to-gray-800 active:scale-95 transition-all duration-150 border border-gray-700"
-                      title="Add mitigation to this relation"
-                    >
-                      Mitigate
-                    </button>
-                  )}
+                  
 
                   {enableMindchange && editDir && (
                     <div className="flex items-center gap-3 transition-all duration-200 ease-out">
@@ -788,7 +780,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       </button>
                     </div>
                   )}
-                  {enableMindchange && (
+                  {enableMindchange && (edgeType === 'negation' || edgeType === 'objection') && (
                     <>
                       <TooltipProvider>
                         <Tooltip>

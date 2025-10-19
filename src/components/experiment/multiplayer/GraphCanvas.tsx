@@ -15,7 +15,7 @@ import { useGraphKeyboardHandlers } from '@/hooks/experiment/multiplayer/useGrap
 import { useGraphWheelHandler } from '@/hooks/experiment/multiplayer/useGraphWheelHandler';
 import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNodeHandlers';
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
-import { buildIndicatorEdges } from '@/utils/experiment/multiplayer/buildIndicatorEdges';
+import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
 
 type YProvider = WebsocketProvider | null;
 
@@ -139,8 +139,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           return null;
         }
       };
-      const indicators = buildIndicatorEdges(enriched as any, enableMindchange, visible, getNodeRect);
-      return (edges as any[]).concat(indicators as any[]);
+      return enriched;
     } catch {
       return edges;
     }
@@ -492,6 +491,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           </g>
         );
       })(), edgesLayer)}
+      {/* Global arrow markers for mindchange edges */}
+      {edgesLayer && createPortal(<EdgeArrowMarkers />, edgesLayer)}
       <CursorOverlay cursors={cursors} />
       <OffscreenNeighborPreviews blurAllNodes={blurAllNodes} />
       {!grabMode && !perfMode && (

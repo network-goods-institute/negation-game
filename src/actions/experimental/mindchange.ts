@@ -19,10 +19,9 @@ const clamp0to100 = (n: number) => {
   return Math.max(0, Math.min(100, Math.round(n)));
 };
 
-const toCanonicalSigned = (v: number | undefined, edgeType: 'negation' | 'support') => {
+const toPositive = (v: number | undefined) => {
   if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
-  const clamped = clamp0to100(v);
-  return edgeType === 'negation' ? clamped : -clamped;
+  return clamp0to100(v);
 };
 
 const isTruthyFlag = (v: string | undefined) => {
@@ -44,6 +43,9 @@ export async function setMindchange(
 ): Promise<{ ok: true; averages: Averages } | { ok: false; error: string }> {
   if (!featureEnabled()) return { ok: false, error: "Mindchange disabled" };
   if (!docId || !edgeId) return { ok: false, error: "Invalid ids" };
+  if (edgeType && edgeType !== 'negation') {
+    return { ok: false, error: 'Mindchange only allowed on negation edges' };
+  }
 
   let userId = await getUserId();
   if (!userId) {
@@ -55,9 +57,8 @@ export async function setMindchange(
     }
   }
 
-  const et: 'negation' | 'support' = edgeType === 'negation' ? 'negation' : 'support';
-  const fVal = toCanonicalSigned(forwardValue, et);
-  const bVal = toCanonicalSigned(backwardValue, et);
+  const fVal = toPositive(forwardValue);
+  const bVal = toPositive(backwardValue);
   if (typeof fVal === "undefined" && typeof bVal === "undefined") {
     return { ok: false, error: "No values provided" };
   }

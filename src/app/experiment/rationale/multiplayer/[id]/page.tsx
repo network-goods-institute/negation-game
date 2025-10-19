@@ -39,9 +39,9 @@ import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
 import { PerfProvider } from '@/components/experiment/multiplayer/PerformanceContext';
 import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
-import { isProductionEnvironment, isProductionRequest } from '@/utils/hosts';
+import { isProductionEnvironment, isProductionHostname } from '@/utils/hosts';
 import { AuthGate } from '@/components/auth/AuthGate';
-import { setMindchange as setMindchangeAction, getMindchangeBreakdown as getMindchangeBreakdownAction, getMindchangeAveragesForEdges } from '@/actions/experimental/mindchange';
+import { setMindchange as setMindchangeAction, getMindchangeBreakdown as getMindchangeBreakdownAction, getMindchangeAveragesForEdges, deleteMindchangeForEdge } from '@/actions/experimental/mindchange';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
@@ -215,7 +215,8 @@ export default function MultiplayerBoardDetailPage() {
         if (!edges || edges.length === 0) return;
         (async () => {
             try {
-                const ids = edges.map((e) => e.id);
+                const ids = edges.filter((e: any) => e.type === 'negation' || e.type === 'objection').map((e) => e.id);
+                if (ids.length === 0) return;
                 const map = await getMindchangeAveragesForEdges(resolvedId, ids);
                 if (!map) return;
                 (ydoc as any).transact(() => {
@@ -241,7 +242,7 @@ export default function MultiplayerBoardDetailPage() {
     useEffect(() => {
         try {
             const host = typeof window !== 'undefined' ? window.location.hostname : '';
-            setRequireAuth(isProductionRequest(host));
+            setRequireAuth(isProductionHostname(host));
         } catch { }
     }, []);
 
@@ -309,6 +310,29 @@ export default function MultiplayerBoardDetailPage() {
         isLockedForMe,
         getLockOwner,
     });
+
+    const updateEdgeTypeWrapped = useCallback(async (edgeId: string, newType: 'negation' | 'support') => {
+        try {
+            const prev = edges.find((e: any) => e.id === edgeId);
+            if (!prev) return;
+            if (prev.type === newType) return;
+            updateEdgeType(edgeId, newType);
+            if (newType === 'support') {
+                if (resolvedId) {
+                    try { await deleteMindchangeForEdge(resolvedId, edgeId); } catch { }
+                }
+                try {
+                    // Clear local caches and edge data
+                    setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e, data: { ...(e.data || {}), mindchange: undefined } } : e));
+                    if (ydoc && yMetaMap) {
+                        (ydoc as any).transact(() => {
+                            (yMetaMap as any).delete?.(`mindchange:${edgeId}`);
+                        }, ORIGIN.RUNTIME);
+                    }
+                } catch { }
+            }
+        } catch { }
+    }, [edges, updateEdgeType, resolvedId, setEdges, yMetaMap, ydoc]);
 
     const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
 
@@ -608,7 +632,7 @@ export default function MultiplayerBoardDetailPage() {
                         hoveredEdgeId,
                         setHoveredEdge: setHoveredEdgeId,
                         updateEdgeRelevance,
-                        updateEdgeType,
+                        updateEdgeType: updateEdgeTypeWrapped,
                         selectedEdgeId,
                         setSelectedEdge: setSelectedEdgeId,
                         overlayActiveEdgeId,
@@ -653,6 +677,10 @@ export default function MultiplayerBoardDetailPage() {
                         beginMindchangeOnEdge: (edgeId: string) => {
                             const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
                             if (!enableMindchange) return;
+                            try {
+                                const et = (edges.find((e: any) => e.id === edgeId)?.type) as string | undefined;
+                                if (et !== 'negation' && et !== 'objection') return;
+                            } catch { }
                             try { console.debug('[Mindchange] begin on edge', edgeId); } catch { }
                             setMindchangeSelectMode(true);
                             setMindchangeEdgeId(edgeId);
@@ -673,7 +701,8 @@ export default function MultiplayerBoardDetailPage() {
                             if (!enableMindchange) return;
                             if (!resolvedId) return;
                             try {
-                                const edgeTypeNow = (edges.find((e: any) => e.id === edgeId)?.type === 'negation') ? 'negation' : 'support';
+                                const typeNow = (edges.find((e: any) => e.id === edgeId)?.type as string | undefined);
+                                const edgeTypeNow = (typeNow === 'negation' || typeNow === 'objection') ? 'negation' : 'support';
                                 const res = await setMindchangeAction(resolvedId, edgeId, params.forward, params.backward, edgeTypeNow as any, userId);
                                 if ((res as any)?.ok && ydoc && yMetaMap) {
                                     const averages = (res as any).averages as { forward: number; backward: number; forwardCount: number; backwardCount: number };

@@ -1,12 +1,10 @@
-import { buildIndicatorEdges } from "@/utils/experiment/multiplayer/buildIndicatorEdges";
+import { shouldRenderMindchangeBadge } from "@/utils/experiment/multiplayer/mindchangeHelpers";
 
-describe("buildIndicatorEdges", () => {
-  it("creates forward/backward indicator edges with ids and directions", () => {
+describe("mindchange badges", () => {
+  it("renders badge when counts exist and feature enabled", () => {
     const base = {
       id: "e1",
       type: "support",
-      source: "a",
-      target: "b",
       data: {
         mindchange: {
           forward: { average: 60, count: 2 },
@@ -14,28 +12,13 @@ describe("buildIndicatorEdges", () => {
         },
       },
     } as any;
-    const out = buildIndicatorEdges([base], true, new Set(["e1"]));
-    expect(out.map((e) => e.id)).toEqual(
-      expect.arrayContaining(["mcind:e1:forward", "mcind:e1:backward"]) 
-    );
-    const fwd = out.find((e) => e.id === "mcind:e1:forward") as any;
-    const bwd = out.find((e) => e.id === "mcind:e1:backward") as any;
-    expect(fwd.source).toBe("a");
-    expect(fwd.target).toBe("b");
-    expect(fwd.data.direction).toBe("forward");
-    expect(fwd.data.value).toBe(-60);
-    expect(bwd.source).toBe("b");
-    expect(bwd.target).toBe("a");
-    expect(bwd.data.direction).toBe("backward");
-    expect(bwd.data.value).toBe(-20);
+    expect(shouldRenderMindchangeBadge(base, true)).toBe(true);
   });
 
   it("skips when feature disabled or counts are zero", () => {
     const base = {
       id: "e2",
       type: "support",
-      source: "a",
-      target: "b",
       data: {
         mindchange: {
           forward: { average: 0, count: 0 },
@@ -43,8 +26,7 @@ describe("buildIndicatorEdges", () => {
         },
       },
     } as any;
-    expect(buildIndicatorEdges([base], false, new Set(["e2"])).length).toBe(0);
-    const withFeature = buildIndicatorEdges([base], true, new Set(["e2"]));
-    expect(withFeature.length).toBe(0);
+    expect(shouldRenderMindchangeBadge(base, false)).toBe(false);
+    expect(shouldRenderMindchangeBadge(base, true)).toBe(false);
   });
 });

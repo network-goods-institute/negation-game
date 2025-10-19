@@ -53,7 +53,7 @@ describe("mindchange actions input validation", () => {
     expect((res as any).error).toContain("No values");
   });
 
-  it("accepts single direction and returns rounded averages (signed canonical)", async () => {
+  it("accepts single direction and returns rounded averages (positive only)", async () => {
     const res = await setMindchange("doc", "edge", 33, undefined, 'negation');
     expect(res.ok).toBe(true);
     if (res.ok) {
@@ -67,10 +67,10 @@ describe("mindchange actions input validation", () => {
     expect(typeof map).toBe("object");
   });
 
-  it("stores canonical sign based on edgeType", async () => {
+  it("rejects support edges for mindchange", async () => {
     const neg = await setMindchange("doc", "edge", 50, undefined, 'negation');
     const sup = await setMindchange("doc", "edge", 50, undefined, 'support');
     expect(neg.ok).toBe(true);
-    expect(sup.ok).toBe(true);
+    expect((sup as any).ok).toBe(false);
   });
 });
