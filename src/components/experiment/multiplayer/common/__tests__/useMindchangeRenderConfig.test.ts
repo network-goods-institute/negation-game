@@ -1,0 +1,138 @@
+import { renderHook } from '@testing-library/react';
+import { useMindchangeRenderConfig } from '../useMindchangeRenderConfig';
+
+// Mock the EdgeArrowMarkers module
+jest.mock('../EdgeArrowMarkers', () => ({
+  getMarkerIdForEdgeType: (edgeType: string) => {
+    if (edgeType === 'negation' || edgeType === 'objection') {
+      return 'arrow-negation';
+    }
+    return null;
+  },
+}));
+
+describe('useMindchangeRenderConfig', () => {
+  it('returns normal mode with no markers when mindchange is null', () => {
+    const { result } = renderHook(() => useMindchangeRenderConfig(null, 'negation'));
+
+    expect(result.current).toEqual({
+      mode: 'normal',
+      markerStart: undefined,
+      markerEnd: undefined,
+    });
+  });
+
+  it('returns normal mode when both forward and backward counts are 0', () => {
+    const mindchange = {
+      forward: { count: 0, average: 0 },
+      backward: { count: 0, average: 0 },
+    };
+
+    const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'negation'));
+
+    expect(result.current).toEqual({
+      mode: 'normal',
+      markerStart: undefined,
+      markerEnd: undefined,
+    });
+  });
+
+  it('returns bidirectional mode when both forward and backward have counts', () => {
+    const mindchange = {
+      forward: { count: 3, average: 50 },
+      backward: { count: 2, average: -30 },
+    };
+
+    const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'negation'));
+
+    expect(result.current.mode).toBe('bidirectional');
+    expect(result.current.markerId).toBe('arrow-negation');
+    expect(result.current.markerStart).toBeUndefined();
+    expect(result.current.markerEnd).toBeUndefined();
+  });
+
+  it('returns normal mode with markerEnd for forward-only mindchange', () => {
+    const mindchange = {
+      forward: { count: 3, average: 50 },
+      backward: { count: 0, average: 0 },
+    };
+
+    const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'negation'));
+
+    expect(result.current.mode).toBe('normal');
+    expect(result.current.markerStart).toBeUndefined();
+    expect(result.current.markerEnd).toBe('url(#arrow-negation)');
+  });
+
+  it('returns normal mode with markerStart for backward-only mindchange', () => {
+    const mindchange = {
+      forward: { count: 0, average: 0 },
+      backward: { count: 2, average: -30 },
+    };
+
+    const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'negation'));
+
+    expect(result.current.mode).toBe('normal');
+    expect(result.current.markerStart).toBe('url(#arrow-negation)');
+    expect(result.current.markerEnd).toBeUndefined();
+  });
+
+  it('returns normal mode when edge type has no marker', () => {
+    const mindchange = {
+      forward: { count: 3, average: 50 },
+      backward: { count: 0, average: 0 },
+    };
+
+    const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'support'));
+
+    expect(result.current).toEqual({
+      mode: 'normal',
+      markerStart: undefined,
+      markerEnd: undefined,
+    });
+  });
+
+  it('memoizes result and only recalculates when inputs change', () => {
+    const mindchange = {
+      forward: { count: 3, average: 50 },
+      backward: { count: 0, average: 0 },
+    };
+
+    const { result, rerender } = renderHook(
+      ({ mc, type }) => useMindchangeRenderConfig(mc, type),
+      { initialProps: { mc: mindchange, type: 'negation' } }
+    );
+
+    const firstResult = result.current;
+
+    // Rerender with same props
+    rerender({ mc: mindchange, type: 'negation' });
+
+    // Should return same object reference (memoized)
+    expect(result.current).toBe(firstResult);
+  });
+
+  it('recalculates when mindchange data changes', () => {
+    const initialMindchange = {
+      forward: { count: 3, average: 50 },
+      backward: { count: 0, average: 0 },
+    };
+
+    const { result, rerender } = renderHook(
+      ({ mc, type }) => useMindchangeRenderConfig(mc, type),
+      { initialProps: { mc: initialMindchange, type: 'negation' } }
+    );
+
+    const firstResult = result.current;
+
+    const newMindchange = {
+      forward: { count: 3, average: 50 },
+      backward: { count: 2, average: -30 },
+    };
+
+    rerender({ mc: newMindchange, type: 'negation' });
+
+    expect(result.current).not.toBe(firstResult);
+    expect(result.current.mode).toBe('bidirectional');
+  });
+});
