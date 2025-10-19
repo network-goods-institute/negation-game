@@ -283,18 +283,18 @@ export default function MultiplayerBoardDetailPage() {
 
     const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
 
-    // Update node draggability when locks or grabMode change
+    // Update node draggability when locks, grabMode, or connectMode change
     useEffect(() => {
         setNodes((currentNodes) =>
             currentNodes.map((node) => {
                 const isLocked = isLockedForMe(node.id);
-                const shouldBeDraggable = !isLocked && !grabMode;
+                const shouldBeDraggable = !isLocked && !grabMode && !connectMode;
                 if (node.draggable === shouldBeDraggable) return node; // No change needed
                 return { ...node, draggable: shouldBeDraggable };
             })
         );
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [locks, grabMode, setNodes]);
+    }, [locks, grabMode, connectMode, setNodes]);
 
     // Update edge selectability when grabMode changes
     useEffect(() => {
