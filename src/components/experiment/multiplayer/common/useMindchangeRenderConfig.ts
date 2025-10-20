@@ -28,17 +28,19 @@ export const useMindchangeRenderConfig = (
 
     const markerId = getMarkerIdForEdgeType(edgeTypeForMarker);
 
-    if (!markerId) {
-      return { mode: 'normal', markerStart: undefined, markerEnd: undefined };
-    }
-
+    // Show two parallel lanes when BOTH forward and backward exist (including objections, but no arrows)
     if (hasForward && hasBackward) {
       return {
         mode: 'bidirectional',
-        markerId,
+        markerId: markerId ?? undefined, // null for objections = no arrows
         markerStart: undefined,
         markerEnd: undefined,
       } as const;
+    }
+
+    // For single-direction, only show arrows if markerId exists
+    if (!markerId) {
+      return { mode: 'normal', markerStart: undefined, markerEnd: undefined };
     }
 
     return {

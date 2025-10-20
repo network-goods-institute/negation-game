@@ -140,27 +140,22 @@ export const useConnectionHandlers = ({
           ? edges.find((e) => e.id === mindchangeEdgeId)
           : null;
         if (selectedEdge) {
-          if (selectedEdge.type === "objection") {
-            // Objection: resolve base edge via anchor target and choose forward
-            const anchorIdForBase = String((selectedEdge as any).target || "");
-            const baseEdgeId = anchorIdForBase.startsWith("anchor:")
-              ? anchorIdForBase.slice("anchor:".length)
-              : "";
-            if (baseEdgeId) {
-              setSelectedEdgeId?.(baseEdgeId);
-              setMindchangeNextDir?.("forward");
-            }
+          // For all edge types (including objection), determine direction by which endpoint user clicked
+          const dir =
+            nodeId === selectedEdge.source
+              ? "forward"
+              : nodeId === selectedEdge.target
+                ? "backward"
+                : null;
+          if (dir) {
+            setSelectedEdgeId?.(selectedEdge.id);
+            setMindchangeNextDir?.(dir);
           } else {
-            // Base edge: determine direction by which endpoint user clicked
-            const dir =
-              nodeId === selectedEdge.source
-                ? "forward"
-                : nodeId === selectedEdge.target
-                  ? "backward"
-                  : null;
-            if (dir) {
-              setSelectedEdgeId?.(selectedEdge.id);
-              setMindchangeNextDir?.(dir);
+            // For objection edges, user must click the objection node or the base edge (not nodes)
+            if (selectedEdge.type === "objection") {
+              toast.info(
+                "Click either the mitigation point or the relation line being mitigated"
+              );
             } else {
               toast.info(
                 "Click one of the two points connected by this relation"

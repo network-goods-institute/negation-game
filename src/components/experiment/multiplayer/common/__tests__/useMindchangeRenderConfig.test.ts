@@ -4,8 +4,11 @@ import { useMindchangeRenderConfig } from '../useMindchangeRenderConfig';
 // Mock the EdgeArrowMarkers module
 jest.mock('../EdgeArrowMarkers', () => ({
   getMarkerIdForEdgeType: (edgeType: string) => {
-    if (edgeType === 'negation' || edgeType === 'objection') {
+    if (edgeType === 'negation') {
       return 'arrow-negation';
+    }
+    if (edgeType === 'objection') {
+      return 'arrow-objection';
     }
     return null;
   },
@@ -134,5 +137,38 @@ describe('useMindchangeRenderConfig', () => {
 
     expect(result.current).not.toBe(firstResult);
     expect(result.current.mode).toBe('bidirectional');
+  });
+
+  it('objection edges show bidirectional with arrows when both directions exist', () => {
+    const bothDirections = {
+      forward: { count: 2, average: 25 },
+      backward: { count: 3, average: -15 },
+    };
+    const forwardOnly = {
+      forward: { count: 2, average: 25 },
+      backward: { count: 0, average: 0 },
+    };
+    const backwardOnly = {
+      forward: { count: 0, average: 0 },
+      backward: { count: 3, average: -15 },
+    };
+
+    // Both directions = bidirectional mode (two lines with arrows)
+    const { result: r1 } = renderHook(() => useMindchangeRenderConfig(bothDirections, 'objection'));
+    expect(r1.current.mode).toBe('bidirectional');
+    expect(r1.current.markerId).toBe('arrow-objection');
+    expect(r1.current.markerStart).toBeUndefined();
+    expect(r1.current.markerEnd).toBeUndefined();
+
+    // Single direction = normal mode with single arrow
+    const { result: r2 } = renderHook(() => useMindchangeRenderConfig(forwardOnly, 'objection'));
+    expect(r2.current.mode).toBe('normal');
+    expect(r2.current.markerStart).toBeUndefined();
+    expect(r2.current.markerEnd).toBe('url(#arrow-objection)');
+
+    const { result: r3 } = renderHook(() => useMindchangeRenderConfig(backwardOnly, 'objection'));
+    expect(r3.current.mode).toBe('normal');
+    expect(r3.current.markerStart).toBe('url(#arrow-objection)');
+    expect(r3.current.markerEnd).toBeUndefined();
   });
 });

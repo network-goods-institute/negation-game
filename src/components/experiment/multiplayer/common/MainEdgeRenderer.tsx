@@ -60,6 +60,7 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
 
     return (
       <>
+        {/* Forward lane: source->target with arrow at target */}
         <line
           x1={forwardLine.fromX}
           y1={forwardLine.fromY}
@@ -68,6 +69,7 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
           {...edgeStylesWithPointer}
           markerEnd={`url(#${mindchangeMarkerId})`}
         />
+        {/* Backward lane: target->source (reversed) with arrow at source */}
         <line
           x1={backwardLine.toX}
           y1={backwardLine.toY}
@@ -126,7 +128,9 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
 
     return (
       <>
+        {/* Forward lane: source->target with arrow at target */}
         <path d={fPath} {...edgeStylesWithPointer} fill="none" markerEnd={`url(#${mindchangeMarkerId})`} />
+        {/* Backward lane: target->source (reversed) with arrow at source */}
         <path d={bPath} {...edgeStylesWithPointer} fill="none" markerEnd={`url(#${mindchangeMarkerId})`} />
       </>
     );

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { EdgeProps, getBezierPath, getStraightPath, Position, useStore } from '@xyflow/react';
+import { EdgeProps, getBezierPath, getStraightPath, Position, useStore, Edge } from '@xyflow/react';
 import { ContextMenu } from './ContextMenu';
 import { EdgeOverlay } from './EdgeOverlay';
 import { EdgeMidpointControl } from './EdgeMidpointControl';
@@ -84,6 +84,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const lightMode = (perfMode || grabMode) && !selected && !isHovered && !connectMode;
 
   const [vx, vy, zoom] = useStore((s: any) => s.transform);
+  const edges = useStore((s: any) => Array.from(s.edges?.values?.() || s.edges || []));
 
   const strapGeometry = useStrapGeometry(
     (visual.useStrap && !lightMode) ? {
@@ -181,6 +182,29 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const handleEdgeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const mindchangeMode = (graphActions as any)?.mindchangeMode;
+    const mindchangeEdgeId = (graphActions as any)?.mindchangeEdgeId;
+
+    // Handle mindchange mode: clicking base edge for objection mindchange
+    if (mindchangeMode && mindchangeEdgeId) {
+      const selectedEdge = edges.find((edge: any) => edge.id === mindchangeEdgeId) as Edge | undefined;
+      if (selectedEdge?.type === 'objection') {
+        // User clicked a base edge while setting mindchange for an objection
+        const anchorIdForBase = String((selectedEdge as any).target || '');
+        const baseEdgeId = anchorIdForBase.startsWith('anchor:')
+          ? anchorIdForBase.slice('anchor:'.length)
+          : '';
+
+        if (baseEdgeId === props.id) {
+          // This is the base edge that the objection anchors to - select backward direction
+          (graphActions as any)?.setSelectedEdge?.(mindchangeEdgeId);
+          (graphActions as any)?.setMindchangeNextDir?.('backward');
+          (graphActions as any)?.cancelConnect?.();
+          return;
+        }
+      }
+    }
+
     if (connectMode) {
       const midpoint = { x: (labelX ?? cx), y: (labelY ?? cy) };
       const anchorId = graphActions.isConnectingFromNodeId as string | null;
@@ -240,7 +264,11 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             mindchangeRenderMode={mindchangeRenderConfig.mode}
             mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
             mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
-            useBezier={visual.useBezier ?? false}
+            useBezier={
+              props.edgeType === 'objection' && mindchangeRenderConfig.mode === 'bidirectional'
+                ? false
+                : (visual.useBezier ?? false)
+            }
             curvature={visual.curvature}
             sourceX={sourceX ?? 0}
             sourceY={sourceY ?? 0}
@@ -265,7 +293,11 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             mindchangeMarkerId={mindchangeRenderConfig.markerId}
             mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
             mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
-            useBezier={visual.useBezier ?? false}
+            useBezier={
+              props.edgeType === 'objection' && mindchangeRenderConfig.mode === 'bidirectional'
+                ? false
+                : (visual.useBezier ?? false)
+            }
             curvature={visual.curvature}
             sourceX={sourceX ?? 0}
             sourceY={sourceY ?? 0}

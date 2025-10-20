@@ -3,27 +3,31 @@ import { render } from '@testing-library/react'
 import { EdgeArrowMarkers, getMarkerIdForEdgeType } from '../EdgeArrowMarkers'
 
 describe('EdgeArrowMarkers', () => {
-  it('renders half-arrow markers with a single stroke and no fill', () => {
+  it('renders triangular markers for all edge types', () => {
     const { container } = render(
       <svg>
         <EdgeArrowMarkers />
       </svg>
     )
 
-    const gray = container.querySelector('marker#arrow-gray line, marker#arrow-gray path, marker#arrow-gray polyline')
+    const objection = container.querySelector('marker#arrow-objection path')
+    expect(objection).toBeTruthy()
+    expect(objection?.getAttribute('fill')).toBe('#f97316')
+
+    const gray = container.querySelector('marker#arrow-gray path')
     expect(gray).toBeTruthy()
-    expect(gray?.getAttribute('stroke')).toBe('#9CA3AF')
+    expect(gray?.getAttribute('fill')).toBe('#9CA3AF')
 
-    const primary = container.querySelector('marker#arrow-primary line, marker#arrow-primary path, marker#arrow-primary polyline')
+    const primary = container.querySelector('marker#arrow-primary path')
     expect(primary).toBeTruthy()
-    expect(primary?.getAttribute('stroke')).toBe('hsl(var(--sync-primary))')
+    expect(primary?.getAttribute('fill')).toBe('hsl(var(--sync-primary))')
 
-    const dark = container.querySelector('marker#arrow-dark-gray line, marker#arrow-dark-gray path, marker#arrow-dark-gray polyline')
+    const dark = container.querySelector('marker#arrow-dark-gray path')
     expect(dark).toBeTruthy()
-    expect(dark?.getAttribute('stroke')).toBe('#6b7280')
+    expect(dark?.getAttribute('fill')).toBe('#6b7280')
   })
 
-  it('returns null for objection edge type', () => {
-    expect(getMarkerIdForEdgeType('objection')).toBeNull()
+  it('returns arrow-objection for objection edges', () => {
+    expect(getMarkerIdForEdgeType('objection')).toBe('arrow-objection')
   })
 })

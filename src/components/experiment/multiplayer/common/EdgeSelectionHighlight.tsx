@@ -71,30 +71,32 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
     const perpY = (dx / len) * 4;
     const f = getTrimmedLineCoords(sx, sy, tx, ty, perpX, perpY, sourceNode, targetNode);
     const b = getTrimmedLineCoords(sx, sy, tx, ty, -perpX, -perpY, sourceNode, targetNode);
-    let sourcePosition = Position.Right;
-    let targetPosition = Position.Left;
+    let fSourcePosition = Position.Right;
+    let fTargetPosition = Position.Left;
     if (edgeType === 'objection') {
       const objectionY = sourceNode?.position?.y ?? 0;
       const anchorY = targetNode?.position?.y ?? 0;
-      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+      fSourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+      fTargetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
     }
     const [fPath] = getBezierPath({
       sourceX: f.fromX,
       sourceY: f.fromY,
-      sourcePosition,
+      sourcePosition: fSourcePosition,
       targetX: f.toX,
       targetY: f.toY,
-      targetPosition,
+      targetPosition: fTargetPosition,
       curvature: curvature,
     });
+    const bSourcePosition = fTargetPosition;
+    const bTargetPosition = fSourcePosition;
     const [bPath] = getBezierPath({
       sourceX: b.toX,
       sourceY: b.toY,
-      sourcePosition,
+      sourcePosition: bSourcePosition,
       targetX: b.fromX,
       targetY: b.fromY,
-      targetPosition,
+      targetPosition: bTargetPosition,
       curvature: curvature,
     });
     return (
