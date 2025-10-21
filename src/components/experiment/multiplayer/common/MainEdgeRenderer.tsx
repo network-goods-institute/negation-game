@@ -60,23 +60,23 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
 
     return (
       <>
-        {/* Forward lane: source->target with arrow at target */}
+        {/* Forward lane: source->target with arrow at source (moved to other end) */}
         <line
           x1={forwardLine.fromX}
           y1={forwardLine.fromY}
           x2={forwardLine.toX}
           y2={forwardLine.toY}
           {...edgeStylesWithPointer}
-          markerEnd={`url(#${mindchangeMarkerId})`}
+          markerStart={`url(#${mindchangeMarkerId})`}
         />
-        {/* Backward lane: target->source (reversed) with arrow at source */}
+        {/* Backward lane: target->source (reversed) with arrow at target (moved to other end) */}
         <line
           x1={backwardLine.toX}
           y1={backwardLine.toY}
           x2={backwardLine.fromX}
           y2={backwardLine.fromY}
           {...edgeStylesWithPointer}
-          markerEnd={`url(#${mindchangeMarkerId})`}
+          markerStart={`url(#${mindchangeMarkerId})`}
         />
       </>
     );
@@ -131,10 +131,10 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
 
     return (
       <>
-        {/* Forward lane: source->target with arrow at target */}
-        <path d={fPath} {...edgeStylesWithPointer} fill="none" markerEnd={`url(#${mindchangeMarkerId})`} />
-        {/* Backward lane: target->source (reversed) with arrow at source */}
-        <path d={bPath} {...edgeStylesWithPointer} fill="none" markerEnd={`url(#${mindchangeMarkerId})`} />
+        {/* Forward lane: source->target with arrow at source (moved to other end) */}
+        <path d={fPath} {...edgeStylesWithPointer} fill="none" markerStart={`url(#${mindchangeMarkerId})`} />
+        {/* Backward lane: target->source (reversed) with arrow at target (moved to other end) */}
+        <path d={bPath} {...edgeStylesWithPointer} fill="none" markerStart={`url(#${mindchangeMarkerId})`} />
       </>
     );
   }

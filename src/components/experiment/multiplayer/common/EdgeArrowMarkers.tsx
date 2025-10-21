@@ -16,7 +16,7 @@ export const EdgeArrowMarkers: React.FC = () => {
         markerWidth="10"
         markerHeight="10"
         markerUnits="userSpaceOnUse"
-        orient="auto"
+        orient="auto-start-reverse"
       >
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="#f97316" />
       </marker>
@@ -30,7 +30,7 @@ export const EdgeArrowMarkers: React.FC = () => {
         markerWidth="10"
         markerHeight="10"
         markerUnits="userSpaceOnUse"
-        orient="auto"
+        orient="auto-start-reverse"
       >
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="#9CA3AF" />
       </marker>
@@ -44,7 +44,7 @@ export const EdgeArrowMarkers: React.FC = () => {
         markerWidth="10"
         markerHeight="10"
         markerUnits="userSpaceOnUse"
-        orient="auto"
+        orient="auto-start-reverse"
       >
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="hsl(var(--sync-primary))" />
       </marker>
@@ -58,7 +58,7 @@ export const EdgeArrowMarkers: React.FC = () => {
         markerWidth="10"
         markerHeight="10"
         markerUnits="userSpaceOnUse"
-        orient="auto"
+        orient="auto-start-reverse"
       >
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="#6b7280" />
       </marker>

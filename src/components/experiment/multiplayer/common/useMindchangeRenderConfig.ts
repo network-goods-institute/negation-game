@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { getMarkerIdForEdgeType } from './EdgeArrowMarkers';
+import { useMemo } from "react";
+import { getMarkerIdForEdgeType } from "./EdgeArrowMarkers";
 
 interface MindchangeRenderConfig {
-  mode: 'normal' | 'bidirectional';
+  mode: "normal" | "bidirectional";
   markerId?: string;
   markerStart?: string;
   markerEnd?: string;
@@ -14,7 +14,7 @@ export const useMindchangeRenderConfig = (
 ): MindchangeRenderConfig => {
   return useMemo(() => {
     if (!mindchange) {
-      return { mode: 'normal', markerStart: undefined, markerEnd: undefined };
+      return { mode: "normal", markerStart: undefined, markerEnd: undefined };
     }
 
     const forwardCount = mindchange?.forward?.count ?? 0;
@@ -23,7 +23,7 @@ export const useMindchangeRenderConfig = (
     const hasBackward = backwardCount > 0;
 
     if (!hasForward && !hasBackward) {
-      return { mode: 'normal', markerStart: undefined, markerEnd: undefined };
+      return { mode: "normal", markerStart: undefined, markerEnd: undefined };
     }
 
     const markerId = getMarkerIdForEdgeType(edgeTypeForMarker);
@@ -31,7 +31,7 @@ export const useMindchangeRenderConfig = (
     // Show two parallel lanes when BOTH forward and backward exist (including objections, but no arrows)
     if (hasForward && hasBackward) {
       return {
-        mode: 'bidirectional',
+        mode: "bidirectional",
         markerId: markerId ?? undefined, // null for objections = no arrows
         markerStart: undefined,
         markerEnd: undefined,
@@ -40,11 +40,11 @@ export const useMindchangeRenderConfig = (
 
     // For single-direction, only show arrows if markerId exists
     if (!markerId) {
-      return { mode: 'normal', markerStart: undefined, markerEnd: undefined };
+      return { mode: "normal", markerStart: undefined, markerEnd: undefined };
     }
 
     return {
-      mode: 'normal',
+      mode: "normal",
       markerStart: hasBackward ? `url(#${markerId})` : undefined,
       markerEnd: hasForward ? `url(#${markerId})` : undefined,
     } as const;
