@@ -241,6 +241,23 @@ export default function MultiplayerBoardDetailPage() {
 
     const { canWrite } = useWriteAccess(provider, userId);
     const canEdit = Boolean(canWrite && isConnected);
+
+    useEffect(() => {
+        if (connectMode) {
+            setNodes((nds: any[]) => {
+                let changed = false;
+                const next = nds.map((node: any) => {
+                    if (node?.selected) {
+                        changed = true;
+                        return { ...node, selected: false };
+                    }
+                    return node;
+                });
+                return changed ? next : nds;
+            });
+        }
+    }, [connectMode, setNodes]);
+
     useEffect(() => {
         if (!connectMode) return;
         setNodes((current) => {
@@ -596,7 +613,7 @@ export default function MultiplayerBoardDetailPage() {
                             setHoveredNodeId(nid);
                         },
                         commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
-                        commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canEdit, localOriginRef.current, setNodes);
+                            commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canEdit, localOriginRef.current, setNodes);
                         },
                         blurNodesImmediately,
                         setMindchange: async (edgeId: string, params: { forward?: number; backward?: number }) => {
