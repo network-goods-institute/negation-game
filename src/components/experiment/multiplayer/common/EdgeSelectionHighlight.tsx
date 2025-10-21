@@ -69,36 +69,41 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
     const len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
     const perpX = (-dy / len) * 4;
     const perpY = (dx / len) * 4;
+
     const f = getTrimmedLineCoords(sx, sy, tx, ty, perpX, perpY, sourceNode, targetNode);
     const b = getTrimmedLineCoords(sx, sy, tx, ty, -perpX, -perpY, sourceNode, targetNode);
-    let fSourcePosition = Position.Right;
-    let fTargetPosition = Position.Left;
+
+    let sourcePosition = Position.Right;
+    let targetPosition = Position.Left;
     if (edgeType === 'objection') {
       const objectionY = sourceNode?.position?.y ?? 0;
       const anchorY = targetNode?.position?.y ?? 0;
-      fSourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-      fTargetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
     }
+
+    // Forward lane: complete curve from source to target
     const [fPath] = getBezierPath({
       sourceX: f.fromX,
       sourceY: f.fromY,
-      sourcePosition: fSourcePosition,
+      sourcePosition,
       targetX: f.toX,
       targetY: f.toY,
-      targetPosition: fTargetPosition,
+      targetPosition,
       curvature: curvature,
     });
-    const bSourcePosition = fTargetPosition;
-    const bTargetPosition = fSourcePosition;
+
+    // Backward lane: complete curve from target to source
     const [bPath] = getBezierPath({
       sourceX: b.toX,
       sourceY: b.toY,
-      sourcePosition: bSourcePosition,
+      sourcePosition: targetPosition,
       targetX: b.fromX,
       targetY: b.fromY,
-      targetPosition: bTargetPosition,
+      targetPosition: sourcePosition,
       curvature: curvature,
     });
+
     return (
       <>
         <path d={fPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />

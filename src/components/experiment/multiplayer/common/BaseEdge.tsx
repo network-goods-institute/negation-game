@@ -11,7 +11,7 @@ import { useStrapGeometry } from './EdgeStrapGeometry';
 import { EDGE_CONFIGURATIONS, EdgeType } from './EdgeConfiguration';
 import { edgeIsObjectionStyle } from './edgeStyle';
 import { usePerformanceMode } from '../PerformanceContext';
-import { computeMidpointBetweenBorders } from '@/utils/experiment/multiplayer/edgePathUtils';
+import { computeMidpointBetweenBorders, getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
 import { useMindchangeRenderConfig } from './useMindchangeRenderConfig';
 import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
 import { MainEdgeRenderer } from './MainEdgeRenderer';
@@ -136,6 +136,60 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   }, [sourceNode, targetNode, labelX, labelY]);
 
   const mindchange = (props as any).data?.mindchange;
+  const mindchangeRenderConfig = useMindchangeRenderConfig(mindchange, props.edgeType);
+
+  const [bidirectionalLabelX, bidirectionalLabelY] = useMemo(() => {
+    if (mindchangeRenderConfig.mode !== 'bidirectional' || !visual.useBezier) {
+      return [null, null];
+    }
+
+    const sx = sourceX ?? 0;
+    const sy = sourceY ?? 0;
+    const tx = targetX ?? 0;
+    const ty = targetY ?? 0;
+    const dx = tx - sx;
+    const dy = ty - sy;
+    const len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    const perpX = (-dy / len) * 4;
+    const perpY = (dx / len) * 4;
+
+    const f = getTrimmedLineCoords(sx, sy, tx, ty, perpX, perpY, sourceNode, targetNode);
+    const b = getTrimmedLineCoords(sx, sy, tx, ty, -perpX, -perpY, sourceNode, targetNode);
+
+    let sourcePosition = (props as any).sourcePosition;
+    let targetPosition = (props as any).targetPosition;
+    if (props.edgeType === 'objection') {
+      const objectionY = sourceNode?.position?.y ?? 0;
+      const anchorY = targetNode?.position?.y ?? 0;
+      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+    }
+
+    const curvature = visual.curvature ?? 0.35;
+
+    const [, fLabelX, fLabelY] = getBezierPath({
+      sourceX: f.fromX,
+      sourceY: f.fromY,
+      sourcePosition,
+      targetX: f.toX,
+      targetY: f.toY,
+      targetPosition,
+      curvature,
+    });
+
+    const [, bLabelX, bLabelY] = getBezierPath({
+      sourceX: b.toX,
+      sourceY: b.toY,
+      sourcePosition: targetPosition,
+      targetX: b.fromX,
+      targetY: b.fromY,
+      targetPosition: sourcePosition,
+      curvature,
+    });
+
+    return [(fLabelX + bLabelX) / 2, (fLabelY + bLabelY) / 2];
+  }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, sourceX, sourceY, targetX, targetY, sourceNode, targetNode, props]);
+
   const edgeStyles = useMemo(() => {
     const enableMindchange = typeof process !== 'undefined' && ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
     const width = computeMindchangeStrokeWidth({
@@ -171,8 +225,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const edgeStylesWithPointer = useMemo(() => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
   }, [edgeStyles, grabMode]);
-
-  const mindchangeRenderConfig = useMindchangeRenderConfig(mindchange, props.edgeType);
 
   const mindchangeActive = !!((props as any).data?.mindchange && (
     (props as any).data?.mindchange?.forward?.count > 0 ||
@@ -271,11 +323,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             mindchangeRenderMode={mindchangeRenderConfig.mode}
             mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
             mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
-            useBezier={
-              props.edgeType === 'objection' && mindchangeRenderConfig.mode === 'bidirectional'
-                ? false
-                : (visual.useBezier ?? false)
-            }
+            useBezier={visual.useBezier ?? false}
             curvature={visual.curvature}
             sourceX={sourceX ?? 0}
             sourceY={sourceY ?? 0}
@@ -300,11 +348,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             mindchangeMarkerId={mindchangeRenderConfig.markerId}
             mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
             mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
-            useBezier={
-              props.edgeType === 'objection' && mindchangeRenderConfig.mode === 'bidirectional'
-                ? false
-                : (visual.useBezier ?? false)
-            }
+            useBezier={visual.useBezier ?? false}
             curvature={visual.curvature}
             sourceX={sourceX ?? 0}
             sourceY={sourceY ?? 0}
@@ -355,8 +399,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
       {showAffordance && (
         <EdgeMidpointControl
-          cx={(midXBetweenBorders ?? labelX ?? cx) as number}
-          cy={(midYBetweenBorders ?? labelY ?? cy) as number}
+          cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
+          cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
           disabled={grabMode}
@@ -367,8 +411,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
       {!connectMode && !grabMode && (
         <EdgeOverlay
-          cx={(midXBetweenBorders ?? labelX ?? cx) as number}
-          cy={(midYBetweenBorders ?? labelY ?? cy) as number}
+          cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
+          cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
           isHovered={isHovered}
           selected={selected}
           relevance={relevance}

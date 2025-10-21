@@ -94,6 +94,7 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
     const perpX = (-dy / len) * 4;
     const perpY = (dx / len) * 4;
 
+    // Get trimmed coordinates for both parallel lanes
     const f = getTrimmedLineCoords(sx, sy, tx, ty, perpX, perpY, sourceNode, targetNode);
     const b = getTrimmedLineCoords(sx, sy, tx, ty, -perpX, -perpY, sourceNode, targetNode);
 
@@ -106,6 +107,7 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
       targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
     }
 
+    // Forward lane: complete curve from source to target
     const [fPath] = getBezierPath({
       sourceX: f.fromX,
       sourceY: f.fromY,
@@ -116,13 +118,14 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
       curvature: curvature,
     });
 
+    // Backward lane: complete curve from target to source (reversed)
     const [bPath] = getBezierPath({
       sourceX: b.toX,
       sourceY: b.toY,
-      sourcePosition,
+      sourcePosition: targetPosition,
       targetX: b.fromX,
       targetY: b.fromY,
-      targetPosition,
+      targetPosition: sourcePosition,
       curvature: curvature,
     });
 
