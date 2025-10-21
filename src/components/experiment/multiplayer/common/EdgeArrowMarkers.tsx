@@ -13,9 +13,9 @@ export const EdgeArrowMarkers: React.FC = () => {
         viewBox="0 0 10 10"
         refX="10"
         refY="5"
-        markerWidth="4"
-        markerHeight="4"
-        markerUnits="strokeWidth"
+        markerWidth="10"
+        markerHeight="10"
+        markerUnits="userSpaceOnUse"
         orient="auto"
       >
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="#f97316" />
@@ -27,9 +27,9 @@ export const EdgeArrowMarkers: React.FC = () => {
         viewBox="0 0 10 10"
         refX="10"
         refY="5"
-        markerWidth="4"
-        markerHeight="4"
-        markerUnits="strokeWidth"
+        markerWidth="10"
+        markerHeight="10"
+        markerUnits="userSpaceOnUse"
         orient="auto"
       >
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="#9CA3AF" />
@@ -41,9 +41,9 @@ export const EdgeArrowMarkers: React.FC = () => {
         viewBox="0 0 10 10"
         refX="10"
         refY="5"
-        markerWidth="4"
-        markerHeight="4"
-        markerUnits="strokeWidth"
+        markerWidth="10"
+        markerHeight="10"
+        markerUnits="userSpaceOnUse"
         orient="auto"
       >
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="hsl(var(--sync-primary))" />
@@ -55,9 +55,9 @@ export const EdgeArrowMarkers: React.FC = () => {
         viewBox="0 0 10 10"
         refX="10"
         refY="5"
-        markerWidth="4"
-        markerHeight="4"
-        markerUnits="strokeWidth"
+        markerWidth="10"
+        markerHeight="10"
+        markerUnits="userSpaceOnUse"
         orient="auto"
       >
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="#6b7280" />

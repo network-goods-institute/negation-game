@@ -16,6 +16,7 @@ import { useMindchangeRenderConfig } from './useMindchangeRenderConfig';
 import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
 import { MainEdgeRenderer } from './MainEdgeRenderer';
 import { MindchangeBadges } from './MindchangeBadges';
+import { computeMindchangeStrokeWidth } from './computeMindchangeStrokeWidth';
 
 export interface BaseEdgeProps extends EdgeProps {
   edgeType: EdgeType;
@@ -134,13 +135,20 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     return computeMidpointBetweenBorders(sourceNode, targetNode, labelX, labelY);
   }, [sourceNode, targetNode, labelX, labelY]);
 
+  const mindchange = (props as any).data?.mindchange;
   const edgeStyles = useMemo(() => {
     const enableMindchange = typeof process !== 'undefined' && ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
-    const fixedWidth = enableMindchange ? 2 : visual.strokeWidth(relevance);
+    const width = computeMindchangeStrokeWidth({
+      enableMindchange,
+      visual,
+      relevance,
+      mindchange: mindchange,
+      edgeType: props.edgeType,
+    });
     const baseStyle = {
       stroke: visual.stroke,
-      strokeWidth: fixedWidth,
-    };
+      strokeWidth: width,
+    } as const;
 
     if (visual.strokeDasharray) {
       if (props.edgeType === 'objection') {
@@ -158,13 +166,12 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     }
 
     return baseStyle;
-  }, [visual, relevance, props.edgeType, targetNode]);
+  }, [visual, relevance, props.edgeType, targetNode, mindchange]);
 
   const edgeStylesWithPointer = useMemo(() => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
   }, [edgeStyles, grabMode]);
 
-  const mindchange = (props as any).data?.mindchange;
   const mindchangeRenderConfig = useMindchangeRenderConfig(mindchange, props.edgeType);
 
   const mindchangeActive = !!((props as any).data?.mindchange && (
