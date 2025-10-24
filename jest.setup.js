@@ -119,15 +119,18 @@ global.ReadableStream = class ReadableStream {
 if (typeof global.Request === 'undefined') {
   global.Request = class Request {
     constructor(input, init = {}) {
-      this.url = typeof input === 'string' ? input : input?.url || '';
-      this.method = init.method || 'GET';
-      this.headers = new Map(Object.entries(init.headers || {}));
+      this._url = typeof input === 'string' ? input : input?.url || '';
+      this._method = init.method || 'GET';
+      this._headers = new Map(Object.entries(init.headers || {}));
       this._signal = init.signal;
     }
-    headers;
-    method;
-    url;
+    _headers;
+    _method;
+    _url;
     _signal;
+    get headers() { return this._headers; }
+    get method() { return this._method; }
+    get url() { return this._url; }
     get signal() { return this._signal; }
   };
 }

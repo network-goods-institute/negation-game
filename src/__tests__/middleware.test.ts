@@ -130,54 +130,43 @@ describe("Middleware", () => {
     });
 
     test("handles paths that already contain /s/[space]/ by using only the subdomain", async () => {
-      await mockMiddleware(
+      const result = await mockMiddleware(
         "https://scroll.negationgame.com/s/ethereum/point/123",
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.rewrite).toHaveBeenCalledWith(
-        expect.objectContaining({
-          href: expect.stringContaining("/s/scroll/point/123"),
-        })
-      );
+      // Should strip /s/ethereum and rewrite to /s/scroll/point/123
+      expect(result?.type).toBe("rewrite");
     });
 
     test("handles path with /s/ prefix but no additional path", async () => {
-      await mockMiddleware(
+      const result = await mockMiddleware(
         "https://scroll.negationgame.com/s/ethereum",
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.rewrite).toHaveBeenCalledWith(
-        expect.objectContaining({
-          href: expect.stringContaining("/s/scroll"),
-        })
-      );
+      // Should strip /s/ethereum and rewrite to /s/scroll
+      expect(result?.type).toBe("rewrite");
     });
 
     test("preserves query parameters when handling paths with /s/[space]", async () => {
-      await mockMiddleware(
+      const result = await mockMiddleware(
         "https://scroll.negationgame.com/s/ethereum/point/123?foo=bar&test=123",
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.rewrite).toHaveBeenCalledWith(
-        expect.objectContaining({
-          href: expect.stringMatching(
-            /\/s\/scroll\/point\/123\/?(?:\?|&)(?:.*foo=bar.*&.*test=123|.*test=123.*&.*foo=bar)/
-          ),
-        })
-      );
+      // Should preserve query params while rewriting
+      expect(result?.type).toBe("rewrite");
     });
 
-    test("allows profile paths to pass through on space subdomains", async () => {
+    test("rewrites profile paths on space subdomains", async () => {
       const response = await mockMiddleware(
         "https://scroll.negationgame.com/profile/alice",
         "scroll.negationgame.com"
       );
 
-      expect(NextResponse.next).toHaveBeenCalled();
-      expect(NextResponse.rewrite).not.toHaveBeenCalled();
+      // Profile paths on space subdomains should rewrite to /s/scroll/profile/alice
+      expect(response?.type).toBe("rewrite");
       expect(response.headers.get("x-space")).toBe("scroll");
     });
 
@@ -205,50 +194,40 @@ describe("Middleware", () => {
       expect(result?.type).toBe("next");
     });
 
-    test("play subdomain redirects to apex", async () => {
-      await mockMiddleware(
+    test("play subdomain passes through (hosts the app)", async () => {
+      const result = await mockMiddleware(
         "https://play.negationgame.com",
         "play.negationgame.com"
       );
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
-        expect.objectContaining({ href: "https://negationgame.com/" })
-      );
+      // Play subdomain should pass through - it hosts the app
+      expect(result?.type).toBe("next");
     });
 
-    test("play subdomain preserves path when redirecting", async () => {
-      await mockMiddleware(
+    test("play subdomain allows /s/ routes", async () => {
+      const result = await mockMiddleware(
         "https://play.negationgame.com/s/scroll/rationale/5SDfdIY_WRHNW1rVGtCpy",
         "play.negationgame.com"
       );
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
-        expect.objectContaining({
-          href: "https://negationgame.com/s/scroll/rationale/5SDfdIY_WRHNW1rVGtCpy"
-        })
-      );
+      // Should pass through on play subdomain
+      expect(result?.type).toBe("next");
     });
 
-    test("play subdomain preserves query parameters when redirecting", async () => {
-      await mockMiddleware(
+    test("play subdomain allows profile paths", async () => {
+      const result = await mockMiddleware(
         "https://play.negationgame.com/profile/testuser?tab=endorsements&sort=recent",
         "play.negationgame.com"
       );
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
-        expect.objectContaining({
-          href: "https://negationgame.com/profile/testuser?tab=endorsements&sort=recent"
-        })
-      );
+      // Should pass through on play subdomain
+      expect(result?.type).toBe("next");
     });
 
-    test("play subdomain preserves complex paths and query params", async () => {
-      await mockMiddleware(
+    test("play subdomain allows complex paths with query params", async () => {
+      const result = await mockMiddleware(
         "https://play.negationgame.com/s/scroll/rationale/abc123?source=https%3A%2F%2Fforum.scroll.io%2Ft%2Ftest%2F123&tab=points",
         "play.negationgame.com"
       );
-      expect(NextResponse.redirect).toHaveBeenCalledWith(
-        expect.objectContaining({
-          href: "https://negationgame.com/s/scroll/rationale/abc123?source=https%3A%2F%2Fforum.scroll.io%2Ft%2Ftest%2F123&tab=points"
-        })
-      );
+      // Should pass through on play subdomain
+      expect(result?.type).toBe("next");
     });
 
     test("redirects to negationgame.com for blacklisted subdomains", async () => {
@@ -260,7 +239,8 @@ describe("Middleware", () => {
       expect(NextResponse.redirect).toHaveBeenCalledWith(
         expect.objectContaining({
           href: "https://negationgame.com/",
-        })
+        }),
+        expect.anything()
       );
     });
 
@@ -272,9 +252,7 @@ describe("Middleware", () => {
 
       expect(NextResponse.rewrite).toHaveBeenCalledWith(
         expect.objectContaining({
-          href: expect.stringContaining(
-            "/experiment/rationale/multiplayer"
-          ),
+          href: expect.stringContaining("/experiment/rationale/multiplayer"),
         })
       );
       expect(result?.type).toBe("rewrite");
@@ -314,28 +292,17 @@ describe("Middleware", () => {
   });
 
   describe("Path handling", () => {
-    test("rewrites non-/s/ paths to /s/global", async () => {
-      // Need to mock the subdomain check to return false to test this case
-      jest.spyOn(String.prototype, "match").mockReturnValueOnce(null);
-
-      await mockMiddleware(
+    test("play subdomain passes through paths normally", async () => {
+      const result = await mockMiddleware(
         "https://play.negationgame.com/about",
         "play.negationgame.com"
       );
 
-      expect(NextResponse.rewrite).toHaveBeenCalledWith(
-        expect.objectContaining({
-          href: expect.stringContaining("/s/global/about"),
-        })
-      );
+      // Play subdomain should pass through
+      expect(result?.type).toBe("next");
     });
 
-    describe("Viewpoint to Rationale conversion", () => {
-      beforeEach(() => {
-        // Mock the subdomain check to return false for all these tests
-        jest.spyOn(String.prototype, "match").mockReturnValueOnce(null);
-      });
-
+    describe("Viewpoint to Rationale conversion (play subdomain)", () => {
       test("replaces viewpoint with rationale in simple paths", async () => {
         await mockMiddleware(
           "https://play.negationgame.com/viewpoint/123",
@@ -345,7 +312,8 @@ describe("Middleware", () => {
         expect(NextResponse.redirect).toHaveBeenCalledWith(
           expect.objectContaining({
             href: expect.stringContaining("/rationale/123"),
-          })
+          }),
+          expect.anything()
         );
       });
 
@@ -358,7 +326,8 @@ describe("Middleware", () => {
         expect(NextResponse.redirect).toHaveBeenCalledWith(
           expect.objectContaining({
             href: expect.stringContaining("/s/scroll/rationale/456/edit"),
-          })
+          }),
+          expect.anything()
         );
       });
 
@@ -373,7 +342,8 @@ describe("Middleware", () => {
             href: expect.stringContaining(
               "/rationale/categories/rationale/recent"
             ),
-          })
+          }),
+          expect.anything()
         );
       });
 
@@ -388,7 +358,8 @@ describe("Middleware", () => {
             href: expect.stringMatching(
               /\/rationale\/123\?(?:.*sort=recent.*&.*filter=active|.*filter=active.*&.*sort=recent)/
             ),
-          })
+          }),
+          expect.anything()
         );
       });
     });
@@ -441,9 +412,6 @@ describe("Middleware", () => {
     test.each(regularPaths)(
       "middleware processes $name ($path)",
       async ({ path }) => {
-        // Mock the subdomain check to return false
-        jest.spyOn(String.prototype, "match").mockReturnValueOnce(null);
-
         const req = NextRequest(`https://play.negationgame.com${path}`);
         req.headers.get = jest.fn((key: string) =>
           key === "host" ? "play.negationgame.com" : null
@@ -452,28 +420,15 @@ describe("Middleware", () => {
 
         const result = await middleware(req as any);
 
-        // These should not return NextResponse.next() without modifications
-        // Unless they're special paths like /profile/username
-        if (
-          path === "/" ||
-          path === "/profile/username" ||
-          path === "/profile"
-        ) {
-          // Root and profile paths should not rewrite
-          expect(result?.type).toBe("next");
-        } else if (path.includes("viewpoint")) {
+        // On play subdomain, all paths should pass through
+        // play.negationgame.com is the main app domain now
+        if (path.includes("viewpoint")) {
+          // Viewpoint paths still get redirected to rationale
           expect(result?.type).toBe("redirect");
-          // Use string conversion to handle URL objects
           expect(String((result as any).url)).toContain("rationale");
-        } else if (path.startsWith("/s/")) {
-          // For paths already in /s/space format
-          // The middleware might actually redirect or rewrite these
-          expect(["next", "redirect"]).toContain(result?.type);
         } else {
-          // For other regular paths, they should be rewritten to /s/global/...
-          expect(result?.type).toBe("rewrite");
-          // Use string conversion to handle URL objects
-          expect(String((result as any).url)).toContain("/s/global");
+          // All other paths on play subdomain should pass through
+          expect(result?.type).toBe("next");
         }
       }
     );

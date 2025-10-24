@@ -7,6 +7,20 @@ export const isSyncHost = (host: string | undefined | null): boolean => {
   );
 };
 
+export const isRootOrSyncHost = (host: string | undefined | null): boolean => {
+  if (!host) return false;
+  const h = host.toLowerCase();
+  const withoutPort = h.split(":")[0];
+  return (
+    withoutPort === "negationgame.com" ||
+    withoutPort === "sync.negationgame.com" ||
+    withoutPort.startsWith("sync.") ||
+    withoutPort === "localhost" ||
+    withoutPort === "127.0.0.1" ||
+    withoutPort === "::1"
+  );
+};
+
 export const buildRationaleDetailPath = (
   id: string,
   host?: string | null,
@@ -17,11 +31,11 @@ export const buildRationaleDetailPath = (
   const idPart = encodeURIComponent(id);
   const combined =
     slug && slug.trim() ? `${encodeURIComponent(slug)}` + "_" + idPart : idPart;
-  return isSyncHost(host)
+  return isRootOrSyncHost(host)
     ? `/board/${combined}`
     : `/experiment/rationale/multiplayer/${combined}`;
 };
 
 export const buildRationaleIndexPath = (host?: string | null): string => {
-  return isSyncHost(host) ? "/" : "/experiment/rationale/multiplayer";
+  return isRootOrSyncHost(host) ? "/" : "/experiment/rationale/multiplayer";
 };
