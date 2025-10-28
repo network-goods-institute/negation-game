@@ -134,7 +134,7 @@ export const useGraphNodeHandlers = ({
       try {
         if (
           (e?.altKey || e?.nativeEvent?.altKey) &&
-          (node?.type === "point" || node?.type === "objection")
+          (node?.type === "point" || node?.type === "objection" || node?.type === "statement")
         ) {
           const originX = node?.position?.x ?? 0;
           const originY = node?.position?.y ?? 0;

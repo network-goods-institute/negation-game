@@ -85,7 +85,7 @@ export const useGraphKeyboardHandlers = ({
         const sel = rf.getNodes().filter((n) => (n as any).selected);
         if (sel.length === 1) {
           const only = sel[0] as any;
-          if (only?.type === "point" || only?.type === "objection") {
+          if (only?.type === "point" || only?.type === "objection" || only?.type === "statement") {
             copiedNodeIdRef.current = String(only.id);
             e.preventDefault();
             e.stopPropagation();
