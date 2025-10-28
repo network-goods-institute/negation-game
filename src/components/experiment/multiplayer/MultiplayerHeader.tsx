@@ -28,6 +28,7 @@ interface MultiplayerHeaderProps {
   onTitleCountdownStop?: () => void;
   onTitleSavingStart?: () => void;
   onTitleSavingStop?: () => void;
+  onUrlUpdate?: (id: string, slug: string) => void;
   titleEditingUser?: { name: string; color: string } | null;
   onResyncNow?: () => void;
 }
@@ -54,6 +55,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   onTitleCountdownStop,
   onTitleSavingStart,
   onTitleSavingStop,
+  onUrlUpdate,
   titleEditingUser,
   onResyncNow,
 }) => {
@@ -109,7 +111,12 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
               });
 
               if (response.ok) {
+                const data = await response.json();
                 onTitleChange(latestTitleRef.current.trim());
+                // Update URL if slug changed
+                if (data?.slug && data?.id && onUrlUpdate) {
+                  onUrlUpdate(data.id, data.slug);
+                }
               } else {
                 console.error('Failed to save title');
               }
@@ -125,7 +132,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
     };
 
     runCountdown(5);
-  }, [documentId, onTitleChange, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop]);
+  }, [documentId, onTitleChange, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop, onUrlUpdate]);
 
   const handleTitleChange = useCallback((newTitle: string) => {
     setLocalTitle(newTitle);

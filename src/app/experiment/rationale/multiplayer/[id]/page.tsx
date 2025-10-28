@@ -238,6 +238,17 @@ export default function MultiplayerBoardDetailPage() {
 
     const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
 
+    const handleUrlUpdate = useCallback((id: string, slug: string) => {
+        try {
+            const host = typeof window !== 'undefined' ? window.location.host : '';
+            const newPath = buildRationaleDetailPath(id, host, slug);
+            if (newPath && window.location.pathname !== newPath) {
+                router.replace(newPath);
+            }
+        } catch (err) {
+            console.error('[URL Update] Failed to update URL:', err);
+        }
+    }, [router]);
 
     const { canWrite } = useWriteAccess(provider, userId);
     const canEdit = Boolean(canWrite && isConnected);
@@ -552,6 +563,7 @@ export default function MultiplayerBoardDetailPage() {
                 onTitleCountdownStop={handleTitleCountdownStop}
                 onTitleSavingStart={handleTitleSavingStart}
                 onTitleSavingStop={handleTitleSavingStop}
+                onUrlUpdate={handleUrlUpdate}
                 titleEditingUser={titleEditingUser}
                 onResyncNow={resyncNow}
             />
