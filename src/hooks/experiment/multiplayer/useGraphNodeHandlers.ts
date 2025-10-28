@@ -33,29 +33,50 @@ export const useGraphNodeHandlers = ({
         return;
       }
 
-      // Mindchange directional pick: if in mindchange mode and we have a base edge selected, a single click on an endpoint chooses direction
+      // Mindchange directional pick: if in mindchange mode, only allow valid picks
       try {
         if (
           (graph as any)?.mindchangeMode &&
           (graph as any)?.mindchangeEdgeId
         ) {
-          const baseEdgeId = String((graph as any)?.mindchangeEdgeId);
+          const mcEdgeId = String((graph as any)?.mindchangeEdgeId);
           const allEdges = rf.getEdges();
-          const base = allEdges.find((ed: any) => String(ed.id) === baseEdgeId);
-          if (base) {
-            const isSource = String(base.source) === String(node?.id);
-            const isTarget = String(base.target) === String(node?.id);
-            if (isSource || isTarget) {
-              (graph as any)?.setSelectedEdge?.(base.id);
-              (graph as any)?.setMindchangeNextDir?.(
-                isSource ? "forward" : "backward"
-              );
-              // Do not cancel here; allow the overlay to pick up nextDir and open the editor, then it can cancel.
+          const mcEdge = allEdges.find((ed: any) => String(ed.id) === mcEdgeId);
+          if (mcEdge) {
+            if ((mcEdge as any).type === 'objection') {
+              // Valid pick is the objection node itself (source). Base edge is handled by edge click.
+              const isObjectionNode = String(mcEdge.source) === String(node?.id);
+              if (isObjectionNode) {
+                (graph as any)?.setSelectedEdge?.(mcEdge.id);
+                (graph as any)?.setMindchangeNextDir?.('forward');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              // Block other node clicks while in mindchange mode
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            } else {
+              // Negation/support/etc.: valid picks are the two endpoints
+              const isSource = String(mcEdge.source) === String(node?.id);
+              const isTarget = String(mcEdge.target) === String(node?.id);
+              if (isSource || isTarget) {
+                (graph as any)?.setSelectedEdge?.(mcEdge.id);
+                (graph as any)?.setMindchangeNextDir?.(isSource ? 'forward' : 'backward');
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+              }
+              // Block other node clicks while in mindchange mode
               e.preventDefault();
               e.stopPropagation();
               return;
             }
           } else {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
           }
         }
       } catch {}

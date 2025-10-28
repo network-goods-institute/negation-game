@@ -18,7 +18,7 @@ describe('useMindchangeRenderConfig', () => {
   it('returns normal mode with no markers when mindchange is null', () => {
     const { result } = renderHook(() => useMindchangeRenderConfig(null, 'negation'));
 
-    expect(result.current).toEqual({
+    expect(result.current).toMatchObject({
       mode: 'normal',
       markerStart: undefined,
       markerEnd: undefined,
@@ -33,7 +33,7 @@ describe('useMindchangeRenderConfig', () => {
 
     const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'negation'));
 
-    expect(result.current).toEqual({
+    expect(result.current).toMatchObject({
       mode: 'normal',
       markerStart: undefined,
       markerEnd: undefined,
@@ -88,7 +88,7 @@ describe('useMindchangeRenderConfig', () => {
 
     const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'support'));
 
-    expect(result.current).toEqual({
+    expect(result.current).toMatchObject({
       mode: 'normal',
       markerStart: undefined,
       markerEnd: undefined,

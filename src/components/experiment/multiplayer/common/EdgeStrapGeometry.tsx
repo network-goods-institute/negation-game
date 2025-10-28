@@ -16,7 +16,7 @@ export interface StrapGeometryConfig {
   sourceY: number;
   targetX: number;
   targetY: number;
-  relevance: number;
+  strength: number; // 0..1 based on mindchange
   neckPx?: number;
   minCorePx?: number;
   segments?: number;
@@ -29,12 +29,12 @@ export const useStrapGeometry = (config: StrapGeometryConfig | null): StrapGeome
     sourceY,
     targetX,
     targetY,
-    relevance,
+    strength,
     neckPx = 24,
     minCorePx = 2.0,
     segments = 64,
     areaMultiplier = 800
-  } = config || { sourceX: 0, sourceY: 0, targetX: 0, targetY: 0, relevance: 3 };
+  } = config || { sourceX: 0, sourceY: 0, targetX: 0, targetY: 0, strength: 0 };
 
   return useMemo(() => {
     if (!Number.isFinite(sourceX) || !Number.isFinite(sourceY) || !Number.isFinite(targetX) || !Number.isFinite(targetY)) {
@@ -53,8 +53,8 @@ export const useStrapGeometry = (config: StrapGeometryConfig | null): StrapGeome
     const NECK_PX = neckPx;
     const MIN_CORE_PX = minCorePx;
 
-    // Base target area; scale by relevance for presence
-    const areaPx = areaMultiplier * (relevance / 3);
+    // Base target area; scale by strength (0..1)
+    const areaPx = areaMultiplier * Math.max(0, Math.min(1, strength));
     const smoothStep = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
     const g: number[] = [];
@@ -107,8 +107,8 @@ export const useStrapGeometry = (config: StrapGeometryConfig | null): StrapGeome
       const cx = sx + dx * t;
       const cy = sy + dy * t;
       let w = Math.max(0, scale * g[i]);
-      // widen by relevance a touch
-      w *= (0.8 + 0.2 * (relevance / 3));
+      // slight width modulation by strength
+      w *= (0.8 + 0.2 * Math.max(0, Math.min(1, strength)));
       w = Math.max(w, MIN_CORE_PX * coreMask[i]);
       w += bulbGain * bump[i];
       widths.push(w);
@@ -134,5 +134,5 @@ export const useStrapGeometry = (config: StrapGeometryConfig | null): StrapGeome
     };
 
     return { path, widthAt, posAt, L, sx, sy, ex, ey };
-  }, [sourceX, sourceY, targetX, targetY, relevance, neckPx, minCorePx, segments, areaMultiplier]);
+  }, [sourceX, sourceY, targetX, targetY, strength, neckPx, minCorePx, segments, areaMultiplier]);
 };

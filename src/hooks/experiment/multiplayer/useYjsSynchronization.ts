@@ -255,13 +255,20 @@ export const useYjsSynchronization = ({
           // Import lazily to avoid SSR issues
           try {
             const actions = require("@/actions/experimental/mindchange");
-            const setMindchange = actions?.setMindchange as (docId: string, edgeId: string, forward?: number, backward?: number, edgeType?: 'negation' | 'support', clientUserId?: string) => Promise<any>;
+            const setMindchange = actions?.setMindchange as (
+              docId: string,
+              edgeId: string,
+              forward?: number,
+              backward?: number,
+              edgeType?: 'negation' | 'objection' | 'support',
+              clientUserId?: string
+            ) => Promise<any>;
             if (typeof setMindchange === "function") {
               // Determine current edge type from Yjs map (fallback to 'support')
-              let et: 'negation' | 'support' = 'support';
+              let et: 'negation' | 'objection' | 'support' = 'negation';
               try {
                 const e = yEdgesMapRef.current?.get(edgeId as any) as any;
-                if (e && (e.type === 'negation' || e.type === 'support')) et = e.type;
+                if (e && (e.type === 'negation' || e.type === 'objection' || e.type === 'support')) et = e.type;
               } catch {}
               setMindchange(persistId, edgeId, f, b, et, currentUserId)
                 .then((res: any) => {

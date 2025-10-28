@@ -4,7 +4,6 @@ import { createPortal } from 'react-dom';
 import { ContextMenu } from "../common/ContextMenu";
 import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
-import { EdgeRelevanceStars } from './EdgeRelevanceStars';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
 import { MindchangeEditor } from './MindchangeEditor';
 import { MindchangeIndicators } from './MindchangeIndicators';
@@ -19,7 +18,6 @@ export interface EdgeOverlayProps {
   cy: number;
   isHovered: boolean;
   selected?: boolean;
-  relevance: number;
   edgeId: string;
   edgeType?: string;
   srcX?: number;
@@ -28,7 +26,6 @@ export interface EdgeOverlayProps {
   tgtY?: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
-  onUpdateRelevance: (relevance: number) => void;
   onAddObjection: () => void;
   onToggleEdgeType?: () => void;
   onConnectionClick?: () => void;
@@ -47,12 +44,10 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   cy,
   isHovered,
   selected = false,
-  relevance,
   edgeId,
   edgeType,
   onMouseEnter,
   onMouseLeave,
-  onUpdateRelevance,
   onAddObjection,
   onToggleEdgeType,
   onConnectionClick,
@@ -64,7 +59,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [isNearOverlay, setIsNearOverlay] = React.useState<boolean>(false);
   const { grabMode = false, connectMode = false } = useGraphActions();
   const graph = useGraphActions();
-  const enableMindchange = typeof process !== 'undefined' && ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
 
   const [tx, ty, zoom] = useStore((s: any) => s.transform);
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
@@ -122,17 +116,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     };
   }, [showHUD, edgeId, graph]);
 
-  React.useEffect(() => {
-    if (selected) {
-      setOverlayOpen(true);
-      return;
-    }
-    if (anchorHover) {
-      setOverlayOpen(true);
-      return;
-    }
-    setOverlayOpen(isNearOverlay ? true : false);
-  }, [selected, anchorHover, isNearOverlay]);
 
   const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -264,6 +247,24 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
+    const lockForMindchange = Boolean((graph as any)?.mindchangeMode) &&
+      (((graph as any)?.mindchangeEdgeId as string | null) === edgeId || Boolean(editDir));
+    if (lockForMindchange) {
+      setOverlayOpen(true);
+      return;
+    }
+    if (selected) {
+      setOverlayOpen(true);
+      return;
+    }
+    if (anchorHover) {
+      setOverlayOpen(true);
+      return;
+    }
+    setOverlayOpen(isNearOverlay ? true : false);
+  }, [selected, anchorHover, isNearOverlay, graph, edgeId, editDir]);
+
+  React.useEffect(() => {
     if (!editDir) return;
     const user = (mindchange as any)?.userValue as { forward?: number; backward?: number } | undefined;
     let seed: number | undefined;
@@ -354,21 +355,21 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                 pointerEvents: 'none',
                 paddingTop: PERSISTENCE_PADDING,
                 paddingBottom: 0,
-                paddingLeft: enableMindchange ? PERSISTENCE_PADDING_HORIZONTAL : PERSISTENCE_PADDING,
-                paddingRight: enableMindchange ? PERSISTENCE_PADDING_HORIZONTAL : PERSISTENCE_PADDING,
+                paddingLeft: PERSISTENCE_PADDING_HORIZONTAL,
+                paddingRight: PERSISTENCE_PADDING_HORIZONTAL,
                 marginTop: -PERSISTENCE_PADDING,
                 marginBottom: 0,
-                marginLeft: enableMindchange ? -PERSISTENCE_PADDING_HORIZONTAL : -PERSISTENCE_PADDING,
-                marginRight: enableMindchange ? -PERSISTENCE_PADDING_HORIZONTAL : -PERSISTENCE_PADDING,
+                marginLeft: -PERSISTENCE_PADDING_HORIZONTAL,
+                marginRight: -PERSISTENCE_PADDING_HORIZONTAL,
               }}
             >
               <div
                 className="relative inline-block"
                 style={{
-                  paddingLeft: enableMindchange ? '56px' : '0',
-                  paddingRight: enableMindchange ? '56px' : '0',
-                  marginLeft: enableMindchange ? '-56px' : '0',
-                  marginRight: enableMindchange ? '-56px' : '0',
+                  paddingLeft: '56px',
+                  paddingRight: '56px',
+                  marginLeft: '-56px',
+                  marginRight: '-56px',
                 }}
               >
                 <div
@@ -398,27 +399,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     />
                   )}
 
-                  {!enableMindchange && (edgeType === "support" || edgeType === "negation") && !editDir && (
-                    <EdgeRelevanceStars
-                      relevance={relevance}
-                      edgeType={edgeType}
-                      starColor={starColor}
-                      onUpdateRelevance={onUpdateRelevance}
-                      onConnectionAwareClick={handleConnectionAwareClick}
-                    />
-                  )}
-
-                  {(edgeType !== "support" && edgeType !== "negation") && !enableMindchange && (
-                    <EdgeRelevanceStars
-                      relevance={relevance}
-                      edgeType={edgeType}
-                      starColor={starColor}
-                      onUpdateRelevance={onUpdateRelevance}
-                      onConnectionAwareClick={handleConnectionAwareClick}
-                    />
-                  )}
-
-                  {enableMindchange && (edgeType === 'negation' || edgeType === 'objection') && !editDir && (
+                  {(edgeType === 'negation' || edgeType === 'objection') && !editDir && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); (graph as any)?.beginMindchangeOnEdge?.(edgeId); })}
@@ -432,7 +413,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   {!editDir && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); })}
+                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); setOverlayOpen(false); })}
                       type="button"
                       data-interactive="true"
                       className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-gradient-to-b from-gray-800 to-gray-900 text-white shadow-md hover:shadow-lg hover:from-gray-700 hover:to-gray-800 active:scale-95 transition-all duration-150 border border-gray-700"
@@ -442,7 +423,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     </button>
                   )}
 
-                  {enableMindchange && editDir && (
+                  {editDir && (
                     <MindchangeEditor
                       value={value}
                       isSaving={isSaving}
@@ -457,7 +438,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     />
                   )}
 
-                  {enableMindchange && (edgeType === 'negation' || edgeType === 'objection') && (
+                  {(edgeType === 'negation' || edgeType === 'objection') && (
                     <MindchangeIndicators
                       edgeId={edgeId}
                       edgeType={edgeType}

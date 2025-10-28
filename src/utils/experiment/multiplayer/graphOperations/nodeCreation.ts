@@ -142,7 +142,7 @@ export const createAddNegationBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
-      data: { relevance: 3 },
+      data: {},
     };
     // Clear all existing selections and add new node/edge
     onNodeCreated?.();
@@ -218,7 +218,7 @@ export const createAddSupportBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
-      data: { relevance: 3 },
+      data: {},
     };
     // Clear all existing selections and add new node/edge
     onNodeCreated?.();
@@ -305,7 +305,7 @@ export const createAddPointBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
-      data: { relevance: 3 },
+      data: {},
     };
     // Clear all existing selections and add new node/edge
     options?.onNodeCreated?.();

@@ -24,27 +24,17 @@ const toPositive = (v: number | undefined) => {
   return clamp0to100(v);
 };
 
-const isTruthyFlag = (v: string | undefined) => {
-  const s = (v || "").toLowerCase().trim();
-  return s === "true" || s === "1" || s === "yes" || s === "on";
-};
-
-const featureEnabled = () =>
-  isTruthyFlag(process.env.ENABLE_MINDCHANGE) ||
-  isTruthyFlag(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE);
-
 export async function setMindchange(
   docId: string,
   edgeId: string,
   forwardValue?: number,
   backwardValue?: number,
-  edgeType?: 'negation' | 'support',
+  edgeType?: 'negation' | 'objection' | 'support',
   clientUserId?: string
 ): Promise<{ ok: true; averages: Averages } | { ok: false; error: string }> {
-  if (!featureEnabled()) return { ok: false, error: "Mindchange disabled" };
   if (!docId || !edgeId) return { ok: false, error: "Invalid ids" };
-  if (edgeType && edgeType !== 'negation') {
-    return { ok: false, error: 'Mindchange only allowed on negation edges' };
+  if (edgeType && edgeType !== 'negation' && edgeType !== 'objection') {
+    return { ok: false, error: 'Mindchange only allowed on negation or objection edges' };
   }
 
   let userId = await getUserId();
@@ -122,7 +112,6 @@ export async function setMindchange(
 }
 
 export async function getMindchangeBreakdown(docId: string, edgeId: string) {
-  if (!featureEnabled()) return { forward: [], backward: [] };
   if (!docId || !edgeId) return { forward: [], backward: [] };
 
   const rows = await db
@@ -195,7 +184,6 @@ export async function getMindchangeAveragesForEdges(
     }
   >
 > {
-  if (!featureEnabled()) return {};
   if (!docId || !edgeIds || edgeIds.length === 0) return {};
 
   const rows = await db
@@ -247,7 +235,6 @@ export async function deleteMindchangeForEdge(
   docId: string,
   edgeId: string
 ): Promise<{ ok: true }> {
-  if (!featureEnabled()) return { ok: true };
   if (!docId || !edgeId) return { ok: true };
   await db
     .delete(mpMindchangeTable)

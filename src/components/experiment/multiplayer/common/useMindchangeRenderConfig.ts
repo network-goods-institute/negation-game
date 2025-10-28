@@ -6,6 +6,8 @@ interface MindchangeRenderConfig {
   markerId?: string;
   markerStart?: string;
   markerEnd?: string;
+  hasForward?: boolean;
+  hasBackward?: boolean;
 }
 
 export const useMindchangeRenderConfig = (
@@ -14,7 +16,7 @@ export const useMindchangeRenderConfig = (
 ): MindchangeRenderConfig => {
   return useMemo(() => {
     if (!mindchange) {
-      return { mode: "normal", markerStart: undefined, markerEnd: undefined };
+      return { mode: "normal", markerStart: undefined, markerEnd: undefined, hasForward: false, hasBackward: false };
     }
 
     const forwardCount = mindchange?.forward?.count ?? 0;
@@ -23,7 +25,7 @@ export const useMindchangeRenderConfig = (
     const hasBackward = backwardCount > 0;
 
     if (!hasForward && !hasBackward) {
-      return { mode: "normal", markerStart: undefined, markerEnd: undefined };
+      return { mode: "normal", markerStart: undefined, markerEnd: undefined, hasForward, hasBackward };
     }
 
     const markerId = getMarkerIdForEdgeType(edgeTypeForMarker);
@@ -35,6 +37,8 @@ export const useMindchangeRenderConfig = (
         markerId: markerId ?? undefined, // null for objections = no arrows
         markerStart: undefined,
         markerEnd: undefined,
+        hasForward,
+        hasBackward,
       } as const;
     }
 
@@ -47,6 +51,8 @@ export const useMindchangeRenderConfig = (
       mode: "normal",
       markerStart: hasBackward ? `url(#${markerId})` : undefined,
       markerEnd: hasForward ? `url(#${markerId})` : undefined,
+      hasForward,
+      hasBackward,
     } as const;
   }, [mindchange, edgeTypeForMarker]);
 };

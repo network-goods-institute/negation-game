@@ -43,7 +43,7 @@ export const buildConnectionEdge = (
     target: parentId,
     sourceHandle: `${childId}-source-handle`,
     targetHandle: `${parentId}-incoming-handle`,
-    data: { relevance: 3 },
+    data: {},
   } as const;
   return { id, edge, edgeType };
 };

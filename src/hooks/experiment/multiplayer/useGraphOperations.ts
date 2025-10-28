@@ -362,30 +362,7 @@ export const useGraphOperations = ({
     [setNodes, yNodesMap, ydoc, canWrite, localOrigin]
   );
 
-  const updateEdgeRelevance = useCallback(
-    (edgeId: string, relevance: 1 | 2 | 3 | 4 | 5) => {
-      if (!canWrite) {
-        try { (require('sonner') as any).toast?.warning?.("Read-only mode: Changes won't be saved"); } catch {}
-        return;
-      }
-      setEdges((eds) =>
-        eds.map((e) =>
-          e.id === edgeId ? { ...e, data: { ...(e.data || {}), relevance } } : e
-        )
-      );
-      if (yEdgesMap && ydoc && canWrite) {
-        ydoc.transact(() => {
-          const base = yEdgesMap.get(edgeId);
-          if (base)
-            yEdgesMap.set(edgeId, {
-              ...base,
-              data: { ...(base.data || {}), relevance },
-            });
-        }, localOrigin);
-      }
-    },
-    [setEdges, yEdgesMap, ydoc, canWrite, localOrigin]
-  );
+  
 
   const ensureEdgeAnchor = useMemo(
     () => createEnsureEdgeAnchor(setNodes),
@@ -438,7 +415,6 @@ export const useGraphOperations = ({
     updateNodeType,
     createInversePair: createInversePairOp,
     deleteInversePair,
-    updateEdgeRelevance,
     duplicateNodeWithConnections,
   };
 };

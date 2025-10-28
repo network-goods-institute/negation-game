@@ -6,17 +6,12 @@ type MindchangeData = {
 } | undefined;
 
 interface Params {
-  enableMindchange: boolean;
   visual: EdgeVisualConfig;
-  relevance: number;
   mindchange: MindchangeData;
   edgeType?: string;
 }
 
-export const computeMindchangeStrokeWidth = ({ enableMindchange, visual, relevance, mindchange, edgeType }: Params): number => {
-  if (!enableMindchange) {
-    return visual.strokeWidth(relevance);
-  }
+export const computeMindchangeStrokeWidth = ({ visual, mindchange, edgeType }: Params): number => {
 
   const fAvg = Math.max(0, Math.min(100, Math.round(Number(mindchange?.forward?.average ?? 0))));
   const bAvg = Math.max(0, Math.min(100, Math.round(Number(mindchange?.backward?.average ?? 0))));

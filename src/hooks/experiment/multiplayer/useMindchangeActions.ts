@@ -33,13 +33,11 @@ export const useMindchangeActions = ({
   const mcCacheRef = useRef<Map<string, { ts: number; data: { forward: Array<{ userId: string; username: string; value: number }>; backward: Array<{ userId: string; username: string; value: number }> } }>>(new Map());
 
   const setMindchange = useCallback(async (edgeId: string, params: { forward?: number; backward?: number }) => {
-    const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
-    if (!enableMindchange) return;
     if (!resolvedId) return;
     try {
       const typeNow = (edges.find((e: any) => e.id === edgeId)?.type as string | undefined);
-      const edgeTypeNow = (typeNow === 'negation' || typeNow === 'objection') ? 'negation' : 'support';
-      const res = await setMindchangeAction(resolvedId, edgeId, params.forward, params.backward, edgeTypeNow as any, userId);
+      const edgeTypeNow = (typeNow === 'negation' || typeNow === 'objection') ? (typeNow as 'negation' | 'objection') : 'support';
+      const res = await setMindchangeAction(resolvedId, edgeId, params.forward, params.backward, edgeTypeNow, userId);
       if ((res as any)?.ok && ydoc && yMetaMap) {
         const averages = (res as any).averages as { forward: number; backward: number; forwardCount: number; backwardCount: number };
         const key = `mindchange:${edgeId}`;

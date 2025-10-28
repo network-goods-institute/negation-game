@@ -10,9 +10,7 @@ export interface EdgeStateConfig {
   targetY?: number;
   source: string;
   target: string;
-  data?: {
-    relevance?: number;
-  };
+  data?: any;
 }
 
 export interface EdgeState {
@@ -30,7 +28,6 @@ export interface EdgeState {
   // Position and geometry
   cx: number;
   cy: number;
-  relevance: number;
   edgeOpacity: number;
 
   // Performance optimization data
@@ -68,7 +65,7 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isConnectHovered, setIsConnectHovered] = useState(false);
 
-  const { sourceX, sourceY, targetX, targetY, source, target, data } = config || {};
+  const { sourceX, sourceY, targetX, targetY, source, target } = config || {};
 
   const { isHighFrequencyUpdates, sourceNode, targetNode, shouldRenderEllipses } = useEdgePerformanceOptimization({
     sourceId: source || '',
@@ -90,12 +87,9 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
 
   const isHovered = hoveredEdgeId === (config?.id || '') || (connectMode && isConnectHovered);
   const selected = useMemo(() => (selectedEdgeId || null) === (config?.id || ''), [selectedEdgeId, config?.id]);
-  const enableMindchange = typeof process !== 'undefined' && ["true","1","yes","on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
-  const relevance = useMemo(() => Math.max(1, Math.min(5, (data?.relevance ?? 3))), [data?.relevance]);
   const edgeOpacity = useMemo(() => {
-    if (enableMindchange) return selected || isHovered ? 1 : 0.7;
-    return selected || isHovered ? 1 : Math.max(0.3, Math.min(1, relevance / 5));
-  }, [selected, isHovered, relevance, enableMindchange]);
+    return selected || isHovered ? 1 : 0.7;
+  }, [selected, isHovered]);
 
   const shouldRenderOverlay = useMemo(
     () =>
@@ -116,7 +110,6 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
     setIsConnectHovered,
     cx,
     cy,
-    relevance,
     edgeOpacity,
     isHighFrequencyUpdates,
     sourceNode,

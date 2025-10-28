@@ -159,8 +159,6 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   });
 
   useEffect(() => {
-    const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
-    if (!enableMindchange) return;
     if (!resolvedId || !ydoc || !yMetaMap) return;
     if (!edges || edges.length === 0) return;
     (async () => {
@@ -385,7 +383,6 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     updateNodeType,
     createInversePair: inversePair,
     deleteInversePair,
-    updateEdgeRelevance,
     duplicateNodeWithConnections,
   } = useGraphOperations({
     nodes,
@@ -555,7 +552,6 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             addObjectionForEdge,
             hoveredEdgeId,
             setHoveredEdge: setHoveredEdgeId,
-            updateEdgeRelevance,
             updateEdgeType: updateEdgeTypeWrapped,
             selectedEdgeId,
             setSelectedEdge: setSelectedEdgeId,
@@ -591,15 +587,11 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             mindchangeEdgeId,
             mindchangeNextDir,
             beginMindchangeSelection: () => {
-              const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
-              if (!enableMindchange) return;
               setMindchangeSelectMode(true);
               setConnectMode(true);
               setConnectAnchorId(null);
             },
             beginMindchangeOnEdge: (edgeId: string) => {
-              const enableMindchange = ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
-              if (!enableMindchange) return;
               try {
                 const et = (edges.find((e: any) => e.id === edgeId)?.type) as string | undefined;
                 if (et !== 'negation' && et !== 'objection') return;

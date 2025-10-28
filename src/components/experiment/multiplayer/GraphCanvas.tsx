@@ -109,7 +109,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   });
 
   const edgesForRender = React.useMemo(() => {
-    const enableMindchange = typeof process !== 'undefined' && ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
     try {
       const overlayId = (graph as any)?.overlayActiveEdgeId as (string | null);
       const visible = new Set<string>();

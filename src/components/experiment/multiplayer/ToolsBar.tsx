@@ -65,8 +65,8 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   // Focused (mindchange) mode UI
   if (mindchangeMode) {
     let promptText = mindchangeEdgeType === 'objection'
-      ? 'Select the mitigation point or the relation line that would change your mind if it were false/unrelated.'
-      : 'Select the point that changes your mind if it was false.';
+      ? 'Select the mitigation point or the relation line that would change your mind if it were true.'
+      : 'Select the point that would change your mind if it were true.';
     if (mindchangeNextDir) {
       if (mindchangeEdgeType === 'support') {
         promptText = 'Enter how much it would change your mind if it were false';

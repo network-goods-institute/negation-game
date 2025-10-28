@@ -44,7 +44,7 @@ export interface EdgeVisualConfig {
 
   // Style
   strokeDasharray?: string;
-  strokeWidth: (relevance: number) => number;
+  strokeWidth: (scale: number) => number;
   curvature?: number;
 
   // Gradient configuration for strap edges
@@ -91,7 +91,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       stroke: "#9CA3AF",
       borderColor: "#9CA3AF",
       starColor: "text-stone-600",
-      strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
+      strokeWidth: (scale) => Math.max(1, Math.min(8, scale * 1.6)),
       strokeDasharray: "6,6",
       gradientId: "neg-strap-gradient",
       gradientStops: [
@@ -115,7 +115,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       stroke: "#f97316",
       borderColor: "#f97316",
       starColor: "text-yellow-500",
-      strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
+      strokeWidth: (scale) => Math.max(1, Math.min(8, scale * 1.6)),
       strokeDasharray: "8,4",
       midpointContent: makeIcon("#f97316", [45], 12, 2),
       useBezier: true,
@@ -134,7 +134,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       stroke: "hsl(var(--sync-primary))",
       borderColor: "hsl(var(--sync-primary))",
       starColor: "text-blue-600",
-      strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
+      strokeWidth: (scale) => Math.max(1, Math.min(8, scale * 1.6)),
       gradientId: "quest-strap-gradient",
       gradientStops: [
         { offset: "0%", stopColor: "hsl(var(--sync-primary-hover))", stopOpacity: 0.22 },
@@ -172,7 +172,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       stroke: "#9CA3AF",
       borderColor: "#9CA3AF",
       starColor: "text-gray-600",
-      strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.4)),
+      strokeWidth: (scale) => Math.max(1, Math.min(8, scale * 1.4)),
       gradientId: "support-strap-gradient",
       gradientStops: [
         { offset: "0%", stopColor: "#9CA3AF", stopOpacity: 0.15 },
@@ -195,7 +195,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       stroke: "#6b7280",
       borderColor: "#6b7280",
       starColor: "text-gray-600",
-      strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.6)),
+      strokeWidth: (scale) => Math.max(1, Math.min(8, scale * 1.6)),
       gradientId: "stmt-strap-gradient",
       gradientStops: [
         { offset: "0%", stopColor: "#111827", stopOpacity: 0.22 },
