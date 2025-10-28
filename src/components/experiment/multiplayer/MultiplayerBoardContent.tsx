@@ -526,6 +526,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       <ReactFlowProvider>
         <PerfProvider value={{ perfMode: (((nodes?.length || 0) + (edges?.length || 0)) > 600) || perfBoost || grabMode, setPerfMode: setPerfBoost }}>
           <GraphProvider value={{
+            currentUserId: userId,
             updateNodeContent,
             updateNodeHidden,
             updateNodePosition,

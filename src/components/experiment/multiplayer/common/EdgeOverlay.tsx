@@ -221,7 +221,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const displayForwardAvg = rawForwardAvg === 0 ? (getCachedAvg('forward') ?? 0) : rawForwardAvg;
   const displayBackwardAvg = rawBackwardAvg === 0 ? (getCachedAvg('backward') ?? 0) : rawBackwardAvg;
 
-  const [, setCacheTick] = React.useState(0);
+  const [cacheTick, setCacheTick] = React.useState(0);
 
   const prefetchBreakdowns = React.useCallback(async () => {
     if (!graph.getMindchangeBreakdown) return;
@@ -266,17 +266,33 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   React.useEffect(() => {
     if (!editDir) return;
+    try { prefetchBreakdowns(); } catch {}
     const user = (mindchange as any)?.userValue as { forward?: number; backward?: number } | undefined;
     let seed: number | undefined;
     if (user && typeof user[editDir] === 'number') {
       seed = Math.abs(Number(user[editDir]));
     } else {
-      const avg = editDir === 'forward' ? Number(displayForwardAvg) : Number(displayBackwardAvg);
-      seed = Math.abs(Number.isFinite(avg) ? avg : 0);
+      const me = (graph as any)?.currentUserId as (string | undefined);
+      const findMine = (dir: 'forward' | 'backward'): number | null => {
+        try {
+          const key = `${edgeId}:${dir}`;
+          const cached = breakdownCache.get(key);
+          if (!cached || !cached.data || !Array.isArray(cached.data)) return null;
+          const rec = (cached.data as any[]).find((r) => me && r?.userId === me);
+          return rec ? Math.abs(Number(rec.value || 0)) : null;
+        } catch { return null; }
+      };
+      const mine = findMine(editDir);
+      if (mine != null && Number.isFinite(mine) && mine > 0) {
+        seed = mine;
+      } else {
+        const avg = editDir === 'forward' ? Number(displayForwardAvg) : Number(displayBackwardAvg);
+        seed = Math.abs(Number.isFinite(avg) ? avg : 0);
+      }
     }
-    if (!Number.isFinite(seed) || (seed as number) <= 0) seed = 100;
+    if (!Number.isFinite(seed)) seed = 100;
     setValue(Math.max(0, Math.min(100, Math.round(seed as number))));
-  }, [editDir, mindchange, displayForwardAvg, displayBackwardAvg]);
+  }, [editDir, mindchange, displayForwardAvg, displayBackwardAvg, cacheTick, graph, edgeId, prefetchBreakdowns]);
 
   const handleSaveMindchange = async () => {
     if (!graph.setMindchange || !editDir || isSaving) return;
@@ -284,28 +300,36 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     try {
       const v = Math.max(0, Math.min(100, Math.round(value)));
       const params = editDir === 'forward' ? { forward: v } : { backward: v };
+      try { console.log('[Mindchange:Action] Save request', { edgeId, dir: editDir, value: v }); } catch {}
       await graph.setMindchange(edgeId, params);
+      try {
+        const key = `${edgeId}:${editDir}` as const;
+        breakdownCache.set(key, { ts: 0, data: [] });
+        setCacheTick((t) => t + 1);
+      } catch {}
       setEditDir(null);
     } finally {
       setIsSaving(false);
     }
   };
 
+  const mindchangeNextDir = (graph as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
+  const mindchangeEdgeId = (graph as any)?.mindchangeEdgeId as (string | null);
+  const setMindchangeNextDirFn = (graph as any)?.setMindchangeNextDir as ((v: 'forward' | 'backward' | null) => void) | undefined;
+  const lastOpenKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    const nextDir = (graph as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
-    const activeEdgeId = (graph as any)?.mindchangeEdgeId as (string | null);
     if (edgeType !== 'negation' && edgeType !== 'objection') return;
-    if (selected && activeEdgeId === edgeId && nextDir) {
-      setEditDir(nextDir);
-    }
-  }, [selected, edgeId, graph, edgeType]);
+    if (!selected) { lastOpenKeyRef.current = null; return; }
+    if (mindchangeEdgeId !== edgeId || !mindchangeNextDir) return;
+    const key = `${edgeId}:${mindchangeNextDir}`;
+    if (lastOpenKeyRef.current === key) return;
+    lastOpenKeyRef.current = key;
+    try { console.log('[Mindchange:UI] Opening editor', { edgeId, nextDir: mindchangeNextDir }); } catch {}
+    setEditDir(mindchangeNextDir);
+    try { setMindchangeNextDirFn?.(null); } catch {}
+  }, [selected, edgeId, edgeType, mindchangeNextDir, mindchangeEdgeId, setMindchangeNextDirFn]);
 
-  React.useEffect(() => {
-    const isMindchange = Boolean((graph as any)?.mindchangeMode);
-    if (!isMindchange && editDir) {
-      setEditDir(null);
-    }
-  }, [graph, editDir]);
+  // Do not auto-close editor based on global mindchangeMode; editor can be opened directly
 
   return (
     <React.Fragment>
@@ -399,16 +423,24 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     />
                   )}
 
-                  {(edgeType === 'negation' || edgeType === 'objection') && !editDir && (
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); (graph as any)?.beginMindchangeOnEdge?.(edgeId); })}
-                      className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-white text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 active:scale-95 transition-all duration-150 border border-gray-200"
-                      title="Mindchange"
-                    >
-                      Mindchange
-                    </button>
-                  )}
+                  {(edgeType === 'negation' || edgeType === 'objection') && !editDir && (() => {
+                    const handleClick = (e: React.MouseEvent) => handleConnectionAwareClick(e, () => {
+                      e.stopPropagation();
+                      try { prefetchBreakdowns(); } catch {}
+                      try { console.log('[Mindchange:UI] Mindchange button click', { edgeId, userValue: (mindchange as any)?.userValue }); } catch {}
+                      (graph as any)?.beginMindchangeOnEdge?.(edgeId);
+                    });
+                    return (
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={handleClick}
+                        className="rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-white text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 active:scale-95 transition-all duration-150 border border-gray-200"
+                        title="Mindchange"
+                      >
+                        Mindchange
+                      </button>
+                    );
+                  })()}
 
                   {!editDir && (
                     <button
@@ -431,10 +463,45 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       onValueChange={setValue}
                       onSave={handleSaveMindchange}
                       onCancel={() => {
+                        try { console.log('[Mindchange:UI] Cancel editor', { edgeId, dir: editDir }); } catch {}
                         setEditDir(null);
                         try { (graph as any)?.setSelectedEdge?.(null); } catch { }
                         (graph as any)?.cancelMindchangeSelection?.();
                       }}
+                      onClear={(() => {
+                        const me = (graph as any)?.currentUserId as (string | undefined);
+                        const getDirUserVal = (dir: 'forward' | 'backward'): number => {
+                          const local = Number((mindchange as any)?.userValue?.[dir] || 0) || 0;
+                          if (local > 0) return local;
+                          try {
+                            const key = `${edgeId}:${dir}`;
+                            const cached = breakdownCache.get(key);
+                            if (!cached || !cached.data || !Array.isArray(cached.data)) return 0;
+                            const rec = (cached.data as any[]).find((r) => me && r?.userId === me);
+                            return rec ? Number(rec.value || 0) : 0;
+                          } catch { return 0; }
+                        };
+                        const present = editDir ? getDirUserVal(editDir) : 0;
+                        return present > 0 ? async () => {
+                          if (!graph.setMindchange || !editDir || isSaving) return;
+                          setIsSaving(true);
+                          try {
+                            const params = editDir === 'forward' ? { forward: 0 } : { backward: 0 };
+                            try { console.log('[Mindchange:Action] Clear request', { edgeId, params }); } catch {}
+                            await graph.setMindchange(edgeId, params);
+                            try {
+                              const key = `${edgeId}:${editDir}` as const;
+                              breakdownCache.set(key, { ts: 0, data: [] });
+                              setCacheTick((t) => t + 1);
+                            } catch {}
+                            setEditDir(null);
+                            try { (graph as any)?.setSelectedEdge?.(null); } catch {}
+                            (graph as any)?.cancelMindchangeSelection?.();
+                          } finally {
+                            setIsSaving(false);
+                          }
+                        } : undefined;
+                      })()}
                     />
                   )}
 

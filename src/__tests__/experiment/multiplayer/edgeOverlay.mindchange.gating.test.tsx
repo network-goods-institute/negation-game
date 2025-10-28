@@ -8,11 +8,9 @@ const baseProps = {
   cy: 0,
   isHovered: true,
   selected: true,
-  relevance: 3,
   edgeId: 'e1',
   onMouseEnter: () => {},
   onMouseLeave: () => {},
-  onUpdateRelevance: () => {},
   onAddObjection: () => {},
   onToggleEdgeType: () => {},
 } as const;

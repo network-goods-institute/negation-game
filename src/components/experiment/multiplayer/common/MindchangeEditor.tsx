@@ -7,6 +7,7 @@ interface MindchangeEditorProps {
   onValueChange: (value: number) => void;
   onSave: () => void;
   onCancel: () => void;
+  onClear?: () => void;
 }
 
 export const MindchangeEditor: React.FC<MindchangeEditorProps> = ({
@@ -16,6 +17,7 @@ export const MindchangeEditor: React.FC<MindchangeEditorProps> = ({
   onValueChange,
   onSave,
   onCancel,
+  onClear,
 }) => {
   const isSupportEdge = edgeType === 'support';
   const isNegationEdge = edgeType === 'negation';
@@ -76,6 +78,16 @@ export const MindchangeEditor: React.FC<MindchangeEditorProps> = ({
       >
         Cancel
       </button>
+      {onClear && (
+        <button
+          className="px-3 py-1.5 border-2 border-rose-300 text-rose-700 rounded-lg text-xs font-semibold hover:bg-rose-50 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => { e.stopPropagation(); e.preventDefault(); if (!isSaving) onClear(); }}
+          disabled={isSaving}
+        >
+          Clear
+        </button>
+      )}
     </div>
   );
 };

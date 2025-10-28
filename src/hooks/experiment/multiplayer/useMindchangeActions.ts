@@ -37,9 +37,11 @@ export const useMindchangeActions = ({
     try {
       const typeNow = (edges.find((e: any) => e.id === edgeId)?.type as string | undefined);
       const edgeTypeNow = (typeNow === 'negation' || typeNow === 'objection') ? (typeNow as 'negation' | 'objection') : 'support';
+      try { console.log('[Mindchange:Action] setMindchange call', { docId: resolvedId, edgeId, params, edgeTypeNow, userId }); } catch {}
       const res = await setMindchangeAction(resolvedId, edgeId, params.forward, params.backward, edgeTypeNow, userId);
       if ((res as any)?.ok && ydoc && yMetaMap) {
         const averages = (res as any).averages as { forward: number; backward: number; forwardCount: number; backwardCount: number };
+        try { console.log('[Mindchange:Action] setMindchange ok', { edgeId, averages }); } catch {}
         const key = `mindchange:${edgeId}`;
         try {
           (ydoc as any).transact(() => {
@@ -56,9 +58,26 @@ export const useMindchangeActions = ({
           (ydoc as any).transact(() => {
             (yMetaMap as any).set(ukey, snapshot);
           }, ORIGIN.RUNTIME);
+          try { console.log('[Mindchange:Sync] wrote user snapshot', { key: ukey, snapshot }); } catch {}
         } catch { }
         try {
-          setEdges((prev) => prev.map((e: any) => e.id === edgeId ? { ...e, data: { ...(e.data || {}), mindchange: { forward: { average: averages.forward, count: averages.forwardCount }, backward: { average: averages.backward, count: averages.backwardCount } } } } : e));
+          setEdges((prev) => prev.map((e: any) => {
+            if (e.id !== edgeId) return e;
+            const prevData = (e.data || {}) as any;
+            const prevMC = prevData.mindchange || {};
+            const prevUser = prevMC.userValue || {};
+            const nextUser = {
+              ...prevUser,
+              ...(typeof params.forward === 'number' ? { forward: Math.max(0, Math.min(100, Math.round(params.forward))) } : {}),
+              ...(typeof params.backward === 'number' ? { backward: Math.max(0, Math.min(100, Math.round(params.backward))) } : {}),
+            } as any;
+            const nextMC = {
+              forward: { average: averages.forward, count: averages.forwardCount },
+              backward: { average: averages.backward, count: averages.backwardCount },
+              ...(Object.keys(nextUser).length > 0 ? { userValue: nextUser } : {}),
+            } as any;
+            return { ...e, data: { ...prevData, mindchange: nextMC } };
+          }));
         } catch { }
         try {
           setMindchangeSelectMode(false);
@@ -66,6 +85,8 @@ export const useMindchangeActions = ({
           setMindchangeNextDir(null);
           setSelectedEdgeId(null);
         } catch { }
+      } else {
+        try { console.warn('[Mindchange:Action] setMindchange failed', { edgeId, params, res }); } catch {}
       }
     } catch { }
   }, [resolvedId, edges, userId, ydoc, yMetaMap, setEdges, setMindchangeSelectMode, setMindchangeEdgeId, setMindchangeNextDir, setSelectedEdgeId]);

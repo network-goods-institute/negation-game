@@ -148,6 +148,7 @@ export const useConnectionHandlers = ({
                 ? "backward"
                 : null;
           if (dir) {
+            try { console.log('[Mindchange:Select] completeConnectToNode chose direction', { edgeId: selectedEdge.id, nodeId, dir }); } catch {}
             setSelectedEdgeId?.(selectedEdge.id);
             setMindchangeNextDir?.(dir);
           } else {
@@ -185,6 +186,7 @@ export const useConnectionHandlers = ({
                 : childId === chosen.target
                   ? "backward"
                   : "forward";
+            try { console.log('[Mindchange:Select] inferred edge + direction', { chosen: chosen.id, dir }); } catch {}
             setSelectedEdgeId?.(chosen.id);
             setMindchangeNextDir?.(dir);
           } else {

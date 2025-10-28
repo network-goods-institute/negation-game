@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 
 type GraphActions = {
+    currentUserId?: string;
     updateNodeContent: (nodeId: string, content: string) => void;
     updateNodePosition?: (nodeId: string, x: number, y: number) => void;
     ensureEdgeAnchor?: (anchorId: string, parentEdgeId: string, x: number, y: number) => void;
@@ -81,6 +82,7 @@ export const useGraphActions = () => {
     const ctx = useContext(GraphContext);
     if (!ctx) {
         return {
+            currentUserId: undefined,
             updateNodeContent: () => { },
             updateNodePosition: () => { },
             ensureEdgeAnchor: () => { },
@@ -103,7 +105,6 @@ export const useGraphActions = () => {
             addObjectionForEdge: () => { },
             hoveredEdgeId: null,
             setHoveredEdge: () => { },
-            updateEdgeRelevance: () => { },
             updateEdgeType: () => { },
             selectedEdgeId: null,
             setSelectedEdge: () => { },

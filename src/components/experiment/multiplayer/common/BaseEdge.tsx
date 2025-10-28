@@ -248,6 +248,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
         if (baseEdgeId === props.id) {
           // This is the base edge that the objection anchors to - select backward direction
+          try { console.log('[Mindchange:Select] base edge pick', { mindchangeEdgeId, baseEdgeId: props.id, dir: 'backward' }); } catch {}
           (graphActions as any)?.setSelectedEdge?.(mindchangeEdgeId);
           (graphActions as any)?.setMindchangeNextDir?.('backward');
           (graphActions as any)?.cancelConnect?.();

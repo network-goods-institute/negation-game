@@ -53,7 +53,6 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
     setHoveredEdge,
     updateEdgeAnchorPosition,
     deleteNode,
-    updateEdgeRelevance,
     connectMode,
     beginConnectFromEdge,
     isConnectingFromNodeId,

@@ -191,12 +191,7 @@ export const useYjsSynchronization = ({
           if (edgeId && payload) updates.push({ edgeId, payload });
         }
         if (updates.length === 0) return;
-        try {
-          console.log(
-            "[Mindchange:meta->state]",
-            updates.map((u) => ({ edgeId: u.edgeId, payload: u.payload }))
-          );
-        } catch {}
+        try { console.log('[Mindchange:Sync] averages keys changed', mcKeys); } catch {}
         setEdges((prev) => {
           let changed = false;
           const map = new Map(prev.map((e) => [e.id, e]));
@@ -226,6 +221,7 @@ export const useYjsSynchronization = ({
             ) {
               map.set(edgeId, { ...e, data: nextData } as any);
               changed = true;
+              try { console.log('[Mindchange:Sync] applied averages', { edgeId, payload }); } catch {}
             }
           }
           return changed ? Array.from(map.values()) : prev;
@@ -236,7 +232,6 @@ export const useYjsSynchronization = ({
 
     const onMetaMindchangeUser = (event: Y.YMapEvent<unknown>) => {
       try {
-        if (!isUndoRedoRef.current) return;
         const changedKeys = Array.from(event.keysChanged || []);
         const keys = changedKeys.filter(
           (k) => typeof k === "string" && (k as string).startsWith("mindchange:user:")
@@ -248,10 +243,29 @@ export const useYjsSynchronization = ({
           if (parts.length < 2) continue;
           const uid = parts[0];
           const edgeId = parts.slice(1).join(":");
-          if (currentUserId && uid !== currentUserId) continue;
+          const isMine = Boolean(currentUserId && uid === currentUserId);
           const payload = (yMetaMap as any).get(key) || null;
           const f = payload && typeof payload.forward === "number" ? Number(payload.forward) : payload === null ? 0 : undefined;
           const b = payload && typeof payload.backward === "number" ? Number(payload.backward) : payload === null ? 0 : undefined;
+          try { console.log('[Mindchange:Sync] user snapshot changed', { key, isMine, f, b }); } catch {}
+          // Always update local edges with userValue when it's mine
+          if (isMine) {
+            try {
+              setEdges((prev) => prev.map((e) => {
+                if ((e as any).id !== edgeId) return e;
+                const prevData = (e as any).data || {};
+                const prevMC = prevData.mindchange || {};
+                const nextUser = {
+                  ...(typeof f === 'number' ? { forward: f } : {}),
+                  ...(typeof b === 'number' ? { backward: b } : {}),
+                } as any;
+                const nextMC = { ...prevMC, userValue: { ...(prevMC.userValue || {}), ...nextUser } };
+                return { ...(e as any), data: { ...prevData, mindchange: nextMC } } as any;
+              }));
+            } catch {}
+          }
+          // Only push to server during undo/redo flows to avoid loops
+          if (!isUndoRedoRef.current) continue;
           // Import lazily to avoid SSR issues
           try {
             const actions = require("@/actions/experimental/mindchange");
@@ -287,6 +301,37 @@ export const useYjsSynchronization = ({
       } catch {}
     };
     yMetaMap.observe(onMetaMindchangeUser);
+
+    // Seed userValue for current user from meta on setup
+    try {
+      if (currentUserId) {
+        const keys = Array.from(((yMetaMap as unknown as any).keys?.() || []) as Iterable<string>);
+        const myUserKeys = (keys as string[]).filter((k) => typeof k === 'string' && k.startsWith(`mindchange:user:${currentUserId}:`));
+        if (myUserKeys.length > 0) {
+          setEdges((prev) => {
+            const map = new Map(prev.map((e) => [e.id, e]));
+            let changed = false;
+            for (const key of myUserKeys) {
+              const payload = (yMetaMap as any).get(key) || null;
+              const edgeId = key.slice(`mindchange:user:${currentUserId}:`.length);
+              const e = map.get(edgeId);
+              if (!e) continue;
+              const prevData = (e as any).data || {};
+              const prevMC = prevData.mindchange || {};
+              const nextUser = {
+                ...(payload && typeof payload.forward === 'number' ? { forward: Number(payload.forward) } : {}),
+                ...(payload && typeof payload.backward === 'number' ? { backward: Number(payload.backward) } : {}),
+              } as any;
+              const nextMC = { ...prevMC, userValue: { ...(prevMC.userValue || {}), ...nextUser } };
+              const nextE = { ...(e as any), data: { ...prevData, mindchange: nextMC } } as any;
+              map.set(edgeId, nextE);
+              changed = true;
+            }
+            return changed ? Array.from(map.values()) : prev;
+          });
+        }
+      }
+    } catch {}
 
     // Seed edge mindchange from existing meta entries on first setup
     try {

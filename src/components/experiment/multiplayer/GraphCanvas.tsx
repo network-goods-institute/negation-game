@@ -117,11 +117,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         const key = `mindchange:${e.id}`;
         const payload = yMetaMap?.get?.(key);
         if (payload && typeof payload === 'object') {
+          const prevUser = (e as any)?.data?.mindchange?.userValue;
           const mc = {
             forward: { average: Number((payload as any).forward || 0), count: Number((payload as any).forwardCount || 0) },
             backward: { average: Number((payload as any).backward || 0), count: Number((payload as any).backwardCount || 0) },
-          };
-          return { ...e, data: { ...(e.data || {}), mindchange: mc } };
+            ...(prevUser ? { userValue: prevUser } : {}),
+          } as any;
+          return { ...e, data: { ...(e.data || {}), mindchange: mc } } as any;
         }
         return e;
       });
