@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
 import { buildRationaleIndexPath } from '@/utils/hosts/syncPaths';
+import { useSafeJson } from '@/hooks/network/useSafeJson';
 
 type YProvider = WebsocketProvider | null;
 
@@ -59,6 +60,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   titleEditingUser,
   onResyncNow,
 }) => {
+  const { safeJson } = useSafeJson();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [localTitle, setLocalTitle] = useState(title || 'Untitled');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -111,7 +113,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
               });
 
               if (response.ok) {
-                const data = await response.json();
+                const data: any = await safeJson(response);
                 onTitleChange(latestTitleRef.current.trim());
                 // Update URL if slug changed
                 if (data?.slug && data?.id && onUrlUpdate) {
@@ -132,7 +134,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
     };
 
     runCountdown(5);
-  }, [documentId, onTitleChange, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop, onUrlUpdate]);
+  }, [documentId, onTitleChange, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop, onUrlUpdate, safeJson]);
 
   const handleTitleChange = useCallback((newTitle: string) => {
     setLocalTitle(newTitle);
