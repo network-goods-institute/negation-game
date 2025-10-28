@@ -157,6 +157,50 @@ describe("rationales actions", () => {
     expect(res.title).toBe("Untitled");
   });
 
+  it("duplicateRationale duplicates board with copy of title", async () => {
+    mockDb.execute.mockResolvedValueOnce([{}]);
+    mockDb.select.mockImplementation(() => ({
+      from: () => ({ where: () => ({ limit: async () => [], orderBy: () => [] }) }),
+    }));
+    mockDb.select
+      .mockImplementationOnce(() => ({
+        from: () => ({
+          where: () => ({ limit: async () => [] }),
+        }),
+      }))
+      .mockImplementationOnce(() => ({
+        from: () => ({
+          where: () => ({ limit: async () => [{ title: "Original", nodeTitle: "NodeT" }] }),
+        }),
+      }))
+      .mockImplementationOnce(() => ({
+        from: () => ({
+          where: () => ({
+            orderBy: () => [
+              { updateBin: Buffer.from("a"), userId: "u1", createdAt: new Date() },
+            ],
+          }),
+        }),
+      }));
+    mockDb.insert.mockReturnValue(chainInsert());
+    mockDb.update.mockReturnValue(chainUpdate());
+    const { duplicateRationale } = await import(
+      "@/actions/experimental/rationales"
+    );
+    const out = await duplicateRationale("doc-1");
+    expect(out.id).toMatch(/^m-/);
+    expect(out.title).toBe("Original (Copy)");
+    expect(mockDb.transaction).toHaveBeenCalled();
+  });
+
+  it("duplicateRationale forbids when no access", async () => {
+    mockDb.execute.mockResolvedValueOnce([]);
+    const { duplicateRationale } = await import(
+      "@/actions/experimental/rationales"
+    );
+    await expect(duplicateRationale("doc-1")).rejects.toThrow(/Forbidden/);
+  });
+
   it("recordOpen backfills owner if missing and upserts access", async () => {
     // call1: owner check (null)
     // call2: access check ([])
