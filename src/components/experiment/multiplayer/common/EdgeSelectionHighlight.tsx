@@ -78,8 +78,8 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
     if (edgeType === 'objection') {
       const objectionY = sourceNode?.position?.y ?? 0;
       const anchorY = targetNode?.position?.y ?? 0;
-      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+      sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
+      targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
     }
 
     // Forward lane: complete curve from source to target
@@ -134,8 +134,8 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
     if (edgeType === 'objection') {
       const objectionY = sourceNode?.position?.y ?? 0;
       const anchorY = targetNode?.position?.y ?? 0;
-      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+      sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
+      targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
     }
     const [p] = getBezierPath({
       sourceX: t.fromX,

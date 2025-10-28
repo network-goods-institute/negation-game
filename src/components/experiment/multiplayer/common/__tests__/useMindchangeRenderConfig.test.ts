@@ -54,7 +54,7 @@ describe('useMindchangeRenderConfig', () => {
     expect(result.current.markerEnd).toBeUndefined();
   });
 
-  it('returns normal mode with markerEnd for forward-only mindchange', () => {
+  it('returns normal mode with markerStart for forward-only mindchange', () => {
     const mindchange = {
       forward: { count: 3, average: 50 },
       backward: { count: 0, average: 0 },
@@ -63,11 +63,11 @@ describe('useMindchangeRenderConfig', () => {
     const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'negation'));
 
     expect(result.current.mode).toBe('normal');
-    expect(result.current.markerStart).toBeUndefined();
-    expect(result.current.markerEnd).toBe('url(#arrow-negation)');
+    expect(result.current.markerStart).toBe('url(#arrow-negation)');
+    expect(result.current.markerEnd).toBeUndefined();
   });
 
-  it('returns normal mode with markerStart for backward-only mindchange', () => {
+  it('returns normal mode with markerEnd for backward-only mindchange', () => {
     const mindchange = {
       forward: { count: 0, average: 0 },
       backward: { count: 2, average: -30 },
@@ -76,8 +76,8 @@ describe('useMindchangeRenderConfig', () => {
     const { result } = renderHook(() => useMindchangeRenderConfig(mindchange, 'negation'));
 
     expect(result.current.mode).toBe('normal');
-    expect(result.current.markerStart).toBe('url(#arrow-negation)');
-    expect(result.current.markerEnd).toBeUndefined();
+    expect(result.current.markerStart).toBeUndefined();
+    expect(result.current.markerEnd).toBe('url(#arrow-negation)');
   });
 
   it('returns normal mode when edge type has no marker', () => {
@@ -163,12 +163,12 @@ describe('useMindchangeRenderConfig', () => {
     // Single direction = normal mode with single arrow
     const { result: r2 } = renderHook(() => useMindchangeRenderConfig(forwardOnly, 'objection'));
     expect(r2.current.mode).toBe('normal');
-    expect(r2.current.markerStart).toBeUndefined();
-    expect(r2.current.markerEnd).toBe('url(#arrow-objection)');
+    expect(r2.current.markerStart).toBe('url(#arrow-objection)');
+    expect(r2.current.markerEnd).toBeUndefined();
 
     const { result: r3 } = renderHook(() => useMindchangeRenderConfig(backwardOnly, 'objection'));
     expect(r3.current.mode).toBe('normal');
-    expect(r3.current.markerStart).toBe('url(#arrow-objection)');
-    expect(r3.current.markerEnd).toBeUndefined();
+    expect(r3.current.markerStart).toBeUndefined();
+    expect(r3.current.markerEnd).toBe('url(#arrow-objection)');
   });
 });

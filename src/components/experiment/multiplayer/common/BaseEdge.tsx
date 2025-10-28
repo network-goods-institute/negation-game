@@ -107,8 +107,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       if (props.edgeType === 'objection') {
         const objectionY = sourceNode?.position?.y ?? 0;
         const anchorY = targetNode?.position?.y ?? 0;
-        sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-        targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+        sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
+        targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
       }
 
       return getBezierPath({

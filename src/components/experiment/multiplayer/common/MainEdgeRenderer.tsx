@@ -51,6 +51,10 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
   const effectiveMode = (isObjectionEdge && mindchangeRenderMode === 'bidirectional' && !(hasForward && hasBackward))
     ? 'normal'
     : mindchangeRenderMode;
+  const strokeWidth = (() => {
+    try { return Number((edgeStylesWithPointer as any)?.strokeWidth ?? 2); } catch { return 2; }
+  })();
+  const arrowSize = Math.max(8, Math.round(6 + strokeWidth * 0.9));
   const parseCubicFromPath = (d: string) => {
     try {
       // Expected: M sx,sy C c1x,c1y c2x,c2y ex,ey
@@ -74,10 +78,10 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
     y: number,
     angleRad: number,
     color: string = edgeType === 'objection' ? '#f97316' : '#9CA3AF',
-    size: number = 8
+    size: number = arrowSize
   ) => (
     <g transform={`translate(${x} ${y}) rotate(${(angleRad * 180) / Math.PI})`} style={{ pointerEvents: 'none' }}>
-      <path d={`M 0 0 L ${-size} ${size * 0.5} L ${-size} ${-size * 0.5} Z`} fill={color} />
+      <path d={`M 0 0 L ${-size} ${size * 0.5} L ${-size} ${-size * 0.5} Z`} fill={color} stroke="white" strokeWidth={Math.max(1, strokeWidth * 0.25)} />
     </g>
   );
   if (effectiveMode === 'bidirectional' && !useBezier) {
@@ -151,8 +155,8 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
     if (edgeType === 'objection') {
       const objectionY = sourceNode?.position?.y ?? 0;
       const anchorY = targetNode?.position?.y ?? 0;
-      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+      sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
+      targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
     }
 
     // Forward lane: complete curve from source to target
@@ -271,8 +275,8 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
     if (edgeType === 'objection') {
       const objectionY = sourceNode?.position?.y ?? 0;
       const anchorY = targetNode?.position?.y ?? 0;
-      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+      sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
+      targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
     }
 
     if (edgeType === 'objection' && (mindchangeMarkerEnd || mindchangeMarkerStart)) {

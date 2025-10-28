@@ -85,8 +85,8 @@ export const MindchangeBadges: React.FC<MindchangeBadgesProps> = ({
 
   return (
     <>
-      {hasForward && badge(fTrim.toX, fTrim.toY, fVal, `${edgeId}-mc-fwd`)}
-      {hasBackward && badge(bTrim.fromX, bTrim.fromY, bVal, `${edgeId}-mc-bwd`)}
+      {hasForward && badge(fTrim.fromX, fTrim.fromY, fVal, `${edgeId}-mc-fwd`)}
+      {hasBackward && badge(bTrim.toX, bTrim.toY, bVal, `${edgeId}-mc-bwd`)}
     </>
   );
 };

@@ -22,8 +22,8 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
         const selfY = self.position?.y ?? 0;
 
         return objectionY > selfY
-            ? { target: Position.Bottom, source: Position.Bottom }
-            : { target: Position.Top, source: Position.Top };
+            ? { target: Position.Top, source: Position.Top }
+            : { target: Position.Bottom, source: Position.Bottom };
     }, (prev: any, next: any) => {
         const prevIncoming = prev.edges?.find((e: any) => e.type === 'objection' && e.target === id);
         const nextIncoming = next.edges?.find((e: any) => e.type === 'objection' && e.target === id);

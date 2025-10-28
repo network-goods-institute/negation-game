@@ -49,8 +49,8 @@ export const useMindchangeRenderConfig = (
 
     return {
       mode: "normal",
-      markerStart: hasBackward ? `url(#${markerId})` : undefined,
-      markerEnd: hasForward ? `url(#${markerId})` : undefined,
+      markerStart: hasForward ? `url(#${markerId})` : undefined,
+      markerEnd: hasBackward ? `url(#${markerId})` : undefined,
       hasForward,
       hasBackward,
     } as const;
