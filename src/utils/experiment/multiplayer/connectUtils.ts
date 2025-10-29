@@ -5,11 +5,6 @@ export const chooseEdgeType = (
   targetType?: string,
   preferredEdgeType?: "support" | "negation"
 ) => {
-  // Any connection involving a title uses option
-  if (sourceType === "title" || targetType === "title") {
-    return "option";
-  }
-
   // All edges TO a statement (question) use option
   if (targetType === "statement") {
     return "option";
