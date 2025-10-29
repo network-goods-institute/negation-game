@@ -122,7 +122,6 @@ export default function MultiplayerBoardDetailPage() {
     const userColor = useUserColor(userId);
 
     const [resolvedId, setResolvedId] = useState<string | null>(null);
-    const [resolvedSlug, setResolvedSlug] = useState<string | null>(null);
     const [notFound, setNotFound] = useState(false);
     useEffect(() => {
         const raw = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
@@ -135,7 +134,6 @@ export default function MultiplayerBoardDetailPage() {
                     const data = await res.json();
                     if (data && data.id) {
                         setResolvedId(data.id);
-                        setResolvedSlug(data.slug || null);
                         try {
                             const host = typeof window !== 'undefined' ? window.location.host : '';
                             const canonical = buildRationaleDetailPath(data.id, host, data.slug || undefined);
@@ -186,7 +184,6 @@ export default function MultiplayerBoardDetailPage() {
         yEdgesMap,
         yTextMap,
         yMetaMap,
-        syncYMapFromArray,
         connectionError,
         isConnected,
         connectionState,
@@ -226,7 +223,6 @@ export default function MultiplayerBoardDetailPage() {
 
     const {
         dbTitle,
-        ownerId,
         titleEditingUser,
         loadDbTitle,
         handleTitleChange,
@@ -487,7 +483,7 @@ export default function MultiplayerBoardDetailPage() {
         canEdit && writeSynced ? yNodesMap : null,
         canEdit && writeSynced ? yEdgesMap : null,
         canEdit && writeSynced ? ydoc : null,
-        syncYMapFromArray,
+        (() => {}) as any,
         localOriginRef.current,
         () => nodes as any[],
         () => preferredEdgeTypeRef.current
