@@ -9,7 +9,7 @@ interface EdgeAnchorNodeProps {
 
 const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
     const graphActions = useGraphActions() as any;
-    const { connectMode, grabMode } = graphActions;
+    const { connectMode, grabMode, mindchangeMode } = graphActions;
 
     const handlePositions = useStore((s: any) => {
         const edges: any[] = s.edges || [];
@@ -22,8 +22,8 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
         const selfY = self.position?.y ?? 0;
 
         return objectionY > selfY
-            ? { target: Position.Bottom, source: Position.Bottom }
-            : { target: Position.Top, source: Position.Top };
+            ? { target: Position.Top, source: Position.Top }
+            : { target: Position.Bottom, source: Position.Bottom };
     }, (prev: any, next: any) => {
         const prevIncoming = prev.edges?.find((e: any) => e.type === 'objection' && e.target === id);
         const nextIncoming = next.edges?.find((e: any) => e.type === 'objection' && e.target === id);
@@ -43,7 +43,7 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
     });
 
     const handleClick = (e: React.MouseEvent) => {
-        if (!connectMode || grabMode) return;
+        if (!connectMode || grabMode || mindchangeMode) return;
         e.stopPropagation();
         const origin = (graphActions.isConnectingFromNodeId as string | null) || null;
         const parentEdgeId = data?.parentEdgeId as string | undefined;
@@ -58,7 +58,7 @@ const EdgeAnchorNode: React.FC<EdgeAnchorNodeProps> = ({ id, data }) => {
         graphActions.completeConnectToEdge?.(parentEdgeId);
     };
 
-    const isInteractable = connectMode && !grabMode;
+    const isInteractable = connectMode && !grabMode && !mindchangeMode;
 
     return (
         <div

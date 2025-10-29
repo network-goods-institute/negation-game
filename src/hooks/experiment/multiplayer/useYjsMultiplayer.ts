@@ -19,6 +19,7 @@ interface UseYjsMultiplayerProps {
   isLockedForMe?: (nodeId: string) => boolean;
   onSaveComplete?: () => void;
   onRemoteNodesAdded?: (ids: string[]) => void;
+  currentUserId?: string;
 }
 
 export const useYjsMultiplayer = ({
@@ -30,6 +31,7 @@ export const useYjsMultiplayer = ({
   isLockedForMe,
   onSaveComplete,
   onRemoteNodesAdded,
+  currentUserId,
 }: UseYjsMultiplayerProps) => {
   const [nodes, setNodes] = useNodesState(initialNodes);
   const [edges, setEdges] = useEdgesState(initialEdges);
@@ -129,6 +131,7 @@ export const useYjsMultiplayer = ({
     isLockedForMe,
     onSaveComplete,
     onRemoteNodesAdded,
+    currentUserId,
   });
 
   const {

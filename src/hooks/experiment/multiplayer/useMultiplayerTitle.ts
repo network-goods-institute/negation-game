@@ -80,7 +80,7 @@ export const useMultiplayerTitle = ({
     } catch (e) {
       console.error("[title] Failed to load DB title:", e);
     }
-  }, [routeParams?.id, yMetaMap, ydoc, localOrigin]);
+  }, [routeParams?.id]);
 
   useEffect(() => {
     if (yMetaMap && ydoc) {

@@ -72,12 +72,10 @@ export const useGraphKeyboardHandlers = ({
         return;
       }
       if (key === "escape") {
-        try {
-          graph?.clearNodeSelection?.();
-        } catch {}
-        try {
-          graph?.setSelectedEdge?.(null);
-        } catch {}
+        try { graph?.cancelMindchangeSelection?.(); } catch {}
+        try { graph?.cancelConnect?.(); } catch {}
+        try { graph?.clearNodeSelection?.(); } catch {}
+        try { graph?.setSelectedEdge?.(null); } catch {}
         e.preventDefault();
         return;
       }

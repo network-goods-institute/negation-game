@@ -3,6 +3,8 @@ export const isProductionHostname = (
 ): boolean => {
   if (!hostname) return false;
   const h = hostname.toLowerCase().trim();
+  if (h === "negation-game-git-mindchange-network-goods-institute.vercel.app")
+    return false;
   if (h === "negationgame.com") return true;
   if (h.endsWith(".negationgame.com")) return true;
   return false;
@@ -24,6 +26,11 @@ export const isProductionEnvironment = (): boolean => {
 export const isProductionRequest = (
   hostname: string | null | undefined
 ): boolean => {
+  if (!hostname) return isProductionEnvironment();
+  const h = hostname.toLowerCase().trim();
+  // Short-circuit specific Vercel deployment to non-prod
+  if (h === "negation-game-git-mindchange-network-goods-institute.vercel.app")
+    return false;
   // Treat as production if either the environment is production or the hostname is a production domain
   return isProductionEnvironment() || isProductionHostname(hostname);
 };

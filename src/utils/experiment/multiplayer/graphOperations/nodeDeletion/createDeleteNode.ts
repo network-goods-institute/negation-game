@@ -13,8 +13,18 @@ export const createDeleteNode = (
   setEdges: (updater: (edges: any[]) => any[]) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
-  onShowUndoHint?: (position: { x: number; y: number }) => void
+  onShowUndoHint?: (position: { x: number; y: number }) => void,
+  yMetaMap?: any,
+  documentId?: string
 ) => {
+  let deleteMindchangeForEdgeAction:
+    | null
+    | ((docId: string, edgeId: string) => Promise<{ ok: true }>) = null;
+  try {
+    const mod = require("@/actions/experimental/mindchange");
+    deleteMindchangeForEdgeAction = mod?.deleteMindchangeForEdge || null;
+  } catch {}
+
   return (nodeId: string) => {
     if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
@@ -44,11 +54,28 @@ export const createDeleteNode = (
 
       // When deleting an edge, delete the edge and any attached objection edges, but preserve all nodes
       if (yEdgesMap && ydoc) {
+        try {
+          if (documentId && deleteMindchangeForEdgeAction) {
+            for (const e of edgesToDelete) {
+              deleteMindchangeForEdgeAction(documentId, String(e.id)).catch(
+                () => undefined
+              );
+            }
+          }
+        } catch {}
         ydoc.transact(() => {
           for (const e of edgesToDelete) {
             // eslint-disable-next-line drizzle/enforce-delete-with-where
             yEdgesMap.delete(e.id as any);
           }
+          try {
+            if (yMetaMap) {
+              for (const e of edgesToDelete) {
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
+                yMetaMap.delete(`mindchange:${String(e.id)}` as any);
+              }
+            }
+          } catch {}
         }, localOrigin);
 
         // Update local state after Yjs sync
@@ -199,11 +226,28 @@ export const createDeleteNode = (
 
     // First sync to Yjs, then update local state to ensure consistency
     if (yNodesMap && yEdgesMap && ydoc) {
+      try {
+        if (documentId && deleteMindchangeForEdgeAction) {
+          for (const edgeId of Array.from(edgesToDeleteIds)) {
+            deleteMindchangeForEdgeAction(documentId, String(edgeId)).catch(
+              () => undefined
+            );
+          }
+        }
+      } catch {}
       ydoc.transact(() => {
         edgesToDeleteIds.forEach((edgeId) => {
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           yEdgesMap.delete(edgeId as any);
         });
+        try {
+          if (yMetaMap) {
+            for (const edgeId of Array.from(edgesToDeleteIds)) {
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              yMetaMap.delete(`mindchange:${String(edgeId)}` as any);
+            }
+          }
+        } catch {}
 
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         yNodesMap.delete(nodeId as any);

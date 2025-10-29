@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Position } from '@xyflow/react';
+import { Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
@@ -152,6 +152,18 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     return () => { try { ro.disconnect(); } catch { } };
   }, [parentId, id, setPairNodeHeight, wrapperRef]);
 
+  const rf = useReactFlow();
+  const graphCtx = useGraphActions() as any;
+  const mindchangeSelectable = useMemo(() => {
+    try {
+      if (!graphCtx?.mindchangeMode || !graphCtx?.mindchangeEdgeId || graphCtx?.mindchangeNextDir) return false;
+      const mcEdge = (rf as any).getEdges?.().find((e: any) => String(e.id) === String(graphCtx.mindchangeEdgeId));
+      if (!mcEdge) return false;
+      if ((mcEdge as any).type === 'objection') return false;
+      return String(mcEdge.source) === id || String(mcEdge.target) === id;
+    } catch { return false; }
+  }, [graphCtx?.mindchangeMode, graphCtx?.mindchangeEdgeId, graphCtx?.mindchangeNextDir, rf, id]);
+
   const handleInverseSliverClick = () => {
     let calculatedDistance = 400;
     try {
@@ -215,9 +227,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const wrapperClassName = useMemo(() => {
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
-    const ring = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-transform duration-300 ease-out ${base} ${cursorClass} ${ring} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
+    const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
+    const ringMindchange = mindchangeSelectable ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : '';
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-transform duration-300 ease-out ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
