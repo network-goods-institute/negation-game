@@ -99,8 +99,10 @@ export const useGraphKeyboardHandlers = ({
       if ((e.metaKey || e.ctrlKey) && key === "v") {
         const targetId = copiedNodeIdRef.current;
         if (targetId) {
-          const exists = !!rf.getNode(targetId as any);
-          if (exists) {
+          const targetNode: any = rf.getNode(targetId as any);
+          const exists = !!targetNode;
+          const duplicable = exists && (targetNode?.type === 'point' || targetNode?.type === 'objection');
+          if (duplicable) {
             e.preventDefault();
             e.stopPropagation();
             try {
