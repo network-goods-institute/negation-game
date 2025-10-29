@@ -27,8 +27,18 @@ export const useAutoFocusNode = ({
   nodeId,
 }: UseAutoFocusNodeProps) => {
   useEffect(() => {
-    const isDefaultContent =
-      content === "New objection" || content === "New mitigation";
+    const defaultMarkers = new Set([
+      "New objection",
+      "New mitigation",
+      "New point",
+      "New Point",
+      "New Support",
+      "New Negation",
+      "New Option",
+      "New Question",
+      "New comment",
+    ]);
+    const isDefaultContent = defaultMarkers.has(content);
 
     // Check if node was recently created (within last 2 seconds)
     const wasRecentlyCreated = createdAt && Date.now() - createdAt < 2000;

@@ -34,7 +34,7 @@ export const createAddNodeAtPosition = (
   onNodeAdded?: (id: string) => void
 ) => {
   return (
-    type: "point" | "statement" | "title" | "objection",
+    type: "point" | "statement" | "title" | "objection" | "comment",
     x: number,
     y: number
   ): string => {
@@ -49,7 +49,9 @@ export const createAddNodeAtPosition = (
           ? "o"
           : type === "title"
             ? "t"
-            : "p";
+            : type === "comment"
+              ? "c"
+              : "p";
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const initial = getDefaultContentForType(type);
     const data: any =
@@ -76,7 +78,7 @@ export const createAddNodeAtPosition = (
         yNodesMap.set(id, node);
         if (
           yTextMap &&
-          (type === "point" || type === "objection" || type === "statement")
+          (type === "point" || type === "objection" || type === "statement" || type === "comment")
         ) {
           const t = new Y.Text();
           const initialContent =

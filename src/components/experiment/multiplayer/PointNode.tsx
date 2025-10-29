@@ -48,6 +48,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     getLockOwner,
     setPairNodeHeight,
     grabMode,
+    openTypeSelector,
   } = useGraphActions() as any;
 
   const locked = isLockedForMe?.(id) || false;
@@ -369,6 +370,19 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             onMouseLeave={handleMouseLeave}
             onForceHide={forceHidePills}
           />
+        )}
+        {selected && !hidden && !grabMode && (
+          <div className="mt-1 flex items-center">
+            <NodeActionPill
+              label="Type"
+              visible={true}
+              onClick={() => { openTypeSelector?.(id); }}
+              colorClass="bg-blue-600"
+              onMouseEnter={() => {}}
+              onMouseLeave={() => {}}
+              onForceHide={() => {}}
+            />
+          </div>
         )}
       </NodeShell>
       <ContextMenu

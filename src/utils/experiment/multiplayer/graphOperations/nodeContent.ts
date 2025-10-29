@@ -150,7 +150,7 @@ export const createUpdateNodeType = (
 ) => {
   return (
     nodeId: string,
-    newType: "point" | "statement" | "title" | "objection"
+    newType: "point" | "statement" | "title" | "objection" | "comment"
   ) => {
     if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");

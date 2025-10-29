@@ -8,6 +8,7 @@ import { StatementNode } from "@/components/experiment/multiplayer/StatementNode
 import { GroupNode } from "@/components/experiment/multiplayer/GroupNode";
 import ObjectionNode from "@/components/experiment/multiplayer/objection/ObjectionNode";
 import EdgeAnchorNode from "@/components/experiment/multiplayer/objection/EdgeAnchorNode";
+import CommentNode from "@/components/experiment/multiplayer/CommentNode";
 
 /**
  * Registry of all React Flow node types and their corresponding React components.
@@ -17,6 +18,7 @@ export const nodeTypes: NodeTypes = {
   statement: StatementNode,
   point: PointNode,
   objection: ObjectionNode,
+  comment: CommentNode,
   edge_anchor: EdgeAnchorNode,
   group: GroupNode,
 };

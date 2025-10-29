@@ -6,8 +6,8 @@ interface TypeSelectorDropdownProps {
   x: number;
   y: number;
   onClose: () => void;
-  onSelect: (type: 'point' | 'statement') => void;
-  currentType: 'point' | 'statement';
+  onSelect: (type: 'point' | 'statement' | 'comment') => void;
+  currentType: 'point' | 'statement' | 'comment';
 }
 
 const typeOptions = [
@@ -18,6 +18,14 @@ const typeOptions = [
     description: 'Add a claim or argument',
     gradient: 'from-slate-500 to-slate-600',
     hoverGradient: 'hover:from-slate-600 hover:to-slate-700',
+  },
+  {
+    type: 'comment' as const,
+    label: 'Comment',
+    icon: '💬',
+    description: 'Leave a note or remark',
+    gradient: 'from-emerald-500 to-emerald-600',
+    hoverGradient: 'hover:from-emerald-600 hover:to-emerald-700',
   },
   {
     type: 'statement' as const,
