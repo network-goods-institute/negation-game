@@ -34,7 +34,8 @@ export type EdgeType =
   | "objection"
   | "option"
   | "support"
-  | "statement";
+  | "statement"
+  | "comment";
 
 export interface EdgeVisualConfig {
   // Colors
@@ -205,6 +206,41 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
         className: "w-2 h-2 rounded-full",
         style: { backgroundColor: "#6b7280" },
       }),
+      useStrap: true,
+      useBezier: false,
+    },
+    behavior: {
+      showRelevanceInContextMenu: false,
+      interactionWidth: 24,
+      simplifyDuringDrag: false,
+    },
+  },
+
+  comment: {
+    type: "comment",
+    visual: {
+      stroke: "#10b981",
+      borderColor: "#10b981",
+      starColor: "text-emerald-600",
+      strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.4)),
+      gradientId: "comment-strap-gradient",
+      gradientStops: [
+        { offset: "0%", stopColor: "#10b981", stopOpacity: 0.15 },
+        { offset: "100%", stopColor: "#059669", stopOpacity: 0.15 },
+      ],
+      midpointContent: React.createElement(
+        "svg",
+        {
+          width: "12",
+          height: "12",
+          viewBox: "0 0 12 12",
+          style: { display: "block" },
+        },
+        React.createElement("path", {
+          d: "M 1.5 1.5 L 10.5 1.5 L 10.5 7.5 L 7 7.5 L 4.5 10 L 4.5 7.5 L 1.5 7.5 Z",
+          fill: "#10b981",
+        })
+      ),
       useStrap: true,
       useBezier: false,
     },

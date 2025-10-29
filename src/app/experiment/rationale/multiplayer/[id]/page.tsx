@@ -79,20 +79,6 @@ export default function MultiplayerBoardDetailPage() {
     const [perfBoost, setPerfBoost] = useState<boolean>(false);
     const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
 
-    const openTypeSelectorForNode = useCallback((nodeId: string) => {
-        try {
-            const element = document.querySelector(`[data-id="${nodeId}"]`);
-            if (element) {
-                const rect = (element as HTMLElement).getBoundingClientRect();
-                setNewNodeWithDropdown({ id: nodeId, x: rect.right + 16, y: rect.top - 8 });
-            } else {
-                setNewNodeWithDropdown({ id: nodeId, x: window.innerWidth / 2 - 120, y: window.innerHeight / 2 - 50 });
-            }
-        } catch {
-            setNewNodeWithDropdown({ id: nodeId, x: window.innerWidth / 2 - 120, y: window.innerHeight / 2 - 50 });
-        }
-    }, []);
-
     const { hoveredEdgeId, setHoveredEdgeId, selectedEdgeId, setSelectedEdgeId, revealEdgeTemporarily } = useEdgeSelection();
     const localOriginRef = useRef<object>({});
     const lastAddRef = useRef<Record<string, number>>({});
@@ -667,7 +653,6 @@ export default function MultiplayerBoardDetailPage() {
                         stopCapturing,
                         addNodeAtPosition,
                         updateNodeType,
-                        openTypeSelector: openTypeSelectorForNode,
                         deleteInversePair,
                         duplicateNodeWithConnections,
                         setPairNodeHeight,
@@ -754,7 +739,24 @@ export default function MultiplayerBoardDetailPage() {
                                         return;
                                     }
                                     const nodeId = addNodeAtPosition('point', flowX, flowY);
-                                    // Auto-focus is handled inside the node by createdAt marker.
+
+                                    setTimeout(() => {
+                                        const element = document.querySelector(`[data-id="${nodeId}"]`);
+                                        if (element) {
+                                            const rect = element.getBoundingClientRect();
+                                            setNewNodeWithDropdown({
+                                                id: nodeId,
+                                                x: rect.right + 16,
+                                                y: rect.top - 8
+                                            });
+                                        } else {
+                                            setNewNodeWithDropdown({
+                                                id: nodeId,
+                                                x: window.innerWidth / 2 - 120,
+                                                y: window.innerHeight / 2 - 50
+                                            });
+                                        }
+                                    }, 50);
                                 }}
                             />
                             <ToolsBar
@@ -783,10 +785,22 @@ export default function MultiplayerBoardDetailPage() {
                         x={newNodeWithDropdown.x}
                         y={newNodeWithDropdown.y}
                         currentType="point"
-                        onClose={() => setNewNodeWithDropdown(null)}
-                        onSelect={(type) => {
-                            updateNodeType(newNodeWithDropdown.id, type);
+                        onClose={() => {
                             setNewNodeWithDropdown(null);
+                        }}
+                        onSelect={(type) => {
+                            const nodeId = newNodeWithDropdown.id;
+                            updateNodeType(nodeId, type);
+                            // Update createdAt to trigger auto-focus on the new component
+                            setTimeout(() => {
+                                setNodes((nds) =>
+                                    nds.map((n) =>
+                                        n.id === nodeId
+                                            ? { ...n, selected: true, data: { ...n.data, createdAt: Date.now() } }
+                                            : n
+                                    )
+                                );
+                            }, 50);
                         }}
                     />
                 )}

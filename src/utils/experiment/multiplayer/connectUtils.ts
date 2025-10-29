@@ -10,6 +10,11 @@ export const chooseEdgeType = (
     return "option";
   }
 
+  // All edges involving a comment node use comment edge type
+  if (sourceType === "comment" || targetType === "comment") {
+    return "comment";
+  }
+
   // For point-to-point connections, use the preferred type (support or negation)
   // If no preference is provided, default to negation
   return preferredEdgeType || "negation";

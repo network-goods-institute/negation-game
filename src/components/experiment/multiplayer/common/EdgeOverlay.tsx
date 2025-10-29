@@ -583,7 +583,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     </div>
                   )}
 
-                  {!enableMindchange && (
+                  {!enableMindchange && edgeType !== "comment" && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); })}
@@ -607,7 +607,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     </button>
                   )}
 
-                  {enableMindchange && !editDir && (
+                  {enableMindchange && !editDir && edgeType !== "comment" && (
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); })}
