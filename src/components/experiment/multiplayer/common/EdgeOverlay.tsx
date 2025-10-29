@@ -225,6 +225,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   const prefetchBreakdowns = React.useCallback(async () => {
     if (!graph.getMindchangeBreakdown) return;
+    if (edgeType !== 'negation' && edgeType !== 'objection') return;
     const now = Date.now();
     const fKey = `${edgeId}:forward`;
     const bKey = `${edgeId}:backward`;

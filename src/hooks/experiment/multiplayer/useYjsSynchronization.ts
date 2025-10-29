@@ -199,6 +199,17 @@ export const useYjsSynchronization = ({
             const e = map.get(edgeId);
             if (!e) continue;
             const prevData = (e as any).data || {};
+            const type = String((e as any).type || '');
+            const allow = type === 'negation' || type === 'objection';
+            if (!allow) {
+              if (prevData.mindchange) {
+                const cleaned = { ...prevData } as any;
+                delete (cleaned as any).mindchange;
+                map.set(edgeId, { ...e, data: cleaned } as any);
+                changed = true;
+              }
+              continue;
+            }
             const nextData = {
               ...prevData,
               mindchange: {
@@ -253,6 +264,9 @@ export const useYjsSynchronization = ({
             try {
               setEdges((prev) => prev.map((e) => {
                 if ((e as any).id !== edgeId) return e;
+                const type = String((e as any).type || '');
+                const allow = type === 'negation' || type === 'objection';
+                if (!allow) return e;
                 const prevData = (e as any).data || {};
                 const prevMC = prevData.mindchange || {};
                 const nextUser = {
@@ -316,6 +330,9 @@ export const useYjsSynchronization = ({
               const edgeId = key.slice(`mindchange:user:${currentUserId}:`.length);
               const e = map.get(edgeId);
               if (!e) continue;
+              const type = String((e as any).type || '');
+              const allow = type === 'negation' || type === 'objection';
+              if (!allow) continue;
               const prevData = (e as any).data || {};
               const prevMC = prevData.mindchange || {};
               const nextUser = {
@@ -355,6 +372,9 @@ export const useYjsSynchronization = ({
             for (const { edgeId, payload } of updates) {
               const e = map.get(edgeId);
               if (!e) continue;
+              const type = String((e as any).type || '');
+              const allow = type === 'negation' || type === 'objection';
+              if (!allow) continue;
               const prevData = (e as any).data || {};
               const nextData = {
                 ...prevData,

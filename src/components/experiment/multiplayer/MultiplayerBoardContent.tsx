@@ -31,7 +31,7 @@ import { useMultiplayerTitle } from '@/hooks/experiment/multiplayer/useMultiplay
 import { useKeyboardShortcuts } from '@/hooks/experiment/multiplayer/useKeyboardShortcuts';
 import { useInitialGraph } from '@/hooks/experiment/multiplayer/useInitialGraph';
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
-import { getMindchangeAveragesForEdges, deleteMindchangeForEdge } from '@/actions/experimental/mindchange';
+import { getMindchangeAveragesForEdges } from '@/actions/experimental/mindchange';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 import { useMindchangeActions } from '@/hooks/experiment/multiplayer/useMindchangeActions';
 
@@ -264,16 +264,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       if (prev.type === newType) return;
       updateEdgeType(edgeId, newType);
       if (newType === 'support') {
-        if (resolvedId) {
-          try { await deleteMindchangeForEdge(resolvedId, edgeId); } catch { }
-        }
         try {
           setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e, data: { ...(e.data || {}), mindchange: undefined } } : e));
-          if (ydoc && yMetaMap) {
-            (ydoc as any).transact(() => {
-              (yMetaMap as any).delete?.(`mindchange:${edgeId}`);
-            }, ORIGIN.RUNTIME);
-          }
         } catch { }
       } else if (newType === 'negation') {
         try {
