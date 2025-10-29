@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
+import { useTabIdentifier } from "./useTabIdentifier";
 
 type YProvider = WebsocketProvider | null;
 
@@ -14,6 +15,7 @@ type LockInfo = {
   kind: "edit" | "drag";
   ts: number;
   sessionId?: string;
+  tabId?: string;
 };
 export type LockMap = Map<string, LockInfo>;
 
@@ -39,16 +41,9 @@ export const useMultiplayerEditing = ({
   const localEditingRef = useRef<Set<string>>(new Set());
   const localLockedRef = useRef<Set<string>>(new Set());
   const activeNodeUsageRef = useRef<Map<string, number>>(new Map()); // Track last activity per node
-  const sessionIdRef = useRef<string>("");
   const lockRenewalTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  if (!sessionIdRef.current) {
-    sessionIdRef.current =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `session-${Math.random().toString(36).slice(2)}`;
-  }
-  const sessionId = sessionIdRef.current;
+  const { sessionId, tabId } = useTabIdentifier();
 
   // Mark a node as actively used (for lock renewal purposes)
   const markNodeActive = useCallback((nodeId: string) => {
@@ -67,9 +62,9 @@ export const useMultiplayerEditing = ({
 
     awareness.setLocalState({
       ...prev,
-      user: { id: userId, name: username, color: userColor, sessionId },
+      user: { id: userId, name: username, color: userColor, sessionId, tabId },
     });
-  }, [provider, userId, username, userColor, canWrite, sessionId]);
+  }, [provider, userId, username, userColor, canWrite, sessionId, tabId]);
 
   useEffect(() => {
     if (!provider) return;
@@ -109,6 +104,7 @@ export const useMultiplayerEditing = ({
               if (!lk || !nodeId) return;
               if (now - (lk.ts || 0) >= 9000) return;
               const session = lk.sessionId || u.sessionId;
+              const lockTabId = lk.tabId || u.tabId;
               const uid = session
                 ? `${u.id || u.name}:${session}`
                 : u.id || u.name;
@@ -120,27 +116,31 @@ export const useMultiplayerEditing = ({
                 kind: lk.kind === "drag" ? "drag" : "edit",
                 ts: lk.ts || 0,
                 sessionId: session,
+                tabId: lockTabId,
               };
               const existing = lockRes.get(nodeId);
               if (!existing) {
                 lockRes.set(nodeId, info);
               } else {
-                const existingIsLocal = existing.sessionId === sessionId;
-                const incomingIsLocal = info.sessionId === sessionId;
-                if (
-                  existing.sessionId &&
-                  info.sessionId &&
-                  existing.sessionId === info.sessionId
-                ) {
-                  // same session -> refresh fields
+                const existingIsLocalTab = existing.tabId === tabId;
+                const incomingIsLocalTab = info.tabId === tabId;
+                const existingIsLocalUser = existing.sessionId === sessionId;
+                const incomingIsLocalUser = info.sessionId === sessionId;
+
+                if (existingIsLocalTab && incomingIsLocalTab) {
+                  // same tab -> refresh fields
                   lockRes.set(nodeId, {
                     ...existing,
                     ts: Math.max(existing.ts, info.ts),
                     kind: info.kind || existing.kind,
                   });
-                } else if (existingIsLocal && !incomingIsLocal) {
-                  // prefer remote over local so local sees node as locked
+                } else if (existingIsLocalUser && !incomingIsLocalUser) {
+                  // prefer other users' locks over our own other tabs
                   lockRes.set(nodeId, info);
+                } else if (!existingIsLocalUser && incomingIsLocalUser) {
+                  // keep other users' locks
+                } else if (existingIsLocalTab && !incomingIsLocalTab) {
+                  // prefer our own tab
                 } else {
                   // keep existing
                 }
@@ -149,6 +149,7 @@ export const useMultiplayerEditing = ({
           );
         } else if (u && legacy?.nodeId && now - (legacy?.ts || 0) < 9000) {
           const session = legacy.sessionId || u.sessionId;
+          const lockTabId = legacy.tabId || u.tabId;
           const uid = session ? `${u.id || u.name}:${session}` : u.id || u.name;
           const info: LockInfo = {
             nodeId: legacy.nodeId,
@@ -158,25 +159,29 @@ export const useMultiplayerEditing = ({
             kind: legacy.kind === "drag" ? "drag" : "edit",
             ts: legacy.ts || 0,
             sessionId: session,
+            tabId: lockTabId,
           };
           const existing = lockRes.get(legacy.nodeId);
           if (!existing) {
             lockRes.set(legacy.nodeId, info);
           } else {
-            const existingIsLocal = existing.sessionId === sessionId;
-            const incomingIsLocal = info.sessionId === sessionId;
-            if (
-              existing.sessionId &&
-              info.sessionId &&
-              existing.sessionId === info.sessionId
-            ) {
+            const existingIsLocalTab = existing.tabId === tabId;
+            const incomingIsLocalTab = info.tabId === tabId;
+            const existingIsLocalUser = existing.sessionId === sessionId;
+            const incomingIsLocalUser = info.sessionId === sessionId;
+
+            if (existingIsLocalTab && incomingIsLocalTab) {
               lockRes.set(legacy.nodeId, {
                 ...existing,
                 ts: Math.max(existing.ts, info.ts),
                 kind: info.kind || existing.kind,
               });
-            } else if (existingIsLocal && !incomingIsLocal) {
+            } else if (existingIsLocalUser && !incomingIsLocalUser) {
               lockRes.set(legacy.nodeId, info);
+            } else if (!existingIsLocalUser && incomingIsLocalUser) {
+              // keep other users' locks
+            } else if (existingIsLocalTab && !incomingIsLocalTab) {
+              // prefer our own tab
             } else {
               // keep existing
             }
@@ -202,7 +207,7 @@ export const useMultiplayerEditing = ({
       awareness.off("change", rebuild);
       awareness.off?.("update", rebuild);
     };
-  }, [provider, sessionId]);
+  }, [provider, sessionId, tabId]);
 
   const renewLocks = useCallback(() => {
     if (!provider || !canWrite || !broadcastLocks) return;
@@ -225,7 +230,7 @@ export const useMultiplayerEditing = ({
 
     // Renew only recently used locks
     nodesToRenew.forEach((nodeId) => {
-      const current = nextLocks[nodeId] || { kind: "drag", sessionId };
+      const current = nextLocks[nodeId] || { kind: "drag", sessionId, tabId };
       nextLocks[nodeId] = { ...current, ts: now };
     });
 
@@ -243,7 +248,7 @@ export const useMultiplayerEditing = ({
       ...prev,
       locks: nextLocks,
     });
-  }, [provider, canWrite, sessionId, broadcastLocks]);
+  }, [provider, canWrite, sessionId, tabId, broadcastLocks]);
 
   const startEditing = (nodeId: string) => {
     if (!provider || !canWrite) return;
@@ -255,13 +260,13 @@ export const useMultiplayerEditing = ({
     const prevLocks = (prev as any).locks || {};
     const nextLocks = {
       ...prevLocks,
-      [nodeId]: { kind: "edit", ts: now, sessionId },
+      [nodeId]: { kind: "edit", ts: now, sessionId, tabId },
     };
     localLockedRef.current.add(nodeId);
     markNodeActive(nodeId); // Mark node as actively used
     awareness.setLocalState({
       ...prev,
-      editing: { nodeId, ts: now, sessionId },
+      editing: { nodeId, ts: now, sessionId, tabId },
       locks: nextLocks,
     });
 
@@ -327,13 +332,20 @@ export const useMultiplayerEditing = ({
   const lockNode = (nodeId: string, kind: "edit" | "drag") => {
     if (!provider || !canWrite || !broadcastLocks) return;
 
-    // Check if node is already locked by anyone in the current awareness state
+    // Check if node is already locked by someone else (not our tabs) in the current awareness state
     const allStates = Array.from(provider.awareness.getStates().values());
     for (const state of allStates) {
       const locks = (state as any).locks || {};
+      const stateUser = (state as any).user;
       if (locks[nodeId]) {
-        // Node is already locked by someone, don't create another lock
-        return;
+        const lockTabId = locks[nodeId].tabId || stateUser?.tabId;
+        const lockSessionId = locks[nodeId].sessionId || stateUser?.sessionId;
+
+        // Allow if it's from our own session (different tab of same user)
+        if (lockSessionId !== sessionId) {
+          // Node is locked by a different user, don't create another lock
+          return;
+        }
       }
     }
 
@@ -342,7 +354,7 @@ export const useMultiplayerEditing = ({
     const prevLocks = (prev as any).locks || {};
     const nextLocks = {
       ...prevLocks,
-      [nodeId]: { kind, ts: Date.now(), sessionId },
+      [nodeId]: { kind, ts: Date.now(), sessionId, tabId },
     };
     localLockedRef.current.add(nodeId);
     markNodeActive(nodeId); // Mark node as actively used
@@ -370,6 +382,14 @@ export const useMultiplayerEditing = ({
   const isLockedForMe = (nodeId: string) => {
     const info = locks.get(nodeId);
     if (!info) return false;
+
+    // Not locked if it's our own tab
+    if (info.tabId === tabId) return false;
+
+    // Not locked if it's from our own session (another tab of same user)
+    if (info.sessionId === sessionId) return false;
+
+    // Locked if it's from a different user
     if (info.sessionId) {
       return info.sessionId !== sessionId;
     }
@@ -379,7 +399,13 @@ export const useMultiplayerEditing = ({
   const getLockOwner = (nodeId: string) => {
     const info = locks.get(nodeId);
     if (!info) return null;
-    if (info.sessionId && info.sessionId === sessionId) return null;
+
+    // Not locked if it's our own tab
+    if (info.tabId === tabId) return null;
+
+    // Not locked if it's from our own session (another tab of same user)
+    if (info.sessionId === sessionId) return null;
+
     if (!info.sessionId && info.byId === userId) return null;
     return { name: info.name, color: info.color, kind: info.kind } as const;
   };
