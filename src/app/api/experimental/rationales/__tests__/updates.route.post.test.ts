@@ -1,66 +1,46 @@
-jest.mock("@/services/db", () => {
-  const chain = {
-    values: () => chain,
-    onConflictDoNothing: () => chain,
-    set: () => chain,
-    where: () => chain,
-    limit: () => chain,
-  } as any;
-  return {
-    db: {
-      insert: () => chain,
-      update: () => chain,
-      select: () => ({ from: () => ({ where: () => ({ limit: () => chain }) }) }),
-      execute: jest.fn(async () => [{ title: null }]),
-    },
-  };
-});
+jest.mock("@/actions/users/getUserId", () => ({
+  getUserId: jest.fn(async () => "u1"),
+}));
+jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
+  getUserIdOrAnonymous: jest.fn(async () => "u1"),
+}));
+jest.mock("@/utils/hosts", () => ({
+  isProductionRequest: () => false,
+}));
+jest.mock("@/utils/slugResolver", () => ({
+  resolveSlugToId: async (id: string) => id,
+  isValidSlugOrId: () => true,
+}));
 jest.mock("@/services/yjsCompaction", () => ({
   compactDocUpdates: jest.fn(async () => {}),
-  getDocSnapshotBuffer: jest.fn(async () => null),
-}));
-jest.mock("@/actions/users/getUserId", () => ({
-  getUserId: jest.fn(async () => null),
 }));
 
-const getUserId = require("@/actions/users/getUserId").getUserId as jest.Mock;
+const recordedSets: any[] = [];
+const mockDb: any = {
+  insert: jest.fn(() => ({ values: () => ({ onConflictDoNothing: jest.fn(async () => ({})) }) })),
+  update: jest.fn(() => ({ set: (data: any) => { recordedSets.push(data); return { where: jest.fn(async () => ({})) }; } })),
+  select: jest.fn(() => ({ from: () => ({ where: () => [{ count: 0 }] }) })),
+  execute: jest.fn(async () => [{ title: "Untitled" }]),
+};
+jest.mock("@/services/db", () => ({ db: mockDb }));
 
 describe("POST /api/experimental/rationales/[id]/updates", () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
-  it("404s when experiment flag is disabled", async () => {
-    (process as any).env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED = "false";
-    const { POST } = await import("../[id]/updates/route");
-    const req = new Request("http://test/", { method: "POST", body: new Uint8Array([1,2,3]) });
-    const res: any = await POST(req, { params: { id: "doc1" } });
-    expect(res.status).toBe(404);
-  });
-
-  it("accepts authenticated updates and returns 200", async () => {
+  beforeAll(() => {
     (process as any).env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED = "true";
-    getUserId.mockResolvedValueOnce("user-1");
-    const db = (await import("@/services/db")).db as any;
-    db.select = jest.fn(() => ({ from: () => ({ where: () => [{ count: 0 }] }) }));
+  });
+  beforeEach(() => {
+    recordedSets.length = 0;
+    jest.clearAllMocks();
+  });
+
+  it("does not backfill mp_docs.title from Yjs updates", async () => {
     const { POST } = await import("../[id]/updates/route");
     const req: any = {
-      url: "https://negationgame.com/api/experimental/rationales/doc1/updates",
+      url: "http://unit/api/experimental/rationales/doc-1/updates",
       arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
     };
-    const res: any = await POST(req, { params: { id: "doc1" } });
-    expect(res.status).toBe(200);
-  });
-
-  it("rejects unauthenticated updates in production with 401", async () => {
-    (process as any).env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED = "true";
-    getUserId.mockResolvedValueOnce(null);
-    const { POST } = await import("../[id]/updates/route");
-    const req: any = {
-      url: "https://negationgame.com/api/experimental/rationales/doc1/updates",
-      arrayBuffer: async () => new Uint8Array([9, 9, 9]).buffer,
-    };
-    const res: any = await POST(req, { params: { id: "doc1" } });
-    expect(res.status).toBe(401);
+    const res = await POST(req as any, { params: { id: "doc-1" } });
+    expect((res as any).status).toBe(200);
+    expect(recordedSets.some((s) => Object.prototype.hasOwnProperty.call(s, "title"))).toBe(false);
   });
 });

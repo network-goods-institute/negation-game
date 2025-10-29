@@ -32,6 +32,7 @@ import { useKeyboardShortcuts } from '@/hooks/experiment/multiplayer/useKeyboard
 import { useInitialGraph } from '@/hooks/experiment/multiplayer/useInitialGraph';
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
 import { getMindchangeAveragesForEdges } from '@/actions/experimental/mindchange';
+import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 import { useMindchangeActions } from '@/hooks/experiment/multiplayer/useMindchangeActions';
 
@@ -185,6 +186,31 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     if (!resolvedId || !authenticated) return;
     recordOpen(resolvedId).catch(() => { });
   }, [resolvedId, authenticated]);
+
+  useEffect(() => {
+    if (!yMetaMap) return;
+    const handleMetaChange = () => {
+      try {
+        const slug = (yMetaMap as any).get?.('slug') as string | null;
+        if (!slug) return;
+        const host = typeof window !== 'undefined' ? window.location.host : '';
+        const fallbackId = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
+        const docIdForUrl = resolvedId || fallbackId;
+        if (!docIdForUrl) return;
+        const path = buildRationaleDetailPath(docIdForUrl, host, slug);
+        if (path && typeof window !== 'undefined' && window.location.pathname !== path) {
+          if (window.history && typeof window.history.replaceState === 'function') {
+            window.history.replaceState(null, '', path);
+          }
+        }
+      } catch { }
+    };
+    (yMetaMap as any).observe?.(handleMetaChange as any);
+    try { handleMetaChange(); } catch { }
+    return () => {
+      try { (yMetaMap as any).unobserve?.(handleMetaChange as any); } catch { }
+    };
+  }, [yMetaMap, resolvedId, routeParams?.id]);
 
   const {
     dbTitle,
@@ -708,7 +734,6 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             onClose={() => setNewNodeWithDropdown(null)}
             onSelect={(type) => {
               updateNodeType(newNodeWithDropdown.id, type);
-              setNewNodeWithDropdown(null);
             }}
           />
         )}

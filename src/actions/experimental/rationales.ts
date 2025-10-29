@@ -5,7 +5,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { slugify } from "@/utils/slugify";
 import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
@@ -376,4 +376,80 @@ export async function deleteRationale(id: string) {
     .where(eq(mpDocUpdatesTable.docId, canonicalId));
   await db.delete(mpDocsTable).where(eq(mpDocsTable.id, canonicalId));
   return { ok: true } as const;
+}
+
+export async function duplicateRationale(
+  sourceId: string,
+  params?: { title?: string }
+) {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+  if (!isValidSlugOrId(sourceId)) throw new Error("Invalid doc id or slug");
+
+  const canonicalSourceId = await resolveSlugToId(sourceId);
+
+  const canRead = await db.execute(sql`
+    SELECT 1
+    FROM mp_docs d
+    LEFT JOIN mp_doc_access a ON a.doc_id = d.id AND a.user_id = ${userId}
+    WHERE d.id = ${canonicalSourceId}
+      AND (d.owner_id = ${userId} OR a.user_id = ${userId})
+    LIMIT 1
+  `);
+  if ((canRead as any[]).length === 0) throw new Error("Forbidden");
+
+  const metaRows = await db
+    .select({ title: mpDocsTable.title, nodeTitle: mpDocsTable.nodeTitle })
+    .from(mpDocsTable)
+    .where(eq(mpDocsTable.id, canonicalSourceId))
+    .limit(1);
+  if (metaRows.length === 0) throw new Error("Document not found");
+  const originalTitle = metaRows[0].title || DEFAULT_TITLE;
+  const nodeTitle = metaRows[0].nodeTitle || null;
+
+  const updates = await db
+    .select({ updateBin: mpDocUpdatesTable.updateBin, userId: mpDocUpdatesTable.userId, createdAt: mpDocUpdatesTable.createdAt })
+    .from(mpDocUpdatesTable)
+    .where(eq(mpDocUpdatesTable.docId, canonicalSourceId))
+    .orderBy(asc(mpDocUpdatesTable.createdAt));
+
+  const newId = `m-${nanoid()}`;
+  const newTitleBase = (params?.title || `${originalTitle} (Copy)`).trim() || `${DEFAULT_TITLE} (Copy)`;
+  let createdSlug: string | null = null;
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(mpDocsTable)
+      .values({ id: newId, ownerId: userId, title: newTitleBase, nodeTitle: nodeTitle || undefined })
+      .onConflictDoNothing();
+
+    await tx
+      .insert(mpDocAccessTable)
+      .values({ docId: newId, userId })
+      .onConflictDoNothing();
+
+    try {
+      const slug = slugify(newTitleBase);
+      await tx.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, newId));
+      createdSlug = slug;
+    } catch (err) {
+      console.error(
+        "[Duplicate Rationale] Failed to generate slug for doc %s:",
+        newId,
+        err
+      );
+    }
+
+    if (updates.length > 0) {
+      for (const u of updates) {
+        await tx.insert(mpDocUpdatesTable).values({
+          docId: newId,
+          updateBin: u.updateBin as any,
+          userId: userId,
+        });
+      }
+    }
+  });
+
+  return { id: newId, title: newTitleBase, slug: createdSlug } as const;
 }

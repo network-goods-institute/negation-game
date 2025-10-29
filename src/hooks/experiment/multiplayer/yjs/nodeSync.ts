@@ -47,12 +47,24 @@ export const createUpdateNodesFromY = (
     const wasEmpty = knownNodeIds.size === 0;
 
     const nodes = Array.from(yNodes.values());
-    const migrations: Node[] = [];
+    const migrations: Array<{ migrated: Node; seedText: string | null }> = [];
 
     const normalised = nodes.map((node) => {
-      if (node.type === "question") {
-        const migrated: Node = { ...node, type: "statement" };
-        migrations.push(migrated);
+      if (node.type === "question" || node.type === "title") {
+        const data = (node as any)?.data ?? {};
+        const legacyStatement = typeof data.statement === 'string' ? String(data.statement) : '';
+        const legacyContent = typeof data.content === 'string' ? String(data.content) : '';
+        const textForStatement = (legacyStatement || legacyContent || '').trim();
+
+        const migrated: Node = {
+          ...node,
+          type: "statement",
+          data: {
+            ...data,
+            statement: textForStatement || legacyStatement || data.statement,
+          },
+        } as Node;
+        migrations.push({ migrated, seedText: textForStatement || null });
         return migrated;
       }
       return node;
@@ -63,10 +75,27 @@ export const createUpdateNodesFromY = (
         const doc = yNodes.doc;
         if (doc) {
           doc.transact(() => {
-            migrations.forEach((node) => yNodes.set(node.id, node));
+            migrations.forEach(({ migrated, seedText }) => {
+              yNodes.set(migrated.id, migrated);
+              const yTextMap = yTextMapRef.current;
+              if (yTextMap && typeof (yTextMap as any).get === 'function' && seedText) {
+                const existing = yTextMap.get(migrated.id);
+                if (existing instanceof (require('yjs') as typeof import('yjs')).Text) {
+                  const current = existing.toString();
+                  if (!current) {
+                    existing.insert(0, seedText);
+                  }
+                } else {
+                  const Y = require('yjs') as typeof import('yjs');
+                  const t = new Y.Text();
+                  t.insert(0, seedText);
+                  yTextMap.set(migrated.id, t);
+                }
+              }
+            });
           }, localOriginRef?.current ?? "migration:nodes");
         } else {
-          migrations.forEach((node) => yNodes.set(node.id, node));
+          migrations.forEach(({ migrated }) => yNodes.set(migrated.id, migrated));
         }
       } catch {}
     }

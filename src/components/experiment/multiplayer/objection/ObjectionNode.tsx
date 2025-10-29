@@ -107,7 +107,11 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     const pointLike = useStore((s: any) => {
         const edges: any[] = s.edges || [];
-        const touching = edges.filter((edge: any) => (edge.source === id || edge.target === id));
+        const touching = edges.filter((edge: any) => {
+            const touchesNode = edge.source === id || edge.target === id;
+            const isCommentEdge = (edge.type || '') === 'comment';
+            return touchesNode && !isCommentEdge;
+        });
         const isExactlyOneObjection = touching.length === 1 && (touching[0]?.type || '') === 'objection';
         return !isExactlyOneObjection;
     });
@@ -303,8 +307,8 @@ items-center justify-center pointer-events-none select-none">
                         <FavorSelector
                             value={favor}
                             onSelect={(level) => updateNodeFavor?.(id, level)}
-                            activeClassName={pointLike ? "text-gray-600" : "text-amber-600"}
-                            inactiveClassName={pointLike ? "text-gray-300" : "text-stone-300"}
+                            activeClassName="text-yellow-500"
+                            inactiveClassName="text-stone-300"
                         />
                     </div>
                 )}

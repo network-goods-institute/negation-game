@@ -26,13 +26,13 @@ type DirectionZone = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 const getNodeText = (n: any): string => {
   const t = n?.type;
   const d = n?.data || {};
-  if (t === 'point' || t === 'objection' || t === 'title') return String(d?.content || '');
+  if (t === 'point' || t === 'objection') return String(d?.content || '');
   if (t === 'statement') return String(d?.statement || '');
   return '';
 };
 
 const previewStyleByType = (t?: string) => {
-  if (t === 'statement' || t === 'title') return 'bg-blue-100/90 border-blue-300/60 text-blue-800';
+  if (t === 'statement') return 'bg-blue-100/90 border-blue-300/60 text-blue-800';
   if (t === 'objection') return 'bg-amber-100/90 border-amber-300/60 text-amber-800';
   return 'bg-gray-100/90 border-gray-300/60 text-gray-800';
 };

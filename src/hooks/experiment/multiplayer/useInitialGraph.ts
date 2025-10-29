@@ -23,9 +23,9 @@ export const useInitialGraph = () => {
       nodes: [
         {
           id: questionId,
-          type: "title",
+          type: "statement",
           position: { x: 250, y: 120 },
-          data: { content: requestedTitle || "Question?" },
+          data: { statement: requestedTitle || "Question?" },
         },
         {
           id: optionId1,

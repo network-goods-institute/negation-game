@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { Roboto_Slab } from 'next/font/google';
-import { listOwnedRationales, listVisitedRationales, deleteRationale, renameRationale, createRationale, recordOpen } from "@/actions/experimental/rationales";
+import { listOwnedRationales, listVisitedRationales, deleteRationale, renameRationale, createRationale, recordOpen, duplicateRationale } from "@/actions/experimental/rationales";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,6 +86,7 @@ export default function MultiplayerRationaleIndexPage() {
 
   const [creating, setCreating] = useState(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renamingDraft, setRenamingDraft] = useState<string>("");
   const [renameLoading, setRenameLoading] = useState(false);
@@ -130,6 +131,24 @@ export default function MultiplayerRationaleIndexPage() {
   const handleRename = async (docId: string, currentTitle: string | null) => {
     setRenamingDraft(currentTitle || '');
     setRenamingId(docId);
+  };
+
+  const handleDuplicate = async (docId: string, currentTitle: string | null) => {
+    if (duplicatingId) return;
+    setDuplicatingId(docId);
+    try {
+      const nextTitle = `${(currentTitle || 'Untitled').trim() || 'Untitled'} (Copy)`;
+      const res = await duplicateRationale(docId, { title: nextTitle });
+      const host = typeof window !== 'undefined' ? window.location.host : '';
+      toast.success('Board duplicated');
+      window.location.href = buildRationaleDetailPath(res.id, host, res.slug || undefined);
+    } catch (e: any) {
+      const msg = (e?.message || '').toLowerCase();
+      if (msg.includes('unauthorized')) { toast.error('Session expired. Please log in again.'); try { (login as any)?.(); } catch { } }
+      else if (msg.includes('forbidden')) toast.error('You do not have access to duplicate this board');
+      else toast.error('Failed to duplicate');
+      setDuplicatingId(null);
+    }
   };
 
   const handleRenameSubmit = async () => {
@@ -305,7 +324,7 @@ export default function MultiplayerRationaleIndexPage() {
                       return (
                         <Card
                           key={d.id}
-                          className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${openingId === d.id ? 'opacity-60 pointer-events-none' : ''}`}
+                          className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${(openingId === d.id || duplicatingId === d.id) ? 'opacity-60 pointer-events-none' : ''}`}
                           onClick={async () => {
                             if (openingId) return;
                             setOpeningId(d.id);
@@ -321,7 +340,7 @@ export default function MultiplayerRationaleIndexPage() {
                           }}
                           role="button"
                         >
-                          {openingId === d.id && (
+                          {(openingId === d.id || duplicatingId === d.id) && (
                             <div className="absolute top-3 right-3 h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
                           )}
                           <div className="flex items-start justify-between gap-2">
@@ -353,6 +372,14 @@ export default function MultiplayerRationaleIndexPage() {
                                   }}
                                 >
                                   {isCopyingUrl ? "Copied!" : "Copy Link"}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDuplicate(d.id, title);
+                                  }}
+                                >
+                                  Duplicate
                                 </DropdownMenuItem>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -426,7 +453,7 @@ export default function MultiplayerRationaleIndexPage() {
                           return (
                             <Card
                               key={d.id}
-                              className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${openingId === d.id ? 'opacity-60 pointer-events-none' : ''}`}
+                              className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${(openingId === d.id || duplicatingId === d.id) ? 'opacity-60 pointer-events-none' : ''}`}
                               onClick={async () => {
                                 if (openingId) return;
                                 setOpeningId(d.id);
@@ -442,7 +469,7 @@ export default function MultiplayerRationaleIndexPage() {
                               }}
                               role="button"
                             >
-                              {openingId === d.id && (
+                              {(openingId === d.id || duplicatingId === d.id) && (
                                 <div className="absolute top-3 right-3 h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
                               )}
                               <div className="flex items-start justify-between gap-2">
@@ -474,6 +501,14 @@ export default function MultiplayerRationaleIndexPage() {
                                       }}
                                     >
                                       {isCopyingUrl ? "Copied!" : "Copy Link"}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDuplicate(d.id, title);
+                                      }}
+                                    >
+                                      Duplicate
                                     </DropdownMenuItem>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
