@@ -141,7 +141,15 @@ export default function MultiplayerBoardDetailPage() {
                             const canonical = buildRationaleDetailPath(data.id, host, data.slug || undefined);
                             const current = typeof window !== 'undefined' ? window.location.pathname : '';
                             if (canonical && current && canonical !== current) {
-                                router.replace(canonical);
+                                try {
+                                    if (typeof window !== 'undefined' && window.history && typeof window.history.replaceState === 'function') {
+                                        window.history.replaceState(null, '', canonical);
+                                    } else {
+                                        router.replace(canonical);
+                                    }
+                                } catch {
+                                    router.replace(canonical);
+                                }
                             }
                         } catch { }
                     } else {
@@ -238,6 +246,54 @@ export default function MultiplayerBoardDetailPage() {
 
     const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
 
+    const handleUrlUpdate = useCallback((id: string, slug: string) => {
+        try {
+            const host = typeof window !== 'undefined' ? window.location.host : '';
+            const newPath = buildRationaleDetailPath(id, host, slug);
+            if (newPath && typeof window !== 'undefined' && window.location.pathname !== newPath) {
+                if (window.history && typeof window.history.replaceState === 'function') {
+                    window.history.replaceState(null, '', newPath);
+                } else {
+                    router.replace(newPath);
+                }
+            }
+            try {
+                if (yMetaMap && ydoc && slug) {
+                    ydoc.transact(() => {
+                        yMetaMap.set('slug', slug);
+                    }, localOriginRef.current);
+                }
+            } catch {}
+        } catch (err) {
+            console.error('[URL Update] Failed to update URL:', err);
+        }
+    }, [router, yMetaMap, ydoc]);
+
+    useEffect(() => {
+        if (!yMetaMap) return;
+        const handleMetaChange = () => {
+            try {
+                const s = yMetaMap.get('slug') as string | null;
+                if (!s) return;
+                const host = typeof window !== 'undefined' ? window.location.host : '';
+                const fallbackId = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
+                const docIdForUrl = resolvedId || fallbackId;
+                if (!docIdForUrl) return;
+                const path = buildRationaleDetailPath(docIdForUrl, host, s);
+                if (path && typeof window !== 'undefined' && window.location.pathname !== path) {
+                    if (window.history && typeof window.history.replaceState === 'function') {
+                        window.history.replaceState(null, '', path);
+                    } else {
+                        router.replace(path);
+                    }
+                }
+            } catch {}
+        };
+        yMetaMap.observe(handleMetaChange as any);
+        return () => {
+            try { yMetaMap.unobserve(handleMetaChange as any); } catch {}
+        };
+    }, [yMetaMap, resolvedId, routeParams?.id, router]);
 
     const { canWrite } = useWriteAccess(provider, userId);
     const canEdit = Boolean(canWrite && isConnected);
@@ -552,6 +608,7 @@ export default function MultiplayerBoardDetailPage() {
                 onTitleCountdownStop={handleTitleCountdownStop}
                 onTitleSavingStart={handleTitleSavingStart}
                 onTitleSavingStop={handleTitleSavingStop}
+                onUrlUpdate={handleUrlUpdate}
                 titleEditingUser={titleEditingUser}
                 onResyncNow={resyncNow}
             />

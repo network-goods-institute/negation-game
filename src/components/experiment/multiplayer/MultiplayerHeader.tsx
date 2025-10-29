@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
 import { buildRationaleIndexPath } from '@/utils/hosts/syncPaths';
+import { useSafeJson } from '@/hooks/network/useSafeJson';
 
 type YProvider = WebsocketProvider | null;
 
@@ -28,6 +29,7 @@ interface MultiplayerHeaderProps {
   onTitleCountdownStop?: () => void;
   onTitleSavingStart?: () => void;
   onTitleSavingStop?: () => void;
+  onUrlUpdate?: (id: string, slug: string) => void;
   titleEditingUser?: { name: string; color: string } | null;
   onResyncNow?: () => void;
 }
@@ -54,9 +56,11 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   onTitleCountdownStop,
   onTitleSavingStart,
   onTitleSavingStop,
+  onUrlUpdate,
   titleEditingUser,
   onResyncNow,
 }) => {
+  const { safeJson } = useSafeJson();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [localTitle, setLocalTitle] = useState(title || 'Untitled');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -109,7 +113,12 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
               });
 
               if (response.ok) {
+                const data: any = await safeJson(response);
                 onTitleChange(latestTitleRef.current.trim());
+                // Update URL if slug changed
+                if (data?.slug && data?.id && onUrlUpdate) {
+                  onUrlUpdate(data.id, data.slug);
+                }
               } else {
                 console.error('Failed to save title');
               }
@@ -125,7 +134,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
     };
 
     runCountdown(5);
-  }, [documentId, onTitleChange, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop]);
+  }, [documentId, onTitleChange, onTitleCountdownStart, onTitleCountdownStop, onTitleSavingStart, onTitleSavingStop, onUrlUpdate, safeJson]);
 
   const handleTitleChange = useCallback((newTitle: string) => {
     setLocalTitle(newTitle);
