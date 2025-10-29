@@ -205,9 +205,9 @@ describe('edge type switch preserves mindchange meta on negation->support', () =
       expect(updateEdgeTypeSpy).toHaveBeenCalledWith('e1', 'support');
     });
 
-    expect(yMeta.delete).not.toHaveBeenCalled();
+    const del = (yMeta as any)["delete"];
+    expect(del).not.toHaveBeenCalled();
     expect(yMeta.store.get('mindchange:e1')).toBeTruthy();
     expect(setEdgesMock).toHaveBeenCalled();
   });
 });
-

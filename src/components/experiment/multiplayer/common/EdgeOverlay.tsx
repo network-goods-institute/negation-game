@@ -54,11 +54,12 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   starColor = 'text-stone-600',
   mindchange,
 }) => {
-  const [overlayOpen, setOverlayOpen] = React.useState<boolean>(Boolean(selected));
+  const graph = useGraphActions();
+  const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
+  const [overlayOpen, setOverlayOpen] = React.useState<boolean>(Boolean(selected || overlayActiveId === edgeId));
   const [anchorHover, setAnchorHover] = React.useState<boolean>(false);
   const [isNearOverlay, setIsNearOverlay] = React.useState<boolean>(false);
   const { grabMode = false, connectMode = false } = useGraphActions();
-  const graph = useGraphActions();
 
   const [tx, ty, zoom] = useStore((s: any) => s.transform);
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
@@ -109,15 +110,22 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
       if (showHUD) (graph as any)?.setOverlayActiveEdge?.(edgeId);
       else if ((graph as any)?.overlayActiveEdgeId === edgeId) (graph as any)?.setOverlayActiveEdge?.(null);
     } catch { }
-    return () => {
-      try {
-        if ((graph as any)?.overlayActiveEdgeId === edgeId) (graph as any)?.setOverlayActiveEdge?.(null);
-      } catch { }
-    };
   }, [showHUD, edgeId, graph]);
 
 
   const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (!(window as any).__ngiMouseRecorderInstalled) {
+        const handler = (e: MouseEvent) => { (window as any).__ngiLastMousePos = { x: e.clientX, y: e.clientY }; };
+        window.addEventListener('mousemove', handler, { passive: true });
+        (window as any).__ngiMouseRecorderInstalled = true;
+        (window as any).__ngiMouseRecorder = handler;
+      }
+    } catch { }
+  }, []);
 
   React.useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -140,6 +148,26 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     return () => window.removeEventListener('mousemove', onMove as any);
   }, [overlayOpen]);
 
+  const tryOpenFromPointerProximity = React.useCallback(() => {
+    if (typeof document === 'undefined') return;
+    try {
+      const last = (window as any).__ngiLastMousePos as { x: number; y: number } | undefined;
+      if (!last) return;
+      const labelEl = document.querySelector(`[data-anchor-edge-id="${edgeId}"]`) as HTMLElement | null;
+      const nodeEl = document.querySelector(`[data-id="anchor:${edgeId}"]`) as HTMLElement | null;
+      const el = labelEl || nodeEl;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const expand = 75;
+      const inside = last.x >= rect.left - expand && last.x <= rect.right + expand && last.y >= rect.top - expand && last.y <= rect.bottom + expand;
+      if (inside) {
+        setAnchorHover(true);
+        setIsNearOverlay(true);
+        setOverlayOpen(true);
+      }
+    } catch { }
+  }, [edgeId]);
+
   React.useLayoutEffect(() => {
     if (!showHUD || typeof document === 'undefined') return;
     try {
@@ -156,6 +184,11 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
       }
     } catch { }
   }, [showHUD, edgeId, tx, ty, zoom]);
+
+  React.useLayoutEffect(() => {
+    // On remount or transform change, compute proximity immediately even if overlay closed
+    tryOpenFromPointerProximity();
+  }, [edgeId, tx, ty, zoom, tryOpenFromPointerProximity]);
 
   React.useEffect(() => {
     if (!selected && !isHovered) {
@@ -239,7 +272,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
       if (!bFresh) breakdownCache.set(bKey, { ts, data: res.backward });
     } catch { }
     setCacheTick((t) => t + 1);
-  }, [graph, edgeId]);
+  }, [graph, edgeId, edgeType]);
 
   const [editDir, setEditDir] = React.useState<null | 'forward' | 'backward'>(null);
   const [value, setValue] = React.useState<number>(Math.abs(rawForwardAvg));
