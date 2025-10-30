@@ -196,8 +196,8 @@ describe('useGraphKeyboardHandlers', () => {
       expect(stopPropagationSpy).toHaveBeenCalled();
     });
 
-    it('should not copy non-point/objection nodes', () => {
-      const mockNodes = [{ id: 'group-1', selected: true, type: 'group' }];
+    it('should not copy edge_anchor nodes', () => {
+      const mockNodes = [{ id: 'anchor-1', selected: true, type: 'edge_anchor' }];
       mockRf.getNodes.mockReturnValue(mockNodes);
 
       const ref = { current: null };
@@ -213,6 +213,33 @@ describe('useGraphKeyboardHandlers', () => {
 
       expect(ref.current).toBe(null);
       expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('should copy group nodes', () => {
+      const mockNodes = [{ id: 'group-1', selected: true, type: 'group' }];
+      mockRf.getNodes.mockReturnValue(mockNodes);
+
+      const ref = { current: null };
+      renderHook(() =>
+        useGraphKeyboardHandlers({ graph: mockGraph, copiedNodeIdRef: ref })
+      );
+
+      const copyEvent = new KeyboardEvent('keydown', {
+        key: 'c',
+        metaKey: true,
+      });
+      const preventDefaultSpy = jest.fn();
+      const stopPropagationSpy = jest.fn();
+      Object.defineProperty(copyEvent, 'preventDefault', {
+        value: preventDefaultSpy,
+      });
+      Object.defineProperty(copyEvent, 'stopPropagation', {
+        value: stopPropagationSpy,
+      });
+      window.dispatchEvent(copyEvent);
+
+      expect(ref.current).toBe('group-1');
+      expect(toast.success).toHaveBeenCalledWith('Copied node');
     });
 
     it('should not copy when multiple nodes are selected', () => {
