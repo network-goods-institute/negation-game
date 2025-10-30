@@ -115,7 +115,7 @@ export const getAbsolutePosition = (node: any, allNodes: any[]) => {
 };
 
 export const getDefaultContentForType = (
-  type: "point" | "statement" | "title" | "objection"
+  type: "point" | "statement" | "title" | "objection" | "comment"
 ): string => {
   switch (type) {
     case "point":
@@ -126,6 +126,8 @@ export const getDefaultContentForType = (
       return "New Title";
     case "objection":
       return "New mitigation";
+    case "comment":
+      return "New comment";
     default:
       return "New point";
   }

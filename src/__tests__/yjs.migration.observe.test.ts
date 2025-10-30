@@ -41,6 +41,31 @@ class YMapMock<V> implements Iterable<[string, V]> {
 }
 
 describe("yjs observer migrations", () => {
+  it("migrates title node to statement and writes back in a transaction", () => {
+    const yNodes = new YMapMock<any>();
+    yNodes.set("t1", { id: "t1", type: "title", position: { x: 0, y: 0 }, data: { content: "X" } });
+    yNodes.set("p1", { id: "p1", type: "point", position: { x: 0, y: 0 }, data: {} });
+
+    const yTextMapRef = { current: null as any };
+    const lastNodesSigRef = { current: "" };
+    let latestNodes: any[] = [];
+    const setNodes = (updater: any) => {
+      latestNodes = updater([]);
+    };
+
+    const handler = createUpdateNodesFromY(
+      yNodes as any,
+      yTextMapRef as any,
+      lastNodesSigRef as any,
+      setNodes as any
+    );
+    handler(undefined as any, {} as any);
+
+    const migrated = yNodes.get("t1");
+    expect(migrated.type).toBe("statement");
+    expect(latestNodes.find((n) => n.id === "t1")?.type).toBe("statement");
+    expect(yNodes.origins.length).toBeGreaterThan(0);
+  });
   it("migrates question node to statement and writes back in a transaction", () => {
     const yNodes = new YMapMock<any>();
     yNodes.set("n1", { id: "n1", type: "question", position: { x: 0, y: 0 }, data: {} });

@@ -45,8 +45,9 @@ type GraphActions = {
     undo?: () => void;
     redo?: () => void;
     stopCapturing?: () => void;
-    addNodeAtPosition?: (type: 'point' | 'statement' | 'title' | 'objection', x: number, y: number) => string;
-    updateNodeType?: (nodeId: string, newType: 'point' | 'statement' | 'title' | 'objection') => void;
+    addNodeAtPosition?: (type: 'point' | 'statement' | 'objection' | 'comment', x: number, y: number) => string;
+    updateNodeType?: (nodeId: string, newType: 'point' | 'statement' | 'objection' | 'comment') => void;
+    openTypeSelector?: (nodeId: string) => void;
     deleteInversePair?: (inverseNodeId: string) => void;
     duplicateNodeWithConnections?: (nodeId: string, offset?: { x?: number; y?: number }) => string | null;
     setPairNodeHeight?: (groupId: string, nodeId: string, height: number) => void;
@@ -129,6 +130,7 @@ export const useGraphActions = () => {
             grabMode: false,
             clearNodeSelection: () => { },
             blurNodesImmediately: () => { },
+            openTypeSelector: () => { },
             beginMindchangeSelection: () => { },
             beginMindchangeOnEdge: () => { },
             cancelMindchangeSelection: () => { },
@@ -137,4 +139,3 @@ export const useGraphActions = () => {
     }
     return ctx;
 };
-

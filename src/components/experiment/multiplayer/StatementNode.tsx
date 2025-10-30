@@ -47,6 +47,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     stopEditingNode,
     locked,
     hidden,
+    pillDelay: 200,
+    autoFocus: {
+      createdAt: (data as any)?.createdAt,
+      isQuestionNode: true,
+    },
   });
 
   const {

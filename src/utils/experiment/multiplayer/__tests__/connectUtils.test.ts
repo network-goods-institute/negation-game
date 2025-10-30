@@ -4,10 +4,6 @@ import {
 } from "@/utils/experiment/multiplayer/connectUtils";
 
 describe("connect utils", () => {
-  it("chooses option when either node is title", () => {
-    expect(chooseEdgeType("title", "point")).toBe("option");
-    expect(chooseEdgeType("point", "title")).toBe("option");
-  });
 
   it("chooses option for point-to-statement connections", () => {
     expect(chooseEdgeType("point", "statement")).toBe("option");
@@ -27,8 +23,7 @@ describe("connect utils", () => {
     expect(chooseEdgeType("point", "point", "negation")).toBe("negation");
   });
 
-  it("ignores preferredEdgeType when target is title or statement", () => {
-    expect(chooseEdgeType("point", "title", "support")).toBe("option");
+  it("ignores preferredEdgeType when target is statement", () => {
     expect(chooseEdgeType("point", "statement", "support")).toBe("option");
   });
 

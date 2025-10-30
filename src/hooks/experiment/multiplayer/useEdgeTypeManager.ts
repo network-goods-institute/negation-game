@@ -40,7 +40,7 @@ interface UseEdgeTypeManagerProps {
 const recognizedPlaceholderStrings = new Set(['new option', 'new support', 'new negation', 'new point']);
 
 const getDefaultPointContent = (edgeTypeValue: string, parentType?: string) => {
-  if (parentType === 'statement' || parentType === 'title') {
+  if (parentType === 'statement') {
     return 'New Option';
   }
   if (edgeTypeValue === 'support') {

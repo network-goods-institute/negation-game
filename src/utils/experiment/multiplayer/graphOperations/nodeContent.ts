@@ -140,6 +140,11 @@ export const createUpdateNodePosition = (
   };
 };
 
+const isDefaultMarker = (content: string): boolean => {
+  const defaultMarkers = ["New point", "New Question", "New Title", "New mitigation", "New comment"];
+  return defaultMarkers.includes(content);
+};
+
 export const createUpdateNodeType = (
   yNodesMap: any,
   yTextMap: any,
@@ -150,7 +155,7 @@ export const createUpdateNodeType = (
 ) => {
   return (
     nodeId: string,
-    newType: "point" | "statement" | "title" | "objection"
+    newType: "point" | "statement" | "title" | "objection" | "comment"
   ) => {
     if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
@@ -164,15 +169,19 @@ export const createUpdateNodeType = (
         const currentContent =
           n.type === "statement" ? n.data?.statement : n.data?.content;
         const defaultContent = getDefaultContentForType(newType);
+        // If switching types and current content is a default marker, use the new default
+        const finalContent = (currentContent && isDefaultMarker(currentContent))
+          ? defaultContent
+          : (currentContent || defaultContent);
         const newData =
           newType === "statement"
             ? {
-                statement: currentContent || defaultContent,
+                statement: finalContent,
                 content: undefined,
                 nodeType: undefined,
               }
             : {
-                content: currentContent || defaultContent,
+                content: finalContent,
                 statement: undefined,
                 nodeType: undefined,
               };
@@ -180,7 +189,8 @@ export const createUpdateNodeType = (
         return {
           ...n,
           type: newType,
-          data: newData,
+          data: { ...newData, createdAt: Date.now() },
+          selected: true,
         };
       })
     );
@@ -194,15 +204,19 @@ export const createUpdateNodeType = (
               ? base.data?.statement
               : base.data?.content;
           const defaultContent = getDefaultContentForType(newType);
+          // If switching types and current content is a default marker, use the new default
+          const finalContent = (currentContent && isDefaultMarker(currentContent))
+            ? defaultContent
+            : (currentContent || defaultContent);
           const newData =
             newType === "statement"
               ? {
-                  statement: currentContent || defaultContent,
+                  statement: finalContent,
                   content: undefined,
                   nodeType: undefined,
                 }
               : {
-                  content: currentContent || defaultContent,
+                  content: finalContent,
                   statement: undefined,
                   nodeType: undefined,
                 };
@@ -210,7 +224,8 @@ export const createUpdateNodeType = (
           yNodesMap.set(nodeId, {
             ...base,
             type: newType,
-            data: newData,
+            data: { ...newData, createdAt: Date.now() },
+            selected: true,
           });
 
           if (yTextMap) {

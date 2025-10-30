@@ -36,12 +36,21 @@ export const createDuplicateNodeWithConnections = (
     }
 
     const type = String(original.type);
-    if (type !== "point" && type !== "objection") {
+    if (type === "edge_anchor") {
       return null;
     }
 
     const now = Date.now();
-    const idBase = type === "objection" ? "o" : "p";
+    const idBase =
+      type === "statement"
+        ? "s"
+        : type === "objection"
+          ? "o"
+          : type === "comment"
+            ? "c"
+            : type === "group"
+              ? "g"
+              : "p";
     const newId = `${idBase}-${now}-${Math.floor(Math.random() * 1e6)}`;
 
     const dx =
@@ -193,7 +202,13 @@ export const createDuplicateNodeWithConnections = (
             yEdgesMap?.set?.(oe.id, oe);
           }
         }
-        if (yTextMap && (type === "point" || type === "objection")) {
+        if (
+          yTextMap &&
+          (type === "point" ||
+            type === "objection" ||
+            type === "statement" ||
+            type === "comment")
+        ) {
           const originalText = yTextMap.get(nodeId) as Y.Text | undefined;
           const t = new Y.Text();
           if (originalText) {

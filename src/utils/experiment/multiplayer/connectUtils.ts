@@ -5,14 +5,14 @@ export const chooseEdgeType = (
   targetType?: string,
   preferredEdgeType?: "support" | "negation"
 ) => {
-  // Any connection involving a title uses option
-  if (sourceType === "title" || targetType === "title") {
-    return "option";
-  }
-
   // All edges TO a statement (question) use option
   if (targetType === "statement") {
     return "option";
+  }
+
+  // All edges involving a comment node use comment edge type
+  if (sourceType === "comment" || targetType === "comment") {
+    return "comment";
   }
 
   // For point-to-point connections, use the preferred type (support or negation)

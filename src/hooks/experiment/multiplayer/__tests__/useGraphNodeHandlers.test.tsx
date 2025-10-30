@@ -282,7 +282,41 @@ describe('useGraphNodeHandlers', () => {
       });
     });
 
-    it('should not duplicate non-point/objection nodes', () => {
+    it('should not duplicate edge_anchor nodes', () => {
+      const { result } = renderHook(() =>
+        useGraphNodeHandlers({
+          graph: mockGraph,
+          grabMode: false,
+          selectMode: false,
+          onNodeClick: mockOnNodeClick,
+          onNodeDragStart: mockOnNodeDragStart,
+          onNodeDragStop: mockOnNodeDragStop,
+          altCloneMapRef,
+        })
+      );
+
+      const mockEvent = {
+        altKey: true,
+        clientX: 200,
+        clientY: 300,
+      };
+      const mockNode = {
+        id: 'anchor-1',
+        type: 'edge_anchor',
+        position: { x: 100, y: 200 },
+      };
+
+      act(() => {
+        result.current.handleNodeDragStart(mockEvent, mockNode);
+      });
+
+      expect(mockGraph.duplicateNodeWithConnections).not.toHaveBeenCalled();
+    });
+
+    it('should duplicate group nodes on Alt-drag', () => {
+      mockRf.screenToFlowPosition.mockReturnValue({ x: 150, y: 250 });
+      mockGraph.duplicateNodeWithConnections.mockReturnValue('group-2');
+
       const { result } = renderHook(() =>
         useGraphNodeHandlers({
           graph: mockGraph,
@@ -310,7 +344,12 @@ describe('useGraphNodeHandlers', () => {
         result.current.handleNodeDragStart(mockEvent, mockNode);
       });
 
-      expect(mockGraph.duplicateNodeWithConnections).not.toHaveBeenCalled();
+      expect(mockGraph.duplicateNodeWithConnections).toHaveBeenCalledWith(
+        'group-1',
+        { x: 50, y: 50 }
+      );
+      expect(mockGraph.unlockNode).toHaveBeenCalledWith('group-1');
+      expect(mockGraph.lockNode).toHaveBeenCalledWith('group-2', 'drag');
     });
   });
 

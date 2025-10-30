@@ -163,6 +163,7 @@ export async function PATCH(req: Request, ctx: any) {
         .update(mpDocsTable)
         .set({ title, slug: newSlug, updatedAt: new Date() })
         .where(eq(mpDocsTable.id, canonicalId));
+      return NextResponse.json({ ok: true, slug: newSlug, id: canonicalId });
     } else if (title) {
       await db
         .update(mpDocsTable)
