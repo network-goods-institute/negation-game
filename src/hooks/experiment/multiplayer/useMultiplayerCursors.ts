@@ -36,7 +36,6 @@ export const useMultiplayerCursors = ({
     if (!provider || !username) return;
 
     if (!canWrite || !broadcastCursor || !isActiveTab) {
-      // In proxy mode or inactive tab, clear cursor from awareness state
       const prev = provider.awareness.getLocalState() || {};
       const { user, ...rest } = prev as any;
       if (user) {
@@ -44,6 +43,9 @@ export const useMultiplayerCursors = ({
         provider.awareness.setLocalState({
           ...rest,
           user: { ...userRest, sessionId, tabId },
+          editing: undefined,
+          lock: undefined,
+          locks: undefined,
         });
       }
       return;

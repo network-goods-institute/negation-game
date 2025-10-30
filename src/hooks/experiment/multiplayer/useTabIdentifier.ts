@@ -26,21 +26,43 @@ export const useTabIdentifier = (): TabIdentifier => {
   const channelRef = useRef<BroadcastChannel | null>(null);
 
   if (!sessionIdRef.current && typeof window !== "undefined") {
-    let sessionId = localStorage.getItem(SESSION_ID_KEY);
-    if (!sessionId) {
-      sessionId = generateId();
-      localStorage.setItem(SESSION_ID_KEY, sessionId);
+    try {
+      let stored: string | null = null;
+      try {
+        stored = window.localStorage?.getItem(SESSION_ID_KEY) ?? null;
+      } catch {}
+      if (stored && typeof stored === "string") {
+        sessionIdRef.current = stored;
+      } else {
+        const gen = generateId();
+        try {
+          window.localStorage?.setItem(SESSION_ID_KEY, gen);
+          sessionIdRef.current = gen;
+        } catch {
+          sessionIdRef.current = gen;
+        }
+      }
+    } catch {
+      sessionIdRef.current = generateId();
     }
-    sessionIdRef.current = sessionId;
   }
 
   if (!tabIdRef.current && typeof window !== "undefined") {
-    let tabId = sessionStorage.getItem(TAB_ID_KEY);
-    if (!tabId) {
-      tabId = generateId();
-      sessionStorage.setItem(TAB_ID_KEY, tabId);
+    try {
+      const existing = (window as any).__mpTabId as string | undefined;
+      if (existing && typeof existing === "string") {
+        tabIdRef.current = existing;
+      } else {
+        const gen = generateId();
+        (window as any).__mpTabId = gen;
+        try {
+          window.sessionStorage?.setItem(TAB_ID_KEY, gen);
+        } catch {}
+        tabIdRef.current = gen;
+      }
+    } catch {
+      tabIdRef.current = generateId();
     }
-    tabIdRef.current = tabId;
   }
 
   useEffect(() => {

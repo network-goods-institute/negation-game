@@ -41,7 +41,7 @@ export const useMultiplayerEditing = ({
   const localEditingRef = useRef<Set<string>>(new Set());
   const localLockedRef = useRef<Set<string>>(new Set());
   const activeNodeUsageRef = useRef<Map<string, number>>(new Map()); // Track last activity per node
-  const lockRenewalTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lockRenewalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { sessionId, tabId } = useTabIdentifier();
 
