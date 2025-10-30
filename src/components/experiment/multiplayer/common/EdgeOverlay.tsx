@@ -276,6 +276,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   const [editDir, setEditDir] = React.useState<null | 'forward' | 'backward'>(null);
   const [value, setValue] = React.useState<number>(Math.abs(rawForwardAvg));
+  const initializedKeyRef = React.useRef<string | null>(null);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isSaving, setIsSaving] = React.useState(false);
@@ -299,11 +300,14 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   }, [selected, anchorHover, isNearOverlay, graph, edgeId, editDir]);
 
   React.useEffect(() => {
-    if (!editDir) return;
+    if (!editDir) { initializedKeyRef.current = null; return; }
+    const initKey = `${edgeId}:${editDir}`;
+    if (initializedKeyRef.current === initKey) return;
     try { prefetchBreakdowns(); } catch {}
     const user = (mindchange as any)?.userValue as { forward?: number; backward?: number } | undefined;
     let seed: number | undefined;
-    if (user && typeof user[editDir] === 'number') {
+    if (user && typeof user[editDir] === 'number' && user[editDir] !== undefined) {
+      // If user has an explicit value (including 0), use it once as the seed
       seed = Math.abs(Number(user[editDir]));
     } else {
       const me = (graph as any)?.currentUserId as (string | undefined);
@@ -326,6 +330,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     }
     if (!Number.isFinite(seed)) seed = 100;
     setValue(Math.max(0, Math.min(100, Math.round(seed as number))));
+    initializedKeyRef.current = initKey;
   }, [editDir, mindchange, displayForwardAvg, displayBackwardAvg, cacheTick, graph, edgeId, prefetchBreakdowns]);
 
   const handleSaveMindchange = async () => {

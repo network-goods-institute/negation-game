@@ -355,6 +355,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
+            } else if (c?.type === 'position' && (connectMode || mindchangeMode)) {
+              // Ignore any incidental position changes while connecting or in mindchange mode
+              continue;
             } else if (c?.type === 'position' && c?.id && altCloneMapRef.current.has(String(c.id))) {
               const mapping = altCloneMapRef.current.get(String(c.id));
               if (mapping) {

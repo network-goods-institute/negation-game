@@ -539,6 +539,15 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         onTitleSavingStop={handleTitleSavingStop}
         titleEditingUser={titleEditingUser}
         onResyncNow={resyncNow}
+        onUrlUpdate={(id, slug) => {
+          try {
+            if (ydoc && yMetaMap) {
+              (ydoc as any).transact(() => {
+                (yMetaMap as any).set?.('slug', slug);
+              }, ORIGIN.RUNTIME);
+            }
+          } catch { }
+        }}
       />
 
       <ReactFlowProvider>
@@ -731,9 +740,16 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             x={newNodeWithDropdown.x}
             y={newNodeWithDropdown.y}
             currentType="point"
-            onClose={() => setNewNodeWithDropdown(null)}
+            onClose={() => {
+              try { clearNodeSelection(); } catch { }
+              try { blurNodesImmediately(); } catch { }
+              try { setConnectMode(false); } catch { }
+              try { setConnectAnchorId(null); } catch { }
+              setNewNodeWithDropdown(null);
+            }}
             onSelect={(type) => {
               updateNodeType(newNodeWithDropdown.id, type);
+              try { startEditingNodeCtx(newNodeWithDropdown.id); } catch { }
             }}
           />
         )}

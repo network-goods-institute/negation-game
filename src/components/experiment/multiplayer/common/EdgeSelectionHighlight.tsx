@@ -137,22 +137,80 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
       sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
       targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
     }
-    const [p] = getBezierPath({
-      sourceX: t.fromX,
-      sourceY: t.fromY,
-      sourcePosition,
-      targetX: t.toX,
-      targetY: t.toY,
-      targetPosition,
-      curvature: curvature,
-    });
-    return (
-      <path d={p} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
-    );
+
+    // Match MainEdgeRenderer orientation for objections: forward lane uses from->to, backward reverses coordinates but keeps positions
+    if (edgeType === 'objection' && (mindchangeMarkerEnd || mindchangeMarkerStart)) {
+      const isForward = Boolean(mindchangeMarkerEnd) && !mindchangeMarkerStart;
+      const [mcPath] = getBezierPath({
+        sourceX: isForward ? t.fromX : t.toX,
+        sourceY: isForward ? t.fromY : t.toY,
+        sourcePosition,
+        targetX: isForward ? t.toX : t.fromX,
+        targetY: isForward ? t.toY : t.fromY,
+        targetPosition,
+        curvature: curvature,
+      });
+      return (
+        <path d={mcPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
+      );
+    }
+
+    if (mindchangeMarkerEnd && !mindchangeMarkerStart) {
+      const [mcPath] = getBezierPath({
+        sourceX: t.fromX,
+        sourceY: t.fromY,
+        sourcePosition,
+        targetX: t.toX,
+        targetY: t.toY,
+        targetPosition,
+        curvature: curvature,
+      });
+      return (
+        <path d={mcPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
+      );
+    }
+
+    if (mindchangeMarkerStart && !mindchangeMarkerEnd) {
+      const [mcPath] = getBezierPath({
+        sourceX: t.toX,
+        sourceY: t.toY,
+        sourcePosition,
+        targetX: t.fromX,
+        targetY: t.fromY,
+        targetPosition,
+        curvature: curvature,
+      });
+      return (
+        <path d={mcPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
+      );
+    }
   }
 
-  if (useBezier && pathD) {
-    return <path d={pathD} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
+  if (useBezier) {
+    // For objections without mindchange, match MainEdgeRenderer's BezierEdge position logic
+    if (edgeType === 'objection' && !mindchangeMarkerStart && !mindchangeMarkerEnd) {
+      let sourcePosition = Position.Right;
+      let targetPosition = Position.Left;
+      const objectionY = sourceNode?.position?.y ?? 0;
+      const anchorY = targetNode?.position?.y ?? 0;
+      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+
+      const [objPath] = getBezierPath({
+        sourceX: sourceX ?? 0,
+        sourceY: sourceY ?? 0,
+        sourcePosition,
+        targetX: targetX ?? 0,
+        targetY: targetY ?? 0,
+        targetPosition,
+        curvature: curvature,
+      });
+      return <path d={objPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
+    }
+
+    if (pathD) {
+      return <path d={pathD} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
+    }
   }
 
   return (

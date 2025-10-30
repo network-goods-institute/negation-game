@@ -189,7 +189,8 @@ export const createUpdateNodeType = (
         return {
           ...n,
           type: newType,
-          data: newData,
+          data: { ...newData, createdAt: Date.now() },
+          selected: true,
         };
       })
     );
@@ -223,7 +224,8 @@ export const createUpdateNodeType = (
           yNodesMap.set(nodeId, {
             ...base,
             type: newType,
-            data: newData,
+            data: { ...newData, createdAt: Date.now() },
+            selected: true,
           });
 
           if (yTextMap) {
