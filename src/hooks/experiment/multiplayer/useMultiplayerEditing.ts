@@ -1,22 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
 import { useTabIdentifier } from "./useTabIdentifier";
+import { LOCK_TTL_MS, LOCK_RENEWAL_INTERVAL, ACTIVITY_CLEANUP_THRESHOLD, RECENT_ACTIVITY_THRESHOLD, resolveLockConflict, type LockInfo } from "./lockUtils";
 
 type YProvider = WebsocketProvider | null;
 
 export type EditorInfo = { name: string; color: string };
-
 export type EditorsMap = Map<string, EditorInfo[]>; // nodeId -> editors
-type LockInfo = {
-  nodeId: string;
-  byId: string;
-  name: string;
-  color: string;
-  kind: "edit" | "drag";
-  ts: number;
-  sessionId?: string;
-  tabId?: string;
-};
 export type LockMap = Map<string, LockInfo>;
 
 interface UseMultiplayerEditingProps {
@@ -102,7 +92,7 @@ export const useMultiplayerEditing = ({
           Object.entries(multiLocks as Record<string, any>).forEach(
             ([nodeId, lk]) => {
               if (!lk || !nodeId) return;
-              if (now - (lk.ts || 0) >= 9000) return;
+              if (now - (lk.ts || 0) >= LOCK_TTL_MS) return;
               const session = lk.sessionId || u.sessionId;
               const lockTabId = lk.tabId || u.tabId;
               const uid = session
@@ -122,32 +112,17 @@ export const useMultiplayerEditing = ({
               if (!existing) {
                 lockRes.set(nodeId, info);
               } else {
-                const existingIsLocalTab = existing.tabId === tabId;
-                const incomingIsLocalTab = info.tabId === tabId;
-                const existingIsLocalUser = existing.sessionId === sessionId;
-                const incomingIsLocalUser = info.sessionId === sessionId;
-
-                if (existingIsLocalTab && incomingIsLocalTab) {
-                  // same tab -> refresh fields
-                  lockRes.set(nodeId, {
-                    ...existing,
-                    ts: Math.max(existing.ts, info.ts),
-                    kind: info.kind || existing.kind,
-                  });
-                } else if (existingIsLocalUser && !incomingIsLocalUser) {
-                  // prefer other users' locks over our own other tabs
-                  lockRes.set(nodeId, info);
-                } else if (!existingIsLocalUser && incomingIsLocalUser) {
-                  // keep other users' locks
-                } else if (existingIsLocalTab && !incomingIsLocalTab) {
-                  // prefer our own tab
+                const resolution = resolveLockConflict(existing, info, tabId, sessionId);
+                if (resolution.shouldReplace) {
+                  lockRes.set(nodeId, resolution.lockInfo);
                 } else {
-                  // keep existing
+                  // Keep existing lock
+                  lockRes.set(nodeId, existing);
                 }
               }
             }
           );
-        } else if (u && legacy?.nodeId && now - (legacy?.ts || 0) < 9000) {
+        } else if (u && legacy?.nodeId && now - (legacy?.ts || 0) < LOCK_TTL_MS) {
           const session = legacy.sessionId || u.sessionId;
           const lockTabId = legacy.tabId || u.tabId;
           const uid = session ? `${u.id || u.name}:${session}` : u.id || u.name;
@@ -165,25 +140,12 @@ export const useMultiplayerEditing = ({
           if (!existing) {
             lockRes.set(legacy.nodeId, info);
           } else {
-            const existingIsLocalTab = existing.tabId === tabId;
-            const incomingIsLocalTab = info.tabId === tabId;
-            const existingIsLocalUser = existing.sessionId === sessionId;
-            const incomingIsLocalUser = info.sessionId === sessionId;
-
-            if (existingIsLocalTab && incomingIsLocalTab) {
-              lockRes.set(legacy.nodeId, {
-                ...existing,
-                ts: Math.max(existing.ts, info.ts),
-                kind: info.kind || existing.kind,
-              });
-            } else if (existingIsLocalUser && !incomingIsLocalUser) {
-              lockRes.set(legacy.nodeId, info);
-            } else if (!existingIsLocalUser && incomingIsLocalUser) {
-              // keep other users' locks
-            } else if (existingIsLocalTab && !incomingIsLocalTab) {
-              // prefer our own tab
+            const resolution = resolveLockConflict(existing, info, tabId, sessionId);
+            if (resolution.shouldReplace) {
+              lockRes.set(legacy.nodeId, resolution.lockInfo);
             } else {
-              // keep existing
+              // Keep existing lock
+              lockRes.set(legacy.nodeId, existing);
             }
           }
         }
@@ -217,13 +179,12 @@ export const useMultiplayerEditing = ({
     const prevLocks = (prev as any).locks || {};
     const nextLocks: Record<string, any> = { ...prevLocks };
 
-    // Only renew locks for nodes that have been used recently (within 15 seconds)
-    const recentThreshold = 15000;
+    // Only renew locks for nodes that have been used recently
     const nodesToRenew: string[] = [];
 
     localLockedRef.current.forEach((nodeId) => {
       const lastUsed = activeNodeUsageRef.current.get(nodeId);
-      if (lastUsed && now - lastUsed < recentThreshold) {
+      if (lastUsed && now - lastUsed < RECENT_ACTIVITY_THRESHOLD) {
         nodesToRenew.push(nodeId);
       }
     });
@@ -237,7 +198,7 @@ export const useMultiplayerEditing = ({
     // Remove locks for nodes that haven't been used recently
     localLockedRef.current.forEach((nodeId) => {
       const lastUsed = activeNodeUsageRef.current.get(nodeId);
-      if (!lastUsed || now - lastUsed >= recentThreshold) {
+      if (!lastUsed || now - lastUsed >= RECENT_ACTIVITY_THRESHOLD) {
         delete nextLocks[nodeId];
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         localLockedRef.current.delete(nodeId);
@@ -281,12 +242,12 @@ export const useMultiplayerEditing = ({
       // Clean up stale activity tracking for nodes that are no longer locked
       const now = Date.now();
       activeNodeUsageRef.current.forEach((lastUsed, nodeId) => {
-        if (!localLockedRef.current.has(nodeId) && now - lastUsed > 60000) {
+        if (!localLockedRef.current.has(nodeId) && now - lastUsed > ACTIVITY_CLEANUP_THRESHOLD) {
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           activeNodeUsageRef.current.delete(nodeId);
         }
       });
-    }, 3000);
+    }, LOCK_RENEWAL_INTERVAL);
   };
 
   const stopEditing = (nodeId: string) => {

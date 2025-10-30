@@ -16,6 +16,41 @@ function generateId(): string {
   return `id-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 }
 
+function generateTabIdWithRetry(): string {
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    const newId = generateId();
+
+    try {
+      // Check if sessionStorage already has this ID
+      const existing = window.sessionStorage?.getItem(TAB_ID_KEY);
+      if (existing && existing !== newId) {
+        // Try a different ID to avoid collision
+        attempts++;
+        continue;
+      }
+
+      // Set in sessionStorage with a small random delay to reduce race conditions
+      setTimeout(() => {
+        try {
+          window.sessionStorage?.setItem(TAB_ID_KEY, newId);
+        } catch (e) {
+          // Storage might be unavailable, but we still return the ID
+        }
+      }, Math.random() * 10); // Small random delay 0-10ms
+
+      return newId;
+    } catch (e) {
+      attempts++;
+    }
+  }
+
+  // Fallback: generate ID without sessionStorage checks
+  return generateId();
+}
+
 export const useTabIdentifier = (): TabIdentifier => {
   const [isActiveTab, setIsActiveTab] = useState(
     typeof document !== "undefined" ? !document.hidden : true
@@ -53,15 +88,12 @@ export const useTabIdentifier = (): TabIdentifier => {
       if (existing && typeof existing === "string") {
         tabIdRef.current = existing;
       } else {
-        const gen = generateId();
+        const gen = generateTabIdWithRetry();
         (window as any).__mpTabId = gen;
-        try {
-          window.sessionStorage?.setItem(TAB_ID_KEY, gen);
-        } catch {}
         tabIdRef.current = gen;
       }
     } catch {
-      tabIdRef.current = generateId();
+      tabIdRef.current = generateTabIdWithRetry();
     }
   }
 
@@ -74,34 +106,73 @@ export const useTabIdentifier = (): TabIdentifier => {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    let channel: BroadcastChannel | null = null;
+    let cleanupTimeout: NodeJS.Timeout | null = null;
+
     if (typeof BroadcastChannel !== "undefined") {
-      const channel = new BroadcastChannel("tab-coordination");
-      channelRef.current = channel;
+      try {
+        channel = new BroadcastChannel("tab-coordination");
+        channelRef.current = channel;
 
-      channel.addEventListener("message", (event) => {
-        if (event.data.type === "ping") {
-          channel.postMessage({
-            type: "pong",
-            tabId: tabIdRef.current,
-          });
-        }
-      });
-
-      const cleanup = () => {
-        channel.postMessage({
-          type: "tab-closing",
-          tabId: tabIdRef.current,
+        channel.addEventListener("message", (event) => {
+          if (event.data.type === "ping") {
+            channel?.postMessage({
+              type: "pong",
+              tabId: tabIdRef.current,
+            });
+          }
         });
-        channel.close();
-      };
 
-      window.addEventListener("beforeunload", cleanup);
+        const cleanup = () => {
+          try {
+            if (channel && tabIdRef.current) {
+              channel.postMessage({
+                type: "tab-closing",
+                tabId: tabIdRef.current,
+              });
+            }
+          } catch (e) {
+            // Channel might already be closed
+          } finally {
+            try {
+              channel?.close();
+            } catch (e) {
+              // Channel might already be closed
+            }
+          }
+        };
 
-      return () => {
-        window.removeEventListener("beforeunload", cleanup);
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
-        cleanup();
-      };
+        const handleBeforeUnload = () => {
+          // Immediate cleanup for normal page unload
+          cleanup();
+        };
+
+        const handlePageHide = (event: PageTransitionEvent) => {
+          // Additional cleanup for mobile/back navigation scenarios
+          if (event.persisted) {
+            cleanup();
+          }
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        window.addEventListener("pagehide", handlePageHide);
+
+        return () => {
+          window.removeEventListener("beforeunload", handleBeforeUnload);
+          window.removeEventListener("pagehide", handlePageHide);
+          document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+          // Clean up any pending timeout
+          if (cleanupTimeout) {
+            clearTimeout(cleanupTimeout);
+          }
+
+          // Final cleanup
+          cleanup();
+        };
+      } catch (e) {
+        console.warn("Failed to initialize BroadcastChannel:", e);
+      }
     }
 
     return () => {
