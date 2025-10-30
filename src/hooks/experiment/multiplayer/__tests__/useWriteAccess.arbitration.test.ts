@@ -22,6 +22,7 @@ class MockAwareness {
     this.listeners.add(cb);
   }
   off(_event: string, cb: any) {
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     this.listeners.delete(cb);
   }
   emit() {
