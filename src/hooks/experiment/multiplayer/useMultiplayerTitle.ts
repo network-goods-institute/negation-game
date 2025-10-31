@@ -76,6 +76,16 @@ export const useMultiplayerTitle = ({
         const normalizedTitle = data.title || null;
         setDbTitle(normalizedTitle);
         setOwnerId(data.ownerId || null);
+        try {
+          if (ydoc && yMetaMap && typeof normalizedTitle === "string") {
+            const current = yMetaMap.get("title") as string | undefined;
+            if (current !== normalizedTitle) {
+              ydoc.transact(() => {
+                yMetaMap.set("title", normalizedTitle);
+              }, localOrigin);
+            }
+          }
+        } catch {}
       }
     } catch (e) {
       console.error("[title] Failed to load DB title:", e);
@@ -155,9 +165,42 @@ export const useMultiplayerTitle = ({
     }
   }, [provider?.awareness]);
 
-  const handleTitleChange = useCallback((newTitle: string) => {
-    setDbTitle(newTitle);
-  }, []);
+  const handleTitleChange = useCallback(
+    (newTitle: string) => {
+      setDbTitle(newTitle);
+      try {
+        if (ydoc && yMetaMap && typeof newTitle === "string") {
+          const current = yMetaMap.get("title") as string | undefined;
+          if (current !== newTitle) {
+            ydoc.transact(() => {
+              yMetaMap.set("title", newTitle);
+            }, localOrigin);
+          }
+        }
+      } catch {}
+    },
+    [ydoc, yMetaMap, localOrigin]
+  );
+
+  useEffect(() => {
+    if (!yMetaMap) return;
+    const handleMetaChange = () => {
+      try {
+        const t = yMetaMap.get("title") as string | null;
+        if (typeof t === "string") {
+          setDbTitle((prev) => (prev !== t ? t : prev));
+        }
+      } catch {}
+    };
+    try {
+      yMetaMap.observe(handleMetaChange as any);
+    } catch {}
+    return () => {
+      try {
+        yMetaMap.unobserve(handleMetaChange as any);
+      } catch {}
+    };
+  }, [yMetaMap]);
 
   return {
     dbTitle,

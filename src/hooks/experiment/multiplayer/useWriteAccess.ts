@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTabIdentifier } from "./useTabIdentifier";
 import { WebsocketProvider } from "y-websocket";
 type YProvider = WebsocketProvider | null;
 
 export const useWriteAccess = (provider: YProvider, userId: string) => {
   const [canWrite, setCanWrite] = useState(true);
+  const { sessionId: localSessionId } = useTabIdentifier();
 
   const calculate = useCallback(() => {
     if (!provider || !userId) {
@@ -12,46 +14,72 @@ export const useWriteAccess = (provider: YProvider, userId: string) => {
     }
 
     try {
-      const awareness = provider.awareness;
-      const states = awareness.getStates();
-      const myClientId = awareness.clientID;
+      const awareness = provider.awareness as any;
+      const states: Map<number, any> = awareness.getStates();
+      const myClientId: number = awareness.clientID ?? awareness.clientId ?? 0;
 
-      let lowestClientId: number | null = null;
-      let matches = 0;
-
+      // Group by sessionId for the same user; allow all tabs in the winning session group to write.
+      const groups = new Map<string, number>(); // sessionKey -> minClientId
+      let hasMatch = false;
       states.forEach((state: any, clientId: number) => {
-        const user = state?.user;
-        if (!user) return;
-
-        if ((user.id || user.name) === userId) {
-          matches++;
-          if (lowestClientId === null || clientId < lowestClientId) {
-            lowestClientId = clientId;
-          }
-        }
+        const u = state?.user;
+        if (!u) return;
+        if ((u.id || u.name) !== userId) return;
+        hasMatch = true;
+        const key = String(u.sessionId ?? `client:${clientId}`);
+        const prev = groups.get(key);
+        if (prev == null || clientId < prev) groups.set(key, clientId);
       });
 
-      // If no matching entries for this user are present, prefer local client for writes
-      const shouldWrite = matches === 0 ? true : lowestClientId === myClientId;
+      if (!hasMatch) {
+        setCanWrite(true);
+        return;
+      }
 
+      // Determine winner group by smallest group min clientId
+      let globalMin = Infinity;
+      groups.forEach((minId) => {
+        if (minId < globalMin) globalMin = minId;
+      });
+
+      const localAwarenessState = awareness.getLocalState?.() || {};
+      const localAwarenessSession = localAwarenessState?.user?.sessionId as string | undefined;
+
+      const candidateKeys: string[] = [];
+      if (localAwarenessSession) candidateKeys.push(localAwarenessSession);
+      candidateKeys.push(`client:${myClientId}`);
+      if (localSessionId) candidateKeys.push(String(localSessionId));
+
+      let myGroupMin: number | undefined;
+      let hasCandidateKey = false;
+      for (const key of candidateKeys) {
+        if (groups.has(key)) {
+          myGroupMin = groups.get(key);
+          hasCandidateKey = true;
+          break;
+        }
+      }
+
+      const shouldWrite = !hasMatch
+        ? true
+        : hasCandidateKey
+        ? myGroupMin === globalMin
+        : false;
       setCanWrite(shouldWrite);
-    } catch (error) {
-      console.warn("[write-access] Error:", error);
+    } catch {
       setCanWrite(true);
     }
-  }, [provider, userId]);
+  }, [provider, userId, localSessionId]);
 
   useEffect(() => {
     if (!provider || !userId) return;
+    const awareness = provider.awareness as any;
 
-    const awareness = provider.awareness;
-
-    // Initial grace period to allow stale peers to disappear after reload
-    setTimeout(calculate, 1000);
-
+    const timeout = setTimeout(calculate, 1000);
     awareness.on?.("change", calculate);
 
     return () => {
+      clearTimeout(timeout);
       awareness.off?.("change", calculate);
     };
   }, [provider, userId, calculate]);
