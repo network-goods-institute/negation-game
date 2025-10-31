@@ -26,8 +26,8 @@ function generateTabIdWithRetry(): string {
     try {
       // Check if sessionStorage already has this ID
       const existing = window.sessionStorage?.getItem(TAB_ID_KEY);
-      if (existing && existing !== newId) {
-        // Try a different ID to avoid collision
+      if (existing && existing === newId) {
+        // Rare collision: generate a different ID
         attempts++;
         continue;
       }
@@ -160,7 +160,10 @@ export const useTabIdentifier = (): TabIdentifier => {
         return () => {
           window.removeEventListener("beforeunload", handleBeforeUnload);
           window.removeEventListener("pagehide", handlePageHide);
-          document.removeEventListener("visibilitychange", handleVisibilityChange);
+          document.removeEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+          );
 
           // Clean up any pending timeout
           if (cleanupTimeout) {
