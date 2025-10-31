@@ -2,11 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Position } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { ContextMenu } from './common/ContextMenu';
+import { NodeActionPill } from './common/NodeActionPill';
 import { toast } from 'sonner';
 import { useNodeChrome } from './common/useNodeChrome';
+import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { NodeShell } from './common/NodeShell';
 import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { LockIndicator } from './common/LockIndicator';
+import { useForceHidePills } from './common/useForceHidePills';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -35,13 +38,18 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     isLockedForMe,
     getLockOwner,
     setPairNodeHeight,
+    addPointBelow,
+    addNodeAtPosition,
+    grabMode,
+    setEdges,
+    updateNodeType,
   } = useGraphActions() as any;
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
 
-  const { editable, hover, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
+  const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
     selected,
     content: data.content,
@@ -80,6 +88,25 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     onMouseLeave: onHoverLeave,
   } = hover;
 
+  const { handleMouseEnter, handleMouseLeave, shouldShowPill } = pill;
+
+  const forceHidePills = useForceHidePills({
+    id,
+    hidePill: pill.hideNow,
+    onPillMouseLeave: pill.handleMouseLeave,
+    onHoverLeave: hover.onMouseLeave,
+  });
+
+  const extras = useNodeExtrasVisibility({
+    id,
+    selected: !!selected,
+    isEditing,
+    isConnectMode,
+    contentRef: contentRef as any,
+    interactiveSelector: INTERACTIVE_TARGET_SELECTOR,
+    wrapperRef: wrapperRef as any,
+  });
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -90,6 +117,20 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
       setMenuOpen(true);
     },
   });
+
+  const handleReply = () => {
+    if (isConnectMode || locked) return;
+
+    const result = addPointBelow?.(id);
+    if (!result) return;
+
+    const newNodeId = typeof result === 'string' ? result : result.nodeId;
+    if (newNodeId && updateNodeType) {
+      updateNodeType(newNodeId, 'comment');
+    }
+
+    startEditingNode?.(newNodeId);
+  };
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isInContainer = Boolean(parentId);
 
@@ -117,8 +158,8 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     const base = hidden
       ? 'bg-gray-200 text-gray-600 border-gray-300'
       : (isInContainer
-          ? 'bg-yellow-50 backdrop-blur-sm text-gray-900 border-yellow-200 shadow-lg'
-          : 'bg-yellow-50 text-gray-900 border-yellow-200 shadow-lg');
+        ? 'bg-yellow-50 backdrop-blur-sm text-gray-900 border-yellow-200 shadow-lg'
+        : 'bg-yellow-50 text-gray-900 border-yellow-200 shadow-lg');
     const ring = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
     return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center ${base} ${cursorClass} ${ring} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
   }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
@@ -127,10 +168,12 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     onMouseEnter: (e) => {
       e.stopPropagation();
       onHoverEnter();
+      pill.handleMouseEnter();
     },
     onMouseLeave: (e) => {
       e.stopPropagation();
       onHoverLeave();
+      pill.handleMouseLeave();
     },
     onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
       if (isConnectMode) {
@@ -233,6 +276,19 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
         {hidden && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
             <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>
+          </div>
+        )}
+        {!hidden && !grabMode && extras?.showExtras && (
+          <div ref={(el) => extras.registerExtras?.(el)}>
+            <NodeActionPill
+              label="Reply"
+              visible={isEditing ? true : (shouldShowPill && extras.showExtras)}
+              onClick={() => { handleReply(); forceHidePills(); }}
+              colorClass="bg-stone-900"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onForceHide={forceHidePills}
+            />
           </div>
         )}
       </NodeShell>
