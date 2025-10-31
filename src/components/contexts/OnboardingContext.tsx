@@ -36,6 +36,9 @@ interface OnboardingContextType {
     openDialog: () => void;
     closeDialog: (permanently?: boolean) => void;
     isPermanentlyDismissed: boolean;
+    isVideoOpen: boolean;
+    showVideo: () => void;
+    closeVideo: () => void;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(
@@ -62,21 +65,10 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
     const { openDialog: openKbDialog } = useKnowledgeBase();
     const { openDialog: openWriteupDialog } = useWriteup();
     const [showKeybinds, setShowKeybinds] = useState(false);
-    const [showVideo2, setShowVideo2] = useState(false);
-    const [episode, setEpisode] = useState<1 | 2>(1);
-    const [loaded, setLoaded] = useState<{ [key in 1 | 2]: boolean }>({ 1: false, 2: false });
-    const srcMap: Record<number, string> = {
-        1: 'https://www.youtube.com/embed/I69YBnZJ3QU',
-        2: 'https://www.youtube.com/embed/d5CC7lnRZrM',
-    };
-    useEffect(() => {
-        if (isOpen) setLoaded(prev => ({ ...prev, [episode]: false }));
-    }, [isOpen, episode]);
 
     return (
         <>
             <KeybindsDialog open={showKeybinds} onOpenChange={setShowKeybinds} showBack />
-            <VideoIntroDialog open={showVideo2} onOpenChange={setShowVideo2} showBack />
             <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
                 <DialogContent className="max-w-2xl w-full max-h-[90vh] flex flex-col">
                     <div className="flex-1 overflow-y-auto">
@@ -84,26 +76,6 @@ const OnboardingDialog = ({ isOpen, onClose, onDismissPermanently }: OnboardingD
                             <DialogTitle>🚀 Welcome!</DialogTitle>
                             <p className="text-sm text-muted-foreground mt-1">Get started with the Negation Game</p>
                         </DialogHeader>
-                        <div className="mt-6 relative pb-[56.25%]">
-                            {!loaded[episode] && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background">
-                                    <Loader className="h-12 w-12 text-primary" />
-                                </div>
-                            )}
-                            <iframe
-                                src={srcMap[episode]}
-                                frameBorder="0"
-                                allow="autoplay; fullscreen; picture-in-picture"
-                                className="absolute top-0 left-0 w-full h-full"
-                                allowFullScreen
-                                onLoad={() => setLoaded(prev => ({ ...prev, [episode]: true }))}
-                            />
-                        </div>
-                        <div className="flex justify-center mt-4">
-                            <button className="text-sm text-primary underline" onClick={() => setShowVideo2(true)}>
-                                Watch Episode 2
-                            </button>
-                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6">
                             <button
                                 className="flex flex-col items-center p-4 bg-muted rounded-lg hover:bg-muted/80"
@@ -153,6 +125,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isPermanentlyDismissed, setIsPermanentlyDismissed] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [isVideoOpen, setIsVideoOpen] = useState(false);
     const pathname = usePathname();
     const { user: privyUser } = usePrivy();
     const { data: appUser, isLoading: userLoading } = useUser(privyUser?.id);
@@ -175,7 +148,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         const dismissed = localStorage.getItem(LOCAL_STORAGE_KEY) === 'true';
         setIsPermanentlyDismissed(dismissed);
 
-        if (!dismissed && !suppressOnboarding) {
+        if (!dismissed && !suppressOnboarding && pathname !== '/') {
             const lastShown = localStorage.getItem(LAST_SHOWN_KEY);
             const now = Date.now();
             if (!lastShown || now - parseInt(lastShown, 10) > ONE_DAY_MS) {
@@ -202,6 +175,14 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         [isInitialized]
     );
 
+    const showVideo = useCallback(() => {
+        setIsVideoOpen(true);
+    }, []);
+
+    const closeVideo = useCallback(() => {
+        setIsVideoOpen(false);
+    }, []);
+
     const handleDismissPermanently = useCallback(() => closeDialog(true), [closeDialog]);
 
     const value: OnboardingContextType = {
@@ -209,6 +190,9 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         openDialog,
         closeDialog,
         isPermanentlyDismissed,
+        isVideoOpen,
+        showVideo,
+        closeVideo,
     };
 
     const host = typeof window !== 'undefined' ? window.location.host : '';
@@ -223,12 +207,15 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     return (
         <OnboardingContext.Provider value={value}>
             {children}
-            {isInitialized && !suppressOnboarding && !suppressed && (
-                <OnboardingDialog
-                    isOpen={isOpen}
-                    onClose={() => closeDialog(false)}
-                    onDismissPermanently={handleDismissPermanently}
-                />
+            {isInitialized && !suppressOnboarding && (
+                <>
+                    <OnboardingDialog
+                        isOpen={isOpen}
+                        onClose={() => closeDialog(false)}
+                        onDismissPermanently={handleDismissPermanently}
+                    />
+                    <VideoIntroDialog open={isVideoOpen} onOpenChange={setIsVideoOpen} />
+                </>
             )}
         </OnboardingContext.Provider>
     );

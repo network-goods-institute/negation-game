@@ -65,7 +65,7 @@ export function OnboardingSection() {
                                 size="lg" 
                                 variant="outline" 
                                 className="font-medium gap-2 text-base mb-8"
-                                onClick={() => onboarding.openDialog()}
+                                onClick={() => onboarding.showVideo()}
                             >
                                 Watch Video Tutorial
                                 <ArrowRight className="w-4 h-4" />
