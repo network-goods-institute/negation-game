@@ -13,6 +13,7 @@ import { NodeShell } from './common/NodeShell';
 import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { useForceHidePills } from './common/useForceHidePills';
 import { FavorSelector } from './common/FavorSelector';
+import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { LockIndicator } from './common/LockIndicator';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
@@ -132,6 +133,16 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     additionalFullOpacityConditions: [sliverHovered, sliverAnimating],
   });
 
+  const extras = useNodeExtrasVisibility({
+    id,
+    selected: !!selected,
+    isEditing,
+    isConnectMode,
+    contentRef: contentRef as any,
+    interactiveSelector: INTERACTIVE_TARGET_SELECTOR,
+    wrapperRef: wrapperRef as any,
+  });
+
 
   useEffect(() => {
     if (!parentId || !wrapperRef?.current || !setPairNodeHeight) return;
@@ -229,7 +240,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
     const ringMindchange = mindchangeSelectable ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
   }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable]);
 
   const wrapperProps = {
@@ -257,8 +268,18 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         return;
       }
       if (contentRef.current && contentRef.current.contains(e.target as Node)) {
+        extras.onWrapperMouseDown(e);
         return;
       }
+      extras.onWrapperMouseDown(e);
+    },
+    onTouchStart: (e: React.TouchEvent<HTMLDivElement>) => {
+      if (isConnectMode) return;
+      if (isEditing) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) return;
+      if (contentRef.current && contentRef.current.contains(e.target as Node)) { extras.onWrapperTouchStart(e); return; }
+      extras.onWrapperTouchStart(e);
     },
     onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
       // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
@@ -344,7 +365,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           suppressContentEditableWarning
           onInput={onInput}
           onPaste={onPaste}
-          onMouseDown={onContentMouseDown}
+          onMouseDown={(e) => { extras.onContentMouseDown(e); onContentMouseDown(e); }}
+          onTouchStart={(e) => { extras.onContentTouchStart(e); }}
           onMouseMove={onContentMouseMove}
           onMouseLeave={onContentMouseLeave}
           onMouseUp={onContentMouseUp}
@@ -361,8 +383,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>
           </div>
         )}
-        {selected && !hidden && (
-          <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
+        {selected && !hidden && extras.showExtras && (
+          <div ref={(el) => extras.registerExtras?.(el)} className={`mt-1 mb-1 flex items-center gap-2 select-none`} style={{ position: 'relative', zIndex: 20 }}>
             <span className="text-[10px] uppercase tracking-wide text-stone-500 -translate-y-0.5">Favor</span>
             <FavorSelector
               value={favor}
@@ -372,16 +394,18 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             />
           </div>
         )}
-        {!hidden && !perfMode && !grabMode && (
-          <NodeActionPill
-            label="Add Point"
-            visible={shouldShowPill}
-            onClick={() => { if (isConnectMode) return; addPointBelow?.(id); forceHidePills(); }}
-            colorClass="bg-stone-900"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onForceHide={forceHidePills}
-          />
+        {!hidden && !perfMode && !grabMode && extras.showExtras && (
+          <div ref={(el) => extras.registerExtras?.(el)}>
+            <NodeActionPill
+              label="Add Point"
+              visible={isEditing ? true : (shouldShowPill && extras.showExtras)}
+              onClick={() => { if (isConnectMode) return; addPointBelow?.(id); forceHidePills(); }}
+              colorClass="bg-stone-900"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onForceHide={forceHidePills}
+            />
+          </div>
         )}
       </NodeShell>
       <ContextMenu

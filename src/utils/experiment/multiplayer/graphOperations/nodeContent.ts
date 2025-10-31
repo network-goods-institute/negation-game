@@ -141,7 +141,13 @@ export const createUpdateNodePosition = (
 };
 
 const isDefaultMarker = (content: string): boolean => {
-  const defaultMarkers = ["New point", "New Question", "New Title", "New mitigation", "New comment"];
+  const defaultMarkers = [
+    "New point",
+    "New Question",
+    "New Title",
+    "New mitigation",
+    "New comment",
+  ];
   return defaultMarkers.includes(content);
 };
 
@@ -170,9 +176,10 @@ export const createUpdateNodeType = (
           n.type === "statement" ? n.data?.statement : n.data?.content;
         const defaultContent = getDefaultContentForType(newType);
         // If switching types and current content is a default marker, use the new default
-        const finalContent = (currentContent && isDefaultMarker(currentContent))
-          ? defaultContent
-          : (currentContent || defaultContent);
+        const finalContent =
+          currentContent && isDefaultMarker(currentContent)
+            ? defaultContent
+            : currentContent || defaultContent;
         const newData =
           newType === "statement"
             ? {
@@ -205,9 +212,10 @@ export const createUpdateNodeType = (
               : base.data?.content;
           const defaultContent = getDefaultContentForType(newType);
           // If switching types and current content is a default marker, use the new default
-          const finalContent = (currentContent && isDefaultMarker(currentContent))
-            ? defaultContent
-            : (currentContent || defaultContent);
+          const finalContent =
+            currentContent && isDefaultMarker(currentContent)
+              ? defaultContent
+              : currentContent || defaultContent;
           const newData =
             newType === "statement"
               ? {
