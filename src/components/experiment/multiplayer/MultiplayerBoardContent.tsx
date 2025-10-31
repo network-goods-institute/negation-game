@@ -230,6 +230,14 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     localOrigin: localOriginRef.current,
   });
 
+  useEffect(() => {
+    if (dbTitle) {
+      const fallbackId = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
+      const title = `${dbTitle} | ${resolvedId || fallbackId} | Negation Game`;
+      document.title = title;
+    }
+  }, [dbTitle, resolvedId, routeParams?.id]);
+
   const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
   const { canWrite } = useWriteAccess(provider, userId);
   const canEdit = Boolean(canWrite && isConnected);

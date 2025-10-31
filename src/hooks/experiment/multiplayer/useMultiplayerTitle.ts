@@ -90,7 +90,7 @@ export const useMultiplayerTitle = ({
     } catch (e) {
       console.error("[title] Failed to load DB title:", e);
     }
-  }, [routeParams?.id]);
+  }, [routeParams?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (yMetaMap && ydoc) {
