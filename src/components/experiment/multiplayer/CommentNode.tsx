@@ -5,13 +5,11 @@ import { ContextMenu } from './common/ContextMenu';
 import { NodeActionPill } from './common/NodeActionPill';
 import { toast } from 'sonner';
 import { useNodeChrome } from './common/useNodeChrome';
-import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { NodeShell } from './common/NodeShell';
 import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { LockIndicator } from './common/LockIndicator';
 import { useForceHidePills } from './common/useForceHidePills';
-
-const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
+import { usePerformanceMode } from './PerformanceContext';
 
 interface CommentNodeProps {
   data: {
@@ -48,6 +46,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
+  const { perfMode } = usePerformanceMode();
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -88,23 +87,13 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     onMouseLeave: onHoverLeave,
   } = hover;
 
-  const { handleMouseEnter, handleMouseLeave, shouldShowPill } = pill;
+  const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 
   const forceHidePills = useForceHidePills({
     id,
-    hidePill: pill.hideNow,
-    onPillMouseLeave: pill.handleMouseLeave,
-    onHoverLeave: hover.onMouseLeave,
-  });
-
-  const extras = useNodeExtrasVisibility({
-    id,
-    selected: !!selected,
-    isEditing,
-    isConnectMode,
-    contentRef: contentRef as any,
-    interactiveSelector: INTERACTIVE_TARGET_SELECTOR,
-    wrapperRef: wrapperRef as any,
+    hidePill: hideNow,
+    onPillMouseLeave: handleMouseLeave,
+    onHoverLeave: onHoverLeave,
   });
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -132,6 +121,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     startEditingNode?.(newNodeId);
   };
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const isInContainer = Boolean(parentId);
 
 
@@ -165,34 +155,13 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
 
   const wrapperProps = {
-    onMouseEnter: (e) => {
-      e.stopPropagation();
-      onHoverEnter();
-      pill.handleMouseEnter();
-    },
-    onMouseLeave: (e) => {
-      e.stopPropagation();
-      onHoverLeave();
-      pill.handleMouseLeave();
-    },
     onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
       if (isConnectMode) {
-        // Allow click to start/finish connect, but prevent drag/selection during connect
         e.stopPropagation();
-        return;
-      }
-      if (isEditing) return;
-      const target = e.target as HTMLElement | null;
-      if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
-        e.stopPropagation();
-        return;
-      }
-      if (contentRef.current && contentRef.current.contains(e.target as Node)) {
         return;
       }
     },
     onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
-      // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
       e.stopPropagation();
       e.preventDefault();
     },
@@ -200,20 +169,9 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
       if (isConnectMode) {
         const handled = connect.onClick(e);
         if (handled) {
-          e.preventDefault();
-          e.stopPropagation();
           return;
         }
       }
-      if (contentRef.current && contentRef.current.contains(e.target as Node)) {
-        onClick(e);
-        return;
-      }
-      const target = e.target as HTMLElement | null;
-      if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
-        return;
-      }
-      if (isEditing) return;
       if (locked) {
         e.stopPropagation();
         toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
@@ -242,6 +200,19 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
             style: { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' },
           },
         ]}
+        rootRef={rootRef}
+        rootProps={{
+          onMouseEnter: (e) => {
+            e.stopPropagation();
+            onHoverEnter();
+            handleMouseEnter();
+          },
+          onMouseLeave: (e) => {
+            e.stopPropagation();
+            onHoverLeave();
+            handleMouseLeave();
+          },
+        }}
         containerRef={containerRef}
         containerClassName="relative inline-block group"
         wrapperRef={wrapperRef}
@@ -256,7 +227,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
         )}
         <div
           ref={contentRef}
-          contentEditable={isEditing && !locked && !hidden && !isConnectMode}
+          contentEditable={isEditing && !locked && !hidden}
           spellCheck={true}
           suppressContentEditableWarning
           onInput={onInput}
@@ -278,18 +249,16 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
             <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>
           </div>
         )}
-        {!hidden && !grabMode && extras?.showExtras && (
-          <div ref={(el) => extras.registerExtras?.(el)}>
-            <NodeActionPill
-              label="Reply"
-              visible={isEditing ? true : (shouldShowPill && extras.showExtras)}
-              onClick={() => { handleReply(); forceHidePills(); }}
-              colorClass="bg-stone-900"
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              onForceHide={forceHidePills}
-            />
-          </div>
+        {!hidden && !perfMode && !grabMode && (
+          <NodeActionPill
+            label="Reply"
+            visible={shouldShowPill}
+            onClick={() => { if (isConnectMode) return; handleReply(); forceHidePills(); }}
+            colorClass="bg-stone-900"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onForceHide={forceHidePills}
+          />
         )}
       </NodeShell>
       <ContextMenu
