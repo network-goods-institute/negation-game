@@ -117,7 +117,9 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <span className="text-sm font-medium">Connecting</span>
           </div>
           <span className="text-sm text-stone-700">
-            {connectAnchorId ? 'Select another point' : 'Select a point or a connection'}
+            {connectAnchorId
+              ? 'Select the target point (or click a relation line to add a mitigation)'
+              : 'Click a point to start (or click a relation line to add a mitigation)'}
           </span>
           <div className="h-5 w-px bg-stone-200 mx-2" />
           <button
@@ -156,7 +158,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
           {/* Connect (line) */}
           <ToolbarButton
             label={readOnly ? "Read-only" : "Connect"}
-            shortcut={readOnly ? undefined : "L"}
+            shortcut={readOnly ? undefined : "A"}
             disabled={!!readOnly}
             active={!!connectMode}
             onClick={() => { if (!readOnly) { setGrabMode?.(false); setConnectMode(true); setConnectAnchorId(null); } }}
@@ -221,7 +223,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
                       </div>
                       <div className="flex justify-between gap-3">
                         <span>Connect mode</span>
-                        <span className="font-mono bg-stone-100 px-1 rounded">L</span>
+                        <span className="font-mono bg-stone-100 px-1 rounded">A</span>
                       </div>
                       <div className="flex justify-between gap-3">
                         <span>Hand/Pan mode</span>
