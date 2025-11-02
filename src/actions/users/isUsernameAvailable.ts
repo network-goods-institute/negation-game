@@ -3,10 +3,10 @@
 import { usersTable } from "@/db/schema";
 import { normalizeUsername } from "@/db/tables/usersTable";
 import { db } from "@/services/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export const isUsernameAvailable = async (username: string) => {
-  console.warn("[isUsernameAvailable] Checking username:", username);
+  logger.warn("[isUsernameAvailable] Checking username:", username);
   try {
     const query = db
       .select()
@@ -19,14 +19,14 @@ export const isUsernameAvailable = async (username: string) => {
       )
       .limit(1);
 
-    console.warn("[isUsernameAvailable] SQL query:", query.toSQL());
+    logger.warn("[isUsernameAvailable] SQL query:", query.toSQL());
 
     const result = await query;
-    console.warn("[isUsernameAvailable] Query result:", result);
+    logger.warn("[isUsernameAvailable] Query result:", result);
 
     return result.length === 0;
   } catch (error) {
-    console.error("[isUsernameAvailable] Database error:", error);
+    logger.error("[isUsernameAvailable] Database error:", error);
     throw error;
   }
 };

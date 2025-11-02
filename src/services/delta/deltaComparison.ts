@@ -13,7 +13,7 @@ import {
 import { eq, and, sql, inArray, ne } from "drizzle-orm";
 import { computeDelta } from "@/actions/analytics/computeDelta";
 import { computeDeltaBatch } from "@/actions/analytics/computeDeltaBatch";
-import { computeRationaleDelta } from "@/actions/analytics/deltaAggregation";
+import { computeRationaleDelta } from "@/actions/analytics/deltaAggregation";import { logger } from "@/lib/logger";
 
 export interface DeltaComparisonResult {
   mostSimilar: UserDelta[];
@@ -472,7 +472,7 @@ export async function handleBulkComparison({
     .where(eq(pointClustersTable.rootId, rootPointId));
 
   if (cluster.length === 0) {
-    console.log(
+    logger.log(
       `[deltaComparison] No cluster found for root point ${rootPointId}. Clusters should be pre-built offline.`
     );
 
@@ -597,7 +597,7 @@ export async function handleTopicComparison({
   try {
     const { computeTopicDelta } = await import(
       "@/actions/analytics/deltaAggregation"
-    );
+      );
     const deltaResults = await computeDeltaComparisons(
       usersWithEngagement,
       { referenceUserId, requestingUserId, snapDay, limit },
@@ -620,7 +620,7 @@ export async function handleTopicComparison({
 
     return processDeltaResults(deltaResults, limit, usersWithEngagement.length);
   } catch (error) {
-    console.error(`[handleTopicComparison] Error in delta computation:`, error);
+    logger.error(`[handleTopicComparison] Error in delta computation:`, error);
     throw error;
   }
 }

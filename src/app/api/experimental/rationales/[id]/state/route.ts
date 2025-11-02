@@ -8,7 +8,7 @@ import {
   getDocSnapshotBuffer,
 } from "@/services/yjsCompaction";
 import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
-import * as Y from "yjs";
+import * as Y from "yjs";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,7 +92,7 @@ export async function GET(req: Request, ctx: any) {
     const diff = Y.encodeStateAsUpdate(ydoc, sv);
     if (!diff || diff.byteLength === 0) {
       try {
-        console.log(
+        logger.log(
           JSON.stringify({
             event: "yjs_state",
             kind: "diff",
@@ -171,7 +171,7 @@ export async function GET(req: Request, ctx: any) {
     (req as any).headers?.get?.("if-modified-since");
   if (etag && ifNoneMatch === etag) {
     try {
-      console.log(
+      logger.log(
         JSON.stringify({
           event: "yjs_state",
           kind: "snapshot",
@@ -186,7 +186,7 @@ export async function GET(req: Request, ctx: any) {
     const ims = new Date(ifModifiedSince);
     if (!isNaN(ims.getTime()) && ims >= lastModified) {
       try {
-        console.log(
+        logger.log(
           JSON.stringify({
             event: "yjs_state",
             kind: "snapshot",
@@ -224,7 +224,7 @@ export async function GET(req: Request, ctx: any) {
   try {
   } catch {}
   try {
-    console.log(
+    logger.log(
       JSON.stringify({
         event: "yjs_state",
         kind: "snapshot",
@@ -256,7 +256,7 @@ export async function GET(req: Request, ctx: any) {
         headers["x-yjs-compressed-bytes"] = String(gz.byteLength);
       }
     } catch (error) {
-      console.error("Failed to compress payload with gzip:", error);
+      logger.error("Failed to compress payload with gzip:", error);
     }
   }
   const res = new NextResponse(Buffer.from(payload), { headers });

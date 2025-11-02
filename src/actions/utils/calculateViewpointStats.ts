@@ -5,7 +5,7 @@ import {
   pointsWithDetailsView,
 } from "@/db/schema";
 import { db } from "@/services/db";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 interface ViewpointInput {
   graph: unknown;
@@ -47,7 +47,7 @@ const extractPointIdsFromGraph = (graph: unknown): number[] => {
       }
     });
   } catch (error) {
-    console.error("Error extracting point IDs from viewpoint graph:", error);
+    logger.error("Error extracting point IDs from viewpoint graph:", error);
   }
 
   return pointIds;

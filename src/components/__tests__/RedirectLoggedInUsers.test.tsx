@@ -1,10 +1,22 @@
 import { render, waitFor } from '@testing-library/react';
 import { RedirectLoggedInUsers } from '../RedirectLoggedInUsers';
 import { usePrivy } from '@privy-io/react-auth';
+import { logger } from '@/lib/logger';
 
 // Mock usePrivy hook
 jest.mock('@privy-io/react-auth', () => ({
   usePrivy: jest.fn(),
+}));
+
+// Mock logger
+jest.mock('@/lib/logger', () => ({
+  logger: {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 describe('RedirectLoggedInUsers', () => {
@@ -107,8 +119,6 @@ describe('RedirectLoggedInUsers', () => {
       },
     });
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
     (usePrivy as jest.Mock).mockReturnValue({
       ready: true,
       authenticated: true,
@@ -117,10 +127,8 @@ describe('RedirectLoggedInUsers', () => {
     render(<RedirectLoggedInUsers />);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('[RedirectLoggedInUsers] Would redirect to sync in production');
+      expect(logger.log).toHaveBeenCalledWith('[RedirectLoggedInUsers] Would redirect to sync in production');
     });
-
-    consoleSpy.mockRestore();
   });
 
   it('should redirect when on www subdomain', async () => {

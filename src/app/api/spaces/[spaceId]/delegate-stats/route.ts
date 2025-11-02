@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchDelegateStats } from "@/actions/statistics/fetchDelegateStats";
+import { fetchDelegateStats } from "@/actions/statistics/fetchDelegateStats";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +18,7 @@ export async function GET(
     const stats = await fetchDelegateStats(spaceId);
     return NextResponse.json(stats);
   } catch (error: any) {
-    console.error("Error fetching delegate stats:", error);
+    logger.error("Error fetching delegate stats:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch delegate statistics" },
       { status: 500 }

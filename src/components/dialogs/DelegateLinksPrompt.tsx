@@ -14,7 +14,7 @@ import { userQueryKey } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { useUser } from "@/queries/users/useUser";
 import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
-import { cn } from "@/lib/utils/cn";
+import { cn } from "@/lib/utils/cn";import { logger } from "@/lib/logger";
 
 interface DelegateLinksPromptProps {
     open: boolean;
@@ -121,7 +121,7 @@ export function DelegateLinksPrompt({ open, onOpenChange }: DelegateLinksPromptP
             }
         } catch (error) {
             toast.error("An error occurred while connecting your governance profile");
-            console.error(error);
+            logger.error(error);
         } finally {
             setIsSubmitting(false);
         }

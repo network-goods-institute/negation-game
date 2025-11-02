@@ -11,7 +11,7 @@ import {
 } from "@/db/schema";
 import { sql, gte, eq, and, lt } from "drizzle-orm";
 import { computeDaoAlignment } from "@/actions/analytics/computeDaoAlignment";
-import { computeContestedPoints } from "@/actions/analytics/computeContestedPoints";
+import { computeContestedPoints } from "@/actions/analytics/computeContestedPoints";import { logger } from "@/lib/logger";
 
 export interface DaoStats {
   // Activity Overview
@@ -146,7 +146,7 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
 
   // DAO Alignment and Contested Points (reuse existing functions)
   const daoAlignment = await computeDaoAlignment({ space }).catch((error) => {
-    console.error("[fetchDaoStats] DAO alignment error:", error);
+    logger.error("[fetchDaoStats] DAO alignment error:", error);
     return { delta: null, userCount: 0, pairCount: 0 };
   });
 
@@ -155,7 +155,7 @@ export async function fetchDaoStats(space: string): Promise<DaoStats> {
     space,
     limit: 50,
   }).catch((error) => {
-    console.error("[fetchDaoStats] Contested points error:", error);
+    logger.error("[fetchDaoStats] Contested points error:", error);
     return [];
   });
 

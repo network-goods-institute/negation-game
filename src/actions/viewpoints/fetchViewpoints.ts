@@ -12,7 +12,7 @@ import {
 import { activeViewpointsFilter } from "@/db/tables/viewpointsTable";
 import { getColumns } from "@/db/utils/getColumns";
 import { db } from "@/services/db";
-import { eq, desc, and, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, sql, inArray } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export const fetchViewpoints = async (space: string) => {
   const viewpoints = await db
@@ -56,7 +56,7 @@ export const fetchViewpoints = async (space: string) => {
         });
       }
     } catch (e) {
-      console.error("Error extracting point IDs from viewpoint graph:", e);
+      logger.error("Error extracting point IDs from viewpoint graph:", e);
     }
     viewpointPointMaps.set(viewpoint.id, pointIds);
   });

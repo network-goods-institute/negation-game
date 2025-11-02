@@ -4,7 +4,7 @@ import {
   type SetStateAction,
 } from "react";
 import * as Y from "yjs";
-import { ORIGIN } from "./origins";
+import { ORIGIN } from "./origins";import { logger } from "@/lib/logger";
 
 /**
  * Creates a distributed save coordination system for Yjs documents.
@@ -47,7 +47,7 @@ export const createScheduleSave = (
         ? Y.encodeStateAsUpdate(ydocRef.current, serverVectorRef.current)
         : Y.encodeStateAsUpdate(ydocRef.current);
       if (!update || !update.byteLength) {
-        console.log("[save] No changes to save");
+        logger.log("[save] No changes to save");
       } else {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000);
@@ -224,7 +224,7 @@ export const createScheduleSave = (
         }, ORIGIN.RECOVERY);
       }
     } catch (e) {
-      console.error("[save] Error interrupting save:", e);
+      logger.error("[save] Error interrupting save:", e);
     }
   };
 
@@ -243,7 +243,7 @@ export const createScheduleSave = (
       // DON'T clear meta state during cleanup to avoid triggering Yjs observers
       // The component is unmounting anyway, so these will be cleaned up naturally
     } catch (e) {
-      console.error("[save] Error interrupting save during cleanup:", e);
+      logger.error("[save] Error interrupting save during cleanup:", e);
     }
   };
 

@@ -15,7 +15,7 @@ import { Point } from "@/db/tables/pointsTable";
 import { db } from "@/services/db";
 import { waitUntil } from "@vercel/functions";
 import { eq, sql, and, or } from "drizzle-orm";
-import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";import { logger } from "@/lib/logger";
 
 export interface AddObjectionArgs {
   content: string;
@@ -210,7 +210,7 @@ export const validateObjectionTarget = async (
       availableContexts: contexts,
     };
   } catch (error) {
-    console.error("Error validating objection target:", error);
+    logger.error("Error validating objection target:", error);
     return {
       canCreateObjection: false,
       availableContexts: [],

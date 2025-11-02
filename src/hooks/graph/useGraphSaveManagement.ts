@@ -5,7 +5,7 @@ import { updateViewpointDetails } from "@/actions/viewpoints/updateViewpointDeta
 import { shouldConfirmRationaleUpdate } from "@/actions/viewpoints/shouldConfirmRationaleUpdate";
 import type { AppNode } from "@/components/graph/nodes/AppNode";
 import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 interface UseGraphSaveManagementProps {
   nodes: AppNode[];
@@ -48,7 +48,7 @@ export const useGraphSaveManagement = ({
   const doSaveExistingInternal = useCallback(
     async (filteredGraph: ViewpointGraph) => {
       if (!rationaleId) {
-        console.error(
+        logger.error(
           "[GraphSaveManagement] rationaleId is missing for doSaveExistingInternal"
         );
         toast.error("Cannot save existing rationale without an ID.");
@@ -83,7 +83,7 @@ export const useGraphSaveManagement = ({
         toast.success("Rationale updated successfully!");
         return true;
       } catch (error) {
-        console.error(
+        logger.error(
           "[GraphSaveManagement] Error in doSaveExistingInternal:",
           error
         );
@@ -141,7 +141,7 @@ export const useGraphSaveManagement = ({
               return;
             }
           } catch (confirmError) {
-            console.error(
+            logger.error(
               "[GraphSaveManagement] Error checking for confirmation:",
               confirmError
             );
@@ -173,7 +173,7 @@ export const useGraphSaveManagement = ({
       // The path that opens dialog returns early.
       setIsSaving(false);
     } catch (error: any) {
-      console.error("[GraphSaveManagement] Error in initiateSave:", error);
+      logger.error("[GraphSaveManagement] Error in initiateSave:", error);
       if (error.message === "Must be authenticated to update rationale") {
         toast.error("You must be logged in to save changes.");
       } else if (error.message === "Only the owner can update this rationale") {
@@ -204,7 +204,7 @@ export const useGraphSaveManagement = ({
 
   const executeSaveExisting = useCallback(async () => {
     if (!graphToSaveOrCopy.current) {
-      console.error(
+      logger.error(
         "[GraphSaveManagement] No graph data to save for existing."
       );
       toast.error("Error: No data to save.");
@@ -225,7 +225,7 @@ export const useGraphSaveManagement = ({
 
   const executeSaveAsNew = useCallback(async () => {
     if (!graphToSaveOrCopy.current) {
-      console.error("[GraphSaveManagement] No graph data to save as new.");
+      logger.error("[GraphSaveManagement] No graph data to save as new.");
       toast.error("Error: No data to copy.");
       return false;
     }

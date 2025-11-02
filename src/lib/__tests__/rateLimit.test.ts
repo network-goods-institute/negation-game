@@ -1,5 +1,6 @@
 import { checkRateLimit, cleanupExpiredRateLimits } from "../rateLimit";
 import { db } from "@/services/db";
+import { logger } from "@/lib/logger";
 
 // Mock the database
 jest.mock("@/services/db", () => ({
@@ -8,6 +9,17 @@ jest.mock("@/services/db", () => ({
     insert: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+  },
+}));
+
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
   },
 }));
 
@@ -147,18 +159,15 @@ describe("Rate Limiter", () => {
         throw new Error("Database connection failed");
       });
 
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-      const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation();
-
       const result = await checkRateLimit("user123", 10, 60000, "test");
 
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(9);
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         "[rateLimit] Database error:",
         expect.any(Error)
       );
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         "[rateLimit] Failing open due to database error"
       );
     });
@@ -193,15 +202,13 @@ describe("Rate Limiter", () => {
         where: jest.fn().mockResolvedValue({ rowCount: 5 }),
       } as any);
 
-      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
-
       const result = await cleanupExpiredRateLimits();
 
       // eslint-disable-next-line drizzle/enforce-delete-with-where
       expect(result).toBe(5);
       // eslint-disable-next-line drizzle/enforce-delete-with-where
       expect(mockDb.delete).toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(logger.log).toHaveBeenCalledWith(
         "[rateLimit] Cleaned up 5 expired rate limit entries"
       );
     });
@@ -213,12 +220,10 @@ describe("Rate Limiter", () => {
         throw new Error("Delete failed");
       });
 
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-
       const result = await cleanupExpiredRateLimits();
 
       expect(result).toBe(0);
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         "[rateLimit] Error during cleanup:",
         expect.any(Error)
       );
@@ -231,12 +236,10 @@ describe("Rate Limiter", () => {
         where: jest.fn().mockResolvedValue({ rowCount: 0 }),
       } as any);
 
-      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
-
       const result = await cleanupExpiredRateLimits();
 
       expect(result).toBe(0);
-      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(logger.log).not.toHaveBeenCalled();
     });
   });
 });

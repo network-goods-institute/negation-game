@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";import { logger } from "@/lib/logger";
 
 interface TabIdentifier {
   sessionId: string;
@@ -174,7 +174,7 @@ export const useTabIdentifier = (): TabIdentifier => {
           cleanup();
         };
       } catch (e) {
-        console.warn("Failed to initialize BroadcastChannel:", e);
+        logger.warn("Failed to initialize BroadcastChannel:", e);
       }
     }
 

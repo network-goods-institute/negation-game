@@ -1,6 +1,6 @@
 import { MutableRefObject, useCallback } from "react";
 import * as Y from "yjs";
-import { Edge, Node } from "@xyflow/react";
+import { Edge, Node } from "@xyflow/react";import { logger } from "@/lib/logger";
 
 interface UseYjsDocumentHydrationProps {
   persistId: string;
@@ -79,7 +79,7 @@ export const useYjsDocumentHydration = ({
           }
         }
       } catch (err) {
-        console.error("[loadDiffFromServer] Error:", err);
+        logger.error("[loadDiffFromServer] Error:", err);
       }
       return false;
     },
@@ -165,7 +165,7 @@ export const useYjsDocumentHydration = ({
                   .forEach((_value, key) => observedDuringHydration.add(key));
                 hadContent = true;
               } catch (error) {
-                console.warn("[yjs] Failed to apply snapshot", error);
+                logger.warn("[yjs] Failed to apply snapshot", error);
               }
             } else if (Array.isArray(json?.updates)) {
               for (const update of json.updates) {
@@ -214,7 +214,7 @@ export const useYjsDocumentHydration = ({
       serverVectorRef.current = Y.encodeStateVector(doc);
       updateLocalStateVector();
     } else {
-      console.debug("[hydrateFromServer] Document is empty, enabling seeding");
+      logger.debug("[hydrateFromServer] Document is empty, enabling seeding");
     }
   }, [
     loadDiffFromServer,

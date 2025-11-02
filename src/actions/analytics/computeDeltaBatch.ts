@@ -8,7 +8,7 @@ import {
   rationalePointsTable,
 } from "@/db/schema";
 import { delta as deltaFn, stance } from "@/lib/negation-game/deltaScore";
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export interface DeltaResult {
   delta: number | null;
@@ -93,7 +93,7 @@ export async function computeDeltaBatch({
   }
 
   if (missingRoots.length > 0) {
-    console.warn(
+    logger.warn(
       `[computeDeltaBatch] ${missingRoots.length} clusters missing. Clusters should be pre-built offline.`
     );
   }
@@ -274,7 +274,7 @@ export async function computeDeltaBatch({
         .groupBy(effectiveRestakesView.userId),
     ]);
 
-    console.log(
+    logger.log(
       `[computeDeltaBatch] Fetched ${endorsementRows.length} endorsements, ${restakeRows.length} restakes, ${doubtRows.length} doubts`
     );
 

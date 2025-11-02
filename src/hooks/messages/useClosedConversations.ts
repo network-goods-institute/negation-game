@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";import { logger } from "@/lib/logger";
 
 const CLOSED_CONVERSATIONS_KEY = "closedConversations";
 
@@ -47,7 +47,7 @@ export const useClosedConversations = () => {
         }
       }
     } catch (error) {
-      console.error(
+      logger.error(
         "Failed to load closed conversations from localStorage:",
         error
       );
@@ -64,7 +64,7 @@ export const useClosedConversations = () => {
       }));
       localStorage.setItem(CLOSED_CONVERSATIONS_KEY, JSON.stringify(data));
     } catch (error) {
-      console.error(
+      logger.error(
         "Failed to save closed conversations to localStorage:",
         error
       );
@@ -75,7 +75,7 @@ export const useClosedConversations = () => {
   const closeConversation = useCallback(
     (conversationId: string) => {
       const closedAt = Date.now();
-      console.log(
+      logger.log(
         "Closing conversation:",
         conversationId,
         "at:",
@@ -94,7 +94,7 @@ export const useClosedConversations = () => {
   // Reopen a conversation (when user clicks on it or new message arrives)
   const reopenConversation = useCallback(
     (conversationId: string) => {
-      console.log("Reopening conversation:", conversationId);
+      logger.log("Reopening conversation:", conversationId);
       setClosedConversations((prev) => {
         const newMap = new Map(prev);
         // eslint-disable-next-line drizzle/enforce-delete-with-where
@@ -133,7 +133,7 @@ export const useClosedConversations = () => {
       const hasNewMessagesSinceClosure = lastMessageTime > closedAt;
 
       if (hasNewMessagesSinceClosure) {
-        console.log(
+        logger.log(
           "Closed conversation has messages after closure:",
           conversationId,
           {

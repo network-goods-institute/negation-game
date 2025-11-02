@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
-import { handleTopicComparison } from "@/services/delta/deltaComparison";
+import { handleTopicComparison } from "@/services/delta/deltaComparison";import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const topicIdNum = Number(topicId);
     if (isNaN(topicIdNum)) {
-      console.error("[/api/delta/topic] Invalid topicId:", topicId);
+      logger.error("[/api/delta/topic] Invalid topicId:", topicId);
       return NextResponse.json({ error: "Invalid topic ID" }, { status: 400 });
     }
 
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[/api/delta/topic] Error:", error);
+    logger.error("[/api/delta/topic] Error:", error);
     return NextResponse.json(
       { error: "Failed to compute topic delta comparison" },
       { status: 500 }

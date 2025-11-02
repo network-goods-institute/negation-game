@@ -4,7 +4,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { db } from "@/services/db";
 import { usersTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
+import { z } from "zod";import { logger } from "@/lib/logger";
 
 const updateProfileSchema = z.object({
   bio: z.string().max(1000).nullable().optional(),
@@ -46,7 +46,7 @@ export const updateUserProfile = async (params: UpdateProfileParams) => {
 
     return { success: true };
   } catch (error) {
-    console.error("Error updating profile:", error);
+    logger.error("Error updating profile:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

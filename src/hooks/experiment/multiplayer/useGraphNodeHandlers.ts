@@ -1,6 +1,6 @@
 import React from "react";
 import { useReactFlow } from "@xyflow/react";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 interface UseGraphNodeHandlersProps {
   graph: any;
@@ -65,7 +65,7 @@ export const useGraphNodeHandlers = ({
               if (isSource || isTarget) {
                 const dir = isSource ? "forward" : "backward";
                 try {
-                  console.log("[Mindchange:Select] node pick", {
+                  logger.log("[Mindchange:Select] node pick", {
                     baseEdgeId: mcEdge.id,
                     pickedNodeId: node?.id,
                     dir,

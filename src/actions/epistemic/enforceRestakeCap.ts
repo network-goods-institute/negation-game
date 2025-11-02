@@ -2,13 +2,13 @@
 
 import { db } from "@/services/db";
 import { restakesTable, endorsementsTable, credEventsTable } from "@/db/schema";
-import { sql, eq, and, gt } from "drizzle-orm";
+import { sql, eq, and, gt } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export async function enforceRestakeCap(
   userId?: string,
   pointId?: number
 ): Promise<{ success: boolean; message: string; adjustments?: any[] }> {
-  console.log(
+  logger.log(
     `[enforceRestakeCap] Enforcing restake cap for ${userId ? `user ${userId}` : "all users"} ${pointId ? `on point ${pointId}` : "on all points"}`
   );
 
@@ -78,7 +78,7 @@ export async function enforceRestakeCap(
       )
       .where(and(...whereConditions));
 
-    console.log(
+    logger.log(
       `[enforceRestakeCap] Found ${restakeEndorsementPairs.length} restake-endorsement pairs to check`
     );
 
@@ -100,7 +100,7 @@ export async function enforceRestakeCap(
         const newRestakeAmount = maxAllowedRestake;
         const adjustment = pair.restakeAmount - newRestakeAmount;
 
-        console.log(
+        logger.log(
           `[enforceRestakeCap] Adjusting restake ${pair.restakeId}: ${pair.restakeAmount} -> ${newRestakeAmount} (endorsement: ${pair.endorseAmount})`
         );
 
@@ -131,7 +131,7 @@ export async function enforceRestakeCap(
       }
     }
 
-    console.log(`[enforceRestakeCap] Made ${adjustments.length} adjustments`);
+    logger.log(`[enforceRestakeCap] Made ${adjustments.length} adjustments`);
 
     return {
       success: true,
@@ -139,7 +139,7 @@ export async function enforceRestakeCap(
       adjustments,
     };
   } catch (error) {
-    console.error("[enforceRestakeCap] Error:", error);
+    logger.error("[enforceRestakeCap] Error:", error);
     return {
       success: false,
       message: `Restake cap enforcement failed: ${error instanceof Error ? error.message : String(error)}`,

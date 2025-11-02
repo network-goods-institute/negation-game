@@ -9,12 +9,12 @@ import {
   rationalePointsTable,
 } from "@/db/schema";
 import { sql, and, gte, lt, eq } from "drizzle-orm";
-import { buildPointCluster } from "@/actions/points/buildPointCluster";
+import { buildPointCluster } from "@/actions/points/buildPointCluster";import { logger } from "@/lib/logger";
 
 export async function dailySnapshotJob(
   snapDay: string = new Date().toISOString().slice(0, 10)
 ): Promise<{ success: boolean; message: string; stats?: any }> {
-  console.log(`[dailySnapshotJob] Starting snapshot for ${snapDay}`);
+  logger.log(`[dailySnapshotJob] Starting snapshot for ${snapDay}`);
 
   try {
     const snapDayDate = new Date(snapDay);
@@ -33,7 +33,7 @@ export async function dailySnapshotJob(
     const previousSnapEndDate = new Date(previousSnapDay);
     previousSnapEndDate.setDate(previousSnapEndDate.getDate() + 1);
 
-    console.log(
+    logger.log(
       `[dailySnapshotJob] Aggregating events from ${previousSnapEndDate.toISOString()} to ${nextDayDate.toISOString()}`
     );
 
@@ -69,7 +69,7 @@ export async function dailySnapshotJob(
       )
       .groupBy(credEventsTable.userId, credEventsTable.pointId);
 
-    console.log(
+    logger.log(
       `[dailySnapshotJob] Found ${eventAggregates.length} user-point combinations with events`
     );
 
@@ -138,7 +138,7 @@ export async function dailySnapshotJob(
         pointToTopicMap.set(mapping.pointId, mapping.topicId);
       }
     } catch (error) {
-      console.warn(
+      logger.warn(
         "[dailySnapshotJob] Could not fetch point-topic mappings, using fallback approach:",
         error instanceof Error ? error.message : String(error)
       );
@@ -252,7 +252,7 @@ export async function dailySnapshotJob(
       });
     }
 
-    console.log(
+    logger.log(
       `[dailySnapshotJob] Inserted/updated ${snapshotRows.length} snapshot rows`
     );
 
@@ -267,7 +267,7 @@ export async function dailySnapshotJob(
       },
     };
   } catch (error) {
-    console.error("[dailySnapshotJob] Error:", error);
+    logger.error("[dailySnapshotJob] Error:", error);
     return {
       success: false,
       message: `Daily snapshot failed: ${error instanceof Error ? error.message : String(error)}`,

@@ -9,6 +9,7 @@ import {
 import { useYjsProviderConnection } from "./useYjsProviderConnection";
 import { useYjsSynchronization } from "./useYjsSynchronization";
 import { useYjsUndoRedo } from "./useYjsUndoRedo";
+import { logger } from "@/lib/logger";
 
 interface UseYjsMultiplayerProps {
   roomName: string;
@@ -171,27 +172,27 @@ export const useYjsMultiplayer = ({
   }, [getInterruptSave]);
 
   useEffect(() => {
-    console.log("[useYjsMultiplayer] Effect triggered", {
+    logger.log("[useYjsMultiplayer] Effect triggered", {
       enabled,
       persistId,
       roomName,
     });
 
     if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
-      console.log("[useYjsMultiplayer] Multiplayer experiment disabled");
+      logger.log("[useYjsMultiplayer] Multiplayer experiment disabled");
       setConnectionError("Multiplayer experiment is disabled");
       setIsConnected(false);
       return;
     }
 
     if (!enabled) {
-      console.log("[useYjsMultiplayer] Not enabled, waiting...");
+      logger.log("[useYjsMultiplayer] Not enabled, waiting...");
       setConnectionError("Initializing...");
       setIsConnected(false);
       return;
     }
 
-    console.log("[useYjsMultiplayer] Starting initialization for", persistId);
+    logger.log("[useYjsMultiplayer] Starting initialization for", persistId);
     const doc = new Y.Doc();
     ydocRef.current = doc;
     setIsConnected(false);
@@ -208,19 +209,19 @@ export const useYjsMultiplayer = ({
     yTextMapRef.current = yText;
     yMetaMapRef.current = yMeta;
 
-    console.log("[useYjsMultiplayer] Setting up observers and undo manager");
+    logger.log("[useYjsMultiplayer] Setting up observers and undo manager");
     const syncCleanup = setupObservers();
     const undoCleanup = setupUndoManager();
 
     setScheduleSave(getScheduleSave() || undefined);
     forceSaveRef.current = getForceSave();
 
-    console.log("[useYjsMultiplayer] Starting hydration and provider");
+    logger.log("[useYjsMultiplayer] Starting hydration and provider");
     hydrateFromServer().catch((err) => {
-      console.error("[useYjsMultiplayer] Hydration failed:", err);
+      logger.error("[useYjsMultiplayer] Hydration failed:", err);
     });
     initializeProvider().catch((err) => {
-      console.error("[useYjsMultiplayer] Provider init failed:", err);
+      logger.error("[useYjsMultiplayer] Provider init failed:", err);
     });
 
     return () => {

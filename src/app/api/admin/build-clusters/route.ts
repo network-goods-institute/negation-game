@@ -5,7 +5,7 @@ import {
   buildMissingPointClusters,
   buildPointClustersBatch,
   getClusterCoverageStats,
-} from "@/actions/points/buildPointClustersBatch";
+} from "@/actions/points/buildPointClustersBatch";import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       spaceId: spaceId || "all",
     });
   } catch (error) {
-    console.error("[build-clusters] Error getting stats:", error);
+    logger.error("[build-clusters] Error getting stats:", error);
     return NextResponse.json(
       { error: "Failed to get cluster statistics" },
       { status: 500 }
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case "build-missing":
-        console.log(
+        logger.log(
           `[build-clusters] Building missing clusters${spaceId ? ` for space ${spaceId}` : ""}, limit: ${limit}`
         );
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        console.log(
+        logger.log(
           `[build-clusters] Building clusters for ${pointIds.length} specific points`
         );
 
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error("[build-clusters] Error:", error);
+    logger.error("[build-clusters] Error:", error);
     return NextResponse.json(
       {
         error: "Failed to perform cluster operation",

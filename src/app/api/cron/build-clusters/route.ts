@@ -4,7 +4,7 @@ import { isUserSiteAdmin } from "@/utils/adminUtils";
 import {
   buildMissingPointClusters,
   getClusterCoverageStats,
-} from "@/actions/points/buildPointClustersBatch";
+} from "@/actions/points/buildPointClustersBatch";import { logger } from "@/lib/logger";
 
 // Serverless runtime configuration for cron jobs
 export const runtime = "nodejs";
@@ -32,20 +32,20 @@ export async function GET(request: NextRequest) {
     if (!isCronJob) {
       const userId = await getUserId();
       if (!userId || !(await isUserSiteAdmin(userId))) {
-        console.warn("[cluster-builder] Unauthorized access attempt");
+        logger.warn("[cluster-builder] Unauthorized access attempt");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      console.log(`[cluster-builder] Manual execution by site admin ${userId}`);
+      logger.log(`[cluster-builder] Manual execution by site admin ${userId}`);
     } else {
-      console.log(
+      logger.log(
         `[cluster-builder] Cron job execution started${spaceId ? ` for space ${spaceId}` : ""}`
       );
     }
 
     // Get initial coverage stats
     const initialStats = await getClusterCoverageStats(spaceId);
-    console.log(
+    logger.log(
       `[cluster-builder] Initial coverage: ${initialStats.clusteredPoints}/${initialStats.totalPoints} points (${initialStats.coverage.toFixed(1)}%)`
     );
 
@@ -61,10 +61,10 @@ export async function GET(request: NextRequest) {
     const duration = Date.now() - startTime;
 
     // Enhanced logging for monitoring
-    console.log(
+    logger.log(
       `[cluster-builder] Job completed in ${duration}ms ${isCronJob ? "(cron)" : "(manual)"}`
     );
-    console.log(`[cluster-builder] Results:`, {
+    logger.log(`[cluster-builder] Results:`, {
       built: result.newClusters,
       failed: result.failed,
       processed: result.totalPoints,
@@ -101,13 +101,13 @@ export async function GET(request: NextRequest) {
     };
 
     if (result.failed > 0) {
-      console.warn(`[cluster-builder] ${result.failed} cluster builds failed`);
+      logger.warn(`[cluster-builder] ${result.failed} cluster builds failed`);
     }
 
     return NextResponse.json(response);
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(
+    logger.error(
       `[cluster-builder] Unexpected error after ${duration}ms:`,
       error
     );
@@ -142,11 +142,11 @@ export async function POST(request: NextRequest) {
     if (!isCronJob) {
       const userId = await getUserId();
       if (!userId || !(await isUserSiteAdmin(userId))) {
-        console.warn("[cluster-builder] Unauthorized POST attempt");
+        logger.warn("[cluster-builder] Unauthorized POST attempt");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      console.log(
+      logger.log(
         `[cluster-builder] Manual POST execution by site admin ${userId}`
       );
     }
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { spaceId, limit = 50 } = body;
 
-    console.log(
+    logger.log(
       `[cluster-builder] POST execution${spaceId ? ` for space ${spaceId}` : ""}, limit: ${limit}`
     );
 
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
-    console.log(
+    logger.log(
       `[cluster-builder] POST completed in ${duration}ms: ${result.newClusters} built, ${result.failed} failed`
     );
 
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[cluster-builder] POST error after ${duration}ms:`, error);
+    logger.error(`[cluster-builder] POST error after ${duration}ms:`, error);
 
     return NextResponse.json(
       {

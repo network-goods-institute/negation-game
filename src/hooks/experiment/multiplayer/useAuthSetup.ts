@@ -3,7 +3,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useQueryClient } from '@tanstack/react-query';
 import { userQueryKey } from '@/queries/users/useUser';
 import { useUserColor } from './useUserColor';
-import { useAnonymousId } from './useAnonymousId';
+import { useAnonymousId } from './useAnonymousId';import { logger } from "@/lib/logger";
 
 export const useAuthSetup = () => {
   const { authenticated, ready, login, user: privyUser } = usePrivy();
@@ -14,7 +14,7 @@ export const useAuthSetup = () => {
   useEffect(() => {
     if (ready) return;
     const timer = setTimeout(() => {
-      console.log('[MultiplayerBoardDetailPage] Privy timeout - proceeding as anonymous');
+      logger.log('[MultiplayerBoardDetailPage] Privy timeout - proceeding as anonymous');
       setPrivyTimeout(true);
     }, 5000);
     return () => clearTimeout(timer);

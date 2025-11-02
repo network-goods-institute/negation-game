@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { validatePointExists } from "@/actions/points/validatePointId";
-import PointPageClient from "@/app/s/[space]/[encodedPointId]/PointPageClient";
+import PointPageClient from "@/app/s/[space]/[encodedPointId]/PointPageClient";import { logger } from "@/lib/logger";
 
 export default async function PointPage({
   params,
@@ -28,13 +28,13 @@ export default async function PointPage({
 
     const exists = await validatePointExists(pointId);
     if (!exists) {
-      console.warn(`Point with ID ${pointId} does not exist in database`);
+      logger.warn(`Point with ID ${pointId} does not exist in database`);
       return notFound();
     }
 
     return <PointPageClient params={resolvedParams} searchParams={resolvedSearchParams} />;
   } catch (error) {
-    console.error("Error in point page:", error);
+    logger.error("Error in point page:", error);
     return notFound();
   }
 }

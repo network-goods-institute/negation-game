@@ -1,5 +1,7 @@
 // This is a utility file to help debug build-time errors
 
+import { logger } from "@/lib/logger";
+
 // Safe check for window that won't break during build
 export const isBrowser = (): boolean => {
   return typeof window !== "undefined";
@@ -26,8 +28,8 @@ export const getBuildEnvironmentInfo = (): Record<string, any> => {
 if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
   const envInfo = getBuildEnvironmentInfo();
 
-  // Safe console log that works in all environments
+  // Safe logger.log that works in all environments
   if (typeof console !== "undefined") {
-    console.log("Build environment:", envInfo);
+    logger.log("Build environment:", envInfo);
   }
 }

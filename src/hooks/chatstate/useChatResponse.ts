@@ -8,7 +8,7 @@ import type { ChatMessage, SavedChat, ViewpointGraph } from "@/types/chat";
 import type { FlowParams, FlowType } from "@/hooks/chat/useChatFlow";
 import type { Dispatch, SetStateAction, MutableRefObject } from "react";
 import { GraphCommand } from "@/types/graphCommands";
-import { applyGraphCommands } from "@/utils/graphCommandProcessor";
+import { applyGraphCommands } from "@/utils/graphCommandProcessor";import { logger } from "@/lib/logger";
 
 /* eslint-disable drizzle/enforce-delete-with-where */
 
@@ -121,7 +121,7 @@ export function useChatResponse({
           );
         }
       } catch (error) {
-        console.error("[generateAndSetTitle] Error generating title:", error);
+        logger.error("[generateAndSetTitle] Error generating title:", error);
         toast.error(
           "Failed to generate chat name. Please contact support if this persists."
         );
@@ -355,7 +355,7 @@ export function useChatResponse({
               try {
                 commandsJson = decodeURIComponent(commandsHeader);
               } catch (decodeError) {
-                console.error("DECODE ERROR:", decodeError);
+                logger.error("DECODE ERROR:", decodeError);
                 throw new Error(
                   `Failed to decode commands header: ${decodeError}`
                 );
@@ -365,8 +365,8 @@ export function useChatResponse({
               try {
                 commands = JSON.parse(commandsJson);
               } catch (parseError) {
-                console.error("JSON PARSE ERROR:", parseError);
-                console.error("Failed JSON string:", commandsJson);
+                logger.error("JSON PARSE ERROR:", parseError);
+                logger.error("Failed JSON string:", commandsJson);
                 throw new Error(`Failed to parse commands JSON: ${parseError}`);
               }
 
@@ -383,11 +383,11 @@ export function useChatResponse({
                   );
                   continue;
                 }
-                console.log(`Command ${i}: ${cmd.type} - ${cmd.id} ✓`);
+                logger.log(`Command ${i}: ${cmd.type} - ${cmd.id} ✓`);
               }
 
               if (invalidCommands.length > 0) {
-                console.error("INVALID COMMANDS FOUND:", invalidCommands);
+                logger.error("INVALID COMMANDS FOUND:", invalidCommands);
                 throw new Error(
                   `Invalid commands: ${invalidCommands.join("; ")}`
                 );
@@ -399,13 +399,13 @@ export function useChatResponse({
                 updatedGraph = result.updatedGraph;
                 errors = result.errors;
               } catch (applyError) {
-                console.error("COMMAND APPLICATION ERROR:", applyError);
+                logger.error("COMMAND APPLICATION ERROR:", applyError);
                 throw new Error(`Failed to apply commands: ${applyError}`);
               }
 
               if (errors.length > 0) {
-                console.error("Commands failed to apply:", errors);
-                console.error(
+                logger.error("Commands failed to apply:", errors);
+                logger.error(
                   "Failed commands details:",
                   errors.map((err, i) => `${i}: ${err}`)
                 );
@@ -420,19 +420,19 @@ export function useChatResponse({
 
               suggestedGraph = updatedGraph;
             } catch (error) {
-              console.error("=== COMMAND PROCESSING FAILURE ===");
-              console.error("COMMAND PROCESSING FAILED:", error);
-              console.error("Error details:", {
+              logger.error("=== COMMAND PROCESSING FAILURE ===");
+              logger.error("COMMAND PROCESSING FAILED:", error);
+              logger.error("Error details:", {
                 message: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : "No stack",
                 name: error instanceof Error ? error.name : "Unknown",
                 cause: error instanceof Error ? error.cause : "No cause",
               });
-              console.error(
+              logger.error(
                 "Commands header was:",
                 commandsHeader ? `${commandsHeader.length} chars` : "missing"
               );
-              console.error("=== END COMMAND PROCESSING FAILURE ===");
+              logger.error("=== END COMMAND PROCESSING FAILURE ===");
 
               // Show generic error to user but keep detailed logs in console
               toast.error(
@@ -587,12 +587,12 @@ export function useChatResponse({
           }
           generateAndSetTitle(chatIdToUse, finalMessages, graphToSave).catch(
             (error) => {
-              console.error("[handleResponse] Title generation error:", error);
+              logger.error("[handleResponse] Title generation error:", error);
             }
           );
         }
       } catch (error) {
-        console.error("[handleResponse] Error during response generation:", {
+        logger.error("[handleResponse] Error during response generation:", {
           error,
           chatId: chatIdToUse,
           flowType,
@@ -627,7 +627,7 @@ export function useChatResponse({
             currentChat?.graph
           );
         }
-        console.error("[handleResponse] Error during initial AI call:", error);
+        logger.error("[handleResponse] Error during initial AI call:", error);
         toast.error("Failed to get AI response.");
       } finally {
         if (activeGeneratingChatRef.current === chatIdToUse) {

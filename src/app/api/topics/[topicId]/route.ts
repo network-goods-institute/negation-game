@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { updateTopicWithPermissions } from "@/actions/topics/updateTopicWithPermissions";
 import { deleteTopic } from "@/actions/topics/deleteTopic";
-import { getUserId } from "@/actions/users/getUserId";
+import { getUserId } from "@/actions/users/getUserId";import { logger } from "@/lib/logger";
 
 export async function PATCH(
   request: Request,
@@ -62,7 +62,7 @@ export async function PATCH(
     const updatedTopic = await updateTopicWithPermissions(topicIdNumber, data);
     return NextResponse.json(updatedTopic);
   } catch (error) {
-    console.error("Error updating topic:", error);
+    logger.error("Error updating topic:", error);
     const status =
       error instanceof Error && error.message.includes("admin access required")
         ? 403
@@ -96,7 +96,7 @@ export async function DELETE(
     const result = await deleteTopic(topicIdNumber);
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Error deleting topic:", error);
+    logger.error("Error deleting topic:", error);
     const status =
       error instanceof Error && error.message.includes("admin access required")
         ? 403

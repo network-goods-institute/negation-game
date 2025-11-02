@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computeDelta } from "@/actions/analytics/computeDelta";
 import { getUserId } from "@/actions/users/getUserId";
-import { checkRateLimitStrict } from "@/lib/rateLimit";
+import { checkRateLimitStrict } from "@/lib/rateLimit";import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[/api/delta] Error:", error);
+    logger.error("[/api/delta] Error:", error);
     return NextResponse.json(
       { error: "Failed to compute delta" },
       { status: 500 }

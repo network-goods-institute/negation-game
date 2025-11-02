@@ -2,7 +2,7 @@ import { Button, ButtonProps } from "@/components/ui/button";
 import { usePrivy } from "@privy-io/react-auth";
 import React, { useState, useCallback, useMemo } from "react";
 import { handleAuthError } from "@/lib/auth/handleAuthError";
-import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";import { logger } from "@/lib/logger";
 
 /**
  * A button that handles authentication before performing an action.
@@ -25,7 +25,7 @@ export const AuthenticatedActionButton = React.memo(({ onClick, ...props }: Butt
                     const success = await setPrivyToken();
 
                     if (!success) {
-                        console.error('Token refresh failed, showing login');
+                        logger.error('Token refresh failed, showing login');
                         handleAuthError(new Error("Failed to refresh authentication token"), "refreshing token");
                         login();
                         e.preventDefault();
@@ -36,7 +36,7 @@ export const AuthenticatedActionButton = React.memo(({ onClick, ...props }: Butt
                         onClick(e);
                     }
                 } catch (error) {
-                    console.error('Error refreshing token:', error);
+                    logger.error('Error refreshing token:', error);
                     handleAuthError(error, "refreshing token");
                     login();
                     e.preventDefault();

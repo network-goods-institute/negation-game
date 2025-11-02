@@ -6,7 +6,7 @@ import { CheckIcon, CopyIcon } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { PointReference } from '@/components/chatbot/visual/PointReference';
 import { SuggestionBlock } from '../chatbot/visual/SuggestionBlock';
-import { SourceCitation } from '@/components/chatbot/visual/SourceCitation';
+import { SourceCitation } from '@/components/chatbot/visual/SourceCitation';import { logger } from "@/lib/logger";
 
 const CodeBlock = memo(({ className, children, ...props }: { className?: string; children: string }) => {
     const [copied, setCopied] = useState(false);
@@ -187,7 +187,7 @@ const renderTextWithInlineTags = (
                     }
                 });
             } else {
-                console.warn("Source citation regex matched but failed to extract parts:", match[0]);
+                logger.warn("Source citation regex matched but failed to extract parts:", match[0]);
                 parts.push(<Fragment key={`text-error-${keyIndex++}`}>{match[0]}</Fragment>);
             }
         } else if (match[15]) { // Matched inlineRationaleRefRegex (Group 15)

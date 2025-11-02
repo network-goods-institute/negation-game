@@ -14,7 +14,7 @@ import { TimelineScale } from "@/lib/negation-game/timelineScale";
 import { useCredInput } from "@/hooks/ui/useCredInput";
 import { useToggle } from "@uidotdev/usehooks";
 import { useRestakeCalculations } from "./useRestakeCalculations";
-import { usePointData } from "@/queries/points/usePointData";
+import { usePointData } from "@/queries/points/usePointData";import { logger } from "@/lib/logger";
 
 interface UseRestakeDialogStateProps {
   originalPoint: {
@@ -277,7 +277,7 @@ export const useRestakeDialogState = ({
 
       setShowSuccess(true);
     } catch (error) {
-      console.error("Error submitting action:", error);
+      logger.error("Error submitting action:", error);
     } finally {
       setIsSubmitting(false);
     }

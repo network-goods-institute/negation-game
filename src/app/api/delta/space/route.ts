@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
-import { handleSpaceComparison } from "@/services/delta/deltaComparison";
+import { handleSpaceComparison } from "@/services/delta/deltaComparison";import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[/api/delta/space] Error:", error);
+    logger.error("[/api/delta/space] Error:", error);
     return NextResponse.json(
       { error: "Failed to compute space delta comparison" },
       { status: 500 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";import { logger } from "@/lib/logger";
 
 const EXISTENCE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const existenceCache = new Map<number, { exists: boolean; timestamp: number }>();
@@ -23,7 +23,7 @@ export async function validatePointExists(pointId: number): Promise<boolean> {
     existenceCache.set(pointId, { exists, timestamp: Date.now() });
     return exists;
   } catch (error) {
-    console.error("Error validating point existence:", error);
+    logger.error("Error validating point existence:", error);
     return false;
   }
 }

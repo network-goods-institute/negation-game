@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
 import { buildRationaleIndexPath } from '@/utils/hosts/syncPaths';
-import { useSafeJson } from '@/hooks/network/useSafeJson';
+import { useSafeJson } from '@/hooks/network/useSafeJson';import { logger } from "@/lib/logger";
 
 type YProvider = WebsocketProvider | null;
 
@@ -120,10 +120,10 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
                   onUrlUpdate(data.id, data.slug);
                 }
               } else {
-                console.error('Failed to save title');
+                logger.error('Failed to save title');
               }
             } catch (error) {
-              console.error('Error saving title:', error);
+              logger.error('Error saving title:', error);
             }
           }
           setTitleSaving(false);

@@ -3,7 +3,7 @@
 import { db } from "@/services/db";
 import { pointsTable, pointClustersTable } from "@/db/schema";
 import { buildPointCluster } from "./buildPointCluster";
-import { eq, sql, notInArray, inArray, and } from "drizzle-orm";
+import { eq, sql, notInArray, inArray, and } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export interface ClusterBuildStats {
   totalPoints: number;
@@ -26,7 +26,7 @@ export async function buildMissingPointClusters({
 } = {}): Promise<ClusterBuildStats> {
   const startTime = Date.now();
 
-  console.log(
+  logger.log(
     `[buildMissingPointClusters] Starting batch cluster building${spaceId ? ` for space ${spaceId}` : ""}, limit: ${limit}`
   );
 
@@ -67,7 +67,7 @@ export async function buildMissingPointClusters({
     pointsNeedingClusters = await missingClustersQuery.limit(limit);
   }
 
-  console.log(
+  logger.log(
     `[buildMissingPointClusters] Found ${pointsNeedingClusters.length} points needing clusters`
   );
 
@@ -87,7 +87,7 @@ export async function buildMissingPointClusters({
 
   for (let i = 0; i < pointsNeedingClusters.length; i += batchSize) {
     const batch = pointsNeedingClusters.slice(i, i + batchSize);
-    console.log(
+    logger.log(
       `[buildMissingPointClusters] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(pointsNeedingClusters.length / batchSize)}`
     );
 
@@ -97,7 +97,7 @@ export async function buildMissingPointClusters({
           await buildPointCluster(point.id);
           return { success: true, pointId: point.id };
         } catch (error) {
-          console.error(
+          logger.error(
             `[buildMissingPointClusters] Failed to build cluster for point ${point.id}:`,
             error
           );
@@ -138,7 +138,7 @@ export async function buildPointClustersBatch(
 ): Promise<ClusterBuildStats> {
   const startTime = Date.now();
 
-  console.log(
+  logger.log(
     `[buildPointClustersBatch] Building clusters for ${pointIds.length} specific points`
   );
 
@@ -180,7 +180,7 @@ export async function buildPointClustersBatch(
         await buildPointCluster(pointId);
         return { success: true, pointId };
       } catch (error) {
-        console.error(
+        logger.error(
           "[buildPointClustersBatch] Failed to build cluster for point:",
           pointId,
           "Error:",
@@ -198,7 +198,7 @@ export async function buildPointClustersBatch(
 
   const processingTime = Date.now() - startTime;
 
-  console.log(
+  logger.log(
     `[buildPointClustersBatch] Completed: ${newClusters} new clusters, ${failed} failed, ${processingTime}ms`
   );
 

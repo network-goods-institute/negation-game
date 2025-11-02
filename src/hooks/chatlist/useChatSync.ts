@@ -7,7 +7,7 @@ import {
   ChatListManagementProps,
   ChatSyncState,
 } from "@/hooks/chatlist/chatListTypes";
-import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";import { logger } from "@/lib/logger";
 
 const PUSH_DEBOUNCE_MS = 500;
 
@@ -38,7 +38,7 @@ export function useChatSync({
       const chatId = chatData.id;
 
       if (activePushesRef.current.has(chatId)) {
-        console.log(
+        logger.log(
           `[executePush] Skipping concurrent push for chat ${chatId}`
         );
         return;
@@ -47,7 +47,7 @@ export function useChatSync({
       activePushesRef.current.add(chatId);
 
       const timeoutId = setTimeout(() => {
-        console.warn(`[executePush] Timeout for chat ${chatId}, cleaning up`);
+        logger.warn(`[executePush] Timeout for chat ${chatId}, cleaning up`);
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         activePushesRef.current.delete(chatId);
         setPendingPushIds((prev) => {
@@ -67,10 +67,10 @@ export function useChatSync({
         try {
           const tokenRefreshed = await setPrivyToken();
           if (!tokenRefreshed) {
-            console.warn("Token refresh returned false before chat sync");
+            logger.warn("Token refresh returned false before chat sync");
           }
         } catch (error) {
-          console.warn(
+          logger.warn(
             "Failed to refresh Privy token before chat sync:",
             error
           );
@@ -93,7 +93,7 @@ export function useChatSync({
           distillRationaleId: chatData.distillRationaleId ?? null,
         };
 
-        console.log("[executePush] Prepared chat data for sync:", {
+        logger.log("[executePush] Prepared chat data for sync:", {
           chatId,
           distillRationaleId: chatToSend.distillRationaleId,
           operation: "update",
@@ -104,7 +104,7 @@ export function useChatSync({
 
         if (!success) {
           op = "create";
-          console.log("[executePush] Update failed, attempting create:", {
+          logger.log("[executePush] Update failed, attempting create:", {
             chatId,
             distillRationaleId: chatToSend.distillRationaleId,
           });
@@ -114,7 +114,7 @@ export function useChatSync({
         }
 
         if (success) {
-          console.log("[executePush] Sync successful:", {
+          logger.log("[executePush] Sync successful:", {
             chatId,
             operation: op,
             distillRationaleId: chatToSend.distillRationaleId,
@@ -126,7 +126,7 @@ export function useChatSync({
           }
         } else {
           const errorMessage = result.error || "Unknown push failure";
-          console.error("[executePush] Sync failed:", {
+          logger.error("[executePush] Sync failed:", {
             chatId,
             operation: op,
             error: errorMessage,
@@ -156,7 +156,7 @@ export function useChatSync({
           errorMessage.toLowerCase().includes("token");
 
         if (isAuthError) {
-          console.log(
+          logger.log(
             "[executePush] Auth error detected, attempting token refresh and retry:",
             {
               chatId,
@@ -185,7 +185,7 @@ export function useChatSync({
                 }
 
                 if (retrySuccess) {
-                  console.log(
+                  logger.log(
                     "[executePush] Retry after token refresh successful:",
                     {
                       chatId,
@@ -200,18 +200,18 @@ export function useChatSync({
                   return; // Exit successfully
                 }
               } catch (retryError) {
-                console.warn("[executePush] Retry failed:", retryError);
+                logger.warn("[executePush] Retry failed:", retryError);
               }
             }
           } catch (tokenError) {
-            console.warn(
+            logger.warn(
               "[executePush] Token refresh failed during retry:",
               tokenError
             );
           }
         }
 
-        console.error("[executePush] Sync error:", {
+        logger.error("[executePush] Sync error:", {
           chatId,
           error: errorMessage,
           distillRationaleId: chatData.distillRationaleId,
@@ -243,7 +243,7 @@ export function useChatSync({
         });
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         pendingChatUpdatesRef.current.delete(chatId);
-        console.log(`[executePush] Cleanup completed for chat: ${chatId}`);
+        logger.log(`[executePush] Cleanup completed for chat: ${chatId}`);
       }
     },
     [
@@ -263,7 +263,7 @@ export function useChatSync({
     pushDebounceTimeoutRef.current = setTimeout(() => {
       const updatesToPush = Array.from(pendingChatUpdatesRef.current.values());
       if (updatesToPush.length > 0) {
-        console.log(
+        logger.log(
           `[debouncedPush] Processing ${updatesToPush.length} pending updates`
         );
         // Process each chat sequentially to avoid race conditions
@@ -273,7 +273,7 @@ export function useChatSync({
             setPendingPushIds((prev) => new Set(prev).add(chatData.id));
             executePush(chatData);
           } else {
-            console.log(
+            logger.log(
               `[debouncedPush] Skipping ${chatData.id} - already pushing`
             );
           }
@@ -289,13 +289,13 @@ export function useChatSync({
       if (!chatData || !chatData.id) return;
 
       if (activePushesRef.current.has(chatData.id)) {
-        console.log(
+        logger.log(
           `[queuePushUpdate] Skipping queue for active push: ${chatData.id}`
         );
         return;
       }
 
-      console.log(
+      logger.log(
         `[queuePushUpdate] Queuing ${immediate ? "immediate" : "debounced"} push for: ${chatData.id}`
       );
       setPendingPushIds((prev) => new Set(prev).add(chatData.id));
@@ -340,7 +340,7 @@ export function useChatSync({
           if (active.has(id) || pending.has(id)) {
             cleaned.add(id);
           } else {
-            console.log(`[cleanup] Removing stale pending push ID: ${id}`);
+            logger.log(`[cleanup] Removing stale pending push ID: ${id}`);
           }
         }
 

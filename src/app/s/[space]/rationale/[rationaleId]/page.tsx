@@ -43,7 +43,7 @@ import type { RationaleRank } from "@/components/ui/ProfileBadge";
 import type { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import MobileSaveFooter from '@/components/rationale/MobileSaveFooter';
 import PointsFeedContainer from "@/components/rationale/PointsFeedContainer";
-import useIsMobile from "@/hooks/ui/useIsMobile";
+import useIsMobile from "@/hooks/ui/useIsMobile";import { logger } from "@/lib/logger";
 
 function CopiedFromLink({ sourceId }: { sourceId: string }) {
     const { data: sourceViewpoint, isLoading } = useViewpoint(sourceId);
@@ -78,7 +78,7 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
         if (isEmbedMode || isDesktopEmbed) {
             const sendHeight = () => {
                 const height = document.documentElement.scrollHeight;
-                console.log('Rationale page sending height:', height);
+                logger.log('Rationale page sending height:', height);
                 window.parent.postMessage({
                     source: 'negation-game-rationale',
                     type: 'resize',
@@ -88,13 +88,13 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
 
             // Send height whenever it might change
             const timer = setTimeout(() => {
-                console.log('Initial height calculation for embed mode');
+                logger.log('Initial height calculation for embed mode');
                 sendHeight();
             }, 1000);
 
             // Send height on resize
             const resizeObserver = new ResizeObserver(() => {
-                console.log('ResizeObserver triggered');
+                logger.log('ResizeObserver triggered');
                 setTimeout(sendHeight, 100); // Small delay for DOM updates
             });
             resizeObserver.observe(document.body);
@@ -129,10 +129,10 @@ function ViewpointPageContent({ viewpointId, spaceSlug }: { viewpointId: string;
 
     useEffect(() => {
         if (isEmbedMode || isDesktopEmbed) {
-            console.log('Canvas state changed in embed mode:', canvasEnabled);
+            logger.log('Canvas state changed in embed mode:', canvasEnabled);
             const timer = setTimeout(() => {
                 const height = document.documentElement.scrollHeight;
-                console.log('Sending height after canvas toggle:', height);
+                logger.log('Sending height after canvas toggle:', height);
                 window.parent.postMessage({
                     source: 'negation-game-rationale',
                     type: 'resize',

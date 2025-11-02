@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
-import { handleBulkComparison } from "@/services/delta/deltaComparison";
+import { handleBulkComparison } from "@/services/delta/deltaComparison";import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     response.headers.set("Cache-Control", "public, max-age=300, s-maxage=600"); // 5min client, 10min CDN
     return response;
   } catch (error) {
-    console.error("[/api/delta/bulk] Error:", error);
+    logger.error("[/api/delta/bulk] Error:", error);
     return NextResponse.json(
       { error: "Failed to compute bulk deltas" },
       { status: 500 }

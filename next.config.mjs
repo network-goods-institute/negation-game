@@ -1,12 +1,13 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import TerserPlugin from 'terser-webpack-plugin';
 /** @type {import('next').NextConfig} */
 const isDev = process.env.NODE_ENV !== 'production';
 const nextConfig = {
   transpilePackages: ["next-mdx-remote"],
   // Avoid bundling multiple copies of yjs in server builds (Next 15+)
   serverExternalPackages: ["yjs", "y-websocket"],
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.output.globalObject = 'self';
     }
@@ -18,6 +19,24 @@ const nextConfig = {
       config.resolve.alias = config.resolve.alias || {};
       config.resolve.alias['yjs'] = yjsCjsPath;
     }
+
+    // Silence console logs in production (unless explicitly enabled)
+    const logsEnabled = process.env.NEXT_PUBLIC_ENABLE_LOGS === 'true';
+    if (!dev && !isServer && !logsEnabled) {
+      // Use Terser to remove console statements in production
+      config.optimization.minimizer = config.optimization.minimizer || [];
+      config.optimization.minimizer.push(
+        new TerserPlugin({
+          terserOptions: {
+            compress: {
+              drop_console: true,
+              drop_debugger: true,
+            },
+          },
+        })
+      );
+    }
+
     return config;
   },
   images: {

@@ -3,7 +3,7 @@
 import { db } from "@/services/db";
 import { rationalePointsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";import { logger } from "@/lib/logger";
 
 /**
  * Updates the rationale_points bridge table for a given rationale
@@ -44,11 +44,11 @@ export async function updateRationalePoints(
       }
     });
 
-    console.log(
+    logger.log(
       `[updateRationalePoints] Updated ${pointIds.length} point mappings for rationale ${rationaleId}`
     );
   } catch (error) {
-    console.error(
+    logger.error(
       "[updateRationalePoints] Failed to update rationale points for rationaleId:",
       rationaleId,
       "Error:",

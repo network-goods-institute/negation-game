@@ -12,7 +12,7 @@ import {
   copiedFromIdAtom,
 } from "@/atoms/viewpointAtoms";
 import { generateRationaleSummary } from "@/actions/ai/generateRationaleSummary";
-import { validateAndCleanGraph } from "@/lib/negation-game/validateAndCleanGraph";
+import { validateAndCleanGraph } from "@/lib/negation-game/validateAndCleanGraph";import { logger } from "@/lib/logger";
 
 /**
  * Hook to manage draft lifecycle: loading from sessionStorage, draft detection, and cleanup.
@@ -58,13 +58,13 @@ export default function useRationaleDraftLifecycle() {
             cleanedGraph.nodes.length !== graph.nodes.length ||
             cleanedGraph.edges.length !== graph.edges.length
           ) {
-            console.log("[DraftLifecycle] Cleaned up existing draft");
+            logger.log("[DraftLifecycle] Cleaned up existing draft");
             setGraph(cleanedGraph);
             setGraphRevision((prev) => prev + 1);
           }
         })
         .catch((error) => {
-          console.error(
+          logger.error(
             "[DraftLifecycle] Failed to validate existing draft:",
             error
           );
@@ -89,8 +89,8 @@ export default function useRationaleDraftLifecycle() {
     if (copyData) {
       try {
         const parsed = JSON.parse(copyData);
-        console.log("[DraftLifecycle] Found copy data:", parsed);
-        console.log("[DraftLifecycle] Topic info from storage:", {
+        logger.log("[DraftLifecycle] Found copy data:", parsed);
+        logger.log("[DraftLifecycle] Topic info from storage:", {
           topic: parsed.topic,
           topicId: parsed.topicId,
         });
@@ -111,22 +111,22 @@ export default function useRationaleDraftLifecycle() {
             hasLoadedCopyData.current = true;
           }
           if (parsed.title) {
-            console.log("[DraftLifecycle] Setting title:", parsed.title);
+            logger.log("[DraftLifecycle] Setting title:", parsed.title);
             setStatement(parsed.title);
           }
           if (parsed.description) {
-            console.log(
+            logger.log(
               "[DraftLifecycle] Setting description:",
               parsed.description
             );
             setReasoning(parsed.description);
           }
           if (parsed.topic) {
-            console.log("[DraftLifecycle] Setting topic:", parsed.topic);
+            logger.log("[DraftLifecycle] Setting topic:", parsed.topic);
             setTopic(parsed.topic);
           }
           if (parsed.topicId) {
-            console.log("[DraftLifecycle] Setting topicId:", parsed.topicId);
+            logger.log("[DraftLifecycle] Setting topicId:", parsed.topicId);
             setTopicId(parsed.topicId);
           }
           setGraphRevision((prev) => prev + 1);
@@ -134,7 +134,7 @@ export default function useRationaleDraftLifecycle() {
           return;
         }
       } catch (e) {
-        console.error("[DraftLifecycle] failed to parse copy data:", e);
+        logger.error("[DraftLifecycle] failed to parse copy data:", e);
       }
     }
     if (!isReactFlowReady || !reactFlow) {
@@ -186,7 +186,7 @@ export default function useRationaleDraftLifecycle() {
     // Generate AI summary in the background
     const generateAISummary = async () => {
       try {
-        console.log("[DraftLifecycle] Generating AI description for copy...");
+        logger.log("[DraftLifecycle] Generating AI description for copy...");
         hasGeneratedAIDescription.current = true;
         const aiDescription = await generateRationaleSummary({
           title: statement,
@@ -194,13 +194,13 @@ export default function useRationaleDraftLifecycle() {
           graph: graph,
         });
 
-        console.log(
+        logger.log(
           "[DraftLifecycle] Generated AI description:",
           aiDescription
         );
         setReasoning(aiDescription);
       } catch (error) {
-        console.error(
+        logger.error(
           "[DraftLifecycle] Failed to generate AI description:",
           error
         );

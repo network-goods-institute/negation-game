@@ -3,7 +3,7 @@ import { db } from "@/services/db";
 import { viewpointsTable, usersTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { truncateForSEO, extractKeywords, generateSEOTitle, cleanTextForSEO } from "@/lib/seo/utils";
-import { generateRationaleStructuredData } from "@/lib/seo/structuredData";
+import { generateRationaleStructuredData } from "@/lib/seo/structuredData";import { logger } from "@/lib/logger";
 
 interface Props {
     params: Promise<{
@@ -143,7 +143,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             },
         };
     } catch (error) {
-        console.error("Error generating metadata for rationale:", error);
+        logger.error("Error generating metadata for rationale:", error);
         return {
             title: "Error Loading Rationale",
             description: "There was an error loading this rationale.",
@@ -212,7 +212,7 @@ export default async function RationaleLayout({
             );
         }
     } catch (error) {
-        console.error("Error generating structured data for rationale:", error);
+        logger.error("Error generating structured data for rationale:", error);
     }
 
     return children;

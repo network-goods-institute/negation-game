@@ -5,7 +5,7 @@ import {
 } from "@/actions/analytics/runDailyDeltaPipeline";
 import { getUserId } from "@/actions/users/getUserId";
 import { isUserSiteAdmin } from "@/utils/adminUtils";
-import { checkRateLimitStrict } from "@/lib/rateLimit";
+import { checkRateLimitStrict } from "@/lib/rateLimit";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 799;
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result);
     }
   } catch (error) {
-    console.error("[/api/delta/pipeline] Error:", error);
+    logger.error("[/api/delta/pipeline] Error:", error);
     return NextResponse.json(
       {
         error: "Pipeline execution failed",
@@ -86,18 +86,18 @@ export async function GET(request: NextRequest) {
     if (!isCronJob) {
       const userId = await getUserId();
       if (!userId || !(await isUserSiteAdmin(userId))) {
-        console.warn("[delta-pipeline] Unauthorized access attempt");
+        logger.warn("[delta-pipeline] Unauthorized access attempt");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      console.log(
+      logger.log(
         `[delta-pipeline] Manual pipeline execution by site admin ${userId}`
       );
     } else {
-      console.log(`[delta-pipeline] Cron job execution started for ${snapDay}`);
+      logger.log(`[delta-pipeline] Cron job execution started for ${snapDay}`);
     }
 
-    console.log(
+    logger.log(
       `[delta-pipeline] Running pipeline for ${snapDay} ${isCronJob ? "(cron job)" : "(manual)"}`
     );
 
@@ -107,10 +107,10 @@ export async function GET(request: NextRequest) {
 
     // Enhanced logging for monitoring
     if (result.success) {
-      console.log(
+      logger.log(
         `[delta-pipeline] Pipeline completed successfully for ${snapDay} in ${duration}ms`
       );
-      console.log(`[delta-pipeline] Pipeline results:`, {
+      logger.log(`[delta-pipeline] Pipeline results:`, {
         snapDay,
         results: result.results,
         performance: {
@@ -119,10 +119,10 @@ export async function GET(request: NextRequest) {
         },
       });
     } else {
-      console.error(
+      logger.error(
         `[delta-pipeline] Pipeline failed for ${snapDay} after ${duration}ms: ${result.message}`
       );
-      console.error(`[delta-pipeline] Error details:`, result.message);
+      logger.error(`[delta-pipeline] Error details:`, result.message);
     }
 
     return NextResponse.json({
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(
+    logger.error(
       `[delta-pipeline] Unexpected error after ${duration}ms:`,
       error
     );

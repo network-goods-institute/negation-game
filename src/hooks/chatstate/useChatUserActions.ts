@@ -8,7 +8,7 @@ import type {
   SavedChat,
   DiscourseMessage,
   ViewpointGraph,
-} from "@/types/chat";
+} from "@/types/chat";import { logger } from "@/lib/logger";
 
 export interface UseChatUserActionsProps {
   currentChatId: string | null;
@@ -77,7 +77,7 @@ export function useChatUserActions({
         document.execCommand("copy");
         document.body.removeChild(textarea);
       } catch (err) {
-        console.error("Fallback copy failed:", err);
+        logger.error("Fallback copy failed:", err);
         toast.error("Copy failed.");
         return;
       }
@@ -91,7 +91,7 @@ export function useChatUserActions({
         await navigator.clipboard.writeText(textualRepresentation);
         toast.success("Message copied with full details!");
       } catch (error) {
-        console.error("Rich copy failed:", error);
+        logger.error("Rich copy failed:", error);
       }
     },
     [currentChatId, savedChats, currentSpace, discourseUrl, storedMessages]

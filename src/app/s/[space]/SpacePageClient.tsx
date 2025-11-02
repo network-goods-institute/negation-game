@@ -26,7 +26,7 @@ import { QuickActionsBar } from "@/components/space/QuickActionsBar";
 import { SpaceTabs } from "@/components/space/SpaceTabs";
 import { DeltaComparisonWidget } from "@/components/delta/DeltaComparisonWidget";
 import { StatisticsSummaryCard } from "@/components/statistics/StatisticsSummaryCard";
-import { LeaderboardCard } from "@/components/space/LeaderboardCard";
+import { LeaderboardCard } from "@/components/space/LeaderboardCard";import { logger } from "@/lib/logger";
 
 interface PageProps {
     params: { space: string };
@@ -176,7 +176,7 @@ export default function SpacePageClient({ params, searchParams }: PageProps) {
             id="SpaceContent"
             onRender={(id, phase, actualDuration) => {
                 if (process.env.NODE_ENV === 'development') {
-                    console.log(`${id} ${phase} took ${actualDuration}ms`);
+                    logger.log(`${id} ${phase} took ${actualDuration}ms`);
                 }
             }}
         >

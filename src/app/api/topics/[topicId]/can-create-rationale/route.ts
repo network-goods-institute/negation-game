@@ -3,7 +3,7 @@ import { canUserCreateRationaleForTopic } from "@/actions/topics/manageTopicPerm
 import { getUserId } from "@/actions/users/getUserId";
 import { db } from "@/services/db";
 import { topicsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: Request,
@@ -52,7 +52,7 @@ export async function GET(
       topicExists: true,
     });
   } catch (error) {
-    console.error("Error checking rationale creation permission:", error);
+    logger.error("Error checking rationale creation permission:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

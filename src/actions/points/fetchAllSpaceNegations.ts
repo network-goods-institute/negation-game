@@ -3,7 +3,7 @@
 import { getSpace } from "@/actions/spaces/getSpace";
 import { negationsTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export interface SpaceNegation {
   olderPointId: number;
@@ -34,7 +34,7 @@ export const fetchAllSpaceNegations = async (): Promise<SpaceNegation[]> => {
 
     return negations;
   } catch (error) {
-    console.error("Error fetching space negations:", error);
+    logger.error("Error fetching space negations:", error);
     return [];
   }
 };

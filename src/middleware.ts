@@ -2,7 +2,7 @@ import { SPACE_HEADER, USER_HEADER } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
 import { getPrivyClient } from "@/lib/privy/getPrivyClient";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";import { logger } from "@/lib/logger";
 
 // Special subdomains that shouldn't redirect to a space
 const BLACKLISTED_SUBDOMAINS = new Set(["www", "api", "play", "admin"]);
@@ -69,7 +69,7 @@ async function handleAuth(req: NextRequest): Promise<NextResponse> {
       response.headers.set(USER_HEADER, JSON.stringify(claims));
     } catch (error: any) {
       if (error.name !== "JWTExpired") {
-        console.error("Error verifying Privy auth token:", error);
+        logger.error("Error verifying Privy auth token:", error);
       }
       // eslint-disable-next-line drizzle/enforce-delete-with-where
       response.cookies.delete("privy-token");
@@ -151,7 +151,7 @@ export default async function middleware(req: NextRequest) {
   const { pathname } = url;
 
   if (SENSITIVE_PATTERNS.some((pattern) => pattern.test(pathname))) {
-    console.error(`Blocked attempt to access sensitive path: ${pathname}`);
+    logger.error(`Blocked attempt to access sensitive path: ${pathname}`);
     const response = new NextResponse(null, {
       status: 404,
       statusText: "Not Found",

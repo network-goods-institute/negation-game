@@ -3,7 +3,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { requireSpaceAdmin } from "@/utils/adminUtils";
 import { db } from "@/services/db";
 import { usersTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: Request,
@@ -29,7 +29,7 @@ export async function GET(
 
     return NextResponse.json(users);
   } catch (error) {
-    console.error("Error fetching all users:", error);
+    logger.error("Error fetching all users:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }

@@ -1,6 +1,6 @@
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
-import { eq, or } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 /**
  * Resolves a slug or ID to the canonical document ID.
@@ -44,7 +44,7 @@ export async function resolveSlugToId(idOrSlug: string): Promise<string> {
       return rows[0].id;
     }
   } catch (err) {
-    console.error("[SlugResolver] Error resolving slug to ID:", err);
+    logger.error("[SlugResolver] Error resolving slug to ID:", err);
   }
 
   // If not found or error, return original input

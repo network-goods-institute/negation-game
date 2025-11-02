@@ -17,10 +17,21 @@ jest.mock("@/actions/viewpoints/trackViewpointCopy", () => ({
   trackViewpointCopy: jest.fn(),
 }));
 
+// Mock logger
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
 // Import modules after mocking
 import { POST } from "../track-copy/route";
 import { trackViewpointCopy } from "@/actions/viewpoints/trackViewpointCopy";
-import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";import { logger } from "@/lib/logger";
 
 describe("/api/viewpoint/track-copy", () => {
   beforeEach(() => {
@@ -70,7 +81,7 @@ describe("/api/viewpoint/track-copy", () => {
       new Error("Failed to track copy")
     );
 
-    // Mock console.error to prevent test output pollution
+    // Mock logger.error to prevent test output pollution
     jest.spyOn(console, "error").mockImplementation(() => {});
 
     // Create a mock request with a valid ID
@@ -86,8 +97,8 @@ describe("/api/viewpoint/track-copy", () => {
     const data = await response.json();
     expect(data).toEqual({ error: "Failed to track viewpoint copy" });
 
-    // trackViewpointCopy should be called, but console.error should log the error
+    // trackViewpointCopy should be called, but logger.error should log the error
     expect(trackViewpointCopy).toHaveBeenCalledWith("test-id");
-    expect(console.error).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalled();
   });
 });

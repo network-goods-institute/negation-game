@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
+import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';import { logger } from "@/lib/logger";
 
 export const useBoardResolution = () => {
   const routeParams = useParams<{ id: string }>();
@@ -36,21 +36,21 @@ export const useBoardResolution = () => {
               }
             } catch { }
           } else {
-            console.error('[Slug Resolution] API returned invalid data:', data);
+            logger.error('[Slug Resolution] API returned invalid data:', data);
             setResolvedId(raw);
           }
         } else if (res.status === 404) {
-          console.error('[Slug Resolution] Document not found:', raw);
+          logger.error('[Slug Resolution] Document not found:', raw);
           setNotFound(true);
           setResolvedId(null);
           setResolvedSlug(null);
         } else {
-          console.error('[Slug Resolution] API request failed:', res.status, res.statusText);
+          logger.error('[Slug Resolution] API request failed:', res.status, res.statusText);
           setResolvedId(raw);
           setNotFound(false);
         }
       } catch (err) {
-        console.error('[Slug Resolution] Failed to resolve slug:', err);
+        logger.error('[Slug Resolution] Failed to resolve slug:', err);
         setResolvedId(raw);
         setNotFound(false);
       }

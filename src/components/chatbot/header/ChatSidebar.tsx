@@ -14,7 +14,7 @@ import { SavedChat } from '@/types/chat';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';import { logger } from "@/lib/logger";
 
 export const ChatListSkeleton = () => {
     return (
@@ -232,6 +232,7 @@ export const ChatSidebar = React.memo(({
         }
 
         const shareUrl = `${window.location.origin}/s/${currentSpace}/chat?importChat=${chatId}`;
+
         toast.success(
             <div className="flex flex-col gap-1">
                 <span>Share link copied!</span>
@@ -243,8 +244,8 @@ export const ChatSidebar = React.memo(({
                         const input = e.target as HTMLInputElement;
                         input.select();
                         navigator.clipboard.writeText(shareUrl)
-                            .then(() => console.log('Share URL copied to clipboard'))
-                            .catch(err => console.error('Failed to copy share URL: ', err));
+                            .then(() => logger.log('Share URL copied to clipboard'))
+                            .catch(err => logger.error('Failed to copy share URL: ', err));
                     }}
                 />
                 <span className="text-xs text-muted-foreground">(Click input to copy)</span>
@@ -252,8 +253,8 @@ export const ChatSidebar = React.memo(({
             { duration: 10000 }
         );
         navigator.clipboard.writeText(shareUrl)
-            .then(() => console.log('Share URL copied to clipboard automatically'))
-            .catch(err => console.error('Failed to copy share URL automatically: ', err));
+            .then(() => logger.log('Share URL copied to clipboard automatically'))
+            .catch(err => logger.error('Failed to copy share URL automatically: ', err));
     }, [currentSpace, isAuthenticated]);
 
     if (isMobile) {

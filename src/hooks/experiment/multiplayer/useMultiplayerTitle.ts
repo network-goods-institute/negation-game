@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { WebsocketProvider } from "y-websocket";
-import * as Y from "yjs";
+import * as Y from "yjs";import { logger } from "@/lib/logger";
 
 interface UseMultiplayerTitleProps {
   routeParams: { id: string } | null;
@@ -53,7 +53,7 @@ export const useMultiplayerTitle = ({
         setOwnerId(data.ownerId || null);
       }
     } catch (e) {
-      console.error("[title] Failed to load DB title:", e);
+      logger.error("[title] Failed to load DB title:", e);
     }
   }, [routeParams?.id]);
 
@@ -88,7 +88,7 @@ export const useMultiplayerTitle = ({
         } catch {}
       }
     } catch (e) {
-      console.error("[title] Failed to load DB title:", e);
+      logger.error("[title] Failed to load DB title:", e);
     }
   }, [routeParams?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

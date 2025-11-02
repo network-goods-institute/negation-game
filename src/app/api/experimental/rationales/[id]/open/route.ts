@@ -4,7 +4,7 @@ import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, eq } from "drizzle-orm";
-import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,7 +83,7 @@ export async function POST(_req: Request, ctx: any) {
       title: doc?.title || null,
     });
   } catch (e) {
-    console.error("[Record Open] Failed to record open:", e);
+    logger.error("[Record Open] Failed to record open:", e);
     return NextResponse.json(
       { error: "Failed to record open" },
       { status: 500 }

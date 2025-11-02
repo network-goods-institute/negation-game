@@ -1,6 +1,6 @@
 import { RationaleEmbedClient } from './RationaleEmbedClient';
 import { fetchViewpointForEmbed } from '@/actions/viewpoints/fetchViewpoint';
-import { notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';import { logger } from "@/lib/logger";
 
 interface Props {
     params: Promise<{
@@ -31,7 +31,7 @@ export default async function RationaleEmbedPage({ params, searchParams }: Props
             />
         );
     } catch (error) {
-        console.error('Error loading rationale embed:', error);
+        logger.error('Error loading rationale embed:', error);
         notFound();
     }
 }

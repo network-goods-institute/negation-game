@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { geminiService } from "@/services/ai/geminiService";
 import { getUserId } from "@/actions/users/getUserId";
 import { checkRateLimitStrict } from "@/lib/rateLimit";
-import { improveProposalBodySchema } from "./schema";
+import { improveProposalBodySchema } from "./schema";import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -125,7 +125,7 @@ RULES
 
     return NextResponse.json(parsedResponse);
   } catch (error) {
-    console.error("Error improving proposal:", error);
+    logger.error("Error improving proposal:", error);
     return NextResponse.json(
       { error: "Failed to improve proposal" },
       { status: 500 }

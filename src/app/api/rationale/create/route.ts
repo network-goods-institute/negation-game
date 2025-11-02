@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { generateRationaleCreationResponse } from "@/actions/ai/generateRationaleCreationResponse";
-import { getUserId } from "@/actions/users/getUserId";
+import { getUserId } from "@/actions/users/getUserId";import { logger } from "@/lib/logger";
 
 export async function POST(req: Request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const maxPayloadSize = 1024 * 1024;
 
     if (contentLength && parseInt(contentLength) > maxPayloadSize) {
-      console.warn(`Request payload too large: ${contentLength} bytes`);
+      logger.warn(`Request payload too large: ${contentLength} bytes`);
       return NextResponse.json(
         { error: "Request payload too large" },
         { status: 413 }
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
       const encodedGraph = encodeURIComponent(graphJson);
 
       if (encodedGraph.length > maxHeaderSize) {
-        console.warn(
+        logger.warn(
           `Graph header too large: ${(encodedGraph.length / 1024).toFixed(2)} KB, skipping header`
         );
       } else {
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
         const encodedCommands = encodeURIComponent(commandsJson);
 
         if (encodedCommands.length > maxHeaderSize) {
-          console.warn(
+          logger.warn(
             `Commands header too large: ${(encodedCommands.length / 1024).toFixed(2)} KB, skipping header`
           );
         } else {
@@ -74,13 +74,13 @@ export async function POST(req: Request) {
         }
       }
     } catch (error) {
-      console.error("Error encoding headers:", error);
+      logger.error("Error encoding headers:", error);
     }
 
     return new NextResponse(textStream, { headers });
   } catch (error) {
-    console.error("Error in rationale creation API:", error);
-    console.error("API Error details:", {
+    logger.error("Error in rationale creation API:", error);
+    logger.error("API Error details:", {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : "No stack",
       name: error instanceof Error ? error.name : "No name",

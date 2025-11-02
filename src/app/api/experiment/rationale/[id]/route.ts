@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchViewpointForEmbed } from "@/actions/viewpoints/fetchViewpoint";
+import { fetchViewpointForEmbed } from "@/actions/viewpoints/fetchViewpoint";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export async function GET(_req: Request, ctx: any) {
     };
     return NextResponse.json(payload);
   } catch (e) {
-    console.error("[api][experiment][rationale] error", e);
+    logger.error("[api][experiment][rationale] error", e);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }

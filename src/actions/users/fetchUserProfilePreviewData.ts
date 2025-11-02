@@ -3,7 +3,7 @@
 import { db } from "@/services/db";
 import { viewpointsTable } from "@/db/schema";
 import { eq, count } from "drizzle-orm";
-import { fetchUser } from "./fetchUser";
+import { fetchUser } from "./fetchUser";import { logger } from "@/lib/logger";
 
 export const fetchUserProfilePreviewData = async (userId: string) => {
   if (!userId) {
@@ -35,7 +35,7 @@ export const fetchUserProfilePreviewData = async (userId: string) => {
     };
     return result;
   } catch (error) {
-    console.error(
+    logger.error(
       "[fetchUserProfilePreviewData] Error fetching data for userId:",
       userId,
       "Error:",

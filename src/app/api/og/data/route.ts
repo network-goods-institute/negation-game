@@ -3,7 +3,7 @@ import { db } from "@/services/db";
 import { currentPointFavorView, pointsWithDetailsView } from "@/db/schema";
 import { addFavor } from "@/db/utils/addFavor";
 import { eq } from "drizzle-orm";
-import { fetchFavorHistory } from "@/actions/feed/fetchFavorHistory";
+import { fetchFavorHistory } from "@/actions/feed/fetchFavorHistory";import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   const pointId = request.nextUrl.searchParams.get("pointId");
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
     return Response.json(responsePayload);
   } catch (error) {
-    console.error("Error fetching point data:", error);
+    logger.error("Error fetching point data:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

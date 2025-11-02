@@ -3,7 +3,7 @@ import { db } from "@/services/db";
 import { topicsTable } from "@/db/tables/topicsTable";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { createSecureErrorResponse } from "@/lib/security/headers";
+import { createSecureErrorResponse } from "@/lib/security/headers";import { logger } from "@/lib/logger";
 
 const isDev = process.env.NODE_ENV !== "production";
 const ALLOWED_ORIGINS = [
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error creating topic:", error);
+    logger.error("Error creating topic:", error);
     return createSecureErrorResponse("Internal server error", 500, corsOrigin);
   }
 }

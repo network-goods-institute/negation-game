@@ -2,7 +2,7 @@
 
 import { db } from "@/services/db";
 import { viewpointInteractionsTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 /**
  * Increment the view count for a viewpoint
@@ -33,7 +33,7 @@ export const trackViewpointView = async (viewpointId: string) => {
     // Return success
     return true;
   } catch (error) {
-    console.error("Error tracking viewpoint view:", error);
+    logger.error("Error tracking viewpoint view:", error);
     // Don't throw - fail silently
     return false;
   }

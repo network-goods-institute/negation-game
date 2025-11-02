@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";import { logger } from "@/lib/logger";
 
 /**
  * Hook to prefetch and cache favor history for a given point ID.
@@ -30,12 +30,11 @@ export function usePrefetchFavorHistory(
       )
       .then((data) => {
         if (data) {
-          queryClient.setQueryData(cacheKey, data);
-        }
+          queryClient.setQueryData(cacheKey, data)}
       })
       .catch((error) => {
         if (process.env.NODE_ENV === "development") {
-          console.warn(
+          logger.warn(
             `[usePrefetchFavorHistory] Failed to fetch favor history for ${pointId}:`,
             error
           );

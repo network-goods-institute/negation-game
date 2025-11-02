@@ -1,13 +1,13 @@
 import { publishViewpoint as publishViewpointAction } from "@/actions/viewpoints/publishViewpointAction";
 import { useAuthenticatedMutation } from "../auth/useAuthenticatedMutation";
 import type { PublishViewpointArgs } from "@/actions/viewpoints/publishViewpointAction";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 export const usePublishViewpoint = () => {
   return useAuthenticatedMutation({
     mutationFn: (args: PublishViewpointArgs) => publishViewpointAction(args),
     onError: (error) => {
-      console.error("Error publishing viewpoint:", error);
+      logger.error("Error publishing viewpoint:", error);
 
       if (error.message && error.message.includes("no longer exist")) {
         toast.error(error.message, {
