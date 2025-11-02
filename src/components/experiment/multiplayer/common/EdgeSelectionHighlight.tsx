@@ -213,6 +213,13 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
     }
   }
 
+  // Special handling for comment edges - use blue highlight for better visibility
+  if (edgeType === 'comment') {
+    return (
+      <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#3b82f6" strokeWidth={6} strokeLinecap="round" opacity={0.9} />
+    );
+  }
+
   return (
     <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
   );

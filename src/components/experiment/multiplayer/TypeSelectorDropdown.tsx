@@ -22,10 +22,10 @@ const typeOptions = [
   {
     type: 'comment' as const,
     label: 'Comment',
-    icon: '💬',
+    icon: '@',
     description: 'Leave a note or remark',
-    gradient: 'from-emerald-500 to-emerald-600',
-    hoverGradient: 'hover:from-emerald-600 hover:to-emerald-700',
+    gradient: 'from-yellow-400 to-yellow-500',
+    hoverGradient: 'hover:from-yellow-500 hover:to-yellow-600',
   },
   {
     type: 'statement' as const,

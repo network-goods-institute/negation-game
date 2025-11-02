@@ -219,29 +219,13 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   comment: {
     type: "comment",
     visual: {
-      stroke: "#10b981",
-      borderColor: "#10b981",
-      starColor: "text-emerald-600",
-      strokeWidth: (relevance) => Math.max(1, Math.min(8, relevance * 1.4)),
-      gradientId: "comment-strap-gradient",
-      gradientStops: [
-        { offset: "0%", stopColor: "#10b981", stopOpacity: 0.15 },
-        { offset: "100%", stopColor: "#059669", stopOpacity: 0.15 },
-      ],
-      midpointContent: React.createElement(
-        "svg",
-        {
-          width: "12",
-          height: "12",
-          viewBox: "0 0 12 12",
-          style: { display: "block" },
-        },
-        React.createElement("path", {
-          d: "M 1.5 1.5 L 10.5 1.5 L 10.5 7.5 L 7 7.5 L 4.5 10 L 4.5 7.5 L 1.5 7.5 Z",
-          fill: "#10b981",
-        })
-      ),
-      useStrap: true,
+      stroke: "#000000",
+      borderColor: "#000000",
+      starColor: "text-black",
+      strokeWidth: () => 1, // Thin black line
+      label: undefined, // No label for comment edges
+      midpointContent: null, // No midpoint content for comment edges
+      useStrap: false, // No strap for thin lines
       useBezier: false,
     },
     behavior: {

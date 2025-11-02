@@ -413,7 +413,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
         />
       )}
 
-      {showAffordance && (
+      {showAffordance && props.edgeType !== 'comment' && (
         <EdgeMidpointControl
           cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
           cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
@@ -425,7 +425,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
         </EdgeMidpointControl>
       )}
 
-      {!connectMode && !grabMode && (
+      {!connectMode && !grabMode && props.edgeType !== 'comment' && (
         <EdgeOverlay
           cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
           cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
@@ -439,7 +439,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           tgtY={targetY ?? 0}
           onMouseEnter={() => setHoveredEdge(props.id as string)}
           onMouseLeave={() => setHoveredEdge(null)}
-          
+
           onAddObjection={handleAddObjection}
           onToggleEdgeType={() => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
           onConnectionClick={undefined}
