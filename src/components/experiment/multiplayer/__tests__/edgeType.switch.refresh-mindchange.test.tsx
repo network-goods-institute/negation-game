@@ -181,6 +181,14 @@ jest.mock('@/components/experiment/multiplayer/GraphUpdater', () => {
 });
 
 describe('edge type switch refreshes mindchange circles', () => {
+  const OLD_ENV = process.env as any;
+  beforeEach(() => {
+    jest.resetModules();
+    (process as any).env = { ...OLD_ENV, NEXT_PUBLIC_ENABLE_MINDCHANGE: 'true' };
+  });
+  afterAll(() => {
+    (process as any).env = OLD_ENV;
+  });
   it('fetches averages and updates yMetaMap on support->negation', async () => {
     render(
       <MultiplayerBoardContent

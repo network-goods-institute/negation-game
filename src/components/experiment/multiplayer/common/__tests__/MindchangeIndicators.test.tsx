@@ -3,6 +3,14 @@ import { render, screen } from '@testing-library/react';
 import { MindchangeIndicators } from '../MindchangeIndicators';
 
 describe('MindchangeIndicators', () => {
+  const OLD_ENV = process.env as any;
+  beforeEach(() => {
+    jest.resetModules();
+    (process as any).env = { ...OLD_ENV, NEXT_PUBLIC_ENABLE_MINDCHANGE: 'true' };
+  });
+  afterAll(() => {
+    (process as any).env = OLD_ENV;
+  });
   const mockMindchange = {
     forward: { average: 50, count: 3 },
     backward: { average: -30, count: 2 },
