@@ -37,6 +37,8 @@ export interface EdgeOverlayProps {
     backward: { average: number; count: number };
     userValue?: { forward: number; backward: number };
   };
+  suppress?: boolean;
+  suppressReason?: string;
 }
 
 export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
@@ -53,13 +55,23 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   onConnectionClick,
   starColor = 'text-stone-600',
   mindchange,
+  suppress = false,
+  suppressReason,
 }) => {
   const graph = useGraphActions();
   const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
+  const setOverlayActive = (graph as any)?.setOverlayActiveEdge as ((id: string | null) => void) | undefined;
   const [overlayOpen, setOverlayOpen] = React.useState<boolean>(Boolean(selected || overlayActiveId === edgeId));
   const [anchorHover, setAnchorHover] = React.useState<boolean>(false);
   const [isNearOverlay, setIsNearOverlay] = React.useState<boolean>(false);
   const { grabMode = false, connectMode = false } = useGraphActions();
+
+  const {
+    handlePersistencePointerDown,
+    handlePersistencePointerMove,
+    handlePersistencePointerUp,
+    handlePersistencePointerLeave,
+  } = usePersistencePointerHandlers({ grabMode });
 
   const [tx, ty, zoom] = useStore((s: any) => s.transform);
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
@@ -72,6 +84,79 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const fallbackScreenTop = ty + baseY * zoom;
 
   const [anchorScreenPos, setAnchorScreenPos] = React.useState<{ x: number; y: number } | null>(null);
+
+  const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const handlePortalMouseDown = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+    event.stopPropagation();
+  }, []);
+  const handlePortalMouseMove = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if ((event.buttons & 1) === 0) {
+      return;
+    }
+    event.stopPropagation();
+  }, []);
+  const handleConnectionAwareClick = React.useCallback((e: React.MouseEvent, normalAction: () => void) => {
+    if (connectMode && onConnectionClick) {
+      e.stopPropagation();
+      onConnectionClick();
+      return;
+    }
+    normalAction();
+  }, [connectMode, onConnectionClick]);
+
+  const rawForwardAvg = Math.round(Number((mindchange as any)?.forward?.average ?? 0));
+  const rawBackwardAvg = Math.round(Number((mindchange as any)?.backward?.average ?? 0));
+
+  const getCachedAvg = (dir: 'forward' | 'backward') => {
+    const key = `${edgeId}:${dir}`;
+    const cached = breakdownCache.get(key);
+    if (!cached || !cached.data || cached.data.length === 0) return null;
+    const sum = cached.data.reduce((a, b) => a + (Number(b.value) || 0), 0);
+    return Math.round(sum / cached.data.length);
+  };
+  const displayForwardAvg = rawForwardAvg === 0 ? (getCachedAvg('forward') ?? 0) : rawForwardAvg;
+  const displayBackwardAvg = rawBackwardAvg === 0 ? (getCachedAvg('backward') ?? 0) : rawBackwardAvg;
+
+  const [cacheTick, setCacheTick] = React.useState(0);
+
+  const prefetchBreakdowns = React.useCallback(async () => {
+    if (!(graph as any)?.getMindchangeBreakdown) return;
+    if (edgeType !== 'negation' && edgeType !== 'objection') return;
+    const now = Date.now();
+    const fKey = `${edgeId}:forward`;
+    const bKey = `${edgeId}:backward`;
+    const isFresh = (k: string) => { const c = breakdownCache.get(k); return !!c && (now - c.ts) < 30000; };
+    const fFresh = isFresh(fKey);
+    const bFresh = isFresh(bKey);
+    if (fFresh && bFresh) return;
+    try {
+      const res = await (graph as any).getMindchangeBreakdown(edgeId);
+      const ts = Date.now();
+      if (!fFresh) breakdownCache.set(fKey, { ts, data: res.forward });
+      if (!bFresh) breakdownCache.set(bKey, { ts, data: res.backward });
+      setCacheTick((t) => t + 1);
+    } catch { }
+  }, [graph, edgeId, edgeType]);
+
+  // Mindchange editor/UI state
+  const [editDir, setEditDir] = React.useState<null | 'forward' | 'backward'>(null);
+  const [value, setValue] = React.useState<number>(Math.abs(rawForwardAvg));
+  const initializedKeyRef = React.useRef<string | null>(null);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  // If overlay is suppressed (e.g., while dragging), force-close and don't render HUD
+  React.useEffect(() => {
+    if (suppress) {
+      setOverlayOpen(false);
+      setAnchorHover(false);
+      setIsNearOverlay(false);
+    }
+  }, [suppress]);
 
   React.useLayoutEffect(() => {
     if (typeof document === 'undefined') {
@@ -104,200 +189,25 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     }
   }, [edgeId, tx, ty, zoom]);
 
-  const showHUD = Boolean(overlayOpen);
+  const showHUD = Boolean(overlayOpen) && !suppress && !grabMode && (overlayActiveId == null || overlayActiveId === edgeId);
   React.useEffect(() => {
     try {
-      if (showHUD) (graph as any)?.setOverlayActiveEdge?.(edgeId);
-      else if ((graph as any)?.overlayActiveEdgeId === edgeId) (graph as any)?.setOverlayActiveEdge?.(null);
+      if (showHUD) setOverlayActive?.(edgeId);
+      else if (overlayActiveId === edgeId) setOverlayActive?.(null);
     } catch { }
-  }, [showHUD, edgeId, graph]);
+  }, [showHUD, edgeId, setOverlayActive, overlayActiveId]);
 
-
-  const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
-
+  // When conditions request opening, claim active edge id immediately
   React.useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      if (!(window as any).__ngiMouseRecorderInstalled) {
-        const handler = (e: MouseEvent) => { (window as any).__ngiLastMousePos = { x: e.clientX, y: e.clientY }; };
-        window.addEventListener('mousemove', handler, { passive: true });
-        (window as any).__ngiMouseRecorderInstalled = true;
-        (window as any).__ngiMouseRecorder = handler;
-      }
-    } catch { }
-  }, []);
-
-  React.useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      const el = portalContainerRef.current;
-      if (!el || !overlayOpen) {
-        setIsNearOverlay(false);
-        return;
-      }
-      const rect = el.getBoundingClientRect();
-      const expanded = {
-        left: rect.left - 75,
-        top: rect.top - 75,
-        right: rect.right + 75,
-        bottom: rect.bottom + 75,
-      };
-      const inside = e.clientX >= expanded.left && e.clientX <= expanded.right && e.clientY >= expanded.top && e.clientY <= expanded.bottom;
-      setIsNearOverlay(inside);
-    };
-    window.addEventListener('mousemove', onMove, { passive: true });
-    return () => window.removeEventListener('mousemove', onMove as any);
-  }, [overlayOpen]);
-
-  const tryOpenFromPointerProximity = React.useCallback(() => {
-    if (typeof document === 'undefined') return;
-    try {
-      const last = (window as any).__ngiLastMousePos as { x: number; y: number } | undefined;
-      if (!last) return;
-      const labelEl = document.querySelector(`[data-anchor-edge-id="${edgeId}"]`) as HTMLElement | null;
-      const nodeEl = document.querySelector(`[data-id="anchor:${edgeId}"]`) as HTMLElement | null;
-      const el = labelEl || nodeEl;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const expand = 75;
-      const inside = last.x >= rect.left - expand && last.x <= rect.right + expand && last.y >= rect.top - expand && last.y <= rect.bottom + expand;
-      if (inside) {
-        setAnchorHover(true);
-        setIsNearOverlay(true);
-        setOverlayOpen(true);
-      }
-    } catch { }
-  }, [edgeId]);
-
-  React.useLayoutEffect(() => {
-    if (!showHUD || typeof document === 'undefined') return;
-    try {
-      const labelEl = document.querySelector(`[data-anchor-edge-id="${edgeId}"]`) as HTMLElement | null;
-      if (labelEl) {
-        const rect = labelEl.getBoundingClientRect();
-        setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-        return;
-      }
-      const nodeEl = document.querySelector(`[data-id="anchor:${edgeId}"]`) as HTMLElement | null;
-      if (nodeEl) {
-        const rect = nodeEl.getBoundingClientRect();
-        setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-      }
-    } catch { }
-  }, [showHUD, edgeId, tx, ty, zoom]);
-
-  React.useLayoutEffect(() => {
-    // On remount or transform change, compute proximity immediately even if overlay closed
-    tryOpenFromPointerProximity();
-  }, [edgeId, tx, ty, zoom, tryOpenFromPointerProximity]);
-
-  React.useEffect(() => {
-    if (!selected && !isHovered) {
-      setAnchorHover(false);
-    }
-  }, [selected, isHovered]);
-
-  const {
-    handlePersistencePointerDown,
-    handlePersistencePointerMove,
-    handlePersistencePointerUp,
-    handlePersistencePointerLeave,
-  } = usePersistencePointerHandlers({ grabMode });
-
-  const handlePortalMouseDown = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (event.button !== 0) {
-      return;
-    }
-    event.stopPropagation();
-  }, []);
-
-  const handlePortalMouseMove = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if ((event.buttons & 1) === 0) {
-      return;
-    }
-    event.stopPropagation();
-  }, []);
-
-  const handleConnectionAwareClick = React.useCallback((e: React.MouseEvent, normalAction: () => void) => {
-    if (connectMode && onConnectionClick) {
-      e.stopPropagation();
-      onConnectionClick();
-      return;
-    }
-    normalAction();
-  }, [connectMode, onConnectionClick]);
-
-  React.useEffect(() => {
-    const el = portalContainerRef.current;
-    if (!el) return;
-
-    const handleWheel = (event: WheelEvent) => {
-      event.stopPropagation();
-      event.preventDefault();
-    };
-    el.addEventListener('wheel', handleWheel, { passive: false, capture: true });
-
-    return () => {
-      el.removeEventListener('wheel', handleWheel, { capture: true } as any);
-    };
-  }, [showHUD]);
-
-  const rawForwardAvg = Math.round(Number((mindchange as any)?.forward?.average ?? 0));
-  const rawBackwardAvg = Math.round(Number((mindchange as any)?.backward?.average ?? 0));
-
-  const getCachedAvg = (dir: 'forward' | 'backward') => {
-    const key = `${edgeId}:${dir}`;
-    const cached = breakdownCache.get(key);
-    if (!cached || !cached.data || cached.data.length === 0) return null;
-    const sum = cached.data.reduce((a, b) => a + (Number(b.value) || 0), 0);
-    return Math.round(sum / cached.data.length);
-  };
-  const displayForwardAvg = rawForwardAvg === 0 ? (getCachedAvg('forward') ?? 0) : rawForwardAvg;
-  const displayBackwardAvg = rawBackwardAvg === 0 ? (getCachedAvg('backward') ?? 0) : rawBackwardAvg;
-
-  const [cacheTick, setCacheTick] = React.useState(0);
-
-  const prefetchBreakdowns = React.useCallback(async () => {
-    if (!graph.getMindchangeBreakdown) return;
-    if (edgeType !== 'negation' && edgeType !== 'objection') return;
-    const now = Date.now();
-    const fKey = `${edgeId}:forward`;
-    const bKey = `${edgeId}:backward`;
-    const fFresh = (() => { const c = breakdownCache.get(fKey); return !!c && (now - c.ts) < 30000; })();
-    const bFresh = (() => { const c = breakdownCache.get(bKey); return !!c && (now - c.ts) < 30000; })();
-    if (fFresh && bFresh) return;
-    try {
-      const res = await graph.getMindchangeBreakdown(edgeId);
-      const ts = Date.now();
-      if (!fFresh) breakdownCache.set(fKey, { ts, data: res.forward });
-      if (!bFresh) breakdownCache.set(bKey, { ts, data: res.backward });
-    } catch { }
-    setCacheTick((t) => t + 1);
-  }, [graph, edgeId, edgeType]);
-
-  const [editDir, setEditDir] = React.useState<null | 'forward' | 'backward'>(null);
-  const [value, setValue] = React.useState<number>(Math.abs(rawForwardAvg));
-  const initializedKeyRef = React.useRef<string | null>(null);
-  const [menuOpen, setMenuOpen] = React.useState(false);
-  const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isSaving, setIsSaving] = React.useState(false);
-
-  React.useEffect(() => {
-    const lockForMindchange = Boolean((graph as any)?.mindchangeMode) &&
-      (((graph as any)?.mindchangeEdgeId as string | null) === edgeId || Boolean(editDir));
-    if (lockForMindchange) {
+    if (suppress) return;
+    if (selected || isHovered || anchorHover || isNearOverlay) {
       setOverlayOpen(true);
-      return;
+      try { setOverlayActive?.(edgeId); } catch { }
+    } else {
+      setOverlayOpen(false);
+      try { if (overlayActiveId === edgeId) setOverlayActive?.(null); } catch { }
     }
-    if (selected) {
-      setOverlayOpen(true);
-      return;
-    }
-    if (anchorHover) {
-      setOverlayOpen(true);
-      return;
-    }
-    setOverlayOpen(isNearOverlay ? true : false);
-  }, [selected, anchorHover, isNearOverlay, graph, edgeId, editDir]);
+  }, [selected, isHovered, anchorHover, isNearOverlay, suppress, edgeId, setOverlayActive, overlayActiveId]);
 
   React.useEffect(() => {
     if (!editDir) { initializedKeyRef.current = null; return; }
@@ -339,7 +249,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     try {
       const v = Math.max(0, Math.min(100, Math.round(value)));
       const params = editDir === 'forward' ? { forward: v } : { backward: v };
-      try { console.log('[Mindchange:Action] Save request', { edgeId, dir: editDir, value: v }); } catch { }
       await graph.setMindchange(edgeId, params);
       try {
         const key = `${edgeId}:${editDir}` as const;
@@ -363,10 +272,20 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     const key = `${edgeId}:${mindchangeNextDir}`;
     if (lastOpenKeyRef.current === key) return;
     lastOpenKeyRef.current = key;
-    try { console.log('[Mindchange:UI] Opening editor', { edgeId, nextDir: mindchangeNextDir }); } catch { }
     setEditDir(mindchangeNextDir);
     try { setMindchangeNextDirFn?.(null); } catch { }
   }, [selected, edgeId, edgeType, mindchangeNextDir, mindchangeEdgeId, setMindchangeNextDirFn]);
+
+  React.useEffect(() => {
+    const lockForMindchange = Boolean((graph as any)?.mindchangeMode) &&
+      (((graph as any)?.mindchangeEdgeId as string | null) === edgeId || Boolean(editDir));
+    if (suppress) { setOverlayOpen(false); return; }
+    if (lockForMindchange) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
+    if (selected) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
+    if (isHovered) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
+    if (anchorHover) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
+    if (!isNearOverlay) setOverlayOpen(false);
+  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, editDir, suppress, setOverlayActive]);
 
   // Do not auto-close editor based on global mindchangeMode; editor can be opened directly
 
@@ -392,6 +311,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
               setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
             } catch { }
+            try { setOverlayActive?.(edgeId); } catch { }
           }}
           onMouseLeave={() => { onMouseLeave(); setAnchorHover(false); }}
         />
@@ -452,6 +372,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   onPointerUp={handlePersistencePointerUp}
                   onPointerCancel={handlePersistencePointerUp}
                   onPointerLeave={handlePersistencePointerLeave}
+                  onMouseEnter={() => setIsNearOverlay(true)}
+                  onMouseLeave={() => setIsNearOverlay(false)}
                 >
                   {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && !editDir && (
                     <EdgeTypeToggle
@@ -466,7 +388,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     const handleClick = (e: React.MouseEvent) => handleConnectionAwareClick(e, () => {
                       e.stopPropagation();
                       try { prefetchBreakdowns(); } catch { }
-                      try { console.log('[Mindchange:UI] Mindchange button click', { edgeId, userValue: (mindchange as any)?.userValue }); } catch { }
                       (graph as any)?.beginMindchangeOnEdge?.(edgeId);
                     });
                     return (
@@ -502,7 +423,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       onValueChange={setValue}
                       onSave={handleSaveMindchange}
                       onCancel={() => {
-                        try { console.log('[Mindchange:UI] Cancel editor', { edgeId, dir: editDir }); } catch { }
                         setEditDir(null);
                         try { (graph as any)?.setSelectedEdge?.(null); } catch { }
                         (graph as any)?.cancelMindchangeSelection?.();
@@ -526,7 +446,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                           setIsSaving(true);
                           try {
                             const params = editDir === 'forward' ? { forward: 0 } : { backward: 0 };
-                            try { console.log('[Mindchange:Action] Clear request', { edgeId, params }); } catch { }
                             await graph.setMindchange(edgeId, params);
                             try {
                               const key = `${edgeId}:${editDir}` as const;

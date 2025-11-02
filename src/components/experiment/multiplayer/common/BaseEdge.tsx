@@ -73,7 +73,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     completeConnectToEdge,
   } = graphActions;
 
-  
+
 
   const maskingData = useEdgeNodeMasking(sourceNode, targetNode);
 
@@ -96,6 +96,12 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       strength: strapStrength,
     } : null
   );
+
+  // Determine if either endpoint is currently being dragged (or positions are updating at high frequency)
+  const sourceDragging = Boolean((sourceNode as any)?.dragging);
+  const targetDragging = Boolean((targetNode as any)?.dragging);
+  const endpointDragging = Boolean(sourceDragging || targetDragging || edgeState.isHighFrequencyUpdates);
+  const suppressReason = endpointDragging ? (sourceDragging ? 'source-dragging' : (targetDragging ? 'target-dragging' : 'high-frequency')) : undefined;
 
   const [pathD, labelX, labelY] = useMemo(() => {
     if (visual.useBezier) {
@@ -248,8 +254,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
         if (baseEdgeId === props.id) {
           // This is the base edge that the objection anchors to - select backward direction
-          try { console.log('[Mindchange:Select] base edge pick', { mindchangeEdgeId, baseEdgeId: props.id, dir: 'backward' }); } catch {}
-          (graphActions as any)?.setSelectedEdge?.(mindchangeEdgeId);
+          try { (graphActions as any)?.setSelectedEdge?.(mindchangeEdgeId); } catch { }
           (graphActions as any)?.setMindchangeNextDir?.('backward');
           (graphActions as any)?.cancelConnect?.();
           return;
@@ -340,7 +345,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             try {
               const mindchangeMode = (graphActions as any)?.mindchangeMode;
               const mindchangeEdgeId = (graphActions as any)?.mindchangeEdgeId as string | null;
-              const mindchangeNextDir = (graphActions as any)?.mindchangeNextDir as ('forward'|'backward'|null);
+              const mindchangeNextDir = (graphActions as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
               if (!mindchangeMode || !mindchangeEdgeId || mindchangeNextDir) return null;
               const selectedEdge = edges.find((e: any) => e.id === mindchangeEdgeId) as Edge | undefined;
               if (!selectedEdge || (selectedEdge as any).type !== 'objection') return null;
@@ -400,7 +405,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
       {!grabMode && (
         <EdgeInteractionOverlay
-          shouldRender={shouldRenderOverlay}
+          shouldRender={shouldRenderOverlay && !endpointDragging}
           pathD={visual.useBezier ? pathD : undefined}
           sourceX={visual.useBezier ? undefined : sourceX}
           sourceY={visual.useBezier ? undefined : sourceY}
@@ -408,8 +413,15 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           targetY={visual.useBezier ? undefined : targetY}
           onEdgeClick={handleEdgeClick}
           onContextMenu={handleContextMenu}
-          onMouseEnter={() => setIsConnectHovered(true)}
-          onMouseLeave={() => setIsConnectHovered(false)}
+          onMouseEnter={() => {
+            setIsConnectHovered(true);
+            try { (graphActions as any)?.setHoveredEdge?.(props.id as string); } catch { }
+            try { (graphActions as any)?.setOverlayActiveEdge?.(props.id as string); } catch { }
+          }}
+          onMouseLeave={() => {
+            setIsConnectHovered(false);
+            try { (graphActions as any)?.setHoveredEdge?.(null); } catch { }
+          }}
         />
       )}
 
@@ -447,6 +459,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           sourceLabel={(sourceNode as any)?.data?.content || (sourceNode as any)?.data?.statement}
           targetLabel={(targetNode as any)?.data?.content || (targetNode as any)?.data?.statement}
           mindchange={mindchange}
+          suppress={endpointDragging}
+          suppressReason={suppressReason}
         />
       )}
 
