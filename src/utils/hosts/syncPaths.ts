@@ -1,7 +1,23 @@
+const extractHostname = (host: string): string => {
+  const h = host.toLowerCase().trim();
+  if (!h) return "";
+  if (h.startsWith("[")) {
+    const end = h.indexOf("]");
+    if (end > 0) return h.slice(1, end);
+    return h.replace(/^\[|\]$/g, "");
+  }
+  if (h.includes(":")) {
+    const first = h.indexOf(":");
+    const last = h.lastIndexOf(":");
+    if (first !== last) return h;
+    return h.slice(0, first);
+  }
+  return h;
+};
+
 export const isSyncHost = (host: string | undefined | null): boolean => {
   if (!host) return false;
-  const h = host.toLowerCase();
-  const withoutPort = h.split(":")[0];
+  const withoutPort = extractHostname(host);
   return (
     withoutPort === "sync.negationgame.com" || withoutPort.startsWith("sync.")
   );
@@ -9,8 +25,7 @@ export const isSyncHost = (host: string | undefined | null): boolean => {
 
 export const isRootOrSyncHost = (host: string | undefined | null): boolean => {
   if (!host) return false;
-  const h = host.toLowerCase();
-  const withoutPort = h.split(":")[0];
+  const withoutPort = extractHostname(host);
   return (
     withoutPort === "negationgame.com" ||
     withoutPort === "sync.negationgame.com" ||

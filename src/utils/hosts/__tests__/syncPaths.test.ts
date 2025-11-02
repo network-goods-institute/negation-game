@@ -65,6 +65,14 @@ describe("syncPaths", () => {
       expect(isRootOrSyncHost("localhost:3000")).toBe(true);
     });
 
+    test("returns true for ::1", () => {
+      expect(isRootOrSyncHost("::1")).toBe(true);
+    });
+
+    test("returns true for [::1]:3000", () => {
+      expect(isRootOrSyncHost("[::1]:3000")).toBe(true);
+    });
+
     test("returns true for sync.localhost", () => {
       expect(isRootOrSyncHost("sync.localhost")).toBe(true);
     });
@@ -119,6 +127,16 @@ describe("syncPaths", () => {
 
       test("returns /board/:id for localhost:3000", () => {
         const path = buildRationaleDetailPath("abc123", "localhost:3000");
+        expect(path).toBe("/board/abc123");
+      });
+
+      test("returns /board/:id for ::1", () => {
+        const path = buildRationaleDetailPath("abc123", "::1");
+        expect(path).toBe("/board/abc123");
+      });
+
+      test("returns /board/:id for [::1]:3000", () => {
+        const path = buildRationaleDetailPath("abc123", "[::1]:3000");
         expect(path).toBe("/board/abc123");
       });
 
@@ -200,6 +218,16 @@ describe("syncPaths", () => {
 
       test("returns / for localhost:3000", () => {
         const path = buildRationaleIndexPath("localhost:3000");
+        expect(path).toBe("/");
+      });
+
+      test("returns / for ::1", () => {
+        const path = buildRationaleIndexPath("::1");
+        expect(path).toBe("/");
+      });
+
+      test("returns / for [::1]:3000", () => {
+        const path = buildRationaleIndexPath("[::1]:3000");
         expect(path).toBe("/");
       });
     });
