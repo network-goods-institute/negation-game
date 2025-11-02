@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 # Simple curl-based middleware smoke tests
 # BASE can be overridden, defaults to http://localhost:3001
 
 BASE=${BASE:-http://localhost:3001}
 
+FAILURES=0
+FAILURE_MESSAGES=()
+
 cyan() { printf "\033[36m%s\033[0m\n" "$*"; }
 green() { printf "\033[32m%s\033[0m\n" "$*"; }
 red()   { printf "\033[31m%s\033[0m\n" "$*"; }
+
+record_failure() {
+  local message="$1"
+  FAILURES=$((FAILURES + 1))
+  FAILURE_MESSAGES+=("$message")
+  red "$message"
+}
 
 curl_head() {
   local path=$1
@@ -32,13 +42,13 @@ assert_redirect() {
   location=$(printf "%s" "$out" | extract_header_ci location | sed -E 's/^[Ll]ocation:\s*//')
   if [[ "$status" != "307" ]]; then
     printf "%s\n" "$out" >&2
-    red "Expected 307, got ${status}"
-    exit 1
+    record_failure "Expected 307, got ${status} for ${BASE}${path}"
+    return
   fi
   if [[ "$location" != *"$expected_substr"* ]]; then
     printf "%s\n" "$out" >&2
-    red "Location header missing expected substring: $expected_substr"
-    exit 1
+    record_failure "Location header missing expected substring: $expected_substr for ${BASE}${path}"
+    return
   fi
   green "OK 307 -> $location"
 }
@@ -51,8 +61,8 @@ assert_no_redirect() {
   status=$(printf "%s" "$out" | extract_status)
   if [[ ${status:0:1} == "3" ]]; then
     printf "%s\n" "$out" >&2
-    red "Unexpected redirect status: ${status}"
-    exit 1
+    record_failure "Unexpected redirect status: ${status} for ${BASE}${path}"
+    return
   fi
   green "OK status ${status} (no redirect)"
 }
@@ -65,8 +75,8 @@ assert_header_contains() {
   header=$(printf "%s" "$out" | extract_header_ci "$header_key" | sed -E "s/^${header_key}:[[:space:]]*//I")
   if [[ -z "$header" || "$header" != *"$expected_substr"* ]]; then
     printf "%s\n" "$out" >&2
-    red "Header ${header_key} missing or does not contain '${expected_substr}'"
-    exit 1
+    record_failure "Header ${header_key} missing or does not contain '${expected_substr}' for ${BASE}${path}"
+    return
   fi
   green "OK ${header_key}: ${header}"
 }
@@ -79,8 +89,8 @@ assert_header_absent() {
   header=$(printf "%s" "$out" | extract_header_ci "$header_key")
   if [[ -n "$header" ]]; then
     printf "%s\n" "$out" >&2
-    red "Header ${header_key} should be absent but was present: ${header}"
-    exit 1
+    record_failure "Header ${header_key} should be absent but was present: ${header} for ${BASE}${path}"
+    return
   fi
   green "OK ${header_key} absent"
 }
@@ -108,6 +118,15 @@ main() {
   # Root viewpoint -> rationale (segment-safe) redirect
   assert_redirect "/viewpoint/123" "/rationale/123"
 
+  cyan "[VIEWPOINT SEGMENT] /myviewpoint/123 should redirect to play (not viewpoint segment)"
+  assert_redirect "/myviewpoint/123" "https://play.negationgame.com"
+
+  cyan "[VIEWPOINT SEGMENT] /viewpoint-abc/123 should redirect to play (not viewpoint segment)"
+  assert_redirect "/viewpoint-abc/123" "https://play.negationgame.com"
+
+  cyan "[VIEWPOINT SEGMENT] /abc-viewpoint/123 should redirect to play (not viewpoint segment)"
+  assert_redirect "/abc-viewpoint/123" "https://play.negationgame.com"
+
   # Sensitive paths blocked
   cyan "[SENSITIVE] /.env should 404 and be noindex"
   out=$(curl_head "/.env")
@@ -124,10 +143,35 @@ main() {
   assert_no_redirect "/" "play.negationgame.com"
   assert_redirect "/viewpoint/abc" "/rationale/abc" "play.negationgame.com"
 
+  cyan "[PLAY SEGMENT] /myviewpoint/123 should pass through (not redirect)"
+  assert_no_redirect "/myviewpoint/123" "play.negationgame.com"
+
+  cyan "[PLAY SEGMENT] /viewpoint-abc/123 should pass through (not redirect)"
+  assert_no_redirect "/viewpoint-abc/123" "play.negationgame.com"
+
+  cyan "[PLAY SEGMENT] /abc-viewpoint/123 should pass through (not redirect)"
+  assert_no_redirect "/abc-viewpoint/123" "play.negationgame.com"
+
   # Subdomain: scroll (rewrite, not redirect). Check x-space header present
   assert_no_redirect "/" "scroll.negationgame.com"
   assert_header_contains "/" "x-space" "scroll" "scroll.negationgame.com"
   assert_header_contains "/chat" "x-space" "scroll" "scroll.negationgame.com"
+
+  cyan "[SCROLL PROFILE] /profile/username on scroll.negationgame.com should pass through (not rewrite)"
+  out=$(curl_head "/profile/testuser" "scroll.negationgame.com")
+  status=$(printf "%s" "$out" | extract_status)
+  location=$(printf "%s" "$out" | extract_header_ci location | sed -E 's/^[Ll]ocation:\s*//')
+  if [[ ${status:0:1} == "3" ]]; then
+    record_failure "Profile path on scroll subdomain was redirected (status $status) - should pass through"
+  else
+    green "OK: Profile path on scroll subdomain passed through (status $status)"
+    space_header=$(printf "%s" "$out" | extract_header_ci "x-space" | sed -E "s/^x-space:[[:space:]]*//I")
+    if [[ "$space_header" == "scroll" ]]; then
+      green "OK: Correct x-space header: $space_header"
+    else
+      record_failure "Missing or incorrect x-space header: $space_header"
+    fi
+  fi
 
   # Subdomain: sync (rewrite to multiplayer routes, no redirect)
   assert_no_redirect "/" "sync.negationgame.com"
@@ -143,7 +187,15 @@ main() {
   assert_header_contains "/s/global?embed=mobile" "Content-Security-Policy" "frame-ancestors" "play.negationgame.com"
   assert_header_contains "/s/global?embed=mobile" "x-pathname" "/embed/s/global" "play.negationgame.com"
 
-  green "\nAll curl smoke checks passed."
+  if [[ $FAILURES -eq 0 ]]; then
+    green "\nAll curl smoke checks passed."
+  else
+    red "\n$FAILURES curl smoke check(s) failed:"
+    for message in "${FAILURE_MESSAGES[@]}"; do
+      red "  - $message"
+    done
+    exit 1
+  fi
 }
 
 main "$@"

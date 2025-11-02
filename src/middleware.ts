@@ -39,10 +39,9 @@ export const config = {
   matcher: [
     "/",
     "/((?!_next/|_static/|img/|api/|_vercel|favicon\\.|.*\\.\\w+$).+)",
-    {
-      source: "/(.*)",
-      has: [{ type: "host", value: "(.+)" }],
-    },
+    "/.env",
+    "/wp-login.php",
+    "/.git/:path*",
   ],
 };
 
@@ -121,17 +120,19 @@ function handleSubdomain(
 
   // Handle play subdomain - shows the old landing page and app behavior
   if (subdomain === "play") {
-    // Handle viewpoint-to-rationale redirect on play subdomain
     const pathname = url.pathname;
-    if (pathname.includes("viewpoint")) {
-      const newPathname = replaceViewpointSegments(pathname);
+    const parts = pathname.split("/");
+    const hasViewpointSegment = parts.some((seg) => seg === "viewpoint");
+    if (hasViewpointSegment) {
+      const newPathname = parts
+        .map((seg) => (seg === "viewpoint" ? "rationale" : seg))
+        .join("/");
       const newUrl = new URL(newPathname, req.url);
       url.searchParams.forEach((value, key) => {
         newUrl.searchParams.set(key, value);
       });
       return NextResponse.redirect(newUrl, 307);
     }
-    // Just let it pass through - play subdomain works like the old main domain
     return NextResponse.next();
   }
 
@@ -147,6 +148,12 @@ function handleSubdomain(
         pathParts.splice(0, 2); // Remove "s" and the space name
         targetPath = pathParts.length > 0 ? `/${pathParts.join("/")}` : "";
       }
+    }
+
+    if (isSpaceRewriteExcluded(targetPath)) {
+      const response = NextResponse.next();
+      response.headers.set(SPACE_HEADER, "scroll");
+      return response;
     }
 
     // For root path, rewrite to scroll space
@@ -383,11 +390,16 @@ export default async function middleware(req: NextRequest) {
     return rewriteResponse;
   }
 
-  if (pathname.includes("viewpoint")) {
-    const parts = pathname.split("/");
-    for (let i = 0; i < parts.length; i++) {
-      if (parts[i] === "viewpoint") parts[i] = "rationale";
+  const parts = pathname.split("/");
+  let hasViewpointSegment = false;
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === "viewpoint") {
+      parts[i] = "rationale";
+      hasViewpointSegment = true;
     }
+  }
+
+  if (hasViewpointSegment) {
     const newPathname = parts.join("/");
     const newUrl = new URL(newPathname, req.url);
     url.searchParams.forEach((value, key) => {

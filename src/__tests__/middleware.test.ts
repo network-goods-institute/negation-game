@@ -159,14 +159,14 @@ describe("Middleware", () => {
       expect(result?.type).toBe("rewrite");
     });
 
-    test("rewrites profile paths on space subdomains", async () => {
+    test("profile paths on space subdomains pass through with x-space header", async () => {
       const response = await mockMiddleware(
         "https://scroll.negationgame.com/profile/alice",
         "scroll.negationgame.com"
       );
 
-      // Profile paths on space subdomains should rewrite to /s/scroll/profile/alice
-      expect(response?.type).toBe("rewrite");
+      // Profile paths should pass through but include x-space header
+      expect(response?.type).toBe("next");
       expect(response.headers.get("x-space")).toBe("scroll");
     });
 
