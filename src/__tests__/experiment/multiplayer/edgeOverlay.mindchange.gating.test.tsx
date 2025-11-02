@@ -16,6 +16,14 @@ const baseProps = {
 } as const;
 
 describe('EdgeOverlay mindchange gating', () => {
+  const OLD_ENV = process.env as any;
+  beforeEach(() => {
+    jest.resetModules();
+    (process as any).env = { ...OLD_ENV, NEXT_PUBLIC_ENABLE_MINDCHANGE: 'true' };
+  });
+  afterAll(() => {
+    (process as any).env = OLD_ENV;
+  });
   const wrap = (ui: React.ReactNode) => render(<ReactFlowProvider>{ui}</ReactFlowProvider>);
 
   it('does not render Mindchange button for support', () => {

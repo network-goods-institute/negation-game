@@ -17,6 +17,7 @@ import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
 import { MainEdgeRenderer } from './MainEdgeRenderer';
 import { MindchangeBadges } from './MindchangeBadges';
 import { computeMindchangeStrokeWidth } from './computeMindchangeStrokeWidth';
+import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 
 export interface BaseEdgeProps extends EdgeProps {
   edgeType: EdgeType;
@@ -83,7 +84,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const [vx, vy, zoom] = useStore((s: any) => s.transform);
   const edges = useStore((s: any) => Array.from(s.edges?.values?.() || s.edges || []));
 
-  const mindchange = (props as any).data?.mindchange;
+  const mindchange = isMindchangeEnabledClient() ? (props as any).data?.mindchange : undefined;
   const mcF = Math.max(0, Math.min(100, Math.round(Number(mindchange?.forward?.average ?? 0)))) / 100;
   const mcB = Math.max(0, Math.min(100, Math.round(Number(mindchange?.backward?.average ?? 0)))) / 100;
   const strapStrength = Math.max(mcF, mcB);
@@ -196,7 +197,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, sourceX, sourceY, targetX, targetY, sourceNode, targetNode, props]);
 
   const edgeStyles = useMemo(() => {
-    const width = computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: props.edgeType });
+    const width = isMindchangeEnabledClient()
+      ? computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: props.edgeType })
+      : 2;
     const baseStyle = {
       stroke: visual.stroke,
       strokeWidth: width,

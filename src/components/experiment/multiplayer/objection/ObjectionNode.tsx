@@ -87,7 +87,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         hidden,
         pillDelay: 200,
         autoFocus: {
-            createdAt: Date.now(),
+            createdAt: (data as any)?.createdAt,
             isQuestionNode: false,
         },
     });

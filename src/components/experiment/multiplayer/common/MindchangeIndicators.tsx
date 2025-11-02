@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { MindchangeBreakdown, breakdownCache } from './MindchangeBreakdown';
+import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 
 interface MindchangeIndicatorsProps {
   edgeId: string;
@@ -17,6 +18,7 @@ export const MindchangeIndicators: React.FC<MindchangeIndicatorsProps> = ({
   edgeType,
   mindchange,
 }) => {
+  if (!isMindchangeEnabledClient()) return null;
   const rawForwardAvg = Math.round(Number(mindchange?.forward?.average ?? 0));
   const rawBackwardAvg = Math.round(Number(mindchange?.backward?.average ?? 0));
 

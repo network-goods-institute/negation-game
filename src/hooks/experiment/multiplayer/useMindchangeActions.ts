@@ -4,6 +4,7 @@ import {
   getMindchangeBreakdown as getMindchangeBreakdownAction,
 } from '@/actions/experimental/mindchange';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
+import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 
 interface UseMindchangeActionsProps {
   resolvedId: string | null;
@@ -33,6 +34,7 @@ export const useMindchangeActions = ({
   const mcCacheRef = useRef<Map<string, { ts: number; data: { forward: Array<{ userId: string; username: string; value: number }>; backward: Array<{ userId: string; username: string; value: number }> } }>>(new Map());
 
   const setMindchange = useCallback(async (edgeId: string, params: { forward?: number; backward?: number }) => {
+    if (!isMindchangeEnabledClient()) return;
     if (!resolvedId) return;
     try {
       const typeNow = (edges.find((e: any) => e.id === edgeId)?.type as string | undefined);
@@ -92,6 +94,7 @@ export const useMindchangeActions = ({
   }, [resolvedId, edges, userId, ydoc, yMetaMap, setEdges, setMindchangeSelectMode, setMindchangeEdgeId, setMindchangeNextDir, setSelectedEdgeId]);
 
   const getMindchangeBreakdown = useCallback(async (edgeId: string) => {
+    if (!isMindchangeEnabledClient()) return { forward: [], backward: [] };
     if (!resolvedId) return { forward: [], backward: [] };
     try {
       const key = edgeId;

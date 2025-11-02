@@ -35,6 +35,7 @@ import { getMindchangeAveragesForEdges } from '@/actions/experimental/mindchange
 import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 import { useMindchangeActions } from '@/hooks/experiment/multiplayer/useMindchangeActions';
+import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -160,6 +161,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   });
 
   useEffect(() => {
+    if (!isMindchangeEnabledClient()) return;
     if (!resolvedId || !ydoc || !yMetaMap) return;
     if (!edges || edges.length === 0) return;
     (async () => {
@@ -302,6 +304,10 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
           setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e, data: { ...(e.data || {}), mindchange: undefined } } : e));
         } catch { }
       } else if (newType === 'negation') {
+        if (!isMindchangeEnabledClient()) {
+          setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e } : e));
+          return;
+        }
         try {
           if (resolvedId && ydoc && yMetaMap) {
             const res = await getMindchangeAveragesForEdges(resolvedId, [edgeId]);
@@ -623,11 +629,13 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             mindchangeEdgeId,
             mindchangeNextDir,
             beginMindchangeSelection: () => {
+              if (!isMindchangeEnabledClient()) return;
               setMindchangeSelectMode(true);
               setConnectMode(true);
               setConnectAnchorId(null);
             },
             beginMindchangeOnEdge: (edgeId: string) => {
+              if (!isMindchangeEnabledClient()) return;
               try {
                 const et = (edges.find((e: any) => e.id === edgeId)?.type) as string | undefined;
                 if (et !== 'negation' && et !== 'objection') return;

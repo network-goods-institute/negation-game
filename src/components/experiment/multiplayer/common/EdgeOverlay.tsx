@@ -8,6 +8,7 @@ import { EdgeTypeToggle } from './EdgeTypeToggle';
 import { MindchangeEditor } from './MindchangeEditor';
 import { MindchangeIndicators } from './MindchangeIndicators';
 import { breakdownCache } from './MindchangeBreakdown';
+import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 
 const EDGE_ANCHOR_SIZE = 36;
 const PERSISTENCE_PADDING = 14;
@@ -123,6 +124,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [cacheTick, setCacheTick] = React.useState(0);
 
   const prefetchBreakdowns = React.useCallback(async () => {
+    if (!isMindchangeEnabledClient()) return;
     if (!(graph as any)?.getMindchangeBreakdown) return;
     if (edgeType !== 'negation' && edgeType !== 'objection') return;
     const now = Date.now();
@@ -210,6 +212,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   }, [selected, isHovered, anchorHover, isNearOverlay, suppress, edgeId, setOverlayActive, overlayActiveId]);
 
   React.useEffect(() => {
+    if (!isMindchangeEnabledClient()) { initializedKeyRef.current = null; return; }
     if (!editDir) { initializedKeyRef.current = null; return; }
     const initKey = `${edgeId}:${editDir}`;
     if (initializedKeyRef.current === initKey) return;
@@ -266,6 +269,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const setMindchangeNextDirFn = (graph as any)?.setMindchangeNextDir as ((v: 'forward' | 'backward' | null) => void) | undefined;
   const lastOpenKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
+    if (!isMindchangeEnabledClient()) return;
     if (edgeType !== 'negation' && edgeType !== 'objection') return;
     if (!selected) { lastOpenKeyRef.current = null; return; }
     if (mindchangeEdgeId !== edgeId || !mindchangeNextDir) return;
@@ -385,6 +389,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   )}
 
                   {(edgeType === 'negation' || edgeType === 'objection') && !editDir && (() => {
+                    if (!isMindchangeEnabledClient()) return null;
                     const handleClick = (e: React.MouseEvent) => handleConnectionAwareClick(e, () => {
                       e.stopPropagation();
                       try { prefetchBreakdowns(); } catch { }
@@ -416,6 +421,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   )}
 
                   {editDir && (
+                    // Editor only available when feature enabled
                     <MindchangeEditor
                       value={value}
                       isSaving={isSaving}
@@ -464,11 +470,13 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   )}
 
                   {(edgeType === 'negation' || edgeType === 'objection') && (
-                    <MindchangeIndicators
+                    isMindchangeEnabledClient() ? (
+                      <MindchangeIndicators
                       edgeId={edgeId}
                       edgeType={edgeType}
                       mindchange={mindchange}
-                    />
+                      />
+                    ) : null
                   )}
                 </div>
               </div>

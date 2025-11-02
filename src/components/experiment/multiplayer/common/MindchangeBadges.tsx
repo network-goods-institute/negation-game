@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
+import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 
 interface MindchangeBadgesProps {
   edgeId: string;
@@ -36,6 +37,7 @@ export const MindchangeBadges: React.FC<MindchangeBadgesProps> = ({
   vx,
   vy,
 }) => {
+  if (!isMindchangeEnabledClient()) return null;
   if (!overlayActive) return null;
   if (edgeType !== 'negation' && edgeType !== 'objection') return null;
 

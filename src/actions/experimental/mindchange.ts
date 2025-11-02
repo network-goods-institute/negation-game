@@ -6,6 +6,7 @@ import { mpMindchangeTable } from "@/db/tables/mpMindchangeTable";
 import { getUserId } from "@/actions/users/getUserId";
 import { usersTable } from "@/db/tables/usersTable";
 import { isProductionEnvironment } from "@/utils/hosts";
+import { isMindchangeEnabledServer } from "@/utils/featureFlags";
 
 type Averages = {
   forward: number;
@@ -32,6 +33,9 @@ export async function setMindchange(
   edgeType?: 'negation' | 'objection' | 'support',
   clientUserId?: string
 ): Promise<{ ok: true; averages: Averages } | { ok: false; error: string }> {
+  if (!isMindchangeEnabledServer()) {
+    return { ok: false, error: "Mindchange feature disabled" };
+  }
   if (!docId || !edgeId) return { ok: false, error: "Invalid ids" };
   if (edgeType && edgeType !== 'negation' && edgeType !== 'objection') {
     return { ok: false, error: 'Mindchange only allowed on negation or objection edges' };
@@ -112,6 +116,7 @@ export async function setMindchange(
 }
 
 export async function getMindchangeBreakdown(docId: string, edgeId: string) {
+  if (!isMindchangeEnabledServer()) return { forward: [], backward: [] };
   if (!docId || !edgeId) return { forward: [], backward: [] };
 
   const rows = await db
@@ -184,6 +189,7 @@ export async function getMindchangeAveragesForEdges(
     }
   >
 > {
+  if (!isMindchangeEnabledServer()) return {};
   if (!docId || !edgeIds || edgeIds.length === 0) return {};
 
   const rows = await db
@@ -235,6 +241,7 @@ export async function deleteMindchangeForEdge(
   docId: string,
   edgeId: string
 ): Promise<{ ok: true }> {
+  if (!isMindchangeEnabledServer()) return { ok: true };
   if (!docId || !edgeId) return { ok: true };
   await db
     .delete(mpMindchangeTable)

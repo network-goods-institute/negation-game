@@ -14,6 +14,7 @@ import {
   createUpdateNodesFromText,
 } from "./yjs/textSync";
 import { createScheduleSave } from "./yjs/saveHandlers";
+import { isMindchangeEnabledClient } from "@/utils/featureFlags";
 
 interface UseYjsSynchronizationProps {
   ydocRef: MutableRefObject<Y.Doc | null>;
@@ -280,6 +281,7 @@ export const useYjsSynchronization = ({
           }
           // Only push to server during undo/redo flows to avoid loops
           if (!isUndoRedoRef.current) continue;
+        if (!isMindchangeEnabledClient()) continue;
           // Import lazily to avoid SSR issues
           try {
             const actions = require("@/actions/experimental/mindchange");
