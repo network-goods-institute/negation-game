@@ -12,6 +12,7 @@ import type {
   IsLockedForMe,
   GetLockOwner,
 } from "@/types/multiplayer";
+import React from "react";
 
 /**
  * Manages connection handlers for creating edges between nodes.
@@ -73,8 +74,68 @@ export const useConnectionHandlers = ({
   mindchangeEdgeId,
   setMindchangeNextDir,
 }: UseConnectionHandlersProps) => {
+  const preConnectPositionsRef = React.useRef<
+    Record<string, { x: number; y: number }>
+  >({});
+  const lockPositionsActiveRef = React.useRef<boolean>(false);
+  const lockRafRef = React.useRef<number | null>(null);
+
+  const snapshotNodePositions = React.useCallback(() => {
+    try {
+      const snap: Record<string, { x: number; y: number }> = {};
+      for (const n of nodes) {
+        const x = Number((n as any)?.position?.x ?? 0);
+        const y = Number((n as any)?.position?.y ?? 0);
+        snap[n.id] = { x, y };
+      }
+      preConnectPositionsRef.current = snap;
+    } catch {}
+  }, [nodes]);
+
+  const enforceSnapshotPositions = React.useCallback(() => {
+    const snap = preConnectPositionsRef.current;
+    if (!snap || Object.keys(snap).length === 0) return;
+    setNodes((nds) =>
+      nds.map((n) => {
+        const s = snap[n.id];
+        if (!s) return n;
+        const cur = (n as any).position || { x: 0, y: 0 };
+        if (cur.x === s.x && cur.y === s.y) return n;
+        return { ...n, position: { x: s.x, y: s.y } } as any;
+      })
+    );
+  }, [setNodes]);
+
+  const tickPositionLock = React.useCallback(() => {
+    if (!lockPositionsActiveRef.current) return;
+    enforceSnapshotPositions();
+    lockRafRef.current = requestAnimationFrame(tickPositionLock);
+  }, [enforceSnapshotPositions]);
+
+  const startPositionLock = React.useCallback(() => {
+    snapshotNodePositions();
+    lockPositionsActiveRef.current = true;
+    if (lockRafRef.current == null) {
+      lockRafRef.current = requestAnimationFrame(tickPositionLock);
+    }
+  }, [snapshotNodePositions, tickPositionLock]);
+
+  const stopPositionLock = React.useCallback(() => {
+    lockPositionsActiveRef.current = false;
+    if (lockRafRef.current != null) {
+      try {
+        cancelAnimationFrame(lockRafRef.current);
+      } catch {}
+      lockRafRef.current = null;
+    }
+    // Final enforcement to ensure positions are restored
+    enforceSnapshotPositions();
+    preConnectPositionsRef.current = {};
+  }, [enforceSnapshotPositions]);
+
   const beginConnectFromNode = useCallback(
     (id: string, cursor?: { x: number; y: number }) => {
+      startPositionLock();
       connectAnchorRef.current = id;
       setConnectAnchorId(id);
       const fallback = cursor || getNodeCenter(id);
@@ -82,11 +143,18 @@ export const useConnectionHandlers = ({
         setConnectCursor(fallback);
       }
     },
-    [connectAnchorRef, setConnectAnchorId, setConnectCursor, getNodeCenter]
+    [
+      startPositionLock,
+      connectAnchorRef,
+      setConnectAnchorId,
+      setConnectCursor,
+      getNodeCenter,
+    ]
   );
 
   const beginConnectFromEdge = useCallback(
     (edgeId: string, cursor?: { x: number; y: number }) => {
+      startPositionLock();
       const anchorId = `anchor:${edgeId}`;
       connectAnchorRef.current = anchorId;
       setConnectAnchorId(anchorId);
@@ -109,6 +177,7 @@ export const useConnectionHandlers = ({
       }
     },
     [
+      startPositionLock,
       edges,
       connectAnchorRef,
       setConnectAnchorId,
@@ -148,7 +217,12 @@ export const useConnectionHandlers = ({
                 ? "backward"
                 : null;
           if (dir) {
-            try { console.log('[Mindchange:Select] completeConnectToNode chose direction', { edgeId: selectedEdge.id, nodeId, dir }); } catch {}
+            try {
+              console.log(
+                "[Mindchange:Select] completeConnectToNode chose direction",
+                { edgeId: selectedEdge.id, nodeId, dir }
+              );
+            } catch {}
             setSelectedEdgeId?.(selectedEdge.id);
             setMindchangeNextDir?.(dir);
           } else {
@@ -186,7 +260,12 @@ export const useConnectionHandlers = ({
                 : childId === chosen.target
                   ? "backward"
                   : "forward";
-            try { console.log('[Mindchange:Select] inferred edge + direction', { chosen: chosen.id, dir }); } catch {}
+            try {
+              console.log("[Mindchange:Select] inferred edge + direction", {
+                chosen: chosen.id,
+                dir,
+              });
+            } catch {}
             setSelectedEdgeId?.(chosen.id);
             setMindchangeNextDir?.(dir);
           } else {
@@ -198,6 +277,7 @@ export const useConnectionHandlers = ({
         setConnectCursor(null);
         // Keep connect mode off; remain in mindchange mode so the editor can open
         setConnectMode(false);
+        stopPositionLock();
         return;
       }
       // Case: connecting FROM a node TO an anchor node
@@ -239,6 +319,7 @@ export const useConnectionHandlers = ({
         connectAnchorRef.current = null;
         setConnectCursor(null);
         setConnectMode(false);
+        stopPositionLock();
         return;
       }
       if (anchorId.startsWith("anchor:") && !mindchangeSelectMode) {
@@ -280,6 +361,7 @@ export const useConnectionHandlers = ({
         connectAnchorRef.current = null;
         setConnectCursor(null);
         setConnectMode(false);
+        stopPositionLock();
         return;
       }
       const parentId = anchorId;
@@ -339,6 +421,7 @@ export const useConnectionHandlers = ({
       setConnectAnchorId(null);
       connectAnchorRef.current = null;
       setConnectCursor(null);
+      stopPositionLock();
     },
     [
       connectMode,
@@ -363,6 +446,7 @@ export const useConnectionHandlers = ({
       setSelectedEdgeId,
       mindchangeEdgeId,
       setMindchangeNextDir,
+      stopPositionLock,
     ]
   );
 
@@ -371,7 +455,14 @@ export const useConnectionHandlers = ({
     connectAnchorRef.current = null;
     setConnectCursor(null);
     setConnectMode(false);
-  }, [connectAnchorRef, setConnectAnchorId, setConnectCursor, setConnectMode]);
+    stopPositionLock();
+  }, [
+    setConnectAnchorId,
+    connectAnchorRef,
+    setConnectCursor,
+    setConnectMode,
+    stopPositionLock,
+  ]);
 
   const completeConnectToEdge = useCallback(
     (edgeId: string, midX?: number, midY?: number) => {
@@ -420,6 +511,7 @@ export const useConnectionHandlers = ({
       setConnectAnchorId(null);
       connectAnchorRef.current = null;
       setConnectCursor(null);
+      stopPositionLock();
     },
     [
       connectMode,
@@ -434,6 +526,7 @@ export const useConnectionHandlers = ({
       setConnectAnchorId,
       setConnectCursor,
       getEdgeMidpoint,
+      stopPositionLock,
     ]
   );
 
