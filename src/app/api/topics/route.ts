@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createTopicWithPermissions } from "@/actions/topics/createTopicWithPermissions";
-import { getUserId } from "@/actions/users/getUserId";
+import { getUserId } from "@/actions/users/getUserId";import { logger } from "@/lib/logger";
 
 export async function POST(request: Request) {
   try {
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(topic);
   } catch (error) {
-    console.error("Error creating topic:", error);
+    logger.error("Error creating topic:", error);
     const status =
       error instanceof Error && error.message.includes("admin access required")
         ? 403

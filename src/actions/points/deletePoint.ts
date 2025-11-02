@@ -9,7 +9,7 @@ import { doubtsTable } from "@/db/tables/doubtsTable";
 import { negationsTable } from "@/db/tables/negationsTable";
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
 import { usersTable } from "@/db/schema";
-import { eq, sql, and, or } from "drizzle-orm";
+import { eq, sql, and, or } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export interface DeletePointInput {
   pointId: number;
@@ -202,7 +202,7 @@ export const deletePoint = async ({
       };
     })
     .catch((error) => {
-      console.error("Error deleting point:", error);
+      logger.error("Error deleting point:", error);
       return {
         success: false,
         message: "An error occurred while deleting the point",

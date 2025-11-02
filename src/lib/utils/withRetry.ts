@@ -1,5 +1,7 @@
 // Utility for handling AI model overload errors with retry logic
 
+import { logger } from "@/lib/logger";
+
 interface RetryOptions {
   maxRetries?: number;
   initialDelay?: number;
@@ -72,7 +74,7 @@ export async function withRetry<T>(
         opts.maxDelay
       );
 
-      console.log(
+      logger.log(
         `AI model overloaded, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${opts.maxRetries})`
       );
 

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SendIcon, LoaderIcon } from "lucide-react";
 import { useSendMessage } from "@/mutations/messages/useSendMessage";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 interface MessageInputProps {
     recipientId: string;
@@ -30,7 +30,7 @@ export const MessageInput = ({ recipientId, spaceId, onMessageSent }: MessageInp
             onMessageSent?.();
             toast.success("Message sent");
         } catch (error) {
-            console.error("Failed to send message:", error);
+            logger.error("Failed to send message:", error);
             toast.error("Failed to send message");
         }
     };

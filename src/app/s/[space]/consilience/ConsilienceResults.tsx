@@ -26,7 +26,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog";import { logger } from "@/lib/logger";
 
 interface Diff {
   type: "addition" | "modification" | "removal";
@@ -138,7 +138,7 @@ export function ConsilienceResults({
       setCurrentProposal(data.proposal || currentProposal);
       setChatMessage('');
     } catch (error) {
-      console.error("Error processing chat message:", error);
+      logger.error("Error processing chat message:", error);
     }
     setIsProcessing(false);
   };

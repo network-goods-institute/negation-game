@@ -3,7 +3,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { messagesTable, generateConversationId } from "@/db/schema";
 import { db } from "@/services/db";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -145,7 +145,7 @@ export async function GET(
             lastMessageHash = currentMessageHash;
           }
         } catch (error) {
-          console.error("SSE error:", error);
+          logger.error("SSE error:", error);
         }
       };
 

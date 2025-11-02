@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
 import { useVisitedPoints } from "@/hooks/points/useVisitedPoints";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 export const useAddCounterpoint = () => {
   const queryClient = useQueryClient();
@@ -41,7 +41,7 @@ export const useAddCounterpoint = () => {
       });
     },
     onError: (error, variables) => {
-      console.error(
+      logger.error(
         `[useAddCounterpoint] Error creating counterpoint for negated point ${variables.negatedPointId}:`,
         error
       );

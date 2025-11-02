@@ -5,7 +5,7 @@ jest.mock("postgres", () => {
 });
 
 import { fetchUsersReputation } from "../users/fetchUsersReputation";
-import postgres from "postgres";
+import postgres from "postgres";import { logger } from "@/lib/logger";
 
 describe("fetchUsersReputation", () => {
   let mockSql: jest.Mock;
@@ -16,7 +16,7 @@ describe("fetchUsersReputation", () => {
     // Get the mock SQL function
     mockSql = (postgres as unknown as jest.Mock)().mockImplementation();
 
-    // Disable console logs during tests
+    // Disable logger.logs during tests
     jest.spyOn(console, "log").mockImplementation(() => {});
     jest.spyOn(console, "error").mockImplementation(() => {});
   });

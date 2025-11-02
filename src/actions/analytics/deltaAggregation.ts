@@ -11,7 +11,7 @@ import {
   computeDeltaBatch,
   computeRationaleDeltaBatch,
 } from "./computeDeltaBatch";
-import { getCachedDelta, setCachedDelta } from "@/lib/deltaCache";
+import { getCachedDelta, setCachedDelta } from "@/lib/deltaCache";import { logger } from "@/lib/logger";
 
 export async function computeRationaleDelta({
   userAId,
@@ -84,7 +84,7 @@ export async function computeRationaleDelta({
       return { delta: null, noInteraction: true };
     }
 
-    console.log(
+    logger.log(
       `[computeRationaleDelta] Found ${uniqueRootIds.length} clusters for rationale ${rationaleId}`
     );
 
@@ -128,7 +128,7 @@ export async function computeRationaleDelta({
     });
     return result;
   } catch (error) {
-    console.error("[computeRationaleDelta] Error:", error);
+    logger.error("[computeRationaleDelta] Error:", error);
     return { delta: null, noInteraction: false };
   }
 }
@@ -201,7 +201,7 @@ export async function computeTopicDelta({
     const topicDelta =
       validDeltas.reduce((sum, delta) => sum + delta, 0) / validDeltas.length;
 
-    console.log(
+    logger.log(
       `[computeTopicDelta] Topic delta: ${topicDelta} (from ${validDeltas.length}/${rationaleDeltas.length} rationales)`
     );
 
@@ -219,11 +219,11 @@ export async function computeTopicDelta({
       delta: result.delta,
       noInteraction: result.noInteraction,
     });
-    console.log("[computeTopicDelta] Cached result for", cacheKey);
+    logger.log("[computeTopicDelta] Cached result for", cacheKey);
 
     return result;
   } catch (error) {
-    console.error("[computeTopicDelta] Error:", error);
+    logger.error("[computeTopicDelta] Error:", error);
     return { delta: null, noInteraction: false };
   }
 }

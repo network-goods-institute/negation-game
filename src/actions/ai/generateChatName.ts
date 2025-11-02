@@ -2,7 +2,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
-import { withRetry } from "@/lib/utils/withRetry";
+import { withRetry } from "@/lib/utils/withRetry";import { logger } from "@/lib/logger";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -50,7 +50,7 @@ TITLE:`;
             "AI service is currently busy. Please try again in a moment."
           );
         }
-        console.error("[generateChatName Action Error]", error);
+        logger.error("[generateChatName Action Error]", error);
         throw new Error(
           `AI title generation failed: ${error instanceof Error ? error.message : String(error)}`
         );

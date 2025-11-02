@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchTopicPermissions } from "@/actions/topics/manageTopicPermissions";
+import { fetchTopicPermissions } from "@/actions/topics/manageTopicPermissions";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: Request,
@@ -16,7 +16,7 @@ export async function GET(
     const permissions = await fetchTopicPermissions(topicIdNum);
     return NextResponse.json(permissions);
   } catch (error) {
-    console.error("Error fetching topic permissions:", error);
+    logger.error("Error fetching topic permissions:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

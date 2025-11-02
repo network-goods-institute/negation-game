@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
 import { db } from "@/services/db";
 import { usersTable, spaceAdminsTable, spacesTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -41,7 +41,7 @@ export async function GET() {
       allSpaces,
     });
   } catch (error) {
-    console.error("Error fetching admin status:", error);
+    logger.error("Error fetching admin status:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

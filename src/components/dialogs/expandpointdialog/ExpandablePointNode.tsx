@@ -14,7 +14,7 @@ import { useAtom } from "jotai";
 import { hoveredPointIdAtom } from "@/atoms/hoveredPointIdAtom";
 import { getPointUrl } from "@/lib/negation-game/getPointUrl";
 import { usePrivy } from "@privy-io/react-auth";
-import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";
+import { useCurrentSpace } from "@/hooks/utils/useCurrentSpace";import { logger } from "@/lib/logger";
 
 export interface ExpandablePoint {
     pointId: number;
@@ -71,7 +71,7 @@ export const ExpandablePointNode: React.FC<ExpandablePointNodeProps> = ({
             const matches = pointData.content.toLowerCase().includes(searchTerm.toLowerCase());
             setIsVisible(matches);
         } catch (e) {
-            console.error(`Error filtering point ${point.pointId}:`, e);
+            logger.error(`Error filtering point ${point.pointId}:`, e);
             setIsVisible(false);
         }
     }, [searchTerm, pointData, point.pointId]);

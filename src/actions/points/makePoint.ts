@@ -14,6 +14,7 @@ import { waitUntil } from "@vercel/functions";
 import { executeCommand } from "@/actions/feed/handleCommand";
 import { revalidatePath } from "next/cache";
 import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
+import { logger } from "@/lib/logger";
 
 export const makePoint = async ({
   content,
@@ -85,7 +86,7 @@ export const makePoint = async ({
         );
         await buildPointCluster(newPointId);
       } catch (error) {
-        console.error(`Failed to build cluster for point ${newPointId}:`, error);
+        logger.error(`Failed to build cluster for point ${newPointId}:`, error);
       }
     });
 
@@ -99,7 +100,7 @@ export const makePoint = async ({
             revalidatePath(`/s/${space}`);
           }
         } catch (error) {
-          console.error(`Error executing command: ${error}`);
+          logger.error(`Error executing command: ${error}`);
         }
       });
     }

@@ -2,7 +2,7 @@
 
 import { db } from "@/services/db";
 import { objectionsTable, pointsTable } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export const fetchObjectionContext = async (
   objectionId: number,
@@ -25,7 +25,7 @@ export const fetchObjectionContext = async (
 
     return objection.length > 0 ? objection[0].contextPointId : null;
   } catch (error) {
-    console.error("Error fetching objection context:", error);
+    logger.error("Error fetching objection context:", error);
     return null;
   }
 };

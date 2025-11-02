@@ -3,7 +3,7 @@
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
 import { viewpointInteractionsTable } from "@/db/tables/viewpointInteractionsTable";
 import { db } from "@/services/db";
-import { eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export interface ShouldConfirmResult {
   shouldConfirm: boolean;
@@ -69,7 +69,7 @@ export const shouldConfirmRationaleUpdate = async (
       daysSinceUpdate,
     };
   } catch (error) {
-    console.error("Error checking rationale update condition:", error);
+    logger.error("Error checking rationale update condition:", error);
     return {
       shouldConfirm: false,
       viewCountSinceLastUpdate: 0,

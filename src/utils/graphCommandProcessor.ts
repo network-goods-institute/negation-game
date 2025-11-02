@@ -4,7 +4,7 @@ import {
   StatementNodeData,
   StatementNode,
 } from "@/components/graph/nodes/StatementNode";
-import { nanoid } from "nanoid";
+import { nanoid } from "nanoid";import { logger } from "@/lib/logger";
 
 interface CommandProcessorResult {
   updatedGraph: ViewpointGraph;
@@ -107,31 +107,31 @@ export function applyGraphCommands(
           const cmdType = (command as any).type;
           if (cmdType === "point") {
             const helpfulError = `Invalid command type "point" - use "add_point" instead`;
-            console.error(helpfulError);
+            logger.error(helpfulError);
             errors.push(helpfulError);
           } else if (cmdType === "statement") {
             const helpfulError = `Invalid command type "statement" - use "add_edge" with edgeType: "statement"`;
-            console.error(helpfulError);
+            logger.error(helpfulError);
             errors.push(helpfulError);
           } else if (cmdType === "negation") {
             const helpfulError = `Invalid command type "negation" - use "add_edge" with edgeType: "negation"`;
-            console.error(helpfulError);
+            logger.error(helpfulError);
             errors.push(helpfulError);
           } else {
-            console.error(`Unknown command type: ${cmdType}`);
+            logger.error(`Unknown command type: ${cmdType}`);
             errors.push(`Unknown command type: ${cmdType}`);
           }
       }
     } catch (error) {
       const errorMsg = `Error applying command ${command.id} (${command.type}): ${error instanceof Error ? error.message : String(error)}`;
-      console.error(`✗ Command ${i + 1} FAILED:`, errorMsg);
-      console.error("Error details:", {
+      logger.error(`✗ Command ${i + 1} FAILED:`, errorMsg);
+      logger.error("Error details:", {
         commandType: command.type,
         commandId: command.id,
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : "No stack",
       });
-      console.error("Full command that failed:", command);
+      logger.error("Full command that failed:", command);
       errors.push(errorMsg);
     }
   }
@@ -146,7 +146,7 @@ function applyAddPointCommand(
   graph: ViewpointGraph,
   command: any
 ): ViewpointGraph {
-  console.log(
+  logger.log(
     `Adding point: nodeId=${command.nodeId}, content="${command.content}", cred=${command.cred}`
   );
 
@@ -158,7 +158,7 @@ function applyAddPointCommand(
       nodeId = `${command.nodeId}-${counter}`;
       counter++;
     } while (graph.nodes.find((n) => n.id === nodeId));
-    console.log(
+    logger.log(
       `Duplicate node ID detected, using ${nodeId} instead of ${command.nodeId}`
     );
   }
@@ -182,7 +182,7 @@ function applyAddPointCommand(
     deletable: true,
   };
 
-  console.log(`Successfully added node with ID: ${nodeId}`);
+  logger.log(`Successfully added node with ID: ${nodeId}`);
   return {
     ...graph,
     nodes: [...graph.nodes, newNode],
@@ -197,7 +197,7 @@ function applyUpdatePointCommand(
   const nodeIndex = graph.nodes.findIndex((n) => n.id === targetNodeId);
 
   if (nodeIndex === -1) {
-    console.log(
+    logger.log(
       `Node ${targetNodeId} not found, converting update_point to add_point`
     );
     return applyAddPointCommand(graph, {
@@ -239,7 +239,7 @@ function applyDeletePointCommand(
   const targetNodeId = command.nodeId || command.id;
   const nodeExists = graph.nodes.find((n) => n.id === targetNodeId);
   if (!nodeExists) {
-    console.log(`Node ${targetNodeId} not found, skipping deletion`);
+    logger.log(`Node ${targetNodeId} not found, skipping deletion`);
     return graph;
   }
 
@@ -259,7 +259,7 @@ function applyAddEdgeCommand(
   graph: ViewpointGraph,
   command: any
 ): ViewpointGraph {
-  console.log(
+  logger.log(
     `Adding edge: edgeId=${command.edgeId}, source=${command.source}, target=${command.target}, type=${command.edgeType}`
   );
 
@@ -271,7 +271,7 @@ function applyAddEdgeCommand(
       edgeId = `${command.edgeId}-${counter}`;
       counter++;
     } while (graph.edges.find((e) => e.id === edgeId));
-    console.log(
+    logger.log(
       `Duplicate edge ID detected, using ${edgeId} instead of ${command.edgeId}`
     );
   }
@@ -303,7 +303,7 @@ function applyAddEdgeCommand(
       : {}),
   };
 
-  console.log(`Successfully added edge with ID: ${edgeId}`);
+  logger.log(`Successfully added edge with ID: ${edgeId}`);
   return {
     ...graph,
     edges: [...graph.edges, newEdge],
@@ -335,7 +335,7 @@ function applyUpdateEdgeCommand(
       const updatedEdges = [...graph.edges];
       updatedEdges[edgeIndex] = updatedEdge;
 
-      console.log(`Successfully updated edge with ID: ${targetEdgeId}`);
+      logger.log(`Successfully updated edge with ID: ${targetEdgeId}`);
       return {
         ...graph,
         edges: updatedEdges,
@@ -343,7 +343,7 @@ function applyUpdateEdgeCommand(
     }
   }
 
-  console.log(
+  logger.log(
     `Edge ${targetEdgeId} not found, treating update_edge as add_edge`
   );
   return applyAddEdgeCommand(graph, {
@@ -360,7 +360,7 @@ function applyDeleteEdgeCommand(
   const targetEdgeId = command.edgeId || command.id;
   const edgeExists = graph.edges.find((e) => e.id === targetEdgeId);
   if (!edgeExists) {
-    console.log(`Edge ${targetEdgeId} not found, skipping deletion`);
+    logger.log(`Edge ${targetEdgeId} not found, skipping deletion`);
     return graph;
   }
 
@@ -404,7 +404,7 @@ function applySetCredCommand(
   graph: ViewpointGraph,
   command: any
 ): ViewpointGraph {
-  console.log(`Setting cred: nodeId=${command.nodeId}, cred=${command.cred}`);
+  logger.log(`Setting cred: nodeId=${command.nodeId}, cred=${command.cred}`);
 
   const nodeIndex = graph.nodes.findIndex((n) => n.id === command.nodeId);
   if (nodeIndex === -1) {
@@ -416,7 +416,7 @@ function applySetCredCommand(
     throw new Error(`Node ${command.nodeId} is not a point node`);
   }
 
-  console.log(`Before cred update - node data:`, node.data);
+  logger.log(`Before cred update - node data:`, node.data);
 
   const updatedNode = {
     ...node,
@@ -426,7 +426,7 @@ function applySetCredCommand(
     } as any,
   };
 
-  console.log(`After cred update - node data:`, updatedNode.data);
+  logger.log(`After cred update - node data:`, updatedNode.data);
 
   const updatedNodes = [...graph.nodes];
   updatedNodes[nodeIndex] = updatedNode;

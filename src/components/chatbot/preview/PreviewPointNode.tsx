@@ -20,7 +20,7 @@ import { PreviewPointNodeEndorsement } from "./PreviewPointNodeEndorsement";
 import { PreviewPointNodeStatusIndicators } from "./PreviewPointNodeStatusIndicators";
 import { ObjectionIcon } from "@/components/icons/ObjectionIcon";
 import { fetchPointById } from "@/actions/points/fetchPointById";
-import { usePreviewConnectDetection } from "@/hooks/chatbot/usePreviewConnectDetection";
+import { usePreviewConnectDetection } from "@/hooks/chatbot/usePreviewConnectDetection";import { logger } from "@/lib/logger";
 
 /**
  * Simplified PointNode for RationaleCreator Preview
@@ -124,7 +124,7 @@ export const PreviewPointNode = ({
         const details = await fetchPointById(pointIdToFetch);
         setExistingPointDetails(details);
       } catch (error) {
-        console.error(`Error fetching details for point ${pointIdToFetch}:`, error);
+        logger.error(`Error fetching details for point ${pointIdToFetch}:`, error);
         setExistingPointDetails(null);
       }
     };
@@ -134,7 +134,7 @@ export const PreviewPointNode = ({
         const details = await fetchPointById(pointIdToFetch);
         setMatchedDetails(prev => ({ ...prev, [pointIdToFetch]: details }));
       } catch (error) {
-        console.error(`Error fetching details for point ${pointIdToFetch}:`, error);
+        logger.error(`Error fetching details for point ${pointIdToFetch}:`, error);
         setMatchedDetails(prev => ({ ...prev, [pointIdToFetch]: null }));
       }
     };

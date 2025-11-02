@@ -4,7 +4,7 @@ import { getDiscourseContent } from "@/actions/search/getDiscourseContent";
 import { createNotification } from "@/actions/notifications/createNotification";
 import { notificationPreferencesTable, notificationsTable } from "@/db/schema";
 import { db } from "@/services/db";
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 const SCROLL_FORUM_URL = "https://forum.scroll.io";
 const GOVERNANCE_KEYWORDS = [
@@ -48,7 +48,7 @@ export const detectScrollProposals = async (): Promise<void> => {
     // Fetch recent topics from Scroll forum
     const response = await fetch(`${SCROLL_FORUM_URL}/latest.json`);
     if (!response.ok) {
-      console.error("Failed to fetch from Scroll forum:", response.status);
+      logger.error("Failed to fetch from Scroll forum:", response.status);
       return;
     }
 
@@ -118,15 +118,15 @@ export const detectScrollProposals = async (): Promise<void> => {
         });
       }
 
-      console.log(
+      logger.log(
         `Notified ${interestedUsers.length} users about Scroll proposal: ${topic.title}`
       );
     }
 
-    console.log(
+    logger.log(
       `Processed ${governanceTopics.length} governance topics from Scroll forum`
     );
   } catch (error) {
-    console.error("Error detecting Scroll proposals:", error);
+    logger.error("Error detecting Scroll proposals:", error);
   }
 };

@@ -28,7 +28,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 import { useEnsureUser } from "@/hooks/auth/useEnsureUser";
 import { UsernameSignupDialog } from "@/components/dialogs/UsernameSignupDialog";
-import { isFeatureEnabled } from "@/lib/featureFlags";
+import { isFeatureEnabled } from "@/lib/featureFlags";import { logger } from "@/lib/logger";
 
 export const ConnectButton = () => {
   const { ready, login, logout, user: privyUser, authenticated } = usePrivy();
@@ -85,7 +85,7 @@ export const ConnectButton = () => {
           tokenSetRef.current = true;
         }
       } catch (error) {
-        console.error("Failed to persist Privy token during connect flow", error);
+        logger.error("Failed to persist Privy token during connect flow", error);
       }
     })();
 

@@ -2,12 +2,12 @@
 
 import { dailySnapshotJob } from "./dailySnapshotJob";
 import { stanceComputationPipeline } from "./stanceComputationPipeline";
-import { enforceRestakeCap } from "../epistemic/enforceRestakeCap";
+import { enforceRestakeCap } from "../epistemic/enforceRestakeCap";import { logger } from "@/lib/logger";
 
 export async function runDailyDeltaPipeline(
   snapDay: string = new Date().toISOString().slice(0, 10)
 ): Promise<{ success: boolean; message: string; results: any }> {
-  console.log(
+  logger.log(
     `[runDailyDeltaPipeline] Starting full delta pipeline for ${snapDay}`
   );
 
@@ -24,7 +24,7 @@ export async function runDailyDeltaPipeline(
 
   try {
     // Step 1: Run daily snapshot job
-    console.log(`[runDailyDeltaPipeline] Step 1: Running daily snapshot job`);
+    logger.log(`[runDailyDeltaPipeline] Step 1: Running daily snapshot job`);
     results.snapshotJob = await dailySnapshotJob(snapDay);
 
     if (!results.snapshotJob.success) {
@@ -32,7 +32,7 @@ export async function runDailyDeltaPipeline(
     }
 
     // Step 2: Run stance computation pipeline
-    console.log(
+    logger.log(
       `[runDailyDeltaPipeline] Step 2: Running stance computation pipeline`
     );
     results.stanceComputation = await stanceComputationPipeline(snapDay);
@@ -44,11 +44,11 @@ export async function runDailyDeltaPipeline(
     }
 
     // Step 3: Enforce restake caps
-    console.log(`[runDailyDeltaPipeline] Step 3: Enforcing restake caps`);
+    logger.log(`[runDailyDeltaPipeline] Step 3: Enforcing restake caps`);
     results.restakeCapEnforcement = await enforceRestakeCap();
 
     if (!results.restakeCapEnforcement.success) {
-      console.warn(
+      logger.warn(
         `[runDailyDeltaPipeline] Restake cap enforcement had issues: ${results.restakeCapEnforcement.message}`
       );
       // Don't fail the whole pipeline for restake cap issues
@@ -58,7 +58,7 @@ export async function runDailyDeltaPipeline(
     results.endTime = new Date(endTime).toISOString();
     results.totalDuration = endTime - startTime;
 
-    console.log(
+    logger.log(
       `[runDailyDeltaPipeline] Pipeline completed successfully in ${results.totalDuration}ms`
     );
 
@@ -72,7 +72,7 @@ export async function runDailyDeltaPipeline(
     results.endTime = new Date(endTime).toISOString();
     results.totalDuration = endTime - startTime;
 
-    console.error("[runDailyDeltaPipeline] Pipeline failed:", error);
+    logger.error("[runDailyDeltaPipeline] Pipeline failed:", error);
 
     return {
       success: false,
@@ -89,7 +89,7 @@ export async function runDeltaPipelineForDateRange(
   startDate: string,
   endDate: string
 ): Promise<{ success: boolean; message: string; results: any[] }> {
-  console.log(
+  logger.log(
     `[runDeltaPipelineForDateRange] Running pipeline for date range ${startDate} to ${endDate}`
   );
 
@@ -101,7 +101,7 @@ export async function runDeltaPipelineForDateRange(
 
   while (currentDate <= end) {
     const snapDay = currentDate.toISOString().slice(0, 10);
-    console.log(`[runDeltaPipelineForDateRange] Processing ${snapDay}`);
+    logger.log(`[runDeltaPipelineForDateRange] Processing ${snapDay}`);
 
     const result = await runDailyDeltaPipeline(snapDay);
     results.push({
@@ -110,7 +110,7 @@ export async function runDeltaPipelineForDateRange(
     });
 
     if (!result.success) {
-      console.error(
+      logger.error(
         `[runDeltaPipelineForDateRange] Failed on ${snapDay}: ${result.message}`
       );
       // Continue with next date even if one fails

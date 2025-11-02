@@ -13,7 +13,7 @@ import { queueRestakeNotification } from "@/lib/notifications/notificationQueue"
 import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 import { trackRestakeEvent } from "@/actions/analytics/trackCredEvent";
 import { db } from "@/services/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 interface RestakeArgs {
   pointId: number;
@@ -44,7 +44,7 @@ export const restake = async ({ pointId, negationId, amount }: RestakeArgs) => {
     );
 
   if (amount > endorseCred) {
-    console.warn(
+    logger.warn(
       `[restake] cap exceeded user=${userId} point=${pointId} endorseCred=${endorseCred} amount=${amount}`
     );
     throw new Error(

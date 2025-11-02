@@ -1,6 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { streamText } from "ai";
-import { withRetry } from "@/lib/utils/withRetry";
+import { withRetry } from "@/lib/utils/withRetry";import { logger } from "@/lib/logger";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -151,7 +151,7 @@ class GeminiService {
       const messageTokens = this.estimateTokens(message.content);
 
       if (totalTokens + messageTokens > maxTokens) {
-        console.log(
+        logger.log(
           `Truncating chat history at ${truncatedChatMessages.length + systemMessages.length} messages to stay under ${maxTokens} tokens`
         );
         break;
@@ -196,7 +196,7 @@ class GeminiService {
     }
 
     const selectedModel = this.selectBestModel(estimatedTokens, preferredModel);
-    console.log(
+    logger.log(
       `Using model: ${selectedModel} (estimated tokens: ${estimatedTokens})`
     );
 

@@ -2,7 +2,7 @@ import { improvePoint } from "@/actions/ai/improvePoint";
 import { POINT_MIN_LENGTH } from "@/constants/config";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { useEffect } from "react";import { logger } from "@/lib/logger";
 
 export const useImprovePoint = (
   content: string,
@@ -25,7 +25,7 @@ export const useImprovePoint = (
       toast.error(
         "Failed to get improvement suggestions. Please contact support if this persists."
       );
-      console.error(
+      logger.error(
         "Error fetching improvement suggestions:",
         queryResult.error
       );

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";import { logger } from "@/lib/logger";
 
 type YProvider = WebsocketProvider | null;
 
@@ -58,7 +58,7 @@ export const ConnectedUsers: React.FC<ConnectedUsersProps> = ({ provider, isConn
                 setCount(totalCount);
 
             } catch (error) {
-                console.warn('ConnectedUsers update error:', error);
+                logger.warn('ConnectedUsers update error:', error);
                 setCount(canWrite ? 1 : 0);
                 setNames([]);
             }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cleanupExpiredRateLimits } from "@/lib/rateLimit";
 import { getUserId } from "@/actions/users/getUserId";
-import { isUserSiteAdmin } from "@/utils/adminUtils";
+import { isUserSiteAdmin } from "@/utils/adminUtils";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 799;
@@ -23,21 +23,21 @@ export async function GET(request: NextRequest) {
     if (!isCronJob) {
       const userId = await getUserId();
       if (!userId || !(await isUserSiteAdmin(userId))) {
-        console.warn("[rate-limit-cleanup] Unauthorized access attempt");
+        logger.warn("[rate-limit-cleanup] Unauthorized access attempt");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      console.log(
+      logger.log(
         `[rate-limit-cleanup] Manual execution by admin user: ${userId}`
       );
     } else {
-      console.log("[rate-limit-cleanup] Cron job execution started");
+      logger.log("[rate-limit-cleanup] Cron job execution started");
     }
 
     const deletedCount = await cleanupExpiredRateLimits();
 
     const duration = Date.now() - startTime;
 
-    console.log(
+    logger.log(
       `[rate-limit-cleanup] Cleanup completed successfully in ${duration}ms. Deleted ${deletedCount} expired entries.`
     );
 
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[rate-limit-cleanup] Error after ${duration}ms:`, error);
+    logger.error(`[rate-limit-cleanup] Error after ${duration}ms:`, error);
 
     return NextResponse.json(
       {

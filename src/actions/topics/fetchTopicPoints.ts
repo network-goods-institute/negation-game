@@ -24,7 +24,7 @@ import {
   doubtedAmountSql,
   totalRestakeAmountSql,
   viewerDoubtSql,
-} from "@/actions/utils/pointSqlUtils";
+} from "@/actions/utils/pointSqlUtils";import { logger } from "@/lib/logger";
 
 export interface TopicPointData {
   pointId: number;
@@ -324,7 +324,7 @@ export async function fetchTopicPoints(
 
     return Array.from(uniqueResults.values());
   } catch (error) {
-    console.error("fetchTopicPoints: Error occurred:", error);
+    logger.error("fetchTopicPoints: Error occurred:", error);
     throw error;
   }
 }

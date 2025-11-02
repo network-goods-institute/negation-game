@@ -5,7 +5,7 @@ import { generateText } from "ai";
 import { withRetry } from "@/lib/utils/withRetry";
 import { db } from "@/services/db";
 import { pointsTable, viewpointsTable, usersTable } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 interface NotificationData {
   type: string;
@@ -80,7 +80,7 @@ Summary:`;
 
     return text?.trim() || null;
   } catch (error) {
-    console.error("Failed to generate notification summary:", error);
+    logger.error("Failed to generate notification summary:", error);
     return null;
   }
 };
@@ -212,7 +212,7 @@ async function fetchNotificationContext(
       context.credAmount = metadata.credAmount || metadata.amount;
     }
   } catch (error) {
-    console.error("Error fetching notification context:", error);
+    logger.error("Error fetching notification context:", error);
   }
 
   return context;

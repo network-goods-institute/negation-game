@@ -7,7 +7,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { withRetry } from "@/lib/utils/withRetry";
+import { withRetry } from "@/lib/utils/withRetry";import { logger } from "@/lib/logger";
 
 export interface GenerateRationaleSummaryArgs {
   title: string;
@@ -95,7 +95,7 @@ Write the summary in clear, straightforward language that would be appropriate f
 
     return result.summary;
   } catch (error) {
-    console.error("Error generating rationale summary:", error);
+    logger.error("Error generating rationale summary:", error);
     return `Copy of the rationale "${title.trim()}". This is a copy of an existing rationale.`;
   }
 }

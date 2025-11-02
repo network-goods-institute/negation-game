@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computeDaoAlignment } from "@/actions/analytics/computeDaoAlignment";
 import { getUserId } from "@/actions/users/getUserId";
-import { checkRateLimitStrict } from "@/lib/rateLimit";
+import { checkRateLimitStrict } from "@/lib/rateLimit";import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[/api/delta/dao] Error:", error);
+    logger.error("[/api/delta/dao] Error:", error);
     return NextResponse.json(
       { error: "Failed to compute DAO alignment" },
       { status: 500 }

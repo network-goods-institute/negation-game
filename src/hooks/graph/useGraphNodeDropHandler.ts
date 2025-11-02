@@ -4,7 +4,7 @@ import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
 import { mergeNodesDialogAtom } from "@/atoms/mergeNodesAtom";
 import type { AppNode } from "@/components/graph/nodes/AppNode";
 import type { ReactFlowInstance } from "@xyflow/react";
-import { DuplicatePointNode } from "@/atoms/mergeNodesAtom";
+import { DuplicatePointNode } from "@/atoms/mergeNodesAtom";import { logger } from "@/lib/logger";
 
 /**
  * Returns a callback to handle node drag end events by opening the appropriate dialog (connect or merge)
@@ -17,18 +17,18 @@ export function useGraphNodeDropHandler(
 
   return useCallback(
     (event: React.MouseEvent, node: AppNode) => {
-      console.log("handleNodeDragStop called for node", node.id, {
+      logger.log("handleNodeDragStop called for node", node.id, {
         hasFlow: Boolean(flowInstance),
       });
       // Require a valid React Flow instance
       if (!flowInstance) {
-        console.log("Missing flow instance");
+        logger.log("Missing flow instance");
         return;
       }
       const moved = flowInstance.getNodes().find((n) => n.id === node.id);
-      console.log("Moved node:", moved);
+      logger.log("Moved node:", moved);
       if (!moved) {
-        console.log("Moved node data not found");
+        logger.log("Moved node data not found");
         return;
       }
       // Bounding-box intersection detection (more sensitive overlap)
@@ -75,7 +75,7 @@ export function useGraphNodeDropHandler(
 
       if (samePointOverlaps.length > 0 && draggedPointId !== undefined) {
         // Merge case: Overlap with nodes representing the same point
-        console.log("Same point overlap detected. Opening merge dialog.", [
+        logger.log("Same point overlap detected. Opening merge dialog.", [
           ...samePointOverlaps.map((n) => n.id),
           node.id,
         ]);
@@ -125,7 +125,7 @@ export function useGraphNodeDropHandler(
         );
 
         if (targetNode) {
-          console.log(
+          logger.log(
             "Different point overlap detected. Opening connect dialog for",
             node.id,
             "->",
@@ -149,7 +149,7 @@ export function useGraphNodeDropHandler(
             duplicateNodes: [],
           });
         } else {
-          console.log(
+          logger.log(
             "No valid different point overlap detected with a pointId. Closing dialogs."
           );
           setConnectDialog({
@@ -165,7 +165,7 @@ export function useGraphNodeDropHandler(
           });
         }
       } else {
-        console.log(
+        logger.log(
           "No overlap detected or dragged node has no pointId. Closing dialogs."
         );
         setConnectDialog({

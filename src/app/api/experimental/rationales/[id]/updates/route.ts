@@ -7,7 +7,7 @@ import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { isProductionRequest } from "@/utils/hosts";
 import { compactDocUpdates } from "@/services/yjsCompaction";
-import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,14 +68,14 @@ export async function POST(req: Request, ctx: any) {
       await compactDocUpdates(canonicalId, { keepLast: 3 });
     }
   } catch (e) {
-    console.error(
+    logger.error(
       `[YJS Updates] Failed to compact document ${canonicalId}:`,
       e
     );
   }
 
   try {
-    console.log(
+    logger.log(
       JSON.stringify({
         event: "yjs_update",
         id: canonicalId,
@@ -83,7 +83,7 @@ export async function POST(req: Request, ctx: any) {
       })
     );
   } catch (e) {
-    console.error("[YJS Updates] Failed to log update event:", e);
+    logger.error("[YJS Updates] Failed to log update event:", e);
   }
 
   return NextResponse.json(

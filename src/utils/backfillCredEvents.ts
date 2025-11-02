@@ -1,4 +1,4 @@
-import postgres from "postgres";
+import postgres from "postgres";import { logger } from "@/lib/logger";
 
 /**
  * Cred event kinds used in the schema.
@@ -119,18 +119,18 @@ export async function generateHistoricalCredEvents(cutoff?: Date) {
 }
 
 export async function backfillCredEvents(cutoff?: Date) {
-  console.log(
+  logger.log(
     `[backfillCredEvents] Starting with cutoff: ${cutoff?.toISOString() || "none"}`
   );
 
   const toInsert = await generateHistoricalCredEvents(cutoff);
 
   if (toInsert.length === 0) {
-    console.log("[backfillCredEvents] No events to insert");
+    logger.log("[backfillCredEvents] No events to insert");
     return { inserted: 0, cutoff };
   }
 
-  console.log(
+  logger.log(
     `[backfillCredEvents] Generated ${toInsert.length} events to insert`
   );
 
@@ -155,7 +155,7 @@ export async function backfillCredEvents(cutoff?: Date) {
   const inserted = Array.isArray(insertResult)
     ? insertResult.length
     : toInsert.length;
-  console.log(`[backfillCredEvents] Inserted ${inserted} rows`);
+  logger.log(`[backfillCredEvents] Inserted ${inserted} rows`);
 
   return { inserted, cutoff };
 }

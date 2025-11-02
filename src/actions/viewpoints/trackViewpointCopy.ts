@@ -2,7 +2,7 @@
 
 import { db } from "@/services/db";
 import { viewpointInteractionsTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 /**
  * Increment the copy count for a viewpoint
@@ -34,7 +34,7 @@ export const trackViewpointCopy = async (viewpointId: string) => {
     // Return success
     return true;
   } catch (error) {
-    console.error("Error tracking viewpoint copy:", error);
+    logger.error("Error tracking viewpoint copy:", error);
 
     return false;
   }

@@ -14,7 +14,7 @@ import {
   createUpdateNodesFromText,
 } from "./yjs/textSync";
 import { createScheduleSave } from "./yjs/saveHandlers";
-import { isMindchangeEnabledClient } from "@/utils/featureFlags";
+import { isMindchangeEnabledClient } from "@/utils/featureFlags";import { logger } from "@/lib/logger";
 
 interface UseYjsSynchronizationProps {
   ydocRef: MutableRefObject<Y.Doc | null>;
@@ -192,7 +192,7 @@ export const useYjsSynchronization = ({
           if (edgeId && payload) updates.push({ edgeId, payload });
         }
         if (updates.length === 0) return;
-        try { console.log('[Mindchange:Sync] averages keys changed', mcKeys); } catch {}
+        try { logger.log('[Mindchange:Sync] averages keys changed', mcKeys); } catch {}
         setEdges((prev) => {
           let changed = false;
           const map = new Map(prev.map((e) => [e.id, e]));
@@ -233,7 +233,7 @@ export const useYjsSynchronization = ({
             ) {
               map.set(edgeId, { ...e, data: nextData } as any);
               changed = true;
-              try { console.log('[Mindchange:Sync] applied averages', { edgeId, payload }); } catch {}
+              try { logger.log('[Mindchange:Sync] applied averages', { edgeId, payload }); } catch {}
             }
           }
           return changed ? Array.from(map.values()) : prev;
@@ -259,7 +259,7 @@ export const useYjsSynchronization = ({
           const payload = (yMetaMap as any).get(key) || null;
           const f = payload && typeof payload.forward === "number" ? Number(payload.forward) : payload === null ? 0 : undefined;
           const b = payload && typeof payload.backward === "number" ? Number(payload.backward) : payload === null ? 0 : undefined;
-          try { console.log('[Mindchange:Sync] user snapshot changed', { key, isMine, f, b }); } catch {}
+          try { logger.log('[Mindchange:Sync] user snapshot changed', { key, isMine, f, b }); } catch {}
           // Always update local edges with userValue when it's mine
           if (isMine) {
             try {

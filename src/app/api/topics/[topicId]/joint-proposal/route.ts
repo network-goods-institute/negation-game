@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { generateTopicJointProposal } from "@/actions/proposals/generateTopicJointProposal";
 import { getUserId } from "@/actions/users/getUserId";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit } from "@/lib/rateLimit";import { logger } from "@/lib/logger";
 
 export async function POST(
   req: Request,
@@ -45,7 +45,7 @@ export async function POST(
     const maxPayloadSize = 1024 * 1024;
 
     if (contentLength && parseInt(contentLength) > maxPayloadSize) {
-      console.warn(`Request payload too large: ${contentLength} bytes`);
+      logger.warn(`Request payload too large: ${contentLength} bytes`);
       return NextResponse.json(
         { error: "Request payload too large" },
         { status: 413 }
@@ -114,18 +114,18 @@ export async function POST(
       if (encodedMetadata.length <= maxHeaderSize) {
         headers["x-proposal-metadata"] = encodedMetadata;
       } else {
-        console.warn(
+        logger.warn(
           `Proposal metadata too large: ${(encodedMetadata.length / 1024).toFixed(2)} KB, skipping header`
         );
       }
     } catch (error) {
-      console.error("Error encoding proposal metadata:", error);
+      logger.error("Error encoding proposal metadata:", error);
     }
 
     return new NextResponse(textStream, { headers });
   } catch (error) {
-    console.error("Error in joint proposal API:", error);
-    console.error("API Error details:", {
+    logger.error("Error in joint proposal API:", error);
+    logger.error("API Error details:", {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : "No stack",
       name: error instanceof Error ? error.name : "No name",

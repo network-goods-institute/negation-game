@@ -6,7 +6,7 @@ import { mpMindchangeTable } from "@/db/tables/mpMindchangeTable";
 import { getUserId } from "@/actions/users/getUserId";
 import { usersTable } from "@/db/tables/usersTable";
 import { isProductionEnvironment } from "@/utils/hosts";
-import { isMindchangeEnabledServer } from "@/utils/featureFlags";
+import { isMindchangeEnabledServer } from "@/utils/featureFlags";import { logger } from "@/lib/logger";
 
 type Averages = {
   forward: number;
@@ -107,7 +107,7 @@ export async function setMindchange(
     backwardCount: bCount,
   };
   try {
-    console.log("[Mindchange:set]", { docId, edgeId, averages });
+    logger.log("[Mindchange:set]", { docId, edgeId, averages });
   } catch {}
 
   // Note: Meta publishing is performed client-side after the action returns
@@ -163,7 +163,7 @@ export async function getMindchangeBreakdown(docId: string, edgeId: string) {
             backward.length
         )
       : 0;
-    console.log("[Mindchange:breakdown]", {
+    logger.log("[Mindchange:breakdown]", {
       docId,
       edgeId,
       forwardCount: forward.length,
@@ -229,7 +229,7 @@ export async function getMindchangeAveragesForEdges(
     };
   }
   try {
-    console.log("[Mindchange:seed-averages]", {
+    logger.log("[Mindchange:seed-averages]", {
       docId,
       edges: Object.keys(out).length,
     });

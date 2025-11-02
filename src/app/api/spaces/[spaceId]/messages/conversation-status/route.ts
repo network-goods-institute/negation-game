@@ -2,7 +2,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { messagesTable, generateConversationId } from "@/db/schema";
 import { db } from "@/services/db";
 import { and, eq, desc, sql } from "drizzle-orm";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -94,7 +94,7 @@ export async function GET(
       unreadCount: unreadCount[0]?.count || 0,
     });
   } catch (error) {
-    console.error("Error fetching conversation status:", error);
+    logger.error("Error fetching conversation status:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

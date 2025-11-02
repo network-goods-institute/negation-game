@@ -5,7 +5,7 @@ import { LoaderIcon } from "lucide-react";
 import { UserSelector } from "@/components/delta/UserSelector";
 import { PointSelector } from "@/components/delta/PointSelector";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";import { logger } from "@/lib/logger";
 
 export function ManualCompare({
     currentUserId,
@@ -52,7 +52,7 @@ export function ManualCompare({
             setNoInteraction(Boolean(data.noInteraction));
             setNoEngagementBy(data.noEngagementBy);
         } catch (err) {
-            console.error(err);
+            logger.error(err);
             setDelta(null);
         } finally {
             setLoading(false);

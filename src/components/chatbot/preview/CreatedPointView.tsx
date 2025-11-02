@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ExternalLinkIcon } from 'lucide-react';
 import { useSetAtom } from 'jotai';
 import { negatedPointIdAtom } from '@/atoms/negatedPointIdAtom';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';import { logger } from "@/lib/logger";
 
 interface CreatedPointViewProps {
     pointId: number;
@@ -28,7 +28,7 @@ export function CreatedPointView({ pointId, spaceId, onClose }: CreatedPointView
         const effectiveSpaceId = spaceId;
         pointUrl = `/s/${effectiveSpaceId}/${encodeId(pointId)}`;
     } catch (e) {
-        console.error("Failed to encode point ID for link:", e);
+        logger.error("Failed to encode point ID for link:", e);
     }
 
     const handleNegateClick = (e: React.MouseEvent) => {

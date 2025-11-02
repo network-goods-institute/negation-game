@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Topic, User, TopicFormData, TopicPermission } from "@/types/admin";
-import { createTopic, updateTopic, fetchTopicPermissions } from "@/services/admin/topicService";
+import { createTopic, updateTopic, fetchTopicPermissions } from "@/services/admin/topicService";import { logger } from "@/lib/logger";
 
 interface TopicFormProps {
     spaceId: string;
@@ -152,7 +152,7 @@ export function TopicForm({
                     accessType = "whitelist";
                 }
             } catch (error) {
-                console.error("Failed to load topic permissions:", error);
+                logger.error("Failed to load topic permissions:", error);
                 toast.error("Failed to load topic permissions");
             }
         }

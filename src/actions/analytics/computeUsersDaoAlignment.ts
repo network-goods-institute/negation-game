@@ -3,7 +3,7 @@
 import { db } from "@/services/db";
 import { endorsementsTable, usersTable, pointsTable } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { cosine } from "@/lib/negation-game/deltaScore";
+import { cosine } from "@/lib/negation-game/deltaScore";import { logger } from "@/lib/logger";
 
 /**
  * DAO-specific delta function that handles cases where users have no engagement
@@ -31,7 +31,7 @@ function daoAlignmentDelta(
   // If centroid is empty (shouldn't happen in practice), treat as neutral
   const centroidHasData = centroid.some((v) => v !== 0);
   if (!centroidHasData) {
-    console.log(`[daoAlignmentDelta] WARNING: Centroid has no data!`);
+    logger.log(`[daoAlignmentDelta] WARNING: Centroid has no data!`);
     return 0.5;
   }
 
@@ -163,7 +163,7 @@ export async function computeUsersDaoAlignment({
     deltas.push({ userId: user.id, username: user.username, delta: d });
   }
 
-  console.log(`[computeUsersDaoAlignment] Computed ${deltas.length} deltas`);
+  logger.log(`[computeUsersDaoAlignment] Computed ${deltas.length} deltas`);
   if (deltas.length === 0) {
     return { mostSimilar: [], mostDifferent: [] };
   }

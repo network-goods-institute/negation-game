@@ -1,6 +1,6 @@
 import { fetchPriorityPoints } from "@/actions/feed/fetchPriorityPoints";
 import { useQuery } from "@tanstack/react-query";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";import { logger } from "@/lib/logger";
 
 export const usePriorityPoints = () => {
   const { user } = usePrivy();
@@ -24,7 +24,7 @@ export const usePriorityPoints = () => {
           pinCommands: point.pinCommands || [],
         }));
       } catch (error) {
-        console.error("Error fetching priority points:", error);
+        logger.error("Error fetching priority points:", error);
         return [];
       }
     },

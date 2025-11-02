@@ -5,7 +5,7 @@ import {
   getDeltaCacheStats,
   cleanupDeltaCache,
   deltaCache,
-} from "@/lib/deltaCache";
+} from "@/lib/deltaCache";import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       message: "Delta cache statistics retrieved",
     });
   } catch (error) {
-    console.error("[delta-cache] Error getting stats:", error);
+    logger.error("[delta-cache] Error getting stats:", error);
     return NextResponse.json(
       { error: "Failed to get cache statistics" },
       { status: 500 }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error("[delta-cache] Error:", error);
+    logger.error("[delta-cache] Error:", error);
     return NextResponse.json(
       { error: "Failed to perform cache operation" },
       { status: 500 }

@@ -1,12 +1,12 @@
 "use server";
 
 import { getPrivyClient } from "@/lib/privy/getPrivyClient";
-import { cookies } from "next/headers";
+import { cookies } from "next/headers";import { logger } from "@/lib/logger";
 
 export const getUserId = async (): Promise<string | null> => {
   const privyToken = (await cookies()).get("privy-token")?.value;
   if (!privyToken) {
-    console.warn("No Privy token found in cookies during getUserId call");
+    logger.warn("No Privy token found in cookies during getUserId call");
     return null;
   }
 
@@ -16,14 +16,14 @@ export const getUserId = async (): Promise<string | null> => {
     const verificationResult = await privyClient.verifyAuthToken(privyToken);
     return verificationResult.userId;
   } catch (error) {
-    console.warn("Error verifying Privy token:", error);
+    logger.warn("Error verifying Privy token:", error);
 
     // If token expired, return null to trigger re-auth
     if (
       (error as any).name === "JWTExpired" ||
       (error as any).code === "ERR_JWT_EXPIRED"
     ) {
-      console.warn("Privy token expired");
+      logger.warn("Privy token expired");
       return null;
     }
 
@@ -32,12 +32,12 @@ export const getUserId = async (): Promise<string | null> => {
       error instanceof Error &&
       error.message.toLowerCase().includes("invalid auth token")
     ) {
-      console.warn("Invalid auth token detected during getUserId call");
+      logger.warn("Invalid auth token detected during getUserId call");
       return null;
     }
 
     // For other errors, return null but log details
-    console.warn("Unknown error during Privy token verification:", error);
+    logger.warn("Unknown error during Privy token verification:", error);
     return null;
   }
 };

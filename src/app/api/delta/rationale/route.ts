@@ -3,7 +3,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { handleRationaleComparison } from "@/services/delta/deltaComparison";
 import { db } from "@/services/db";
 import { viewpointsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[/api/delta/rationale] Error:", error);
+    logger.error("[/api/delta/rationale] Error:", error);
     return NextResponse.json(
       { error: "Failed to compute rationale delta comparison" },
       { status: 500 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { isProductionRequest } from "@/utils/hosts";
-import { createHash } from "crypto";
+import { createHash } from "crypto";import { logger } from "@/lib/logger";
 
 export async function POST(req: Request) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
   const secret = process.env.YJS_AUTH_SECRET;
   if (!secret) {
-    console.error("YJS_AUTH_SECRET not configured");
+    logger.error("YJS_AUTH_SECRET not configured");
     return NextResponse.json(
       { error: "Server configuration error" },
       { status: 500 }

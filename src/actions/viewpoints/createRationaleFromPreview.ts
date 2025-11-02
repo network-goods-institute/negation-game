@@ -27,7 +27,7 @@ import {
   markAssignmentCompleted,
 } from "@/actions/topics/manageRationaleAssignments";
 import { updateRationalePoints } from "@/actions/viewpoints/updateRationalePoints";
-import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";
+import { POINT_MIN_LENGTH, getPointMaxLength } from "@/constants/config";import { logger } from "@/lib/logger";
 
 interface CreateRationaleParams {
   userId: string;
@@ -272,7 +272,7 @@ export async function createRationaleFromPreview({
   // Validate graph structure upfront
   const structureErrors = validateGraphStructure(previewNodes, previewEdges);
   if (structureErrors.length > 0) {
-    console.warn(
+    logger.warn(
       "[createRationaleFromPreview] Graph structure validation failed:",
       structureErrors
     );
@@ -290,7 +290,7 @@ export async function createRationaleFromPreview({
     spaceId
   );
   if (resolutionErrors.length > 0) {
-    console.warn(
+    logger.warn(
       "[createRationaleFromPreview] Point resolution validation failed:",
       resolutionErrors
     );
@@ -384,7 +384,7 @@ export async function createRationaleFromPreview({
             });
           }
         } catch (error) {
-          console.error(
+          logger.error(
             "[createRationaleFromPreview] Failed to process point node:",
             node.id,
             "Error:",
@@ -432,7 +432,7 @@ export async function createRationaleFromPreview({
           }
         }
       } catch (error) {
-        console.error(
+        logger.error(
           "[createRationaleFromPreview] Failed to process endorsements:",
           error
         );
@@ -527,7 +527,7 @@ export async function createRationaleFromPreview({
         } as ReactFlowEdge);
       });
     } catch (error) {
-      console.error(
+      logger.error(
         "[createRationaleFromPreview] Failed to build final graph:",
         error
       );
@@ -586,7 +586,7 @@ export async function createRationaleFromPreview({
             })
             .onConflictDoNothing();
         } catch (error) {
-          console.error(
+          logger.error(
             `[createRationaleFromPreview] Failed to create negation ${olderPointId} -> ${newerPointId}:`,
             error
           );
@@ -708,11 +708,11 @@ export async function createRationaleFromPreview({
                 space: spaceId,
               });
 
-              console.log(
+              logger.log(
                 `[createRationaleFromPreview] Successfully created objection for point ${objectionPointId}`
               );
             } catch (error) {
-              console.error(
+              logger.error(
                 "[createRationaleFromPreview] Failed to create objection for node:",
                 node.id,
                 "Error:",
@@ -744,7 +744,7 @@ export async function createRationaleFromPreview({
       // Update rationale_points bridge table
       await updateRationalePoints(newViewpointId, finalGraph);
     } catch (error) {
-      console.error(
+      logger.error(
         "[createRationaleFromPreview] Failed to create rationale:",
         error
       );
@@ -766,12 +766,12 @@ export async function createRationaleFromPreview({
 
         if (matchingAssignment) {
           await markAssignmentCompleted(matchingAssignment.id);
-          console.log(
+          logger.log(
             `[createRationaleFromPreview] Completed assignment ${matchingAssignment.id} for topic ${topicId}`
           );
         }
       } catch (error) {
-        console.warn(
+        logger.warn(
           "[createRationaleFromPreview] Failed to check/complete assignment:",
           error
         );
@@ -781,13 +781,13 @@ export async function createRationaleFromPreview({
 
     // Log any partial failures but still return success
     if (failedNegations.length > 0) {
-      console.warn(
+      logger.warn(
         `[createRationaleFromPreview] ${failedNegations.length} negations failed to create:`,
         failedNegations
       );
     }
     if (failedObjections.length > 0) {
-      console.warn(
+      logger.warn(
         `[createRationaleFromPreview] ${failedObjections.length} objections failed to create:`,
         failedObjections
       );
@@ -803,11 +803,11 @@ export async function createRationaleFromPreview({
         : {}),
     };
   } catch (error: any) {
-    console.error("[createRationaleFromPreview] Error:", error);
+    logger.error("[createRationaleFromPreview] Error:", error);
 
     // Attempt cleanup of created points if we're in a transaction-like failure
     if (createdPoints.length > 0) {
-      console.log(
+      logger.log(
         `[createRationaleFromPreview] Attempting cleanup of ${createdPoints.length} created points...`
       );
       try {
@@ -821,7 +821,7 @@ export async function createRationaleFromPreview({
           )
         );
       } catch (cleanupError) {
-        console.error(
+        logger.error(
           "[createRationaleFromPreview] Cleanup failed:",
           cleanupError
         );

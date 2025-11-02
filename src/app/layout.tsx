@@ -23,6 +23,8 @@ import { getCurrentUser } from "@/lib/privy/auth";
 import { headers } from "next/headers";
 import { Analytics } from "@vercel/analytics/react";
 import { LoginRedirectHandler } from "@/components/LoginRedirectHandler";
+import { ConsoleSilencer } from "@/components/ConsoleSilencer";
+import { logger } from "@/lib/logger";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -142,7 +144,7 @@ export default async function RootLayout({
       const { fetchUser } = await import("@/actions/users/fetchUser");
       clientUser = await fetchUser(serverUser.id);
     } catch (error) {
-      console.error("Failed to fetch user data for hydration:", error);
+      logger.error("Failed to fetch user data for hydration:", error);
     }
   }
 
@@ -181,6 +183,7 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
       </head>
       <body className={cn("font-sans", inter.variable, "h-full flex flex-col")}>
+        <ConsoleSilencer />
         <ThemeProvider
           attribute="class"
           defaultTheme={isEmbedRoute ? "light" : "system"}

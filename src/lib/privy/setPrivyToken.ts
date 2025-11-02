@@ -1,7 +1,7 @@
 "use client";
 
 import { getAccessToken } from "@privy-io/react-auth";
-import { setPrivyCookie } from "@/actions/users/auth";
+import { setPrivyCookie } from "@/actions/users/auth";import { logger } from "@/lib/logger";
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -28,7 +28,7 @@ async function attemptSetPrivyToken(maxAttempts: number, retryDelayMs: number) {
       }
     } catch (error) {
       if (attempt === maxAttempts) {
-        console.error("Error setting Privy token:", error);
+        logger.error("Error setting Privy token:", error);
       }
     }
 
@@ -37,7 +37,7 @@ async function attemptSetPrivyToken(maxAttempts: number, retryDelayMs: number) {
     }
   }
 
-  console.warn("Privy access token was unavailable after", maxAttempts, "attempts");
+  logger.warn("Privy access token was unavailable after", maxAttempts, "attempts");
   return false;
 }
 

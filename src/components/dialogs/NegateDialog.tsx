@@ -56,7 +56,7 @@ import { encodeId } from '@/lib/negation-game/encodeId';
 import { CreatedNegationView } from '../chatbot/preview/CreatedNegationView';
 import { selectPointForNegationOpenAtom } from "@/atoms/selectPointForNegationOpenAtom";
 import { useSetAtom } from 'jotai';
-import { ReviewResults as ObjectionReviewResults } from "@/actions/ai/rateAndRefineObjectionAction";
+import { ReviewResults as ObjectionReviewResults } from "@/actions/ai/rateAndRefineObjectionAction";import { logger } from "@/lib/logger";
 
 export interface NegateDialogProps
   extends Omit<DialogProps, "open" | "onOpenChange"> { }
@@ -198,7 +198,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   useEffect(() => {
     if (reviewError) {
       toast.error("Failed to review counterpoint. Please contact support if this persists.");
-      console.error("Error reviewing counterpoint:", reviewError);
+      logger.error("Error reviewing counterpoint:", reviewError);
     }
   }, [reviewError]);
 
@@ -474,7 +474,7 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
   ]);
 
   const handleSubmitOrReview = useCallback(() => {
-    console.log('NegateDialog: handleSubmitOrReview called', {
+    logger.log('NegateDialog: handleSubmitOrReview called', {
       currentNegatedPointId,
       needsReview,
       canReview,
@@ -484,20 +484,20 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
       reviewDialogOpen
     });
     if (!currentNegatedPointId) {
-      console.log('NegateDialog: No currentNegatedPointId, returning');
+      logger.log('NegateDialog: No currentNegatedPointId, returning');
       return;
     }
 
     // If content hasn't been reviewed yet and we can review, trigger review
     if (needsReview && canReview && !isReviewingCounterpoint) {
-      console.log('NegateDialog: review conditions met, calling reviewCounterpoint');
+      logger.log('NegateDialog: review conditions met, calling reviewCounterpoint');
       reviewCounterpoint();
       return;
     }
 
     // Only submit if content has been reviewed and dialog is closed
     if (!needsReview && canSubmit && !isSubmitting && !reviewDialogOpen) {
-      console.log('NegateDialog: submit conditions met, calling handleSubmit');
+      logger.log('NegateDialog: submit conditions met, calling handleSubmit');
       handleSubmit();
     }
   }, [
@@ -917,10 +917,10 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                           rightLoading={isSubmitting || isReviewingCounterpoint}
                           onClick={(e) => {
                             if (isProcessing || isReviewingCounterpoint || isSubmitting) {
-                              console.log('NegateDialog: click ignored—already processing');
+                              logger.log('NegateDialog: click ignored—already processing');
                               return;
                             }
-                            console.log('NegateDialog: Review & Negate button clicked', {
+                            logger.log('NegateDialog: Review & Negate button clicked', {
                               altKey: e.altKey,
                               canReview,
                               isReviewingCounterpoint,
@@ -928,12 +928,12 @@ export const NegateDialog: FC<NegateDialogProps> = ({ ...props }) => {
                               isProcessing
                             });
                             if (e.altKey) {
-                              console.log('NegateDialog: Alt key pressed, skipping review, calling handleSubmit');
+                              logger.log('NegateDialog: Alt key pressed, skipping review, calling handleSubmit');
                               setIsSubmitting(true);
                               handleSubmit();
                               return;
                             }
-                            console.log('NegateDialog: Calling reviewCounterpoint via button click');
+                            logger.log('NegateDialog: Calling reviewCounterpoint via button click');
                             setIsProcessing(true);
                             reviewCounterpoint().finally(() => setIsProcessing(false));
                           }}

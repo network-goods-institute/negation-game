@@ -10,7 +10,7 @@ import {
     TooltipContent,
     TooltipProvider,
     TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/tooltip";import { logger } from "@/lib/logger";
 
 type BBox = { x: number; y: number; w: number; h: number };
 
@@ -179,7 +179,7 @@ export const MergeNodesFrame = () => {
 
             handleClose();
         } catch (error) {
-            console.error("Error merging points:", error);
+            logger.error("Error merging points:", error);
         } finally {
             setIsMerging(false);
         }

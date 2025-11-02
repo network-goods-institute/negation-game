@@ -20,7 +20,7 @@ import {
   LoaderIcon
 } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";import { logger } from "@/lib/logger";
 
 interface AdminStatus {
   siteAdmin: boolean;
@@ -93,7 +93,7 @@ export default function SiteAdminPage() {
         setUnauthorized(true);
       }
     } catch (error) {
-      console.error("Error fetching admin status:", error);
+      logger.error("Error fetching admin status:", error);
       setUnauthorized(true);
     } finally {
       setLoading(false);

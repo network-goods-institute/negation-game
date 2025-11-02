@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@/lib/tests/test-utils';
 import { AuthenticatedActionButton } from '../editor/AuthenticatedActionButton';
 import { usePrivy } from '@privy-io/react-auth';
 import { handleAuthError } from '@/lib/auth/handleAuthError';
-import { setPrivyToken } from '@/lib/privy/setPrivyToken';
+import { setPrivyToken } from '@/lib/privy/setPrivyToken';import { logger } from "@/lib/logger";
 
 
 // Mock the usePrivy hook
@@ -11,7 +11,7 @@ jest.mock('@privy-io/react-auth', () => ({
     usePrivy: jest.fn(),
 }));
 
-// Mock the handleAuthError function to prevent console errors during tests
+// Mock the handleAuthError function to prevent logger.errors during tests
 jest.mock('@/lib/auth/handleAuthError', () => ({
     handleAuthError: jest.fn(),
 }));

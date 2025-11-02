@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { decodeId } from "@/lib/negation-game/decodeId";
 import { truncateForSEO, extractKeywords, generateSEOTitle, cleanTextForSEO } from "@/lib/seo/utils";
 import { generatePointStructuredData } from "@/lib/seo/structuredData";
-import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
+import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";import { logger } from "@/lib/logger";
 
 interface Props {
   params: Promise<{
@@ -118,7 +118,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     };
   } catch (error) {
-    console.error("Error generating metadata:", error);
+    logger.error("Error generating metadata:", error);
     return {
       title: "Error Loading Point",
       description: "There was an error loading this point.",
@@ -170,7 +170,7 @@ export default async function PointLayout({
       }
     }
   } catch (error) {
-    console.error("Error generating structured data:", error);
+    logger.error("Error generating structured data:", error);
   }
 
   return children;

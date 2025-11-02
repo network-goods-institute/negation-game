@@ -7,7 +7,7 @@ import {
   ChatMetadata,
 } from "@/actions/chat/chatSyncActions";
 import { computeChatStateHash } from "@/lib/negation-game/chatUtils";
-import { SavedChat } from "@/types/chat";
+import { SavedChat } from "@/types/chat";import { logger } from "@/lib/logger";
 
 export interface SyncStats {
   pulled: number;
@@ -59,7 +59,7 @@ export function useChatFullSync({
 
       // Prevent concurrent syncs
       if (syncInProgressRef.current) {
-        console.log("[attemptSync] Sync already in progress, skipping");
+        logger.log("[attemptSync] Sync already in progress, skipping");
         return;
       }
 
@@ -100,10 +100,10 @@ export function useChatFullSync({
             const { setPrivyToken } = await import("@/lib/privy/setPrivyToken");
             const tokenRefreshed = await setPrivyToken();
             if (!tokenRefreshed) {
-              console.warn("Token refresh returned false during sync startup");
+              logger.warn("Token refresh returned false during sync startup");
             }
           } catch (tokenError) {
-            console.warn(
+            logger.warn(
               "Token refresh failed during sync, continuing anyway:",
               tokenError
             );
@@ -317,7 +317,7 @@ export function useChatFullSync({
 
         // If it's an auth error and we haven't retried yet, try refreshing token and retry
         if (isAuthError && retryCount < 2 && typeof window !== "undefined") {
-          console.log(
+          logger.log(
             `Chat sync failed with auth error (attempt ${retryCount + 1}/3), refreshing token and retrying...`
           );
           try {
@@ -332,14 +332,14 @@ export function useChatFullSync({
               return attemptSync(retryCount + 1);
             }
           } catch (tokenError) {
-            console.warn("Token refresh failed during retry:", tokenError);
+            logger.warn("Token refresh failed during retry:", tokenError);
           }
         }
 
         if (isTimeoutError) {
           setSyncActivity("error");
           setSyncError("Sync operation timed out. Please try again.");
-          console.warn("[syncChats] Sync operation timed out");
+          logger.warn("[syncChats] Sync operation timed out");
         } else if (isNetworkError) {
           setSyncActivity("error");
           setSyncError("Network error. Please check connection.");
@@ -387,18 +387,18 @@ export function useChatFullSync({
 
   const triggerSync = useCallback(() => {
     if (!isAuthenticated || !currentSpace) {
-      console.log("[triggerSync] Skipping: not authenticated or no space");
+      logger.log("[triggerSync] Skipping: not authenticated or no space");
       return;
     }
 
     if (syncInProgressRef.current) {
-      console.log(
+      logger.log(
         "[triggerSync] Sync already in progress, skipping manual trigger"
       );
       return;
     }
 
-    console.log("[triggerSync] Manual sync triggered");
+    logger.log("[triggerSync] Manual sync triggered");
     attemptSync(0);
   }, [isAuthenticated, currentSpace, attemptSync]);
 
@@ -412,7 +412,7 @@ export function useChatFullSync({
     }
 
     if (pendingPushIds.size > 0) {
-      console.log(
+      logger.log(
         `[useEffect] Skipping auto-sync: pending pushes exist ${pendingPushIds.size}`
       );
       return;
@@ -420,20 +420,20 @@ export function useChatFullSync({
 
     const now = Date.now();
     if (lastSyncTime && now - lastSyncTime < 30000) {
-      console.log("[useEffect] Skipping auto-sync: recent sync detected");
+      logger.log("[useEffect] Skipping auto-sync: recent sync detected");
       return;
     }
 
     if (process.env.NODE_ENV === "development") {
       if (lastSyncTime && now - lastSyncTime < 60000) {
-        console.log(
+        logger.log(
           "[useEffect] Skipping auto-sync: development mode cooldown"
         );
         return;
       }
     }
 
-    console.log("[useEffect] Auto-sync triggered for space/auth change");
+    logger.log("[useEffect] Auto-sync triggered for space/auth change");
     attemptSync(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -447,7 +447,7 @@ export function useChatFullSync({
   useEffect(() => {
     return () => {
       if (syncInProgressRef.current) {
-        console.log("[useChatFullSync] Cleaning up sync on unmount");
+        logger.log("[useChatFullSync] Cleaning up sync on unmount");
         syncInProgressRef.current = false;
       }
     };

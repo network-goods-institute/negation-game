@@ -8,7 +8,7 @@ import { sqids } from "@/services/sqids";
 import {
   calculateDynamicPriority,
   calculateChangeFrequency,
-} from "@/lib/seo/sitemapUtils";
+} from "@/lib/seo/sitemapUtils";import { logger } from "@/lib/logger";
 
 export const revalidate = 21600;
 
@@ -38,7 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })
       .from(spacesTable)
       .catch((err) => {
-        console.error("Error fetching spaces for sitemap:", err);
+        logger.error("Error fetching spaces for sitemap:", err);
         return [];
       });
 
@@ -63,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .orderBy(desc(pointsTable.createdAt))
       .limit(3000)
       .catch((err) => {
-        console.error("Error fetching points for sitemap:", err);
+        logger.error("Error fetching points for sitemap:", err);
         return [];
       });
 
@@ -104,7 +104,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .orderBy(desc(viewpointsTable.lastUpdatedAt))
       .limit(1500)
       .catch((err) => {
-        console.error("Error fetching rationales for sitemap:", err);
+        logger.error("Error fetching rationales for sitemap:", err);
         return [];
       });
 
@@ -139,7 +139,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }
     }
   } catch (error) {
-    console.error("Error generating sitemap:", error);
+    logger.error("Error generating sitemap:", error);
   }
 
   sitemapEntries.sort((a, b) => {

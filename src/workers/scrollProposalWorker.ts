@@ -1,4 +1,4 @@
-import { detectScrollProposals } from "@/actions/notifications/detectScrollProposals";
+import { detectScrollProposals } from "@/actions/notifications/detectScrollProposals";import { logger } from "@/lib/logger";
 
 /**
  * Worker to detect Scroll governance proposals
@@ -29,12 +29,12 @@ export class ScrollProposalWorker {
 
     try {
       this.isRunning = true;
-      console.log("Starting Scroll proposal detection...");
+      logger.log("Starting Scroll proposal detection...");
 
       await detectScrollProposals();
 
       this.lastRun = new Date();
-      console.log("Scroll proposal detection completed successfully");
+      logger.log("Scroll proposal detection completed successfully");
 
       return {
         success: true,
@@ -42,7 +42,7 @@ export class ScrollProposalWorker {
         lastRun: this.lastRun,
       };
     } catch (error) {
-      console.error("Error in Scroll proposal worker:", error);
+      logger.error("Error in Scroll proposal worker:", error);
       return {
         success: false,
         message: `Scroll proposal detection failed: ${error instanceof Error ? error.message : "Unknown error"}`,

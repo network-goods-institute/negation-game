@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useUser } from "@/queries/users/useUser";
+import { useUser } from "@/queries/users/useUser";import { logger } from "@/lib/logger";
 
 interface ConversationStatus {
   unreadCount: number;
@@ -83,7 +83,7 @@ export const useConversationSSE = ({
     });
 
     eventSource.onerror = (error) => {
-      console.error("SSE connection error:", error);
+      logger.error("SSE connection error:", error);
       setIsConnected(false);
       eventSource.close();
       eventSourceRef.current = null;

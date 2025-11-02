@@ -8,7 +8,7 @@ import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { slugify } from "@/utils/slugify";
-import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";import { logger } from "@/lib/logger";
 
 const DEFAULT_OWNER = "connormcmk";
 const DEFAULT_TITLE = "Untitled";
@@ -207,7 +207,7 @@ export async function createRationale(params?: {
       await tx.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, id));
       createdSlug = slug;
     } catch (err) {
-      console.error(
+      logger.error(
         "[Create Rationale] Failed to generate slug for doc %s:",
         id,
         err
@@ -268,13 +268,13 @@ export async function renameRationale(id: string, title: string) {
       if (false) {
         attempts++;
         if (attempts >= maxAttempts) {
-          console.error(
+          logger.error(
             `[Rename Rationale] Failed to update slug after ${maxAttempts} attempts for doc ${canonicalId}:`,
             err
           );
         }
       } else {
-        console.error(
+        logger.error(
           `[Rename Rationale] Failed to generate slug for doc ${canonicalId}:`,
           err
         );
@@ -433,7 +433,7 @@ export async function duplicateRationale(
       await tx.update(mpDocsTable).set({ slug }).where(eq(mpDocsTable.id, newId));
       createdSlug = slug;
     } catch (err) {
-      console.error(
+      logger.error(
         "[Duplicate Rationale] Failed to generate slug for doc %s:",
         newId,
         err

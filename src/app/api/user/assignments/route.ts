@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchUserAssignments } from "@/actions/topics/manageRationaleAssignments";
-import { getUserId } from "@/actions/users/getUserId";
+import { getUserId } from "@/actions/users/getUserId";import { logger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -12,7 +12,7 @@ export async function GET() {
     const assignments = await fetchUserAssignments(userId);
     return NextResponse.json(assignments);
   } catch (error) {
-    console.error("Error fetching user assignments:", error);
+    logger.error("Error fetching user assignments:", error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Internal server error",

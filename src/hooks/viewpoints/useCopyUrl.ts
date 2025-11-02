@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback } from "react";import { logger } from "@/lib/logger";
 
 /**
  * Hook to copy a URL to clipboard and manage loading state.
@@ -16,7 +16,7 @@ export function useCopyUrl() {
       setIsCopyingUrl(true);
       setTimeout(() => setIsCopyingUrl(false), 2000);
     } catch (error) {
-      console.error("Failed to copy URL:", error);
+      logger.error("Failed to copy URL:", error);
       // Fallback method - also ensure string conversion
       const fallbackUrl = String(customUrl || window.location.href);
       const textArea = document.createElement("textarea");

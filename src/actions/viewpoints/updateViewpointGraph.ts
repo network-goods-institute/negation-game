@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { AppNode } from "@/components/graph/nodes/AppNode";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { pick } from "remeda";
-import { viewpointInteractionsTable } from "@/db/tables/viewpointInteractionsTable";
+import { viewpointInteractionsTable } from "@/db/tables/viewpointInteractionsTable";import { logger } from "@/lib/logger";
 
 export interface UpdateViewpointGraphArgs {
   id: string;
@@ -71,7 +71,7 @@ export const updateViewpointGraph = async ({
       })
       .where(eq(viewpointInteractionsTable.viewpointId, id))
       .catch((interactionError) => {
-        console.error(
+        logger.error(
           "Error updating viewpoint interactions:",
           interactionError
         );

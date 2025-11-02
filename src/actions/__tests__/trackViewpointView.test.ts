@@ -19,11 +19,22 @@ jest.mock("drizzle-orm", () => ({
   sql: jest.fn((args) => args),
 }));
 
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
 // Import after mocking
 import { trackViewpointView } from "../viewpoints/trackViewpointView";
 import { db } from "@/services/db";
 import { viewpointInteractionsTable } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 describe("trackViewpointView", () => {
   beforeEach(() => {
@@ -106,7 +117,7 @@ describe("trackViewpointView", () => {
       throw new Error("Database error");
     });
 
-    // Mock console.error to prevent test output pollution
+    // Mock logger.error to prevent test output pollution
     jest.spyOn(console, "error").mockImplementation(() => {});
 
     // Call the function
@@ -114,6 +125,6 @@ describe("trackViewpointView", () => {
 
     // It should return false but not throw
     expect(result).toBe(false);
-    expect(console.error).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalled();
   });
 });

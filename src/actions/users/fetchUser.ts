@@ -3,7 +3,7 @@
 import { usersTable } from "@/db/schema";
 import { normalizeUsername } from "@/db/tables/usersTable";
 import { db } from "@/services/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 const userCache = new Map<string, { user: any; expires: number }>();
 const CACHE_DURATION = 5 * 60 * 1000;
@@ -60,7 +60,7 @@ export const fetchUser = async (idOrUsername: string) => {
 
     return user;
   } catch (error) {
-    console.error(
+    logger.error(
       "[fetchUser] Error during database query for:",
       idOrUsername,
       "Error:",

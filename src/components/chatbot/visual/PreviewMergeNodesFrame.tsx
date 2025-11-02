@@ -11,7 +11,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PreviewAppNode } from "@/types/rationaleGraph";
+import { PreviewAppNode } from "@/types/rationaleGraph";import { logger } from "@/lib/logger";
 
 type BBox = { x: number; y: number; w: number; h: number };
 
@@ -189,7 +189,7 @@ export const PreviewMergeNodesFrame = () => {
 
             handleClose();
         } catch (error) {
-            console.error("Error merging preview nodes:", error);
+            logger.error("Error merging preview nodes:", error);
         } finally {
             setIsMerging(false);
         }

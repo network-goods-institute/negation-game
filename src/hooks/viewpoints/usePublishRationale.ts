@@ -14,7 +14,7 @@ import {
   copiedFromIdAtom,
 } from "@/atoms/viewpointAtoms";
 import { useSpace } from "@/queries/space/useSpace";
-import { useTopics } from "@/queries/topics/useTopics";
+import { useTopics } from "@/queries/topics/useTopics";import { logger } from "@/lib/logger";
 
 /**
  * Hook to manage the publish flow for a new rationale.
@@ -68,7 +68,7 @@ export default function usePublishRationale() {
       push(`${basePath}/rationale/${id}?published=true`);
       return id;
     } catch (e) {
-      console.error("Publish failed", e);
+      logger.error("Publish failed", e);
       throw e;
     }
   }, [

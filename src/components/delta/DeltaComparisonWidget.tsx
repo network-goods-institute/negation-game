@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
-import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";import { logger } from "@/lib/logger";
 
 type UserDelta = {
     userId: string;
@@ -206,7 +206,7 @@ export function DeltaComparisonWidget({
                 message: data.message ?? (data.error ? data.error : undefined),
             });
         } catch (err) {
-            console.error(err);
+            logger.error(err);
             setBulkResults({
                 mostSimilar: [],
                 mostDifferent: [],

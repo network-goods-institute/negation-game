@@ -2,7 +2,7 @@ import { updateRationalePoints } from "../updateRationalePoints";
 import { db } from "@/services/db";
 import { rationalePointsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";import { logger } from "@/lib/logger";
 
 // Mock the database
 jest.mock("@/services/db", () => ({
@@ -31,8 +31,8 @@ const mockDb = db as jest.Mocked<typeof db>;
 describe("updateRationalePoints", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    console.log = jest.fn();
-    console.error = jest.fn();
+    logger.log = jest.fn();
+    logger.error = jest.fn();
   });
 
   const mockGraph: ViewpointGraph = {
@@ -90,7 +90,7 @@ describe("updateRationalePoints", () => {
       { rationaleId: "rationale123", pointId: 789 },
     ]);
 
-    expect(console.log).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       "[updateRationalePoints] Updated 3 point mappings for rationale rationale123"
     );
   });
@@ -123,7 +123,7 @@ describe("updateRationalePoints", () => {
     expect(mockDb.transaction).toHaveBeenCalledTimes(1);
     expect(mockDelete).toHaveBeenCalledWith(rationalePointsTable);
 
-    expect(console.log).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       "[updateRationalePoints] Updated 0 point mappings for rationale rationale123"
     );
   });
@@ -177,7 +177,7 @@ describe("updateRationalePoints", () => {
       { rationaleId: "rationale123", pointId: 999 },
     ]);
 
-    expect(console.log).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       "[updateRationalePoints] Updated 1 point mappings for rationale rationale123"
     );
   });
@@ -196,7 +196,7 @@ describe("updateRationalePoints", () => {
     await updateRationalePoints("rationale123", null as any);
 
     expect(mockDb.transaction).toHaveBeenCalledTimes(1);
-    expect(console.log).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       "[updateRationalePoints] Updated 0 point mappings for rationale rationale123"
     );
   });
@@ -207,7 +207,7 @@ describe("updateRationalePoints", () => {
 
     await updateRationalePoints("rationale123", mockGraph);
 
-    expect(console.error).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       "[updateRationalePoints] Failed to update rationale points for rationaleId:",
       "rationale123",
       "Error:",
@@ -262,7 +262,7 @@ describe("updateRationalePoints", () => {
       { rationaleId: "rationale123", pointId: 456 },
     ]);
 
-    expect(console.log).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       "[updateRationalePoints] Updated 2 point mappings for rationale rationale123"
     );
   });
@@ -310,7 +310,7 @@ describe("updateRationalePoints", () => {
       { rationaleId: "rationale123", pointId: 123 },
     ]);
 
-    expect(console.log).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       "[updateRationalePoints] Updated 1 point mappings for rationale rationale123"
     );
   });

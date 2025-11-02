@@ -7,12 +7,12 @@ import {
   stance,
   toZScores,
   BucketedStance,
-} from "@/lib/negation-game/deltaScore";
+} from "@/lib/negation-game/deltaScore";import { logger } from "@/lib/logger";
 
 export async function stanceComputationPipeline(
   snapDay: string = new Date().toISOString().slice(0, 10)
 ): Promise<{ success: boolean; message: string; stats?: any }> {
-  console.log(
+  logger.log(
     `[stanceComputationPipeline] Starting stance computation for ${snapDay}`
   );
 
@@ -34,7 +34,7 @@ export async function stanceComputationPipeline(
       .where(eq(snapshotsTable.snapDay, snapDayDate));
 
     if (snapshots.length === 0) {
-      console.log(
+      logger.log(
         `[stanceComputationPipeline] No snapshots found for ${snapDay}`
       );
       return {
@@ -44,7 +44,7 @@ export async function stanceComputationPipeline(
       };
     }
 
-    console.log(
+    logger.log(
       `[stanceComputationPipeline] Processing ${snapshots.length} snapshots`
     );
 
@@ -137,7 +137,7 @@ export async function stanceComputationPipeline(
 
       // Ensure we have matching counts to prevent index misalignment
       if (bucketRawStances.length !== zScores.length) {
-        console.error(
+        logger.error(
           `[stanceComputationPipeline] Index mismatch in bucket ${bucketKey}: ` +
             `${bucketRawStances.length} raw stances vs ${zScores.length} z-scores`
         );
@@ -174,7 +174,7 @@ export async function stanceComputationPipeline(
       });
     }
 
-    console.log(
+    logger.log(
       `[stanceComputationPipeline] Inserted/updated ${finalStances.length} stance records`
     );
 
@@ -218,7 +218,7 @@ export async function stanceComputationPipeline(
       },
     };
   } catch (error) {
-    console.error("[stanceComputationPipeline] Error:", error);
+    logger.error("[stanceComputationPipeline] Error:", error);
     return {
       success: false,
       message: `Stance computation failed: ${error instanceof Error ? error.message : String(error)}`,

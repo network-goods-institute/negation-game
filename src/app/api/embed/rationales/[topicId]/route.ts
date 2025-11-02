@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchViewpointsByTopic } from "@/actions/viewpoints/fetchViewpointsByTopic";
+import { fetchViewpointsByTopic } from "@/actions/viewpoints/fetchViewpointsByTopic";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -31,7 +31,7 @@ export async function GET(
 
     return NextResponse.json({ rationales });
   } catch (error) {
-    console.error("Failed to fetch rationales for embed:", error);
+    logger.error("Failed to fetch rationales for embed:", error);
     return NextResponse.json(
       { error: "Failed to fetch rationales" },
       { status: 500 }

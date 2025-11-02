@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computeUsersDaoAlignment } from "@/actions/analytics/computeUsersDaoAlignment";
 import { getUserId } from "@/actions/users/getUserId";
-import { checkRateLimitStrict } from "@/lib/rateLimit";
+import { checkRateLimitStrict } from "@/lib/rateLimit";import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[/api/analytics/users-alignment] Error:", error);
+    logger.error("[/api/analytics/users-alignment] Error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

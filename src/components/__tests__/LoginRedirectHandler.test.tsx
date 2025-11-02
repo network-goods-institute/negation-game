@@ -1,10 +1,22 @@
 import { render, waitFor } from '@testing-library/react';
 import { LoginRedirectHandler } from '../LoginRedirectHandler';
 import { usePrivy } from '@privy-io/react-auth';
+import { logger } from '@/lib/logger';
 
 // Mock usePrivy hook
 jest.mock('@privy-io/react-auth', () => ({
   usePrivy: jest.fn(),
+}));
+
+// Mock logger
+jest.mock('@/lib/logger', () => ({
+  logger: {
+    log: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 describe('LoginRedirectHandler', () => {
@@ -111,7 +123,6 @@ describe('LoginRedirectHandler', () => {
     });
 
     const mockUsePrivy = usePrivy as jest.Mock;
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
     mockUsePrivy.mockReturnValue({
       ready: true,
@@ -128,10 +139,8 @@ describe('LoginRedirectHandler', () => {
     rerender(<LoginRedirectHandler />);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith('[LoginRedirectHandler] Would redirect to sync in production');
+      expect(logger.log).toHaveBeenCalledWith('[LoginRedirectHandler] Would redirect to sync in production');
     });
-
-    consoleSpy.mockRestore();
   });
 
   it('should not redirect when already on sync subdomain', async () => {
