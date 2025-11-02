@@ -5,13 +5,13 @@ import {
 
 describe("connect utils", () => {
 
-  it("chooses option for point-to-statement connections", () => {
+  it("chooses option for any connection involving statement", () => {
     expect(chooseEdgeType("point", "statement")).toBe("option");
-  });
-
-  it("uses option for any connection to statement", () => {
+    expect(chooseEdgeType("statement", "point")).toBe("option");
     expect(chooseEdgeType("objection", "statement")).toBe("option");
+    expect(chooseEdgeType("statement", "objection")).toBe("option");
     expect(chooseEdgeType("edge_anchor", "statement")).toBe("option");
+    expect(chooseEdgeType("statement", "edge_anchor")).toBe("option");
   });
 
   it("defaults to negation otherwise", () => {
@@ -23,8 +23,9 @@ describe("connect utils", () => {
     expect(chooseEdgeType("point", "point", "negation")).toBe("negation");
   });
 
-  it("ignores preferredEdgeType when target is statement", () => {
+  it("ignores preferredEdgeType when source or target is statement", () => {
     expect(chooseEdgeType("point", "statement", "support")).toBe("option");
+    expect(chooseEdgeType("statement", "point", "support")).toBe("option");
   });
 
   it("builds deterministic edge id with handles", () => {

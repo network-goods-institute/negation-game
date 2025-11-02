@@ -5,8 +5,8 @@ export const chooseEdgeType = (
   targetType?: string,
   preferredEdgeType?: "support" | "negation"
 ) => {
-  // All edges TO a statement (question) use option
-  if (targetType === "statement") {
+  // All edges involving a statement (question) use option
+  if (sourceType === "statement" || targetType === "statement") {
     return "option";
   }
 
