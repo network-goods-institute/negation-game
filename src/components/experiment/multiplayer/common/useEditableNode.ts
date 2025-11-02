@@ -203,8 +203,8 @@ export const useEditableNode = ({
 
   const resetMargins = useCallback(() => {
     if (wrapperRef.current) {
-      wrapperRef.current.style.marginLeft = '0px';
-      wrapperRef.current.style.marginRight = '0px';
+      wrapperRef.current.style.marginLeft = "0px";
+      wrapperRef.current.style.marginRight = "0px";
     }
     previousWidthRef.current = 0;
     totalWidthOffsetRef.current = 0;
@@ -405,7 +405,10 @@ export const useEditableNode = ({
 
       // Apply CSS transform to expand node from center
       const currentWidth = contentRef.current.scrollWidth;
-      if (previousWidthRef.current > 0 && currentWidth !== previousWidthRef.current) {
+      if (
+        previousWidthRef.current > 0 &&
+        currentWidth !== previousWidthRef.current
+      ) {
         const widthDiff = currentWidth - previousWidthRef.current;
         totalWidthOffsetRef.current += widthDiff;
 
@@ -530,19 +533,29 @@ export const useEditableNode = ({
     if (!isEditing) {
       setIsEditing(true);
       startEditingNode?.(id);
-      // Focus and place cursor at the end
-      setTimeout(() => {
+
+      const attemptFocus = () => {
         const el = contentRef.current;
-        if (el) {
+        if (!el) {
+          requestAnimationFrame(attemptFocus);
+          return;
+        }
+
+        // Check if element is actually focusable and in the DOM
+        if (document.contains(el) && el.offsetParent !== null) {
           el.focus();
           const range = document.createRange();
           range.selectNodeContents(el);
-          range.collapse(false); // Move cursor to end
           const sel = window.getSelection();
           sel?.removeAllRanges();
           sel?.addRange(range);
+        } else {
+          // Still not ready, try again
+          requestAnimationFrame(attemptFocus);
         }
-      }, 0);
+      };
+
+      requestAnimationFrame(attemptFocus);
     }
   };
 

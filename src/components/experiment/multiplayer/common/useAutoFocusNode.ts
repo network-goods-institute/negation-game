@@ -12,6 +12,7 @@ interface UseAutoFocusNodeProps {
   setIsEditing?: (editing: boolean) => void;
   startEditingNode?: (nodeId: string) => void;
   nodeId?: string;
+  clearNodeSelection?: () => void;
 }
 
 export const useAutoFocusNode = ({
@@ -25,6 +26,7 @@ export const useAutoFocusNode = ({
   setIsEditing,
   startEditingNode,
   nodeId,
+  clearNodeSelection,
 }: UseAutoFocusNodeProps) => {
   useEffect(() => {
     const defaultMarkers = new Set([
@@ -37,6 +39,9 @@ export const useAutoFocusNode = ({
       "New Option",
       "New Question",
       "New comment",
+      "New mitigate",
+      "mitigation",
+      "objection",
     ]);
     const isDefaultContent = defaultMarkers.has(content);
 
@@ -46,12 +51,14 @@ export const useAutoFocusNode = ({
     if (
       isDefaultContent &&
       !isEditing &&
-      selected === true &&
-      wasRecentlyCreated
+      wasRecentlyCreated &&
+      selected === true
     ) {
-      // Small delay to ensure the DOM is ready
       setTimeout(() => {
         startEditingProgrammatically?.();
+        setTimeout(() => {
+          clearNodeSelection?.();
+        }, 50);
       }, 150);
     }
   }, [
@@ -64,6 +71,7 @@ export const useAutoFocusNode = ({
     contentRef,
     setIsEditing,
     startEditingNode,
+    clearNodeSelection,
     nodeId,
   ]);
 };

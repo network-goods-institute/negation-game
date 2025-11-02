@@ -190,6 +190,13 @@ export const useNodeChrome = ({
     };
   }, [hover.hovered, elevateNodeZIndex]);
 
+  const clearNodeSelection = React.useCallback(() => {
+    if (!reactFlow) return;
+    reactFlow.setNodes((nodes) =>
+      nodes.map((node) => ({ ...node, selected: false }))
+    );
+  }, [reactFlow]);
+
   useAutoFocusNode({
     content,
     createdAt: autoFocus?.createdAt,
@@ -197,6 +204,7 @@ export const useNodeChrome = ({
     selected,
     startEditingProgrammatically: editable.startEditingProgrammatically,
     isQuestionNode: autoFocus?.isQuestionNode ?? false,
+    clearNodeSelection,
   });
 
   const [multipleSelected, setMultipleSelected] = React.useState(false);

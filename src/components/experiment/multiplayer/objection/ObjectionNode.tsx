@@ -86,6 +86,10 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         locked,
         hidden,
         pillDelay: 200,
+        autoFocus: {
+            createdAt: Date.now(),
+            isQuestionNode: false,
+        },
     });
 
     const {
