@@ -1,40 +1,58 @@
 "use server";
 
-import { and, avg, count, eq } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/services/db";
 import { mpMindchangeTable } from "@/db/tables/mpMindchangeTable";
 import { getUserId } from "@/actions/users/getUserId";
+import { usersTable } from "@/db/tables/usersTable";
+import { isProductionEnvironment } from "@/utils/hosts";
+import { isMindchangeEnabledServer } from "@/utils/featureFlags";
 
-type Averages = { forward: number; backward: number; forwardCount: number; backwardCount: number };
+type Averages = {
+  forward: number;
+  backward: number;
+  forwardCount: number;
+  backwardCount: number;
+};
 
-const clip0to100 = (n: number) => {
+const clamp0to100 = (n: number) => {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(100, Math.round(n)));
 };
 
-const isTruthyFlag = (v: string | undefined) => {
-  const s = (v || "").toLowerCase().trim();
-  return s === "true" || s === "1" || s === "yes" || s === "on";
+const toPositive = (v: number | undefined) => {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
+  return clamp0to100(v);
 };
-
-const featureEnabled = () =>
-  isTruthyFlag(process.env.ENABLE_MINDCHANGE) ||
-  isTruthyFlag(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE);
 
 export async function setMindchange(
   docId: string,
   edgeId: string,
   forwardValue?: number,
-  backwardValue?: number
+  backwardValue?: number,
+  edgeType?: 'negation' | 'objection' | 'support',
+  clientUserId?: string
 ): Promise<{ ok: true; averages: Averages } | { ok: false; error: string }> {
-  if (!featureEnabled()) return { ok: false, error: "Mindchange disabled" };
+  if (!isMindchangeEnabledServer()) {
+    return { ok: false, error: "Mindchange feature disabled" };
+  }
   if (!docId || !edgeId) return { ok: false, error: "Invalid ids" };
+  if (edgeType && edgeType !== 'negation' && edgeType !== 'objection') {
+    return { ok: false, error: 'Mindchange only allowed on negation or objection edges' };
+  }
 
-  const userId = await getUserId();
-  if (!userId) return { ok: false, error: "Unauthorized" };
+  let userId = await getUserId();
+  if (!userId) {
+    if (!isProductionEnvironment()) {
+      const fallback = (clientUserId || "anon").slice(0, 255);
+      userId = fallback;
+    } else {
+      return { ok: false, error: "Unauthorized" };
+    }
+  }
 
-  const fVal = typeof forwardValue === "number" ? clip0to100(forwardValue) : undefined;
-  const bVal = typeof backwardValue === "number" ? clip0to100(backwardValue) : undefined;
+  const fVal = toPositive(forwardValue);
+  const bVal = toPositive(backwardValue);
   if (typeof fVal === "undefined" && typeof bVal === "undefined") {
     return { ok: false, error: "No values provided" };
   }
@@ -45,11 +63,15 @@ export async function setMindchange(
       docId,
       edgeId,
       userId,
-      forwardValue: fVal ?? 0,
-      backwardValue: bVal ?? 0,
+      forwardValue: typeof fVal === 'number' ? fVal : 0,
+      backwardValue: typeof bVal === 'number' ? bVal : 0,
     })
     .onConflictDoUpdate({
-      target: [mpMindchangeTable.docId, mpMindchangeTable.edgeId, mpMindchangeTable.userId],
+      target: [
+        mpMindchangeTable.docId,
+        mpMindchangeTable.edgeId,
+        mpMindchangeTable.userId,
+      ],
       set: {
         ...(typeof fVal === "number" ? { forwardValue: fVal } : {}),
         ...(typeof bVal === "number" ? { backwardValue: bVal } : {}),
@@ -59,13 +81,19 @@ export async function setMindchange(
 
   const rows = await db
     .select({
-      fwd: avg(mpMindchangeTable.forwardValue),
-      bwd: avg(mpMindchangeTable.backwardValue),
-      fCount: count(mpMindchangeTable.forwardValue),
-      bCount: count(mpMindchangeTable.backwardValue),
+      // exclude zeros from averages and counts
+      fwd: sql<number>`avg(NULLIF(${mpMindchangeTable.forwardValue}, 0))`,
+      bwd: sql<number>`avg(NULLIF(${mpMindchangeTable.backwardValue}, 0))`,
+      fCount: sql<number>`count(NULLIF(${mpMindchangeTable.forwardValue}, 0))`,
+      bCount: sql<number>`count(NULLIF(${mpMindchangeTable.backwardValue}, 0))`,
     })
     .from(mpMindchangeTable)
-    .where(and(eq(mpMindchangeTable.docId, docId), eq(mpMindchangeTable.edgeId, edgeId)));
+    .where(
+      and(
+        eq(mpMindchangeTable.docId, docId),
+        eq(mpMindchangeTable.edgeId, edgeId)
+      )
+    );
 
   const fwd = Number(rows?.[0]?.fwd ?? 0) || 0;
   const bwd = Number(rows?.[0]?.bwd ?? 0) || 0;
@@ -78,22 +106,150 @@ export async function setMindchange(
     forwardCount: fCount,
     backwardCount: bCount,
   };
+  try {
+    console.log("[Mindchange:set]", { docId, edgeId, averages });
+  } catch {}
 
-  // Phase 2: publish to Yjs meta key mindchange:<edgeId>
+  // Note: Meta publishing is performed client-side after the action returns
 
   return { ok: true, averages };
 }
 
 export async function getMindchangeBreakdown(docId: string, edgeId: string) {
-  if (!featureEnabled()) return { forward: [], backward: [] };
+  if (!isMindchangeEnabledServer()) return { forward: [], backward: [] };
   if (!docId || !edgeId) return { forward: [], backward: [] };
 
   const rows = await db
-    .select({ userId: mpMindchangeTable.userId, forwardValue: mpMindchangeTable.forwardValue, backwardValue: mpMindchangeTable.backwardValue })
+    .select({
+      userId: mpMindchangeTable.userId,
+      username: usersTable.username,
+      forwardValue: mpMindchangeTable.forwardValue,
+      backwardValue: mpMindchangeTable.backwardValue,
+    })
     .from(mpMindchangeTable)
-    .where(and(eq(mpMindchangeTable.docId, docId), eq(mpMindchangeTable.edgeId, edgeId)));
+    .leftJoin(usersTable, eq(usersTable.id, mpMindchangeTable.userId))
+    .where(
+      and(
+        eq(mpMindchangeTable.docId, docId),
+        eq(mpMindchangeTable.edgeId, edgeId)
+      )
+    );
 
-  const forward = rows.map((r) => ({ userId: r.userId, username: r.userId, value: r.forwardValue }));
-  const backward = rows.map((r) => ({ userId: r.userId, username: r.userId, value: r.backwardValue }));
+  // exclude zeros from breakdowns
+  const forward = rows
+    .filter((r) => Number(r.forwardValue) !== 0)
+    .map((r) => ({
+      userId: r.userId,
+      username: r.username || r.userId,
+      value: r.forwardValue,
+    }));
+  const backward = rows
+    .filter((r) => Number(r.backwardValue) !== 0)
+    .map((r) => ({
+      userId: r.userId,
+      username: r.username || r.userId,
+      value: r.backwardValue,
+    }));
+  try {
+    const fAvg = forward.length
+      ? Math.round(
+          forward.reduce((a, b) => a + (Number(b.value) || 0), 0) /
+            forward.length
+        )
+      : 0;
+    const bAvg = backward.length
+      ? Math.round(
+          backward.reduce((a, b) => a + (Number(b.value) || 0), 0) /
+            backward.length
+        )
+      : 0;
+    console.log("[Mindchange:breakdown]", {
+      docId,
+      edgeId,
+      forwardCount: forward.length,
+      backwardCount: backward.length,
+      forwardAvg: fAvg,
+      backwardAvg: bAvg,
+    });
+  } catch {}
   return { forward, backward };
+}
+
+export async function getMindchangeAveragesForEdges(
+  docId: string,
+  edgeIds: string[]
+): Promise<
+  Record<
+    string,
+    {
+      forward: number;
+      backward: number;
+      forwardCount: number;
+      backwardCount: number;
+    }
+  >
+> {
+  if (!isMindchangeEnabledServer()) return {};
+  if (!docId || !edgeIds || edgeIds.length === 0) return {};
+
+  const rows = await db
+    .select({
+      edgeId: mpMindchangeTable.edgeId,
+      // exclude zeros from averages and counts
+      fwd: sql<number>`avg(NULLIF(${mpMindchangeTable.forwardValue}, 0))`,
+      bwd: sql<number>`avg(NULLIF(${mpMindchangeTable.backwardValue}, 0))`,
+      fCount: sql<number>`count(NULLIF(${mpMindchangeTable.forwardValue}, 0))`,
+      bCount: sql<number>`count(NULLIF(${mpMindchangeTable.backwardValue}, 0))`,
+    })
+    .from(mpMindchangeTable)
+    .where(
+      and(
+        eq(mpMindchangeTable.docId, docId),
+        inArray(mpMindchangeTable.edgeId, edgeIds)
+      )
+    )
+    .groupBy(mpMindchangeTable.edgeId);
+
+  const out: Record<
+    string,
+    {
+      forward: number;
+      backward: number;
+      forwardCount: number;
+      backwardCount: number;
+    }
+  > = {};
+  for (const r of rows as any[]) {
+    const eid = String(r.edgeId);
+    out[eid] = {
+      forward: Math.round(Number(r.fwd || 0)),
+      backward: Math.round(Number(r.bwd || 0)),
+      forwardCount: Number(r.fCount || 0),
+      backwardCount: Number(r.bCount || 0),
+    };
+  }
+  try {
+    console.log("[Mindchange:seed-averages]", {
+      docId,
+      edges: Object.keys(out).length,
+    });
+  } catch {}
+  return out;
+}
+
+export async function deleteMindchangeForEdge(
+  docId: string,
+  edgeId: string
+): Promise<{ ok: true }> {
+  if (!isMindchangeEnabledServer()) return { ok: true };
+  if (!docId || !edgeId) return { ok: true };
+  await db
+    .delete(mpMindchangeTable)
+    .where(
+      and(
+        eq(mpMindchangeTable.docId, docId),
+        eq(mpMindchangeTable.edgeId, edgeId)
+      )
+    );
+  return { ok: true };
 }

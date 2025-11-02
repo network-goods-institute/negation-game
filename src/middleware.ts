@@ -176,6 +176,7 @@ export default async function middleware(req: NextRequest) {
       "https://scroll.negationgame.com",
       "https://*.negationgame.com",
       "https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app",
+      "https://negation-game-git-mindchange-network-goods-institute.vercel.app",
       ...(isDev
         ? [
             "http://localhost:*",
@@ -214,6 +215,7 @@ export default async function middleware(req: NextRequest) {
       "https://scroll.negationgame.com",
       "https://*.negationgame.com",
       "https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app",
+      "https://negation-game-git-mindchange-network-goods-institute.vercel.app",
       ...(isDev2
         ? [
             "http://localhost:*",

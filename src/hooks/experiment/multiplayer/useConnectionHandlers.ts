@@ -12,6 +12,7 @@ import type {
   IsLockedForMe,
   GetLockOwner,
 } from "@/types/multiplayer";
+import React from "react";
 
 /**
  * Manages connection handlers for creating edges between nodes.
@@ -41,6 +42,10 @@ interface UseConnectionHandlersProps {
   getNodeCenter: (nodeId: string) => { x: number; y: number } | null;
   getEdgeMidpoint: (edgeId: string) => { x: number; y: number } | null;
   getPreferredEdgeType?: () => "support" | "negation";
+  mindchangeSelectMode?: boolean;
+  setSelectedEdgeId?: (edgeId: string | null) => void;
+  mindchangeEdgeId?: string | null;
+  setMindchangeNextDir?: (dir: "forward" | "backward" | null) => void;
 }
 
 export const useConnectionHandlers = ({
@@ -64,9 +69,73 @@ export const useConnectionHandlers = ({
   getNodeCenter,
   getEdgeMidpoint,
   getPreferredEdgeType,
+  mindchangeSelectMode,
+  setSelectedEdgeId,
+  mindchangeEdgeId,
+  setMindchangeNextDir,
 }: UseConnectionHandlersProps) => {
+  const preConnectPositionsRef = React.useRef<
+    Record<string, { x: number; y: number }>
+  >({});
+  const lockPositionsActiveRef = React.useRef<boolean>(false);
+  const lockRafRef = React.useRef<number | null>(null);
+
+  const snapshotNodePositions = React.useCallback(() => {
+    try {
+      const snap: Record<string, { x: number; y: number }> = {};
+      for (const n of nodes) {
+        const x = Number((n as any)?.position?.x ?? 0);
+        const y = Number((n as any)?.position?.y ?? 0);
+        snap[n.id] = { x, y };
+      }
+      preConnectPositionsRef.current = snap;
+    } catch {}
+  }, [nodes]);
+
+  const enforceSnapshotPositions = React.useCallback(() => {
+    const snap = preConnectPositionsRef.current;
+    if (!snap || Object.keys(snap).length === 0) return;
+    setNodes((nds) =>
+      nds.map((n) => {
+        const s = snap[n.id];
+        if (!s) return n;
+        const cur = (n as any).position || { x: 0, y: 0 };
+        if (cur.x === s.x && cur.y === s.y) return n;
+        return { ...n, position: { x: s.x, y: s.y } } as any;
+      })
+    );
+  }, [setNodes]);
+
+  const tickPositionLock = React.useCallback(() => {
+    if (!lockPositionsActiveRef.current) return;
+    enforceSnapshotPositions();
+    lockRafRef.current = requestAnimationFrame(tickPositionLock);
+  }, [enforceSnapshotPositions]);
+
+  const startPositionLock = React.useCallback(() => {
+    snapshotNodePositions();
+    lockPositionsActiveRef.current = true;
+    if (lockRafRef.current == null) {
+      lockRafRef.current = requestAnimationFrame(tickPositionLock);
+    }
+  }, [snapshotNodePositions, tickPositionLock]);
+
+  const stopPositionLock = React.useCallback(() => {
+    lockPositionsActiveRef.current = false;
+    if (lockRafRef.current != null) {
+      try {
+        cancelAnimationFrame(lockRafRef.current);
+      } catch {}
+      lockRafRef.current = null;
+    }
+    // Final enforcement to ensure positions are restored
+    enforceSnapshotPositions();
+    preConnectPositionsRef.current = {};
+  }, [enforceSnapshotPositions]);
+
   const beginConnectFromNode = useCallback(
     (id: string, cursor?: { x: number; y: number }) => {
+      startPositionLock();
       connectAnchorRef.current = id;
       setConnectAnchorId(id);
       const fallback = cursor || getNodeCenter(id);
@@ -74,11 +143,18 @@ export const useConnectionHandlers = ({
         setConnectCursor(fallback);
       }
     },
-    [connectAnchorRef, setConnectAnchorId, setConnectCursor, getNodeCenter]
+    [
+      startPositionLock,
+      connectAnchorRef,
+      setConnectAnchorId,
+      setConnectCursor,
+      getNodeCenter,
+    ]
   );
 
   const beginConnectFromEdge = useCallback(
     (edgeId: string, cursor?: { x: number; y: number }) => {
+      startPositionLock();
       const anchorId = `anchor:${edgeId}`;
       connectAnchorRef.current = anchorId;
       setConnectAnchorId(anchorId);
@@ -101,6 +177,7 @@ export const useConnectionHandlers = ({
       }
     },
     [
+      startPositionLock,
       edges,
       connectAnchorRef,
       setConnectAnchorId,
@@ -112,8 +189,8 @@ export const useConnectionHandlers = ({
 
   const completeConnectToNode = useCallback(
     (nodeId: string) => {
-      if (!connectMode) return;
-      if (!canWrite) {
+      if (!(connectMode || mindchangeSelectMode)) return;
+      if (!canWrite && !mindchangeSelectMode) {
         toast.warning("Read-only mode: Changes won't be saved");
         return;
       }
@@ -123,6 +200,72 @@ export const useConnectionHandlers = ({
         setConnectAnchorId(null);
         connectAnchorRef.current = null;
         setConnectCursor(null);
+        return;
+      }
+      // Mindchange selection mode: user clicks the point that changes their mind; target is the other endpoint of the selected edge
+      if (mindchangeSelectMode) {
+        // If Mindchange was initiated from a specific edge, honor it
+        const selectedEdge = mindchangeEdgeId
+          ? edges.find((e) => e.id === mindchangeEdgeId)
+          : null;
+        if (selectedEdge) {
+          // For all edge types (including objection), determine direction by which endpoint user clicked
+          const dir =
+            nodeId === selectedEdge.source
+              ? "forward"
+              : nodeId === selectedEdge.target
+                ? "backward"
+                : null;
+          if (dir) {
+            setSelectedEdgeId?.(selectedEdge.id);
+            setMindchangeNextDir?.(dir);
+          } else {
+            // For objection edges, user must click the objection node or the base edge (not nodes)
+            if (selectedEdge.type === "objection") {
+              toast.info(
+                "Click either the mitigation point or the relation line being mitigated"
+              );
+            } else {
+              toast.info(
+                "Click one of the two points connected by this relation"
+              );
+            }
+          }
+        } else {
+          // Fallback: infer chosen edge between clicked node and anchor parent, prefer support/negation
+          const parentId = anchorId;
+          const childId = nodeId;
+          const candidates = edges.filter(
+            (e) =>
+              (e.type === "support" ||
+                e.type === "negation" ||
+                e.type === "option") &&
+              ((e.source === childId && e.target === parentId) ||
+                (e.source === parentId && e.target === childId))
+          );
+          const chosen =
+            candidates.find((e) => e.type === "support") ||
+            candidates.find((e) => e.type === "negation") ||
+            candidates[0];
+          if (chosen) {
+            const dir =
+              childId === chosen.source
+                ? "forward"
+                : childId === chosen.target
+                  ? "backward"
+                  : "forward";
+            setSelectedEdgeId?.(chosen.id);
+            setMindchangeNextDir?.(dir);
+          } else {
+            toast.info("No edge between selected points");
+          }
+        }
+        setConnectAnchorId(null);
+        connectAnchorRef.current = null;
+        setConnectCursor(null);
+        // Keep connect mode off; remain in mindchange mode so the editor can open
+        setConnectMode(false);
+        stopPositionLock();
         return;
       }
       // Case: connecting FROM a node TO an anchor node
@@ -164,9 +307,10 @@ export const useConnectionHandlers = ({
         connectAnchorRef.current = null;
         setConnectCursor(null);
         setConnectMode(false);
+        stopPositionLock();
         return;
       }
-      if (anchorId.startsWith("anchor:")) {
+      if (anchorId.startsWith("anchor:") && !mindchangeSelectMode) {
         const edgeId = anchorId.slice("anchor:".length);
         const anchorIdForEdge = `anchor:${edgeId}`;
         const anchorNodeExists = nodes.some((n) => n.id === anchorIdForEdge);
@@ -205,6 +349,7 @@ export const useConnectionHandlers = ({
         connectAnchorRef.current = null;
         setConnectCursor(null);
         setConnectMode(false);
+        stopPositionLock();
         return;
       }
       const parentId = anchorId;
@@ -218,27 +363,53 @@ export const useConnectionHandlers = ({
         setConnectCursor(null);
         return;
       }
-      const preferred = getPreferredEdgeType?.();
-      const { id, edge } = buildConnectionEdge(
-        nodes,
-        parentId,
-        childId,
-        preferred
-      );
-      const exists = edges.some((e) => e.id === id);
-      if (!exists) {
-        setEdges((eds) =>
-          eds.some((e) => e.id === id) ? eds : [...eds, edge]
+      if (mindchangeSelectMode) {
+        const isBase = (t: string | undefined) =>
+          t === "support" || t === "negation" || t === "option";
+        const candidates = edges.filter(
+          (e) =>
+            isBase(e.type as any) &&
+            ((e.source === childId && e.target === parentId) ||
+              (e.source === parentId && e.target === childId))
         );
-      }
-      if (yEdgesMap && ydoc && canWrite) {
-        ydoc.transact(() => {
-          if (!yEdgesMap.has(id)) yEdgesMap.set(id, edge);
-        }, localOrigin);
+        const chosen =
+          // Prefer match in the same direction as the selection
+          candidates.find(
+            (e) => e.source === childId && e.target === parentId
+          ) ||
+          // Then prefer primary base types
+          candidates.find((e) => e.type === "support") ||
+          candidates.find((e) => e.type === "negation") ||
+          candidates[0];
+        if (!chosen) {
+          toast.info("No edge between selected points");
+        } else {
+          setSelectedEdgeId?.(chosen.id || null);
+        }
+      } else {
+        const preferred = getPreferredEdgeType?.();
+        const { id, edge } = buildConnectionEdge(
+          nodes,
+          parentId,
+          childId,
+          preferred
+        );
+        const exists = edges.some((e) => e.id === id);
+        if (!exists) {
+          setEdges((eds) =>
+            eds.some((e) => e.id === id) ? eds : [...eds, edge]
+          );
+        }
+        if (yEdgesMap && ydoc && canWrite) {
+          ydoc.transact(() => {
+            if (!yEdgesMap.has(id)) yEdgesMap.set(id, edge);
+          }, localOrigin);
+        }
       }
       setConnectAnchorId(null);
       connectAnchorRef.current = null;
       setConnectCursor(null);
+      stopPositionLock();
     },
     [
       connectMode,
@@ -259,6 +430,11 @@ export const useConnectionHandlers = ({
       getLockOwner,
       getEdgeMidpoint,
       getPreferredEdgeType,
+      mindchangeSelectMode,
+      setSelectedEdgeId,
+      mindchangeEdgeId,
+      setMindchangeNextDir,
+      stopPositionLock,
     ]
   );
 
@@ -267,7 +443,14 @@ export const useConnectionHandlers = ({
     connectAnchorRef.current = null;
     setConnectCursor(null);
     setConnectMode(false);
-  }, [connectAnchorRef, setConnectAnchorId, setConnectCursor, setConnectMode]);
+    stopPositionLock();
+  }, [
+    setConnectAnchorId,
+    connectAnchorRef,
+    setConnectCursor,
+    setConnectMode,
+    stopPositionLock,
+  ]);
 
   const completeConnectToEdge = useCallback(
     (edgeId: string, midX?: number, midY?: number) => {
@@ -316,6 +499,7 @@ export const useConnectionHandlers = ({
       setConnectAnchorId(null);
       connectAnchorRef.current = null;
       setConnectCursor(null);
+      stopPositionLock();
     },
     [
       connectMode,
@@ -330,6 +514,7 @@ export const useConnectionHandlers = ({
       setConnectAnchorId,
       setConnectCursor,
       getEdgeMidpoint,
+      stopPositionLock,
     ]
   );
 

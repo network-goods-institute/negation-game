@@ -34,7 +34,7 @@ export const createAddNodeAtPosition = (
   onNodeAdded?: (id: string) => void
 ) => {
   return (
-    type: "point" | "statement" | "title" | "objection",
+    type: "point" | "statement" | "title" | "objection" | "comment",
     x: number,
     y: number
   ): string => {
@@ -49,7 +49,9 @@ export const createAddNodeAtPosition = (
           ? "o"
           : type === "title"
             ? "t"
-            : "p";
+            : type === "comment"
+              ? "c"
+              : "p";
     const id = `${idBase}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const initial = getDefaultContentForType(type);
     const data: any =
@@ -76,7 +78,10 @@ export const createAddNodeAtPosition = (
         yNodesMap.set(id, node);
         if (
           yTextMap &&
-          (type === "point" || type === "objection" || type === "statement")
+          (type === "point" ||
+            type === "objection" ||
+            type === "statement" ||
+            type === "comment")
         ) {
           const t = new Y.Text();
           const initialContent =
@@ -132,7 +137,7 @@ export const createAddNegationBelow = (
       type: "point",
       position: { x: newPos.x, y: newPos.y + 32 },
       data: { content: "New point", favor: 5, createdAt: Date.now() },
-      selected: false,
+      selected: true,
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
     const newEdge: any = {
@@ -142,7 +147,7 @@ export const createAddNegationBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
-      data: { relevance: 3 },
+      data: {},
     };
     // Clear all existing selections and add new node/edge
     onNodeCreated?.();
@@ -150,8 +155,12 @@ export const createAddNegationBelow = (
       ...curr.map((n) => ({ ...n, selected: false })),
       newNode,
     ]);
+    // Clear any edge selection so text selection in new node works properly
+    setEdges((eds) => [
+      ...eds.map((e) => ({ ...e, selected: false })),
+      newEdge,
+    ]);
     onNodeAdded?.(newId);
-    setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
@@ -209,7 +218,7 @@ export const createAddSupportBelow = (
       type: "point",
       position: { x: newPos.x, y: newPos.y + 32 },
       data: { content: "New Support", favor: 5, createdAt: Date.now() },
-      selected: false,
+      selected: true,
     };
     const newEdge: any = {
       id: generateEdgeId(),
@@ -218,7 +227,7 @@ export const createAddSupportBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
-      data: { relevance: 3 },
+      data: {},
     };
     // Clear all existing selections and add new node/edge
     onNodeCreated?.();
@@ -226,8 +235,12 @@ export const createAddSupportBelow = (
       ...curr.map((n) => ({ ...n, selected: false })),
       newNode,
     ]);
+    // Clear any edge selection so text selection in new node works properly
+    setEdges((eds) => [
+      ...eds.map((e) => ({ ...e, selected: false })),
+      newEdge,
+    ]);
     onNodeAdded?.(newId);
-    setEdges((eds) => [...eds, newEdge]);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
@@ -294,9 +307,12 @@ export const createAddPointBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: { x: newPos.x, y: newPos.y + 32 },
+      position: {
+        x: newPos.x,
+        y: newPos.y + (parentType === "comment" ? -10 : 32),
+      },
       data: { content: defaultContent, favor: 5, createdAt: Date.now() },
-      selected: false,
+      selected: true,
     };
     const newEdge: any = {
       id: generateEdgeId(),
@@ -305,7 +321,7 @@ export const createAddPointBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
-      data: { relevance: 3 },
+      data: {},
     };
     // Clear all existing selections and add new node/edge
     options?.onNodeCreated?.();
@@ -313,7 +329,11 @@ export const createAddPointBelow = (
       ...curr.map((n) => ({ ...n, selected: false })),
       newNode,
     ]);
-    setEdges((eds) => [...eds, newEdge]);
+    // Clear any edge selection so text selection in new node works properly
+    setEdges((eds) => [
+      ...eds.map((e) => ({ ...e, selected: false })),
+      newEdge,
+    ]);
     options?.onNodeAdded?.(newId);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {

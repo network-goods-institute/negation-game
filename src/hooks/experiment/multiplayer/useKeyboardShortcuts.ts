@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 interface ExtraShortcuts {
-  onToggleConnect?: () => void; // L
+  onToggleConnect?: () => void; // A
   onExitConnect?: () => void;   // Esc
   onPointerMode?: () => void;    // V
   onToggleGrab?: () => void;     // H
@@ -75,7 +75,7 @@ export const useKeyboardShortcuts = (
         if (e.repeat) {
           return;
         }
-        if (key === 'l') {
+        if (key === 'a') {
           // Toggle Connect mode
           e.stopPropagation();
           extra?.onToggleConnect?.();

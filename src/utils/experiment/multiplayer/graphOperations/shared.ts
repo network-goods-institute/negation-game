@@ -47,7 +47,8 @@ export const calculateNodePositionBelow = (
   const parentPosition = getAbsolutePosition(parentNode, allNodes);
   const viewportOffset = getViewportOffset?.() || { x: 0, y: 0 };
   const parentHeight = getParentNodeHeight(parentNode, allNodes);
-  const padding = 40;
+  // Negative padding for comment threads to stack them with no gap
+  const padding = parentNode.type === 'comment' ? -2 : 40;
 
   return {
     x: parentPosition.x + viewportOffset.x,
@@ -115,7 +116,7 @@ export const getAbsolutePosition = (node: any, allNodes: any[]) => {
 };
 
 export const getDefaultContentForType = (
-  type: "point" | "statement" | "title" | "objection"
+  type: "point" | "statement" | "title" | "objection" | "comment"
 ): string => {
   switch (type) {
     case "point":
@@ -126,6 +127,8 @@ export const getDefaultContentForType = (
       return "New Title";
     case "objection":
       return "New mitigation";
+    case "comment":
+      return "New comment";
     default:
       return "New point";
   }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
+import { useTabIdentifier } from "./useTabIdentifier";
 
 interface CursorData {
   fx?: number;
@@ -28,16 +29,25 @@ export const useMultiplayerCursors = ({
   broadcastCursor = true,
 }: UseMultiplayerCursorsProps) => {
   const [cursors, setCursors] = useState<Map<number, CursorData>>(new Map());
+  const { sessionId, tabId, isActiveTab } = useTabIdentifier();
 
-  // Update awareness identity when username/color ready (only if writer)
+  // Update awareness identity when username/color ready (only if writer and active tab)
   useEffect(() => {
     if (!provider || !username) return;
 
-    if (!canWrite || !broadcastCursor) {
-      // In proxy mode, clear any awareness state to hide from others
+    if (!canWrite || !broadcastCursor || !isActiveTab) {
       const prev = provider.awareness.getLocalState() || {};
-      const { user, editing, lock, ...rest } = prev as any;
-      provider.awareness.setLocalState(rest);
+      const { user, ...rest } = prev as any;
+      if (user) {
+        const { cursor, ...userRest } = user;
+        provider.awareness.setLocalState({
+          ...rest,
+          user: { ...userRest, sessionId, tabId },
+          editing: undefined,
+          lock: undefined,
+          locks: undefined,
+        });
+      }
       return;
     }
 
@@ -48,10 +58,12 @@ export const useMultiplayerCursors = ({
         id: userId,
         name: username,
         color: userColor,
+        sessionId,
+        tabId,
         cursor: { fx: 0, fy: 0 },
       },
     });
-  }, [provider, userId, username, userColor, canWrite, broadcastCursor]);
+  }, [provider, userId, username, userColor, canWrite, broadcastCursor, isActiveTab, sessionId, tabId]);
 
   // Listen for awareness changes (other users' cursors)
   useEffect(() => {

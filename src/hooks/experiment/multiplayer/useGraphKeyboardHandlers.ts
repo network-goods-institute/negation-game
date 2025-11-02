@@ -39,10 +39,15 @@ export const useGraphKeyboardHandlers = ({
         }
         const sel = rf.getNodes().filter((n) => (n as any).selected);
         const selectedEdgeId = graph?.selectedEdgeId as string | null;
-        if (selectedEdgeId) {
+        const hoveredEdgeId = graph?.hoveredEdgeId as string | null;
+        const edgeIdToDelete = selectedEdgeId || hoveredEdgeId || null;
+        if (edgeIdToDelete) {
           e.preventDefault();
-          graph.deleteNode?.(selectedEdgeId);
+          graph.deleteNode?.(edgeIdToDelete);
           graph.setSelectedEdge?.(null);
+          try {
+            graph.setHoveredEdge?.(null);
+          } catch {}
           return;
         }
         if (sel.length > 0) {
@@ -73,6 +78,12 @@ export const useGraphKeyboardHandlers = ({
       }
       if (key === "escape") {
         try {
+          graph?.cancelMindchangeSelection?.();
+        } catch {}
+        try {
+          graph?.cancelConnect?.();
+        } catch {}
+        try {
           graph?.clearNodeSelection?.();
         } catch {}
         try {
@@ -85,7 +96,7 @@ export const useGraphKeyboardHandlers = ({
         const sel = rf.getNodes().filter((n) => (n as any).selected);
         if (sel.length === 1) {
           const only = sel[0] as any;
-          if (only?.type === "point" || only?.type === "objection") {
+          if (only && String(only.type) !== "edge_anchor") {
             copiedNodeIdRef.current = String(only.id);
             e.preventDefault();
             e.stopPropagation();
@@ -101,7 +112,8 @@ export const useGraphKeyboardHandlers = ({
         if (targetId) {
           const targetNode: any = rf.getNode(targetId as any);
           const exists = !!targetNode;
-          const duplicable = exists && (targetNode?.type === 'point' || targetNode?.type === 'objection');
+          const duplicable =
+            exists && String(targetNode?.type) !== "edge_anchor";
           if (duplicable) {
             e.preventDefault();
             e.stopPropagation();

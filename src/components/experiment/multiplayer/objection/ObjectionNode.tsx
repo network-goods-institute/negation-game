@@ -13,6 +13,7 @@ import { NodeShell } from '../common/NodeShell';
 import { useForceHidePills } from '../common/useForceHidePills';
 import { FavorSelector } from '../common/FavorSelector';
 import { LockIndicator } from '../common/LockIndicator';
+import { useNodeExtrasVisibility } from '../common/useNodeExtrasVisibility';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -85,6 +86,10 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         locked,
         hidden,
         pillDelay: 200,
+        autoFocus: {
+            createdAt: (data as any)?.createdAt,
+            isQuestionNode: false,
+        },
     });
 
     const {
@@ -107,7 +112,11 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     const pointLike = useStore((s: any) => {
         const edges: any[] = s.edges || [];
-        const touching = edges.filter((edge: any) => (edge.source === id || edge.target === id));
+        const touching = edges.filter((edge: any) => {
+            const touchesNode = edge.source === id || edge.target === id;
+            const isCommentEdge = (edge.type || '') === 'comment';
+            return touchesNode && !isCommentEdge;
+        });
         const isExactlyOneObjection = touching.length === 1 && (touching[0]?.type || '') === 'objection';
         return !isExactlyOneObjection;
     });
@@ -147,6 +156,18 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         selected: !!selected,
         hovered,
     });
+
+    const extras = useNodeExtrasVisibility({
+        id,
+        selected: !!selected,
+        isEditing,
+        isConnectMode,
+        contentRef: contentRef as any,
+        interactiveSelector: INTERACTIVE_TARGET_SELECTOR,
+        wrapperRef: wrapperRef as any,
+    });
+
+
 
     const sourceHandlePosition = useStore((s: any) => {
         const edges: any[] = s.edges || [];
@@ -189,6 +210,14 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 e.stopPropagation();
                 return;
             }
+            extras.onWrapperMouseDown(e);
+        },
+        onTouchStart: (e: React.TouchEvent<HTMLDivElement>) => {
+            if (isConnectMode) return;
+            if (isEditing) return;
+            const target = e.target as HTMLElement | null;
+            if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) return;
+            extras.onWrapperTouchStart(e);
         },
         onClick: (e: React.MouseEvent<HTMLDivElement>) => {
             if (isConnectMode) {
@@ -223,6 +252,16 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     } as React.HTMLAttributes<HTMLDivElement>;
 
     const { perfMode } = usePerformanceMode();
+    const rfApi = useReactFlow();
+    const mindchangeHighlight = React.useMemo(() => {
+        try {
+            if (!(graph as any)?.mindchangeMode || !(graph as any)?.mindchangeEdgeId || (graph as any)?.mindchangeNextDir) return false;
+            const mcEdge = rfApi.getEdges().find((e: any) => String(e.id) === String((graph as any)?.mindchangeEdgeId));
+            if (!mcEdge) return false;
+            if ((mcEdge as any).type !== 'objection') return false;
+            return String(mcEdge.source) === id;
+        } catch { return false; }
+    }, [graph, rfApi, id]);
     const isGrabMode = Boolean((graph as any)?.grabMode);
     return (
         <>
@@ -256,7 +295,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 }}
                 containerRef={containerRef}
                 wrapperRef={wrapperRef}
-                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-all duration-300 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
                 wrapperStyle={{ ...innerScaleStyle, opacity: hidden ? undefined : favorOpacity } as any}
                 wrapperProps={wrapperProps as any}
@@ -270,7 +309,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     suppressContentEditableWarning
                     onInput={onInput}
                     onPaste={onPaste}
-                    onMouseDown={onContentMouseDown}
+                    onMouseDown={(e) => { extras.onContentMouseDown(e); onContentMouseDown(e); }}
+                    onTouchStart={(e) => { extras.onContentTouchStart(e); }}
                     onMouseMove={onContentMouseMove}
                     onMouseLeave={onContentMouseLeave}
                     onMouseUp={onContentMouseUp}
@@ -287,8 +327,8 @@ items-center justify-center pointer-events-none select-none">
                         <div className={`text-xs ${pointLike ? 'text-gray-600' : 'text-amber-600'} italic animate-fade-in`}>Hidden</div>
                     </div>
                 )}
-                {selected && !hidden && (
-                    <div className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
+                {selected && !hidden && extras.showExtras && (
+                    <div ref={(el) => extras.registerExtras?.(el)} className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
                         <span className="text-[10px] uppercase tracking-wide text-stone-500 -translate-y-0.5">Favor</span>
                         <FavorSelector
                             value={favor}
@@ -298,16 +338,18 @@ items-center justify-center pointer-events-none select-none">
                         />
                     </div>
                 )}
-                {!hidden && !perfMode && !isGrabMode && (
-                    <NodeActionPill
-                        label="Add Point"
-                        visible={shouldShowPill}
-                        onClick={() => { if (isConnectMode) return; addPointBelow?.(id); forceHidePills(); }}
-                        colorClass="bg-stone-900"
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={handleMouseLeave}
-                        onForceHide={forceHidePills}
-                    />
+                {!hidden && !perfMode && !isGrabMode && extras.showExtras && (
+                    <div ref={(el) => extras.registerExtras?.(el)}>
+                        <NodeActionPill
+                            label="Add Point"
+                            visible={isEditing ? true : (shouldShowPill && extras.showExtras)}
+                            onClick={() => { if (isConnectMode) return; addPointBelow?.(id); forceHidePills(); }}
+                            colorClass="bg-stone-900"
+                            onMouseEnter={handleMouseEnter}
+                            onMouseLeave={handleMouseLeave}
+                            onForceHide={forceHidePills}
+                        />
+                    </div>
                 )}
             </NodeShell>
             <ContextMenu

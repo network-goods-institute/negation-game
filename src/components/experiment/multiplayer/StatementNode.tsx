@@ -47,6 +47,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     stopEditingNode,
     locked,
     hidden,
+    pillDelay: 200,
+    autoFocus: {
+      createdAt: (data as any)?.createdAt,
+      isQuestionNode: true,
+    },
   });
 
   const {
@@ -120,7 +125,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           },
         }}
         wrapperRef={wrapperRef}
-        wrapperClassName={`px-5 py-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} ${isActive ? 'border-0' : 'border-2'} ${cursorClass} min-w-[240px] max-w-[360px] relative z-10 transition-transform duration-300 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+        wrapperClassName={`px-5 py-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} ${isActive ? 'border-0' : 'border-2'} ${cursorClass} min-w-[240px] max-w-[360px] relative z-10 transition-all duration-300 ease-out origin-center ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${isActive ? '' : (hidden ? 'border-blue-300' : 'border-blue-200')}
             ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}

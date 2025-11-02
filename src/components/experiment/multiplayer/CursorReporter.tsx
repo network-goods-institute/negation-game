@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import { WebsocketProvider } from 'y-websocket';
 import { usePanDetection } from './common/usePanDetection';
+import { useTabIdentifier } from '../../../hooks/experiment/multiplayer/useTabIdentifier';
 
 type YProvider = WebsocketProvider;
 
@@ -17,6 +18,7 @@ interface CursorReporterProps {
 export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, username, userColor, grabMode = false, canWrite = true, broadcastCursor = true }) => {
   const rf = useReactFlow();
   const isPanning = usePanDetection({ grabMode });
+  const { isActiveTab } = useTabIdentifier();
   const latestPointerRef = useRef<{ clientX: number; clientY: number } | null>(null);
   const pointerRafIdRef = useRef<number | null>(null);
   const lastSentRef = useRef<{ ts: number; fx: number; fy: number } | null>(null);
@@ -26,7 +28,7 @@ export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, userna
   const IDLE_MS = 30000;
 
   useEffect(() => {
-    if (!provider || !username || !broadcastCursor) return;
+    if (!provider || !username || !broadcastCursor || !isActiveTab) return;
 
     const cancelScheduled = () => {
       if (pointerRafIdRef.current != null && typeof window !== 'undefined') {
@@ -115,7 +117,7 @@ export const CursorReporter: React.FC<CursorReporterProps> = ({ provider, userna
       latestPointerRef.current = null;
       cancelScheduled();
     };
-  }, [rf, provider, username, userColor, grabMode, isPanning, broadcastCursor]);
+  }, [rf, provider, username, userColor, grabMode, isPanning, broadcastCursor, isActiveTab]);
 
   return null;
 };

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { EdgeProps, StraightEdge, BezierEdge, getBezierPath, getStraightPath, Position } from '@xyflow/react';
+import { EdgeProps, getBezierPath, getStraightPath, Position, useStore, Edge } from '@xyflow/react';
 import { ContextMenu } from './ContextMenu';
 import { EdgeOverlay } from './EdgeOverlay';
 import { EdgeMidpointControl } from './EdgeMidpointControl';
@@ -11,6 +11,13 @@ import { useStrapGeometry } from './EdgeStrapGeometry';
 import { EDGE_CONFIGURATIONS, EdgeType } from './EdgeConfiguration';
 import { edgeIsObjectionStyle } from './edgeStyle';
 import { usePerformanceMode } from '../PerformanceContext';
+import { computeMidpointBetweenBorders, getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
+import { useMindchangeRenderConfig } from './useMindchangeRenderConfig';
+import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
+import { MainEdgeRenderer } from './MainEdgeRenderer';
+import { MindchangeBadges } from './MindchangeBadges';
+import { computeMindchangeStrokeWidth } from './computeMindchangeStrokeWidth';
+import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 
 export interface BaseEdgeProps extends EdgeProps {
   edgeType: EdgeType;
@@ -46,7 +53,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     setIsConnectHovered,
     cx,
     cy,
-    relevance,
     edgeOpacity,
     isHighFrequencyUpdates,
     sourceNode,
@@ -60,7 +66,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     setSelectedEdge,
     addObjectionForEdge,
     setHoveredEdge,
-    updateEdgeRelevance,
     updateEdgeType,
     deleteNode,
     connectMode,
@@ -69,30 +74,36 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     completeConnectToEdge,
   } = graphActions;
 
-  const handleUpdateRelevance = (newRelevance: number) => {
-    updateEdgeRelevance?.(props.id as string, newRelevance);
-  };
 
-  // placeholder, will set after label coordinates are computed
 
-  // Node masking data
   const maskingData = useEdgeNodeMasking(sourceNode, targetNode);
 
   const { perfMode } = usePerformanceMode();
   const lightMode = (perfMode || grabMode) && !selected && !isHovered && !connectMode;
 
-  // Strap geometry for strap-based edges (skip in perf/light mode)
+  const [vx, vy, zoom] = useStore((s: any) => s.transform);
+  const edges = useStore((s: any) => Array.from(s.edges?.values?.() || s.edges || []));
+
+  const mindchange = isMindchangeEnabledClient() ? (props as any).data?.mindchange : undefined;
+  const mcF = Math.max(0, Math.min(100, Math.round(Number(mindchange?.forward?.average ?? 0)))) / 100;
+  const mcB = Math.max(0, Math.min(100, Math.round(Number(mindchange?.backward?.average ?? 0)))) / 100;
+  const strapStrength = Math.max(mcF, mcB);
   const strapGeometry = useStrapGeometry(
     (visual.useStrap && !lightMode) ? {
       sourceX: sourceX ?? 0,
       sourceY: sourceY ?? 0,
       targetX: targetX ?? 0,
       targetY: targetY ?? 0,
-      relevance,
+      strength: strapStrength,
     } : null
   );
 
-  // Path calculation for bezier edges
+  // Determine if either endpoint is currently being dragged (or positions are updating at high frequency)
+  const sourceDragging = Boolean((sourceNode as any)?.dragging);
+  const targetDragging = Boolean((targetNode as any)?.dragging);
+  const endpointDragging = Boolean(sourceDragging || targetDragging || edgeState.isHighFrequencyUpdates);
+  const suppressReason = endpointDragging ? (sourceDragging ? 'source-dragging' : (targetDragging ? 'target-dragging' : 'high-frequency')) : undefined;
+
   const [pathD, labelX, labelY] = useMemo(() => {
     if (visual.useBezier) {
       const curvature = (behavior.simplifyDuringDrag && isHighFrequencyUpdates) ? 0 : (visual.curvature ?? 0.35);
@@ -103,11 +114,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       if (props.edgeType === 'objection') {
         const objectionY = sourceNode?.position?.y ?? 0;
         const anchorY = targetNode?.position?.y ?? 0;
-
-        // Source (objection node) handle position - matches ObjectionNode logic
-        sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-        // Target (anchor node) handle position - matches EdgeAnchorNode logic
-        targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+        sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
+        targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
       }
 
       return getBezierPath({
@@ -130,57 +138,74 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     }
   }, [sourceX, sourceY, targetX, targetY, visual.useBezier, visual.curvature, behavior.simplifyDuringDrag, isHighFrequencyUpdates, props, sourceNode, targetNode]);
 
-  // Compute visual midpoint between node borders rather than between centers
   const [midXBetweenBorders, midYBetweenBorders] = useMemo(() => {
-    try {
-      const s = sourceNode as any;
-      const t = targetNode as any;
-      if (!s || !t) return [labelX, labelY] as const;
-      const sw = Number(s?.width); const sh = Number(s?.height);
-      const tw = Number(t?.width); const th = Number(t?.height);
-      if (!Number.isFinite(sw) || !Number.isFinite(sh) || !Number.isFinite(tw) || !Number.isFinite(th)) {
-        return [labelX, labelY] as const;
-      }
-      const sx = Number(s?.position?.x ?? 0) + sw / 2;
-      const sy = Number(s?.position?.y ?? 0) + sh / 2;
-      const tx = Number(t?.position?.x ?? 0) + tw / 2;
-      const ty = Number(t?.position?.y ?? 0) + th / 2;
-
-      const dx = tx - sx;
-      const dy = ty - sy;
-      if (dx === 0 && dy === 0) return [labelX, labelY] as const;
-
-      const intersectRect = (cx: number, cy: number, halfW: number, halfH: number, dirX: number, dirY: number) => {
-        const adx = Math.abs(dirX);
-        const ady = Math.abs(dirY);
-        if (adx === 0 && ady === 0) return { x: cx, y: cy };
-        const txScale = adx > 0 ? (halfW / adx) : Number.POSITIVE_INFINITY;
-        const tyScale = ady > 0 ? (halfH / ady) : Number.POSITIVE_INFINITY;
-        const tScale = Math.min(txScale, tyScale);
-        return { x: cx + dirX * tScale, y: cy + dirY * tScale };
-      };
-
-      const fromS = intersectRect(sx, sy, sw / 2, sh / 2, dx, dy);
-      const fromT = intersectRect(tx, ty, tw / 2, th / 2, -dx, -dy);
-      return [(fromS.x + fromT.x) / 2, (fromS.y + fromT.y) / 2] as const;
-    } catch {
-      return [labelX, labelY] as const;
-    }
+    return computeMidpointBetweenBorders(sourceNode, targetNode, labelX, labelY);
   }, [sourceNode, targetNode, labelX, labelY]);
 
-  // Anchor positions are derived and updated centrally in GraphUpdater.
+  const mindchangeRenderConfig = useMindchangeRenderConfig(mindchange, props.edgeType);
 
-  // Dynamic edge styles
+  const [bidirectionalLabelX, bidirectionalLabelY] = useMemo(() => {
+    if (mindchangeRenderConfig.mode !== 'bidirectional' || !visual.useBezier) {
+      return [null, null];
+    }
+
+    const sx = sourceX ?? 0;
+    const sy = sourceY ?? 0;
+    const tx = targetX ?? 0;
+    const ty = targetY ?? 0;
+    const dx = tx - sx;
+    const dy = ty - sy;
+    const len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+    const perpX = (-dy / len) * 4;
+    const perpY = (dx / len) * 4;
+
+    const f = getTrimmedLineCoords(sx, sy, tx, ty, perpX, perpY, sourceNode, targetNode);
+    const b = getTrimmedLineCoords(sx, sy, tx, ty, -perpX, -perpY, sourceNode, targetNode);
+
+    let sourcePosition = (props as any).sourcePosition;
+    let targetPosition = (props as any).targetPosition;
+    if (props.edgeType === 'objection') {
+      const objectionY = sourceNode?.position?.y ?? 0;
+      const anchorY = targetNode?.position?.y ?? 0;
+      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+    }
+
+    const curvature = visual.curvature ?? 0.35;
+
+    const [, fLabelX, fLabelY] = getBezierPath({
+      sourceX: f.fromX,
+      sourceY: f.fromY,
+      sourcePosition,
+      targetX: f.toX,
+      targetY: f.toY,
+      targetPosition,
+      curvature,
+    });
+
+    const [, bLabelX, bLabelY] = getBezierPath({
+      sourceX: b.toX,
+      sourceY: b.toY,
+      sourcePosition: targetPosition,
+      targetX: b.fromX,
+      targetY: b.fromY,
+      targetPosition: sourcePosition,
+      curvature,
+    });
+
+    return [(fLabelX + bLabelX) / 2, (fLabelY + bLabelY) / 2];
+  }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, sourceX, sourceY, targetX, targetY, sourceNode, targetNode, props]);
+
   const edgeStyles = useMemo(() => {
-    const enableMindchange = typeof process !== 'undefined' && ["true","1","yes","on"].includes(String(process.env.NEXT_PUBLIC_ENABLE_MINDCHANGE || '').toLowerCase());
-    const fixedWidth = (props.edgeType !== 'objection' && enableMindchange) ? 2 : visual.strokeWidth(relevance);
+    const width = isMindchangeEnabledClient()
+      ? computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: props.edgeType })
+      : 2;
     const baseStyle = {
       stroke: visual.stroke,
-      strokeWidth: fixedWidth,
-    };
+      strokeWidth: width,
+    } as const;
 
     if (visual.strokeDasharray) {
-      // For objection edges, check if should be dotted
       if (props.edgeType === 'objection') {
         const useDotted = edgeIsObjectionStyle(targetNode?.type);
         return {
@@ -196,13 +221,17 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     }
 
     return baseStyle;
-  }, [visual, relevance, props.edgeType, targetNode]);
+  }, [visual, props.edgeType, targetNode, mindchange]);
 
   const edgeStylesWithPointer = useMemo(() => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
   }, [edgeStyles, grabMode]);
 
-  // Event handlers
+  const mindchangeActive = !!(mindchange && (
+    (props as any).data?.mindchange?.forward?.count > 0 ||
+    (props as any).data?.mindchange?.backward?.count > 0
+  ));
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -213,6 +242,29 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const handleEdgeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const mindchangeMode = (graphActions as any)?.mindchangeMode;
+    const mindchangeEdgeId = (graphActions as any)?.mindchangeEdgeId;
+
+    // Handle mindchange mode: clicking base edge for objection mindchange
+    if (mindchangeMode && mindchangeEdgeId) {
+      const selectedEdge = edges.find((edge: any) => edge.id === mindchangeEdgeId) as Edge | undefined;
+      if (selectedEdge?.type === 'objection') {
+        // User clicked a base edge while setting mindchange for an objection
+        const anchorIdForBase = String((selectedEdge as any).target || '');
+        const baseEdgeId = anchorIdForBase.startsWith('anchor:')
+          ? anchorIdForBase.slice('anchor:'.length)
+          : '';
+
+        if (baseEdgeId === props.id) {
+          // This is the base edge that the objection anchors to - select backward direction
+          try { (graphActions as any)?.setSelectedEdge?.(mindchangeEdgeId); } catch { }
+          (graphActions as any)?.setMindchangeNextDir?.('backward');
+          (graphActions as any)?.cancelConnect?.();
+          return;
+        }
+      }
+    }
+
     if (connectMode) {
       const midpoint = { x: (labelX ?? cx), y: (labelY ?? cy) };
       const anchorId = graphActions.isConnectingFromNodeId as string | null;
@@ -234,7 +286,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     setSelectedEdge?.(null);
   };
 
-  // Context menu items
   const contextMenuItems = [
     { label: 'Delete edge', danger: true, onClick: () => deleteNode?.(props.id as string) },
   ];
@@ -245,7 +296,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   return (
     <>
-      {/* Edge elements with opacity */}
       <g style={{ opacity: edgeOpacity, pointerEvents: grabMode ? 'none' : undefined }}>
         {(!lightMode) && (
           <EdgeMaskDefs
@@ -261,24 +311,31 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           />
         )}
         <g mask={`url(#edge-mask-${props.id})`}>
-          {/* Strap background for strap-based edges */}
-          {(visual.useStrap && strapGeometry) && (
+          {(visual.useStrap && strapGeometry && mindchangeRenderConfig.mode === 'normal' && !mindchangeRenderConfig.markerStart && !mindchangeRenderConfig.markerEnd) && (
             <>
               <path d={strapGeometry.path} fill={`url(#${visual.gradientId})`} />
               <path d={strapGeometry.path} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={1} />
             </>
           )}
 
-          {/* Selection highlight */}
-          {shouldRenderOverlay && selected && (
-            visual.useBezier ? (
-              <path d={pathD} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
-            ) : (
-              <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
-            )
-          )}
+          <EdgeSelectionHighlight
+            selected={selected}
+            shouldRenderOverlay={shouldRenderOverlay}
+            mindchangeRenderMode={mindchangeRenderConfig.mode}
+            mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
+            mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
+            useBezier={visual.useBezier ?? false}
+            curvature={visual.curvature}
+            sourceX={sourceX ?? 0}
+            sourceY={sourceY ?? 0}
+            targetX={targetX ?? 0}
+            targetY={targetY ?? 0}
+            sourceNode={sourceNode}
+            targetNode={targetNode}
+            edgeType={props.edgeType}
+            pathD={pathD}
+          />
 
-          {/* Connection mode hover highlight */}
           {shouldRenderOverlay && connectMode && isHovered && !selected && (
             visual.useBezier ? (
               <path d={pathD} stroke="hsl(var(--sync-primary))" strokeWidth={6} fill="none" strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
@@ -287,36 +344,71 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             )
           )}
 
-          {/* Main edge */}
-          {visual.useBezier ? (
-            <BezierEdge
-              {...props}
-              {...(props.edgeType === 'objection' && {
-                sourcePosition: sourceNode?.position?.y < targetNode?.position?.y ? Position.Bottom : Position.Top,
-                targetPosition: sourceNode?.position?.y > targetNode?.position?.y ? Position.Bottom : Position.Top,
-              })}
-              style={edgeStylesWithPointer}
-              pathOptions={{ curvature: visual.curvature }}
-            />
-          ) : (
-            <StraightEdge
-              {...props}
-              style={edgeStylesWithPointer}
-              interactionWidth={behavior.interactionWidth}
-              {...(visual.label && {
-                label: visual.label,
-                labelShowBg: false,
-                labelStyle: visual.labelStyle,
-              })}
-            />
-          )}
+          {(() => {
+            try {
+              const mindchangeMode = (graphActions as any)?.mindchangeMode;
+              const mindchangeEdgeId = (graphActions as any)?.mindchangeEdgeId as string | null;
+              const mindchangeNextDir = (graphActions as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
+              if (!mindchangeMode || !mindchangeEdgeId || mindchangeNextDir) return null;
+              const selectedEdge = edges.find((e: any) => e.id === mindchangeEdgeId) as Edge | undefined;
+              if (!selectedEdge || (selectedEdge as any).type !== 'objection') return null;
+              const anchorIdForBase = String((selectedEdge as any).target || '');
+              const baseEdgeId = anchorIdForBase.startsWith('anchor:') ? anchorIdForBase.slice('anchor:'.length) : '';
+              if (baseEdgeId !== (props.id as string)) return null;
+              return visual.useBezier ? (
+                <path d={pathD} stroke="#10b981" strokeWidth={6} fill="none" strokeLinecap="round" opacity={0.95} strokeDasharray="8 4" />
+              ) : (
+                <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#10b981" strokeWidth={6} strokeLinecap="round" opacity={0.95} strokeDasharray="8 4" />
+              );
+            } catch {
+              return null;
+            }
+          })()}
+
+          <MainEdgeRenderer
+            mindchangeRenderMode={mindchangeRenderConfig.mode}
+            mindchangeMarkerId={mindchangeRenderConfig.markerId}
+            mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
+            mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
+            hasForward={(props as any).data?.mindchange?.forward?.count > 0}
+            hasBackward={(props as any).data?.mindchange?.backward?.count > 0}
+            useBezier={visual.useBezier ?? false}
+            curvature={visual.curvature}
+            sourceX={sourceX ?? 0}
+            sourceY={sourceY ?? 0}
+            targetX={targetX ?? 0}
+            targetY={targetY ?? 0}
+            sourceNode={sourceNode}
+            targetNode={targetNode}
+            edgeType={props.edgeType}
+            edgeStylesWithPointer={edgeStylesWithPointer}
+            props={props}
+            interactionWidth={behavior.interactionWidth}
+            label={visual.label}
+            labelStyle={visual.labelStyle}
+          />
         </g>
       </g>
 
-      {/* Interaction overlay (enabled in connect and normal modes; disabled only in hand mode) */}
+      <MindchangeBadges
+        edgeId={props.id as string}
+        edgeType={props.edgeType}
+        sourceX={sourceX ?? 0}
+        sourceY={sourceY ?? 0}
+        targetX={targetX ?? 0}
+        targetY={targetY ?? 0}
+        sourceNode={sourceNode}
+        targetNode={targetNode}
+        mindchangeData={mindchange}
+        overlayActive={mindchangeActive && (graphActions as any)?.overlayActiveEdgeId === (props.id as string)}
+        zoom={zoom}
+        vx={vx}
+        vy={vy}
+      />
+
       {!grabMode && (
         <EdgeInteractionOverlay
-          shouldRender={shouldRenderOverlay}
+          shouldRender={shouldRenderOverlay && !endpointDragging}
           pathD={visual.useBezier ? pathD : undefined}
           sourceX={visual.useBezier ? undefined : sourceX}
           sourceY={visual.useBezier ? undefined : sourceY}
@@ -324,16 +416,22 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           targetY={visual.useBezier ? undefined : targetY}
           onEdgeClick={handleEdgeClick}
           onContextMenu={handleContextMenu}
-          onMouseEnter={() => setIsConnectHovered(true)}
-          onMouseLeave={() => setIsConnectHovered(false)}
+          onMouseEnter={() => {
+            setIsConnectHovered(true);
+            try { (graphActions as any)?.setHoveredEdge?.(props.id as string); } catch { }
+            try { (graphActions as any)?.setOverlayActiveEdge?.(props.id as string); } catch { }
+          }}
+          onMouseLeave={() => {
+            setIsConnectHovered(false);
+            try { (graphActions as any)?.setHoveredEdge?.(null); } catch { }
+          }}
         />
       )}
 
-      {/* Midpoint control (non-interactable in hand mode) */}
-      {showAffordance && (
+      {showAffordance && props.edgeType !== 'comment' && (
         <EdgeMidpointControl
-          cx={(midXBetweenBorders ?? labelX ?? cx) as number}
-          cy={(midYBetweenBorders ?? labelY ?? cy) as number}
+          cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
+          cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
           disabled={grabMode}
@@ -342,30 +440,33 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
         </EdgeMidpointControl>
       )}
 
-      {/* Hover overlay (disabled in connect or hand mode) */}
-      {!connectMode && !grabMode && (
+      {!connectMode && !grabMode && props.edgeType !== 'comment' && (
         <EdgeOverlay
-          cx={(midXBetweenBorders ?? labelX ?? cx) as number}
-          cy={(midYBetweenBorders ?? labelY ?? cy) as number}
+          cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
+          cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
           isHovered={isHovered}
           selected={selected}
-          relevance={relevance}
           edgeId={props.id as string}
           edgeType={props.edgeType}
+          srcX={sourceX ?? 0}
+          srcY={sourceY ?? 0}
+          tgtX={targetX ?? 0}
+          tgtY={targetY ?? 0}
           onMouseEnter={() => setHoveredEdge(props.id as string)}
           onMouseLeave={() => setHoveredEdge(null)}
-          onUpdateRelevance={handleUpdateRelevance}
+
           onAddObjection={handleAddObjection}
           onToggleEdgeType={() => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
           onConnectionClick={undefined}
           starColor={visual.starColor}
           sourceLabel={(sourceNode as any)?.data?.content || (sourceNode as any)?.data?.statement}
           targetLabel={(targetNode as any)?.data?.content || (targetNode as any)?.data?.statement}
-          mindchange={(props as any).data?.mindchange}
+          mindchange={mindchange}
+          suppress={endpointDragging}
+          suppressReason={suppressReason}
         />
       )}
 
-      {/* Context menu */}
       <ContextMenu
         open={menuOpen}
         x={menuPos.x}

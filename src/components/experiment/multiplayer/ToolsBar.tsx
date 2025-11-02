@@ -19,6 +19,10 @@ interface ToolsBarProps {
   grabMode?: boolean;
   setGrabMode?: (v: boolean) => void;
   selectMode: boolean;
+  mindchangeMode?: boolean;
+  onMindchangeDone?: () => void;
+  mindchangeNextDir?: 'forward' | 'backward' | null;
+  mindchangeEdgeType?: string;
 }
 
 export const ToolsBar: React.FC<ToolsBarProps> = ({
@@ -34,6 +38,10 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   grabMode,
   setGrabMode,
   selectMode,
+  mindchangeMode,
+  onMindchangeDone,
+  mindchangeNextDir,
+  mindchangeEdgeType,
 }) => {
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
   const toolbarRef = React.useRef<HTMLDivElement | null>(null);
@@ -54,6 +62,51 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
     };
   }, [connectMode]);
 
+  // Focused (mindchange) mode UI
+  if (mindchangeMode) {
+    let promptText = mindchangeEdgeType === 'objection'
+      ? 'Select the mitigation point or the relation line that would change your mind if it were true.'
+      : 'Select the point that would change your mind if it were true.';
+    if (mindchangeNextDir) {
+      if (mindchangeEdgeType === 'support') {
+        promptText = 'Enter how much it would change your mind if it were false';
+      } else if (mindchangeEdgeType === 'negation') {
+        promptText = 'Enter how much it would change your mind if it were true';
+      } else {
+        promptText = 'Enter how much it changes your mind';
+      }
+    } else if (connectAnchorId) {
+      promptText = 'Select the target point';
+    }
+
+    const content = (
+      <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
+        <div className="bg-white/90 backdrop-blur border-2 border-amber-300 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
+          <div className="flex items-center gap-2 px-1 text-amber-700">
+            <span className="text-sm font-medium">Mindchange</span>
+          </div>
+          <span className="text-sm text-stone-700">
+            {promptText}
+          </span>
+          <div className="h-5 w-px bg-stone-200 mx-2" />
+          <button
+            onClick={() => setConnectAnchorId(null)}
+            className="text-sm rounded-full px-3 py-1 bg-stone-100 text-stone-900 hover:bg-stone-200"
+          >
+            Restart
+          </button>
+          <button
+            onClick={() => { onMindchangeDone?.(); setConnectAnchorId(null); }}
+            className="text-sm rounded-full px-3 py-1 bg-amber-600 text-white hover:bg-amber-700"
+          >
+            Done (Esc)
+          </button>
+        </div>
+      </div>
+    );
+    return portalTarget ? createPortal(content, portalTarget) : content;
+  }
+
   // Focused (connect) mode UI
   if (connectMode) {
     const content = (
@@ -64,7 +117,9 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <span className="text-sm font-medium">Connecting</span>
           </div>
           <span className="text-sm text-stone-700">
-            {connectAnchorId ? 'Select another point' : 'Select a point or a connection'}
+            {connectAnchorId
+              ? 'Select the target point (or click a relation line to add a mitigation)'
+              : 'Click a point to start (or click a relation line to add a mitigation)'}
           </span>
           <div className="h-5 w-px bg-stone-200 mx-2" />
           <button
@@ -103,7 +158,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
           {/* Connect (line) */}
           <ToolbarButton
             label={readOnly ? "Read-only" : "Connect"}
-            shortcut={readOnly ? undefined : "L"}
+            shortcut={readOnly ? undefined : "A"}
             disabled={!!readOnly}
             active={!!connectMode}
             onClick={() => { if (!readOnly) { setGrabMode?.(false); setConnectMode(true); setConnectAnchorId(null); } }}
@@ -168,7 +223,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
                       </div>
                       <div className="flex justify-between gap-3">
                         <span>Connect mode</span>
-                        <span className="font-mono bg-stone-100 px-1 rounded">L</span>
+                        <span className="font-mono bg-stone-100 px-1 rounded">A</span>
                       </div>
                       <div className="flex justify-between gap-3">
                         <span>Hand/Pan mode</span>
@@ -298,10 +353,6 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
                   <div className="space-y-2">
                     <div className="text-xs font-medium text-stone-600">Advanced Navigation</div>
                     <div className="grid grid-cols-1 gap-1 text-xs">
-                      <div className="flex justify-between gap-3">
-                        <span>Pan canvas (WASD)</span>
-                        <span className="font-mono bg-stone-100 px-1 rounded">W A S D</span>
-                      </div>
                       <div className="flex justify-between gap-3">
                         <span>Pan canvas (Arrows)</span>
                         <span className="font-mono bg-stone-100 px-1 rounded">↑ ↓ ← →</span>

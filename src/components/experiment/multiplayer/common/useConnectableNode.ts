@@ -13,12 +13,13 @@ export const useConnectableNode = ({ id, locked = false }: UseConnectableNodePar
     beginConnectFromNode,
     completeConnectToNode,
     connectMode,
+    mindchangeMode,
     isConnectingFromNodeId,
   } = useGraphActions();
 
   const onClick = useCallback(
     (e: MouseEvent) => {
-      if (!connectMode || locked) {
+      if (!(connectMode || mindchangeMode) || locked) {
         return false;
       }
 
@@ -39,6 +40,7 @@ export const useConnectableNode = ({ id, locked = false }: UseConnectableNodePar
       beginConnectFromNode,
       completeConnectToNode,
       connectMode,
+      mindchangeMode,
       flow,
       id,
       isConnectingFromNodeId,

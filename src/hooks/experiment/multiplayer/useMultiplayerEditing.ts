@@ -1,20 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WebsocketProvider } from "y-websocket";
+import { useTabIdentifier } from "./useTabIdentifier";
+import { LOCK_TTL_MS, LOCK_RENEWAL_INTERVAL, ACTIVITY_CLEANUP_THRESHOLD, RECENT_ACTIVITY_THRESHOLD, resolveLockConflict, type LockInfo } from "./lockUtils";
 
 type YProvider = WebsocketProvider | null;
 
 export type EditorInfo = { name: string; color: string };
-
 export type EditorsMap = Map<string, EditorInfo[]>; // nodeId -> editors
-type LockInfo = {
-  nodeId: string;
-  byId: string;
-  name: string;
-  color: string;
-  kind: "edit" | "drag";
-  ts: number;
-  sessionId?: string;
-};
 export type LockMap = Map<string, LockInfo>;
 
 interface UseMultiplayerEditingProps {
@@ -39,16 +31,9 @@ export const useMultiplayerEditing = ({
   const localEditingRef = useRef<Set<string>>(new Set());
   const localLockedRef = useRef<Set<string>>(new Set());
   const activeNodeUsageRef = useRef<Map<string, number>>(new Map()); // Track last activity per node
-  const sessionIdRef = useRef<string>("");
-  const lockRenewalTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lockRenewalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  if (!sessionIdRef.current) {
-    sessionIdRef.current =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `session-${Math.random().toString(36).slice(2)}`;
-  }
-  const sessionId = sessionIdRef.current;
+  const { sessionId, tabId } = useTabIdentifier();
 
   // Mark a node as actively used (for lock renewal purposes)
   const markNodeActive = useCallback((nodeId: string) => {
@@ -67,9 +52,9 @@ export const useMultiplayerEditing = ({
 
     awareness.setLocalState({
       ...prev,
-      user: { id: userId, name: username, color: userColor, sessionId },
+      user: { id: userId, name: username, color: userColor, sessionId, tabId },
     });
-  }, [provider, userId, username, userColor, canWrite, sessionId]);
+  }, [provider, userId, username, userColor, canWrite, sessionId, tabId]);
 
   useEffect(() => {
     if (!provider) return;
@@ -107,8 +92,9 @@ export const useMultiplayerEditing = ({
           Object.entries(multiLocks as Record<string, any>).forEach(
             ([nodeId, lk]) => {
               if (!lk || !nodeId) return;
-              if (now - (lk.ts || 0) >= 9000) return;
+              if (now - (lk.ts || 0) >= LOCK_TTL_MS) return;
               const session = lk.sessionId || u.sessionId;
+              const lockTabId = lk.tabId || u.tabId;
               const uid = session
                 ? `${u.id || u.name}:${session}`
                 : u.id || u.name;
@@ -120,35 +106,25 @@ export const useMultiplayerEditing = ({
                 kind: lk.kind === "drag" ? "drag" : "edit",
                 ts: lk.ts || 0,
                 sessionId: session,
+                tabId: lockTabId,
               };
               const existing = lockRes.get(nodeId);
               if (!existing) {
                 lockRes.set(nodeId, info);
               } else {
-                const existingIsLocal = existing.sessionId === sessionId;
-                const incomingIsLocal = info.sessionId === sessionId;
-                if (
-                  existing.sessionId &&
-                  info.sessionId &&
-                  existing.sessionId === info.sessionId
-                ) {
-                  // same session -> refresh fields
-                  lockRes.set(nodeId, {
-                    ...existing,
-                    ts: Math.max(existing.ts, info.ts),
-                    kind: info.kind || existing.kind,
-                  });
-                } else if (existingIsLocal && !incomingIsLocal) {
-                  // prefer remote over local so local sees node as locked
-                  lockRes.set(nodeId, info);
+                const resolution = resolveLockConflict(existing, info, tabId, sessionId);
+                if (resolution.shouldReplace) {
+                  lockRes.set(nodeId, resolution.lockInfo);
                 } else {
-                  // keep existing
+                  // Keep existing lock
+                  lockRes.set(nodeId, existing);
                 }
               }
             }
           );
-        } else if (u && legacy?.nodeId && now - (legacy?.ts || 0) < 9000) {
+        } else if (u && legacy?.nodeId && now - (legacy?.ts || 0) < LOCK_TTL_MS) {
           const session = legacy.sessionId || u.sessionId;
+          const lockTabId = legacy.tabId || u.tabId;
           const uid = session ? `${u.id || u.name}:${session}` : u.id || u.name;
           const info: LockInfo = {
             nodeId: legacy.nodeId,
@@ -158,27 +134,18 @@ export const useMultiplayerEditing = ({
             kind: legacy.kind === "drag" ? "drag" : "edit",
             ts: legacy.ts || 0,
             sessionId: session,
+            tabId: lockTabId,
           };
           const existing = lockRes.get(legacy.nodeId);
           if (!existing) {
             lockRes.set(legacy.nodeId, info);
           } else {
-            const existingIsLocal = existing.sessionId === sessionId;
-            const incomingIsLocal = info.sessionId === sessionId;
-            if (
-              existing.sessionId &&
-              info.sessionId &&
-              existing.sessionId === info.sessionId
-            ) {
-              lockRes.set(legacy.nodeId, {
-                ...existing,
-                ts: Math.max(existing.ts, info.ts),
-                kind: info.kind || existing.kind,
-              });
-            } else if (existingIsLocal && !incomingIsLocal) {
-              lockRes.set(legacy.nodeId, info);
+            const resolution = resolveLockConflict(existing, info, tabId, sessionId);
+            if (resolution.shouldReplace) {
+              lockRes.set(legacy.nodeId, resolution.lockInfo);
             } else {
-              // keep existing
+              // Keep existing lock
+              lockRes.set(legacy.nodeId, existing);
             }
           }
         }
@@ -202,7 +169,7 @@ export const useMultiplayerEditing = ({
       awareness.off("change", rebuild);
       awareness.off?.("update", rebuild);
     };
-  }, [provider, sessionId]);
+  }, [provider, sessionId, tabId]);
 
   const renewLocks = useCallback(() => {
     if (!provider || !canWrite || !broadcastLocks) return;
@@ -212,27 +179,26 @@ export const useMultiplayerEditing = ({
     const prevLocks = (prev as any).locks || {};
     const nextLocks: Record<string, any> = { ...prevLocks };
 
-    // Only renew locks for nodes that have been used recently (within 15 seconds)
-    const recentThreshold = 15000;
+    // Only renew locks for nodes that have been used recently
     const nodesToRenew: string[] = [];
 
     localLockedRef.current.forEach((nodeId) => {
       const lastUsed = activeNodeUsageRef.current.get(nodeId);
-      if (lastUsed && now - lastUsed < recentThreshold) {
+      if (lastUsed && now - lastUsed < RECENT_ACTIVITY_THRESHOLD) {
         nodesToRenew.push(nodeId);
       }
     });
 
     // Renew only recently used locks
     nodesToRenew.forEach((nodeId) => {
-      const current = nextLocks[nodeId] || { kind: "drag", sessionId };
+      const current = nextLocks[nodeId] || { kind: "drag", sessionId, tabId };
       nextLocks[nodeId] = { ...current, ts: now };
     });
 
     // Remove locks for nodes that haven't been used recently
     localLockedRef.current.forEach((nodeId) => {
       const lastUsed = activeNodeUsageRef.current.get(nodeId);
-      if (!lastUsed || now - lastUsed >= recentThreshold) {
+      if (!lastUsed || now - lastUsed >= RECENT_ACTIVITY_THRESHOLD) {
         delete nextLocks[nodeId];
         // eslint-disable-next-line drizzle/enforce-delete-with-where
         localLockedRef.current.delete(nodeId);
@@ -243,7 +209,7 @@ export const useMultiplayerEditing = ({
       ...prev,
       locks: nextLocks,
     });
-  }, [provider, canWrite, sessionId, broadcastLocks]);
+  }, [provider, canWrite, sessionId, tabId, broadcastLocks]);
 
   const startEditing = (nodeId: string) => {
     if (!provider || !canWrite) return;
@@ -255,13 +221,13 @@ export const useMultiplayerEditing = ({
     const prevLocks = (prev as any).locks || {};
     const nextLocks = {
       ...prevLocks,
-      [nodeId]: { kind: "edit", ts: now, sessionId },
+      [nodeId]: { kind: "edit", ts: now, sessionId, tabId },
     };
     localLockedRef.current.add(nodeId);
     markNodeActive(nodeId); // Mark node as actively used
     awareness.setLocalState({
       ...prev,
-      editing: { nodeId, ts: now, sessionId },
+      editing: { nodeId, ts: now, sessionId, tabId },
       locks: nextLocks,
     });
 
@@ -276,12 +242,12 @@ export const useMultiplayerEditing = ({
       // Clean up stale activity tracking for nodes that are no longer locked
       const now = Date.now();
       activeNodeUsageRef.current.forEach((lastUsed, nodeId) => {
-        if (!localLockedRef.current.has(nodeId) && now - lastUsed > 60000) {
+        if (!localLockedRef.current.has(nodeId) && now - lastUsed > ACTIVITY_CLEANUP_THRESHOLD) {
           // eslint-disable-next-line drizzle/enforce-delete-with-where
           activeNodeUsageRef.current.delete(nodeId);
         }
       });
-    }, 3000);
+    }, LOCK_RENEWAL_INTERVAL);
   };
 
   const stopEditing = (nodeId: string) => {
@@ -327,13 +293,20 @@ export const useMultiplayerEditing = ({
   const lockNode = (nodeId: string, kind: "edit" | "drag") => {
     if (!provider || !canWrite || !broadcastLocks) return;
 
-    // Check if node is already locked by anyone in the current awareness state
+    // Check if node is already locked by someone else (not our tabs) in the current awareness state
     const allStates = Array.from(provider.awareness.getStates().values());
     for (const state of allStates) {
       const locks = (state as any).locks || {};
+      const stateUser = (state as any).user;
       if (locks[nodeId]) {
-        // Node is already locked by someone, don't create another lock
-        return;
+        const lockTabId = locks[nodeId].tabId || stateUser?.tabId;
+        const lockSessionId = locks[nodeId].sessionId || stateUser?.sessionId;
+
+        // Allow if it's from our own session (different tab of same user)
+        if (lockSessionId !== sessionId) {
+          // Node is locked by a different user, don't create another lock
+          return;
+        }
       }
     }
 
@@ -342,7 +315,7 @@ export const useMultiplayerEditing = ({
     const prevLocks = (prev as any).locks || {};
     const nextLocks = {
       ...prevLocks,
-      [nodeId]: { kind, ts: Date.now(), sessionId },
+      [nodeId]: { kind, ts: Date.now(), sessionId, tabId },
     };
     localLockedRef.current.add(nodeId);
     markNodeActive(nodeId); // Mark node as actively used
@@ -370,6 +343,14 @@ export const useMultiplayerEditing = ({
   const isLockedForMe = (nodeId: string) => {
     const info = locks.get(nodeId);
     if (!info) return false;
+
+    // Not locked if it's our own tab
+    if (info.tabId === tabId) return false;
+
+    // Not locked if it's from our own session (another tab of same user)
+    if (info.sessionId === sessionId) return false;
+
+    // Locked if it's from a different user
     if (info.sessionId) {
       return info.sessionId !== sessionId;
     }
@@ -379,7 +360,13 @@ export const useMultiplayerEditing = ({
   const getLockOwner = (nodeId: string) => {
     const info = locks.get(nodeId);
     if (!info) return null;
-    if (info.sessionId && info.sessionId === sessionId) return null;
+
+    // Not locked if it's our own tab
+    if (info.tabId === tabId) return null;
+
+    // Not locked if it's from our own session (another tab of same user)
+    if (info.sessionId === sessionId) return null;
+
     if (!info.sessionId && info.byId === userId) return null;
     return { name: info.name, color: info.color, kind: info.kind } as const;
   };

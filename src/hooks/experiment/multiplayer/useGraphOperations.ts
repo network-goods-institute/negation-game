@@ -29,6 +29,7 @@ import type {
   OnEdgeCreated,
   OnShowUndoHint,
 } from "@/types/multiplayer";
+import type { YMetaMap } from "@/types/multiplayer";
 
 /**
  * Consolidates all graph manipulation operations (add, delete, update nodes/edges).
@@ -42,7 +43,9 @@ interface UseGraphOperationsProps {
   yNodesMap: YNodesMap | null;
   yEdgesMap: YEdgesMap | null;
   yTextMap: YTextMap | null;
+  yMetaMap?: YMetaMap | null;
   ydoc: YjsDoc | null;
+  documentId?: string;
   canWrite: boolean;
   writeSynced: boolean;
   localOrigin: object;
@@ -65,7 +68,9 @@ export const useGraphOperations = ({
   yNodesMap,
   yEdgesMap,
   yTextMap,
+  yMetaMap,
   ydoc,
+  documentId,
   canWrite,
   writeSynced,
   localOrigin,
@@ -120,7 +125,9 @@ export const useGraphOperations = ({
         setEdges,
         isLockedForMe,
         getLockOwner,
-        onShowUndoHint
+        onShowUndoHint,
+        yMetaMap,
+        documentId
       ),
     [
       nodes,
@@ -136,6 +143,8 @@ export const useGraphOperations = ({
       isLockedForMe,
       getLockOwner,
       onShowUndoHint,
+      yMetaMap,
+      documentId,
     ]
   );
 
@@ -353,30 +362,7 @@ export const useGraphOperations = ({
     [setNodes, yNodesMap, ydoc, canWrite, localOrigin]
   );
 
-  const updateEdgeRelevance = useCallback(
-    (edgeId: string, relevance: 1 | 2 | 3 | 4 | 5) => {
-      if (!canWrite) {
-        try { (require('sonner') as any).toast?.warning?.("Read-only mode: Changes won't be saved"); } catch {}
-        return;
-      }
-      setEdges((eds) =>
-        eds.map((e) =>
-          e.id === edgeId ? { ...e, data: { ...(e.data || {}), relevance } } : e
-        )
-      );
-      if (yEdgesMap && ydoc && canWrite) {
-        ydoc.transact(() => {
-          const base = yEdgesMap.get(edgeId);
-          if (base)
-            yEdgesMap.set(edgeId, {
-              ...base,
-              data: { ...(base.data || {}), relevance },
-            });
-        }, localOrigin);
-      }
-    },
-    [setEdges, yEdgesMap, ydoc, canWrite, localOrigin]
-  );
+  
 
   const ensureEdgeAnchor = useMemo(
     () => createEnsureEdgeAnchor(setNodes),
@@ -429,7 +415,6 @@ export const useGraphOperations = ({
     updateNodeType,
     createInversePair: createInversePairOp,
     deleteInversePair,
-    updateEdgeRelevance,
     duplicateNodeWithConnections,
   };
 };

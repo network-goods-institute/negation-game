@@ -6,8 +6,8 @@ interface TypeSelectorDropdownProps {
   x: number;
   y: number;
   onClose: () => void;
-  onSelect: (type: 'point' | 'statement') => void;
-  currentType: 'point' | 'statement';
+  onSelect: (type: 'point' | 'statement' | 'comment') => void;
+  currentType: 'point' | 'statement' | 'comment';
 }
 
 const typeOptions = [
@@ -18,6 +18,14 @@ const typeOptions = [
     description: 'Add a claim or argument',
     gradient: 'from-slate-500 to-slate-600',
     hoverGradient: 'hover:from-slate-600 hover:to-slate-700',
+  },
+  {
+    type: 'comment' as const,
+    label: 'Comment',
+    icon: '@',
+    description: 'Leave a note or remark',
+    gradient: 'from-yellow-400 to-yellow-500',
+    hoverGradient: 'hover:from-yellow-500 hover:to-yellow-600',
   },
   {
     type: 'statement' as const,
@@ -99,9 +107,9 @@ export const TypeSelectorDropdown: React.FC<TypeSelectorDropdownProps> = ({
                 ? 'bg-gray-100/80 shadow-sm'
                 : 'hover:bg-gray-50/50 hover:shadow-sm'
             }`}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               onSelect(option.type);
-              onClose();
             }}
           >
             <div className={`flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br ${option.gradient} ${option.hoverGradient} shadow-sm flex items-center justify-center text-white font-bold text-sm transition-all duration-200 group-hover:scale-105`}>

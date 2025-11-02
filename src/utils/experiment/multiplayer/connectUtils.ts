@@ -5,9 +5,14 @@ export const chooseEdgeType = (
   targetType?: string,
   preferredEdgeType?: "support" | "negation"
 ) => {
-  // All edges TO a statement (question) use option
-  if (targetType === "statement") {
+  // All edges involving a statement (question) use option
+  if (sourceType === "statement" || targetType === "statement") {
     return "option";
+  }
+
+  // All edges involving a comment node use comment edge type
+  if (sourceType === "comment" || targetType === "comment") {
+    return "comment";
   }
 
   // For point-to-point connections, use the preferred type (support or negation)
@@ -38,7 +43,7 @@ export const buildConnectionEdge = (
     target: parentId,
     sourceHandle: `${childId}-source-handle`,
     targetHandle: `${parentId}-incoming-handle`,
-    data: { relevance: 3 },
+    data: {},
   } as const;
   return { id, edge, edgeType };
 };

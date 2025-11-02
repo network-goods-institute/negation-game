@@ -24,6 +24,7 @@ export const useEditableNode = ({
 }: UseEditableNodeArgs) => {
   const graph = useGraphActions();
   const isConnectMode = Boolean((graph as any)?.connectMode);
+  const updateNodePosition = graph?.updateNodePosition;
   const [isEditing, setIsEditing] = useState(false);
   const cursorClass = useCursorState({ isEditing, locked: false });
   const [value, setValue] = useState(content);
@@ -34,6 +35,7 @@ export const useEditableNode = ({
   const contentRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const updateTimerRef = useRef<number | null>(null);
+  const previousWidthRef = useRef<number>(0);
   const selectionBookmarkRef = useRef<{
     start: number;
     end: number;
@@ -199,7 +201,19 @@ export const useEditableNode = ({
     }
   }, [value]);
 
+  const resetMargins = useCallback(() => {
+    if (wrapperRef.current) {
+      wrapperRef.current.style.marginLeft = "0px";
+      wrapperRef.current.style.marginRight = "0px";
+    }
+    previousWidthRef.current = 0;
+    totalWidthOffsetRef.current = 0;
+  }, []);
+
+  const totalWidthOffsetRef = useRef<number>(0);
+
   const commit = useCallback(() => {
+    resetMargins();
     setIsEditing(false);
     stopEditingNode?.(id);
     selectionBookmarkRef.current = null;
@@ -220,7 +234,7 @@ export const useEditableNode = ({
         justCommittedRef.current = 0;
       }
     }, 1500);
-  }, [id, stopEditingNode, updateNodeContent, value]);
+  }, [id, stopEditingNode, updateNodeContent, value, resetMargins]);
 
   // cleanup timers
   useEffect(() => {
@@ -388,6 +402,26 @@ export const useEditableNode = ({
     }, 120);
     if (wrapperRef.current && contentRef.current) {
       wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
+
+      // Apply CSS transform to expand node from center
+      const currentWidth = contentRef.current.scrollWidth;
+      if (
+        previousWidthRef.current > 0 &&
+        currentWidth !== previousWidthRef.current
+      ) {
+        const widthDiff = currentWidth - previousWidthRef.current;
+        totalWidthOffsetRef.current += widthDiff;
+
+        // Apply cumulative margins to keep expansion centered
+        // Handle both expansion (positive diff) and contraction (negative diff)
+        if (wrapperRef.current) {
+          const offset = totalWidthOffsetRef.current / 2;
+          wrapperRef.current.style.marginLeft = `-${offset}px`;
+          wrapperRef.current.style.marginRight = `${offset}px`;
+        }
+      }
+
+      previousWidthRef.current = currentWidth;
     }
     // Record selection bookmark for potential undo/redo
     try {
@@ -441,6 +475,7 @@ export const useEditableNode = ({
     if (e.key === "Escape") {
       e.preventDefault();
       // Just exit editing mode, keeping current content
+      resetMargins();
       setIsEditing(false);
       stopEditingNode?.(id);
       selectionBookmarkRef.current = null;
@@ -498,19 +533,29 @@ export const useEditableNode = ({
     if (!isEditing) {
       setIsEditing(true);
       startEditingNode?.(id);
-      // Focus and place cursor at the end
-      setTimeout(() => {
+
+      const attemptFocus = () => {
         const el = contentRef.current;
-        if (el) {
+        if (!el) {
+          requestAnimationFrame(attemptFocus);
+          return;
+        }
+
+        // Check if element is actually focusable and in the DOM
+        if (document.contains(el) && el.offsetParent !== null) {
           el.focus();
           const range = document.createRange();
           range.selectNodeContents(el);
-          range.collapse(false); // Move cursor to end
           const sel = window.getSelection();
           sel?.removeAllRanges();
           sel?.addRange(range);
+        } else {
+          // Still not ready, try again
+          requestAnimationFrame(attemptFocus);
         }
-      }, 0);
+      };
+
+      requestAnimationFrame(attemptFocus);
     }
   };
 
