@@ -31,12 +31,12 @@ describe('useKeyboardPanning', () => {
   });
 
   describe('Modifier Key Blocking', () => {
-    it('should block panning when Shift key is held with WASD', () => {
+    it('should block panning when Shift key is held with arrow keys', () => {
       renderHook(() => useKeyboardPanning({ enabled: true }));
 
-      // Simulate Shift+W keydown
+      // Simulate Shift+ArrowUp keydown
       const event = new KeyboardEvent('keydown', {
-        key: 'w',
+        key: 'ArrowUp',
         shiftKey: true,
         bubbles: true,
       });
@@ -69,11 +69,11 @@ describe('useKeyboardPanning', () => {
       expect(mockSetViewport).not.toHaveBeenCalled();
     });
 
-    it('should block panning when Alt key is held with WASD', () => {
+    it('should block panning when Alt key is held with arrow keys', () => {
       renderHook(() => useKeyboardPanning({ enabled: true }));
 
       const event = new KeyboardEvent('keydown', {
-        key: 's',
+        key: 'ArrowDown',
         altKey: true,
         bubbles: true,
       });
@@ -107,7 +107,7 @@ describe('useKeyboardPanning', () => {
       renderHook(() => useKeyboardPanning({ enabled: true }));
 
       const event = new KeyboardEvent('keydown', {
-        key: 'w',
+        key: 'ArrowUp',
         bubbles: true,
       });
       window.dispatchEvent(event);
@@ -210,7 +210,7 @@ describe('useKeyboardPanning', () => {
   });
 
   describe('Normal Panning', () => {
-    it('should pan when regular S is pressed (no modifiers)', () => {
+    it('should not pan when WASD keys are pressed (no modifiers)', () => {
       renderHook(() => useKeyboardPanning({ enabled: true }));
 
       const event = new KeyboardEvent('keydown', {
@@ -223,15 +223,15 @@ describe('useKeyboardPanning', () => {
         jest.advanceTimersByTime(50);
       });
 
-      // Should pan normally
-      expect(mockSetViewport).toHaveBeenCalled();
+      // Should NOT pan with WASD keys
+      expect(mockSetViewport).not.toHaveBeenCalled();
     });
 
-    it('should pan when W is pressed without modifiers', () => {
+    it('should pan when ArrowUp is pressed without modifiers', () => {
       renderHook(() => useKeyboardPanning({ enabled: true }));
 
       const keydown = new KeyboardEvent('keydown', {
-        key: 'w',
+        key: 'ArrowUp',
         bubbles: true,
       });
       window.dispatchEvent(keydown);
@@ -246,12 +246,12 @@ describe('useKeyboardPanning', () => {
       expect(lastCall[0].y).toBeGreaterThan(0); // Panning up
     });
 
-    it('should stop panning when key is released', () => {
+    it('should stop panning when arrow key is released', () => {
       renderHook(() => useKeyboardPanning({ enabled: true }));
 
       // Press key
       const keydown = new KeyboardEvent('keydown', {
-        key: 'd',
+        key: 'ArrowRight',
         bubbles: true,
       });
       window.dispatchEvent(keydown);
@@ -265,7 +265,7 @@ describe('useKeyboardPanning', () => {
 
       // Release key
       const keyup = new KeyboardEvent('keyup', {
-        key: 'd',
+        key: 'ArrowRight',
         bubbles: true,
       });
       window.dispatchEvent(keyup);
@@ -316,7 +316,7 @@ describe('useKeyboardPanning', () => {
       input.focus();
 
       const event = new KeyboardEvent('keydown', {
-        key: 'w',
+        key: 'ArrowUp',
         bubbles: true,
       });
       input.dispatchEvent(event);
@@ -338,7 +338,7 @@ describe('useKeyboardPanning', () => {
       textarea.focus();
 
       const event = new KeyboardEvent('keydown', {
-        key: 's',
+        key: 'ArrowDown',
         bubbles: true,
       });
       textarea.dispatchEvent(event);
@@ -368,7 +368,7 @@ describe('useKeyboardPanning', () => {
       renderHook(() => useKeyboardPanning({ enabled: false }));
 
       const event = new KeyboardEvent('keydown', {
-        key: 'w',
+        key: 'ArrowUp',
         bubbles: true,
       });
       window.dispatchEvent(event);

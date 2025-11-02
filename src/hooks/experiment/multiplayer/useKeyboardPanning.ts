@@ -9,7 +9,7 @@ interface UseKeyboardPanningOptions {
 }
 
 /**
- * Hook for smooth keyboard-based viewport panning using WASD/Arrow keys.
+ * Hook for smooth keyboard-based viewport panning using Arrow keys.
  * Implements press-and-hold behavior with requestAnimationFrame for smooth movement.
  */
 export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
@@ -50,10 +50,9 @@ export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
         return;
       }
 
-      // Smooth WASD/Arrow key panning (press-and-hold)
+      // Smooth arrow key panning (press-and-hold)
       const isPanKey = (
-        key === 'arrowleft' || key === 'arrowright' || key === 'arrowup' || key === 'arrowdown' ||
-        key === 'a' || key === 'd' || key === 'w' || key === 's'
+        key === 'arrowleft' || key === 'arrowright' || key === 'arrowup' || key === 'arrowdown'
       );
 
       if (isPanKey) {
@@ -77,10 +76,10 @@ export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
 
               if (viewport) {
                 const base = 700; // px/sec
-                const left = (heldKeysRef.current['arrowleft'] || heldKeysRef.current['a']) ? 1 : 0;
-                const right = (heldKeysRef.current['arrowright'] || heldKeysRef.current['d']) ? 1 : 0;
-                const up = (heldKeysRef.current['arrowup'] || heldKeysRef.current['w']) ? 1 : 0;
-                const down = (heldKeysRef.current['arrowdown'] || heldKeysRef.current['s']) ? 1 : 0;
+                const left = heldKeysRef.current['arrowleft'] ? 1 : 0;
+                const right = heldKeysRef.current['arrowright'] ? 1 : 0;
+                const up = heldKeysRef.current['arrowup'] ? 1 : 0;
+                const down = heldKeysRef.current['arrowdown'] ? 1 : 0;
                 const dx = (left - right) * base * dt;
                 const dy = (up - down) * base * dt;
 

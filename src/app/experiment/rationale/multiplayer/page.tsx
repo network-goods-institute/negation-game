@@ -193,7 +193,7 @@ export default function MultiplayerRationaleIndexPage() {
         <div className="bg-white p-8 rounded-lg shadow-lg border text-center max-w-md">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Login Required</h1>
           <p className="text-gray-600 mb-6">You need to be logged in to access the multiplayer board system.</p>
-          <Button onClick={login as any}>Login</Button>
+          <Button onClick={login as any} className="bg-sync hover:bg-sync-hover">Login</Button>
         </div>
       </div>
     );

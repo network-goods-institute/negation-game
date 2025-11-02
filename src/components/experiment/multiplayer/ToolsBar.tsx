@@ -352,10 +352,6 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
                     <div className="text-xs font-medium text-stone-600">Advanced Navigation</div>
                     <div className="grid grid-cols-1 gap-1 text-xs">
                       <div className="flex justify-between gap-3">
-                        <span>Pan canvas (WASD)</span>
-                        <span className="font-mono bg-stone-100 px-1 rounded">W A S D</span>
-                      </div>
-                      <div className="flex justify-between gap-3">
                         <span>Pan canvas (Arrows)</span>
                         <span className="font-mono bg-stone-100 px-1 rounded">↑ ↓ ← →</span>
                       </div>
