@@ -41,7 +41,10 @@ describe("graphSync.onNodesChange writes only changed positions/dims", () => {
       null as any,
       ydoc as any,
       (() => {}) as any,
-      {}
+      {},
+      () => [],
+      () => "support",
+      false
     );
 
     handlers.onNodesChange([

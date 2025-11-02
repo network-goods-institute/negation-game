@@ -26,6 +26,7 @@ type GraphActions = {
     addObjectionForEdge: (edgeId: string, midX?: number, midY?: number) => void;
     hoveredEdgeId: string | null;
     setHoveredEdge: (edgeId: string | null) => void;
+    updateEdgeRelevance?: (edgeId: string, relevance: 1 | 2 | 3 | 4 | 5) => void;
     updateEdgeType?: (edgeId: string, newType: "negation" | "support") => void;
     selectedEdgeId?: string | null;
     setSelectedEdge?: (edgeId: string | null) => void;
@@ -106,6 +107,7 @@ export const useGraphActions = () => {
             addObjectionForEdge: () => { },
             hoveredEdgeId: null,
             setHoveredEdge: () => { },
+            updateEdgeRelevance: () => { },
             updateEdgeType: () => { },
             selectedEdgeId: null,
             setSelectedEdge: () => { },

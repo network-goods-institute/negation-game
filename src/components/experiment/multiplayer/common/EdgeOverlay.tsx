@@ -38,6 +38,8 @@ export interface EdgeOverlayProps {
     backward: { average: number; count: number };
     userValue?: { forward: number; backward: number };
   };
+  relevance?: number;
+  onUpdateRelevance?: (relevance: number) => void;
   suppress?: boolean;
   suppressReason?: string;
 }
@@ -56,6 +58,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   onConnectionClick,
   starColor = 'text-stone-600',
   mindchange,
+  relevance,
+  onUpdateRelevance,
   suppress = false,
   suppressReason,
 }) => {
@@ -387,6 +391,55 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       onMouseLeave={() => setIsNearOverlay(false)}
                     />
                   )}
+
+                  {(() => {
+                    if (isMindchangeEnabledClient()) return null;
+                    const rel = Math.max(1, Math.min(5, Math.round(Number(relevance || 0))));
+                    if (edgeType === 'support' || edgeType === 'negation') {
+                      return (
+                        <div className="flex items-center gap-0.5 px-1">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <button
+                              key={`rel-${i}`}
+                              title={`Set relevance to ${i}`}
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance?.(i); })}
+                              type="button"
+                              data-interactive="true"
+                              className="transition-transform hover:scale-110 active:scale-95"
+                            >
+                              <span className={`text-base font-bold transition-all ${i <= rel ? starColor : 'text-gray-300'}`}>
+                                {edgeType === 'support' ? '+' : '-'}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    }
+                    if (edgeType === 'objection') {
+                      return (
+                        <div className="flex items-center gap-2.5 text-xs select-none relative">
+                          <span className="text-xs font-semibold text-gray-700">Relevance:</span>
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                              <button
+                                key={`obj-rel-${i}`}
+                                title={`Set relevance to ${i}`}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance?.(i); })}
+                                type="button"
+                                data-interactive="true"
+                                className="transition-transform hover:scale-125 active:scale-95"
+                              >
+                                <span className={`text-base transition-all ${i <= rel ? starColor + ' drop-shadow-sm' : 'text-gray-300'}`}>★</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
                   {(edgeType === 'negation' || edgeType === 'objection') && !editDir && (() => {
                     if (!isMindchangeEnabledClient()) return null;

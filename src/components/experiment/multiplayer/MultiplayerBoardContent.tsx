@@ -406,6 +406,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     updateNodeHidden,
     updateNodePosition,
     updateNodeFavor,
+    updateEdgeRelevance,
     deleteNode,
     addPointBelow,
     addObjectionForEdge,
@@ -454,6 +455,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       setHoveredEdgeId(null);
     },
     onNodeAddedCenterOnce: markNodeCenterOnce,
+    connectMode,
   });
 
   const { onNodesChange, onEdgesChange, onConnect } = createGraphChangeHandlers(
@@ -465,7 +467,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     syncYMapFromArray,
     localOriginRef.current,
     () => nodes as any[],
-    () => preferredEdgeTypeRef.current
+    () => preferredEdgeTypeRef.current,
+    connectMode
   );
 
   const {
@@ -594,6 +597,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             addObjectionForEdge,
             hoveredEdgeId,
             setHoveredEdge: setHoveredEdgeId,
+            updateEdgeRelevance,
             updateEdgeType: updateEdgeTypeWrapped,
             selectedEdgeId,
             setSelectedEdge: setSelectedEdgeId,

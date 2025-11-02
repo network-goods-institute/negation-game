@@ -13,6 +13,7 @@ import {
   createUpdateNodeType,
   createInversePair,
   createDeleteInversePair,
+  createUpdateEdgeRelevance,
 } from "@/utils/experiment/multiplayer/graphOperations";
 import { createDuplicateNodeWithConnections } from "@/utils/experiment/multiplayer/graphOperations/nodeDuplication";
 import type {
@@ -60,6 +61,7 @@ interface UseGraphOperationsProps {
   onShowUndoHint?: OnShowUndoHint;
   onClearSelections?: () => void;
   onNodeAddedCenterOnce?: (id: string) => void;
+  connectMode?: boolean;
 }
 
 export const useGraphOperations = ({
@@ -85,6 +87,7 @@ export const useGraphOperations = ({
   onShowUndoHint,
   onClearSelections,
   onNodeAddedCenterOnce,
+  connectMode,
 }: UseGraphOperationsProps) => {
   const updateNodeContent = useMemo(
     () =>
@@ -105,9 +108,10 @@ export const useGraphOperations = ({
         ydoc,
         canWrite,
         localOrigin,
-        setNodes
+        setNodes,
+        connectMode
       ),
-    [yNodesMap, ydoc, canWrite, localOrigin, setNodes]
+    [yNodesMap, ydoc, canWrite, localOrigin, setNodes, connectMode]
   );
 
   const deleteNode = useMemo(
@@ -362,6 +366,17 @@ export const useGraphOperations = ({
     [setNodes, yNodesMap, ydoc, canWrite, localOrigin]
   );
 
+  const updateEdgeRelevance = useMemo(
+    () => createUpdateEdgeRelevance(
+      yEdgesMap,
+      ydoc,
+      canWrite,
+      localOrigin,
+      setEdges,
+    ),
+    [yEdgesMap, ydoc, canWrite, localOrigin, setEdges]
+  );
+
   
 
   const ensureEdgeAnchor = useMemo(
@@ -406,6 +421,7 @@ export const useGraphOperations = ({
     updateNodeHidden,
     updateNodePosition,
     updateNodeFavor,
+    updateEdgeRelevance,
     deleteNode,
     addPointBelow,
     addObjectionForEdge,

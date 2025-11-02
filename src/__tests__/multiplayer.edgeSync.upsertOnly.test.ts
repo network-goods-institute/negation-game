@@ -36,7 +36,10 @@ describe("edge sync upsert-only", () => {
       ydoc as any,
       // not used for edges now
       (() => {}) as any,
-      {}
+      {},
+      () => [],
+      () => "support",
+      false
     );
 
     h.onEdgesChange([]);
@@ -62,7 +65,10 @@ describe("edge sync upsert-only", () => {
       yEdges as any,
       ydoc as any,
       (() => {}) as any,
-      {}
+      {},
+      () => [],
+      () => "support",
+      false
     );
 
     const newEdge: Edge = { id: "local-1", source: "n1", target: "n2", type: "negation" };

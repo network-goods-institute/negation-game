@@ -109,12 +109,16 @@ export const createUpdateNodePosition = (
   ydoc: any,
   canWrite: boolean,
   localOrigin: object,
-  setNodes: (updater: (nodes: any[]) => any[]) => void
+  setNodes: (updater: (nodes: any[]) => any[]) => void,
+  connectMode?: boolean
 ) => {
   const eps = 0.01;
   return (nodeId: string, x: number, y: number) => {
     if (!canWrite) {
       toast.warning("Read-only mode: Changes won't be saved");
+      return;
+    }
+    if (connectMode) {
       return;
     }
     let changedLocally = false;

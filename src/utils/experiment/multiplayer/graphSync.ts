@@ -68,7 +68,8 @@ export const createGraphChangeHandlers = (
   ) => void,
   localOrigin?: any,
   getCurrentNodes?: () => Node[],
-  getPreferredEdgeType?: () => "support" | "negation"
+  getPreferredEdgeType?: () => "support" | "negation",
+  connectMode?: boolean
 ) => {
   let rafEdgesId: number | null = null;
   let pendingEdges: Edge[] | null = null;
@@ -147,7 +148,8 @@ export const createGraphChangeHandlers = (
           const id = (ch as any).id as string | undefined;
           if (id) idsToUpdate.add(id);
         }
-        if (idsToUpdate.size > 0) {
+        // Ignore position changes during connection mode to prevent teleporting
+        if (idsToUpdate.size > 0 && !connectMode) {
           pendingNodePositions = pendingNodePositions ?? new Map();
           idsToUpdate.forEach((id) => {
             const nextNode = (next as Node[]).find((n) => n.id === id);

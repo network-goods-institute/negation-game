@@ -84,10 +84,13 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const [vx, vy, zoom] = useStore((s: any) => s.transform);
   const edges = useStore((s: any) => Array.from(s.edges?.values?.() || s.edges || []));
 
-  const mindchange = isMindchangeEnabledClient() ? (props as any).data?.mindchange : undefined;
+  const enableMindchange = isMindchangeEnabledClient();
+  const mindchange = enableMindchange ? (props as any).data?.mindchange : undefined;
+  const relevanceRaw = Number((props as any)?.data?.relevance ?? 3);
+  const relevance = Math.max(1, Math.min(5, Math.round(relevanceRaw)));
   const mcF = Math.max(0, Math.min(100, Math.round(Number(mindchange?.forward?.average ?? 0)))) / 100;
   const mcB = Math.max(0, Math.min(100, Math.round(Number(mindchange?.backward?.average ?? 0)))) / 100;
-  const strapStrength = Math.max(mcF, mcB);
+  const strapStrength = enableMindchange ? Math.max(mcF, mcB) : Math.max(0, Math.min(1, (relevance - 1) / 4));
   const strapGeometry = useStrapGeometry(
     (visual.useStrap && !lightMode) ? {
       sourceX: sourceX ?? 0,
@@ -197,9 +200,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, sourceX, sourceY, targetX, targetY, sourceNode, targetNode, props]);
 
   const edgeStyles = useMemo(() => {
-    const width = isMindchangeEnabledClient()
+    const width = enableMindchange
       ? computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: props.edgeType })
-      : 2;
+      : visual.strokeWidth(relevance);
     const baseStyle = {
       stroke: visual.stroke,
       strokeWidth: width,
@@ -221,7 +224,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     }
 
     return baseStyle;
-  }, [visual, props.edgeType, targetNode, mindchange]);
+  }, [visual, props.edgeType, targetNode, mindchange, enableMindchange, relevance]);
 
   const edgeStylesWithPointer = useMemo(() => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
@@ -462,6 +465,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           sourceLabel={(sourceNode as any)?.data?.content || (sourceNode as any)?.data?.statement}
           targetLabel={(targetNode as any)?.data?.content || (targetNode as any)?.data?.statement}
           mindchange={mindchange}
+          relevance={relevance}
+          onUpdateRelevance={(val) => (graphActions as any)?.updateEdgeRelevance?.(props.id as string, val as any)}
           suppress={endpointDragging}
           suppressReason={suppressReason}
         />
