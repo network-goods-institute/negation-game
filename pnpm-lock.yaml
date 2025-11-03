@@ -343,6 +343,9 @@ importers:
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.17
+      terser-webpack-plugin:
+        specifier: ^5.3.14
+        version: 5.3.14(esbuild@0.25.0)(webpack@5.98.0(esbuild@0.25.0))
       tsx:
         specifier: ^4.19.3
         version: 4.19.3
@@ -7597,7 +7600,7 @@ snapshots:
   '@ampproject/remapping@2.3.0':
     dependencies:
       '@jridgewell/gen-mapping': 0.3.8
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/trace-mapping': 0.3.29
 
   '@babel/code-frame@7.26.2':
     dependencies:
@@ -7638,7 +7641,7 @@ snapshots:
       '@babel/parser': 7.26.10
       '@babel/types': 7.26.10
       '@jridgewell/gen-mapping': 0.3.8
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/trace-mapping': 0.3.29
       jsesc: 3.1.0
 
   '@babel/helper-compilation-targets@7.26.5':
@@ -8565,7 +8568,7 @@ snapshots:
 
   '@jest/source-map@29.6.3':
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/trace-mapping': 0.3.29
       callsites: 3.1.0
       graceful-fs: 4.2.11
 
@@ -16186,7 +16189,7 @@ snapshots:
 
   v8-to-istanbul@9.3.0:
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.25
+      '@jridgewell/trace-mapping': 0.3.29
       '@types/istanbul-lib-coverage': 2.0.6
       convert-source-map: 2.0.0
 

@@ -9,7 +9,7 @@ import { LoaderCircleIcon } from "lucide-react";
 import { useMarkMessagesAsRead } from "@/mutations/messages/useMarkMessagesAsRead";
 import { useConversationSSE } from "@/hooks/messages/useConversationSSE";
 import { useClosedConversations } from "@/hooks/messages/useClosedConversations";
-import { generateConversationId } from "@/db/schema";
+import { generateConversationId } from "@/db/schema";import { logger } from "@/lib/logger";
 
 interface ConversationViewProps {
     username: string;
@@ -63,7 +63,7 @@ export const ConversationView = ({ username: otherUsername, spaceId }: Conversat
 
     useEffect(() => {
         if (reconnectAttempts >= 3) {
-            console.warn("Conversation connection has encountered multiple errors. You may need to refresh the page.");
+            logger.warn("Conversation connection has encountered multiple errors. You may need to refresh the page.");
         }
     }, [reconnectAttempts]);
 

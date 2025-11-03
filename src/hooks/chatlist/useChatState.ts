@@ -3,7 +3,7 @@ import { SavedChat } from "@/types/chat";
 import {
   ChatListManagementProps,
   ChatState,
-} from "@/hooks/chatlist/chatListTypes";
+} from "@/hooks/chatlist/chatListTypes";import { logger } from "@/lib/logger";
 
 export function useChatState({
   currentSpace,
@@ -62,7 +62,7 @@ export function useChatState({
 
         setSavedChats(chatsWithPreservedFields);
       } catch (error) {
-        console.error("Failed to parse stored chats:", error);
+        logger.error("Failed to parse stored chats:", error);
         setSavedChats([]);
       }
     }

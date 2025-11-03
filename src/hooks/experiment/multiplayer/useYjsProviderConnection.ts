@@ -3,7 +3,7 @@ import * as Y from "yjs";
 import { Node, Edge } from "@xyflow/react";
 import { WebsocketProvider } from "y-websocket";
 import { fetchYjsAuthToken, getRefreshDelayMs } from "./yjs/auth";
-import { HydrationStatus } from "./useYjsDocumentHydration";
+import { HydrationStatus } from "./useYjsDocumentHydration";import { logger } from "@/lib/logger";
 
 interface UseYjsProviderConnectionProps {
   roomName: string;
@@ -80,13 +80,13 @@ export const useYjsProviderConnection = ({
   }, []);
 
   const seedDocument = useCallback(() => {
-    console.log("[YJS Provider] seedDocument called");
+    logger.log("[YJS Provider] seedDocument called");
     const doc = ydocRef.current;
     const yNodes = yNodesMapRef.current;
     const yEdges = yEdgesMapRef.current;
     const yText = yTextMapRef.current;
 
-    console.log("[YJS Provider] seedDocument - state check:", {
+    logger.log("[YJS Provider] seedDocument - state check:", {
       hasDoc: !!doc,
       hasYNodes: !!yNodes,
       hasYEdges: !!yEdges,
@@ -99,19 +99,19 @@ export const useYjsProviderConnection = ({
     });
 
     if (!doc || !yNodes || !yEdges || !yText) {
-      console.log(
+      logger.log(
         "[YJS Provider] seedDocument - missing required objects, aborting"
       );
       return;
     }
     if (yNodes.size > 0 || yEdges.size > 0) {
-      console.log(
+      logger.log(
         "[YJS Provider] seedDocument - document already has data, skipping seed"
       );
       return;
     }
 
-    console.log(
+    logger.log(
       "[YJS Provider] seedDocument - proceeding with seeding transaction"
     );
     doc.transact(() => {
@@ -139,7 +139,7 @@ export const useYjsProviderConnection = ({
       });
     }, "seed");
 
-    console.log(
+    logger.log(
       "[YJS Provider] seedDocument - transaction complete, post-seed state:",
       {
         yNodesSize: yNodes.size,
@@ -150,14 +150,14 @@ export const useYjsProviderConnection = ({
 
     try {
       forceSaveRef.current?.();
-      console.log(
+      logger.log(
         "[YJS Provider] seedDocument - force save called successfully"
       );
     } catch (error) {
-      console.warn("[YJS Provider] seedDocument - force save failed:", error);
+      logger.warn("[YJS Provider] seedDocument - force save failed:", error);
     }
     seededOnceRef.current = true;
-    console.log(
+    logger.log(
       "[YJS Provider] seedDocument - seeding complete, seededOnce set to true"
     );
   }, [
@@ -202,12 +202,12 @@ export const useYjsProviderConnection = ({
 
   const attachProviderListeners = useCallback(
     (provider: WebsocketProvider) => {
-      console.log(
+      logger.log(
         "[YJS Provider] attachProviderListeners - attaching event listeners"
       );
 
       provider.on("sync", () => {
-        console.log("[YJS Provider] sync event received", {
+        logger.log("[YJS Provider] sync event received", {
           didResyncOnConnect: didResyncOnConnectRef.current,
           shouldSeedOnConnect: shouldSeedOnConnectRef.current,
           seededOnce: seededOnceRef.current,
@@ -216,11 +216,11 @@ export const useYjsProviderConnection = ({
         if (suppressNextResyncRef.current) {
           didResyncOnConnectRef.current = true;
           suppressNextResyncRef.current = false;
-          console.log(
+          logger.log(
             "[YJS Provider] sync - suppressed HTTP resync on token refresh"
           );
         } else if (!didResyncOnConnectRef.current) {
-          console.log(
+          logger.log(
             "[YJS Provider] sync - first sync, calling onResyncFromServer"
           );
           didResyncOnConnectRef.current = true;
@@ -228,13 +228,13 @@ export const useYjsProviderConnection = ({
         }
 
         if (canSeed()) {
-          console.log(
+          logger.log(
             "[YJS Provider] sync - shouldSeedOnConnect is true, calling seedDocument"
           );
           shouldSeedOnConnectRef.current = false;
           seedDocument();
         } else {
-          console.log(
+          logger.log(
             "[YJS Provider] sync - shouldSeedOnConnect is false, skipping seed"
           );
         }
@@ -242,7 +242,7 @@ export const useYjsProviderConnection = ({
 
       provider.on("status", (status: { status: string }) => {
         const connected = status?.status === "connected";
-        console.log("[YJS Provider] status event received:", {
+        logger.log("[YJS Provider] status event received:", {
           status: status?.status,
           connected,
           wsUrl: provider.url,
@@ -251,13 +251,13 @@ export const useYjsProviderConnection = ({
 
         setIsConnected(connected);
         if (connected) {
-          console.log(
+          logger.log(
             "[YJS Provider] status - connected, clearing error and setting state to connected"
           );
           setConnectionError(null);
           setConnectionState("connected");
         } else {
-          console.log(
+          logger.log(
             "[YJS Provider] status - not connected, setting state to connecting"
           );
           setConnectionState("connecting");
@@ -265,31 +265,31 @@ export const useYjsProviderConnection = ({
       });
 
       provider.on("connection-close", () => {
-        console.log("[YJS Provider] connection-close event received", {
+        logger.log("[YJS Provider] connection-close event received", {
           isRefreshingToken: isRefreshingTokenRef.current,
         });
         setConnectionState("connecting");
         setConnectionError("Reconnecting to server...");
         if (!isRefreshingTokenRef.current) {
-          console.log(
+          logger.log(
             "[YJS Provider] connection-close - starting token refresh"
           );
           isRefreshingTokenRef.current = true;
           restartProviderWithNewTokenRef.current?.().finally(() => {
-            console.log(
+            logger.log(
               "[YJS Provider] connection-close - token refresh complete"
             );
             isRefreshingTokenRef.current = false;
           });
         } else {
-          console.log(
+          logger.log(
             "[YJS Provider] connection-close - token refresh already in progress, skipping"
           );
         }
       });
 
       provider.on("connection-error", () => {
-        console.error("[YJS Provider] connection-error event received");
+        logger.error("[YJS Provider] connection-error event received");
         setConnectionState("failed");
         setConnectionError("WebSocket connection failed");
       });
@@ -317,7 +317,7 @@ export const useYjsProviderConnection = ({
   }, [clearFallbackSeedingTimer, clearRefreshTimer]);
 
   const createProvider = useCallback(async () => {
-    console.log("[YJS Provider] createProvider called", {
+    logger.log("[YJS Provider] createProvider called", {
       hasDoc: !!ydocRef.current,
       wsUrl,
       roomName,
@@ -325,11 +325,11 @@ export const useYjsProviderConnection = ({
 
     const doc = ydocRef.current;
     if (!doc) {
-      console.error("[YJS Provider] createProvider - no document available");
+      logger.error("[YJS Provider] createProvider - no document available");
       return null;
     }
     if (!wsUrl) {
-      console.error(
+      logger.error(
         "[YJS Provider] createProvider - WebSocket URL not configured"
       );
       setConnectionError("WebSocket URL not configured");
@@ -337,20 +337,20 @@ export const useYjsProviderConnection = ({
       return null;
     }
 
-    console.log("[YJS Provider] createProvider - fetching auth token");
+    logger.log("[YJS Provider] createProvider - fetching auth token");
     try {
       const { token, expiresAt } = await fetchYjsAuthToken();
-      console.log("[YJS Provider] createProvider - auth token received", {
+      logger.log("[YJS Provider] createProvider - auth token received", {
         tokenLength: token?.length || 0,
         expiresAt: new Date(expiresAt).toISOString(),
       });
 
-      console.log("[YJS Provider] createProvider - creating WebsocketProvider");
+      logger.log("[YJS Provider] createProvider - creating WebsocketProvider");
       const provider = new WebsocketProvider(wsUrl, roomName, doc, {
         WebSocketPolyfill: class extends WebSocket {
           constructor(url: string, protocols?: string | string[]) {
             const withAuth = `${url}?auth=${encodeURIComponent(token)}`;
-            console.log(
+            logger.log(
               "[YJS Provider] WebSocket connecting to:",
               withAuth.replace(/auth=[^&]+/, "auth=***")
             );
@@ -359,7 +359,7 @@ export const useYjsProviderConnection = ({
         } as unknown as typeof WebSocket,
       });
 
-      console.log(
+      logger.log(
         "[YJS Provider] createProvider - provider created, setting up"
       );
       providerRef.current = provider;
@@ -367,10 +367,10 @@ export const useYjsProviderConnection = ({
       attachProviderListeners(provider);
       scheduleRefresh(expiresAt);
 
-      console.log("[YJS Provider] createProvider - setup complete");
+      logger.log("[YJS Provider] createProvider - setup complete");
       return provider;
     } catch (error) {
-      console.error(
+      logger.error(
         "[YJS Provider] createProvider - failed to fetch auth token:",
         error
       );
@@ -388,37 +388,37 @@ export const useYjsProviderConnection = ({
   ]);
 
   const restartProviderWithNewToken = useCallback(async () => {
-    console.log("[YJS Provider] restartProviderWithNewToken called");
+    logger.log("[YJS Provider] restartProviderWithNewToken called");
     try {
       suppressNextResyncRef.current = true;
       isRefreshingTokenRef.current = true;
-      console.log(
+      logger.log(
         "[YJS Provider] restartProviderWithNewToken - destroying existing provider"
       );
       destroyProvider();
 
-      console.log(
+      logger.log(
         "[YJS Provider] restartProviderWithNewToken - creating new provider"
       );
       const provider = await createProvider();
       if (!provider) {
-        console.error(
+        logger.error(
           "[YJS Provider] restartProviderWithNewToken - createProvider returned null"
         );
         return;
       }
 
-      console.log(
+      logger.log(
         "[YJS Provider] restartProviderWithNewToken - connecting new provider"
       );
       provider.connect();
-      console.log(
+      logger.log(
         "[YJS Provider] restartProviderWithNewToken - restart complete"
       );
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Authentication failed";
-      console.error(
+      logger.error(
         "[YJS Provider] restartProviderWithNewToken - error occurred:",
         {
           error,
@@ -435,7 +435,7 @@ export const useYjsProviderConnection = ({
   restartProviderWithNewTokenRef.current = restartProviderWithNewToken;
 
   const initializeProvider = useCallback(async () => {
-    console.log("[YJS Provider] initializeProvider called", {
+    logger.log("[YJS Provider] initializeProvider called", {
       seededOnce: seededOnceRef.current,
       shouldSeedOnConnect: shouldSeedOnConnectRef.current,
       didResyncOnConnect: didResyncOnConnectRef.current,
@@ -443,30 +443,30 @@ export const useYjsProviderConnection = ({
 
     try {
       setConnectionState("initializing");
-      console.log(
+      logger.log(
         "[YJS Provider] initializeProvider - state set to initializing"
       );
 
       const provider = await createProvider();
       if (!provider) {
-        console.error(
+        logger.error(
           "[YJS Provider] initializeProvider - createProvider returned null"
         );
         return;
       }
 
-      console.log(
+      logger.log(
         "[YJS Provider] initializeProvider - provider created, calling connect()"
       );
       provider.connect();
 
       if (typeof window !== "undefined") {
         clearFallbackSeedingTimer();
-        console.log(
+        logger.log(
           "[YJS Provider] initializeProvider - setting up fallback seeding timeout (5000ms)"
         );
         fallbackSeedingTimerRef.current = window.setTimeout(() => {
-          console.log(
+          logger.log(
             "[YJS Provider] initializeProvider - fallback timeout reached",
             {
               seededOnce: seededOnceRef.current,
@@ -477,30 +477,30 @@ export const useYjsProviderConnection = ({
           );
 
           if (canSeed()) {
-            console.log(
+            logger.log(
               "[YJS Provider] initializeProvider - fallback seeding triggered"
             );
             seedDocument();
             shouldSeedOnConnectRef.current = false;
           } else {
-            console.log(
+            logger.log(
               "[YJS Provider] initializeProvider - fallback seeding skipped (already seeded or shouldn't seed)"
             );
           }
         }, 5000);
       } else {
-        console.log(
+        logger.log(
           "[YJS Provider] initializeProvider - window not available, skipping fallback timeout"
         );
       }
 
-      console.log(
+      logger.log(
         "[YJS Provider] initializeProvider - initialization complete"
       );
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Authentication failed";
-      console.error("[YJS Provider] initializeProvider - error occurred:", {
+      logger.error("[YJS Provider] initializeProvider - error occurred:", {
         error,
         message,
       });

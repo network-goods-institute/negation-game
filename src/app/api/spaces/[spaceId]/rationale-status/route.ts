@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchTopicRationaleStatus } from "@/actions/topics/fetchTopicRationaleStatus";
+import { fetchTopicRationaleStatus } from "@/actions/topics/fetchTopicRationaleStatus";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: Request,
@@ -17,7 +17,7 @@ export async function GET(
 
     return NextResponse.json(status);
   } catch (error) {
-    console.error("Error fetching rationale status:", error);
+    logger.error("Error fetching rationale status:", error);
     const status =
       error instanceof Error && error.message.includes("admin access required")
         ? 403

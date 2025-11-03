@@ -46,7 +46,7 @@ import PointsFeedContainer from "@/components/rationale/PointsFeedContainer";
 import { useCanCreateRationale } from "@/hooks/topics/useCanCreateRationale";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock } from "lucide-react";
-import DraftSavedIndicator from "@/components/rationale/DraftSavedIndicator";
+import DraftSavedIndicator from "@/components/rationale/DraftSavedIndicator";import { logger } from "@/lib/logger";
 
 function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" | "rationales" | null) => void }) {
   const { updateNodeData } = useReactFlow();
@@ -65,7 +65,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
     if (isEmbedMode || isDesktopEmbed) {
       const sendHeight = () => {
         const height = document.documentElement.scrollHeight;
-        console.log('New rationale page sending height:', height);
+        logger.log('New rationale page sending height:', height);
         window.parent.postMessage({
           source: 'negation-game-rationale',
           type: 'resize',
@@ -75,13 +75,13 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
       // Send height whenever it might change
       const timer = setTimeout(() => {
-        console.log('Initial height calculation for embed mode');
+        logger.log('Initial height calculation for embed mode');
         sendHeight();
       }, 1000);
 
       // Send height on resize
       const resizeObserver = new ResizeObserver(() => {
-        console.log('ResizeObserver triggered');
+        logger.log('ResizeObserver triggered');
         setTimeout(sendHeight, 100); // Small delay for DOM updates
       });
       resizeObserver.observe(document.body);
@@ -114,10 +114,10 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
 
   useEffect(() => {
     if (isEmbedMode || isDesktopEmbed) {
-      console.log('Canvas state changed in embed mode:', canvasEnabled);
+      logger.log('Canvas state changed in embed mode:', canvasEnabled);
       const timer = setTimeout(() => {
         const height = document.documentElement.scrollHeight;
-        console.log('Sending height after canvas toggle:', height);
+        logger.log('Sending height after canvas toggle:', height);
         window.parent.postMessage({
           source: 'negation-game-rationale',
           type: 'resize',
@@ -633,7 +633,7 @@ function ViewpointContent({ setInitialTab }: { setInitialTab: (update: "points" 
               try {
                 await publish();
               } catch (error) {
-                console.error('Failed to publish:', error);
+                logger.error('Failed to publish:', error);
               }
             }}
             onSave={async () => {

@@ -3,7 +3,7 @@ import {
   fetchTopicAssignments, 
   assignRationaleToUser, 
   removeRationaleAssignment 
-} from "@/actions/topics/manageRationaleAssignments";
+} from "@/actions/topics/manageRationaleAssignments";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: Request,
@@ -14,7 +14,7 @@ export async function GET(
     const assignments = await fetchTopicAssignments(spaceId);
     return NextResponse.json(assignments);
   } catch (error) {
-    console.error("Error fetching assignments:", error);
+    logger.error("Error fetching assignments:", error);
     const status =
       error instanceof Error && error.message.includes("admin access required")
         ? 403
@@ -58,7 +58,7 @@ export async function POST(
 
     return NextResponse.json(assignment);
   } catch (error) {
-    console.error("Error creating assignment:", error);
+    logger.error("Error creating assignment:", error);
     const status =
       error instanceof Error && error.message.includes("admin access required")
         ? 403
@@ -100,7 +100,7 @@ export async function DELETE(
     await removeRationaleAssignment(topicIdNumber, userId);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error removing assignment:", error);
+    logger.error("Error removing assignment:", error);
     const status =
       error instanceof Error && error.message.includes("admin access required")
         ? 403

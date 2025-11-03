@@ -4,7 +4,7 @@ import {
   getMindchangeBreakdown as getMindchangeBreakdownAction,
 } from '@/actions/experimental/mindchange';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
-import { isMindchangeEnabledClient } from '@/utils/featureFlags';
+import { isMindchangeEnabledClient } from '@/utils/featureFlags';import { logger } from "@/lib/logger";
 
 interface UseMindchangeActionsProps {
   resolvedId: string | null;
@@ -39,11 +39,11 @@ export const useMindchangeActions = ({
     try {
       const typeNow = (edges.find((e: any) => e.id === edgeId)?.type as string | undefined);
       const edgeTypeNow = (typeNow === 'negation' || typeNow === 'objection') ? (typeNow as 'negation' | 'objection') : 'support';
-      try { console.log('[Mindchange:Action] setMindchange call', { docId: resolvedId, edgeId, params, edgeTypeNow, userId }); } catch {}
+      try { logger.log('[Mindchange:Action] setMindchange call', { docId: resolvedId, edgeId, params, edgeTypeNow, userId }); } catch {}
       const res = await setMindchangeAction(resolvedId, edgeId, params.forward, params.backward, edgeTypeNow, userId);
       if ((res as any)?.ok && ydoc && yMetaMap) {
         const averages = (res as any).averages as { forward: number; backward: number; forwardCount: number; backwardCount: number };
-        try { console.log('[Mindchange:Action] setMindchange ok', { edgeId, averages }); } catch {}
+        try { logger.log('[Mindchange:Action] setMindchange ok', { edgeId, averages }); } catch {}
         const key = `mindchange:${edgeId}`;
         try {
           (ydoc as any).transact(() => {
@@ -60,7 +60,7 @@ export const useMindchangeActions = ({
           (ydoc as any).transact(() => {
             (yMetaMap as any).set(ukey, snapshot);
           }, ORIGIN.RUNTIME);
-          try { console.log('[Mindchange:Sync] wrote user snapshot', { key: ukey, snapshot }); } catch {}
+          try { logger.log('[Mindchange:Sync] wrote user snapshot', { key: ukey, snapshot }); } catch {}
         } catch { }
         try {
           setEdges((prev) => prev.map((e: any) => {
@@ -88,7 +88,7 @@ export const useMindchangeActions = ({
           setSelectedEdgeId(null);
         } catch { }
       } else {
-        try { console.warn('[Mindchange:Action] setMindchange failed', { edgeId, params, res }); } catch {}
+        try { logger.warn('[Mindchange:Action] setMindchange failed', { edgeId, params, res }); } catch {}
       }
     } catch { }
   }, [resolvedId, edges, userId, ydoc, yMetaMap, setEdges, setMindchangeSelectMode, setMindchangeEdgeId, setMindchangeNextDir, setSelectedEdgeId]);

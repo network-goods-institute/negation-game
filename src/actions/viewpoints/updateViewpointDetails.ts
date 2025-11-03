@@ -5,7 +5,7 @@ import { viewpointsTable } from "@/db/tables/viewpointsTable";
 import { updateRationalePoints } from "@/actions/viewpoints/updateRationalePoints";
 import { db } from "@/services/db";
 import { eq } from "drizzle-orm";
-import { viewpointInteractionsTable } from "@/db/tables/viewpointInteractionsTable";
+import { viewpointInteractionsTable } from "@/db/tables/viewpointInteractionsTable";import { logger } from "@/lib/logger";
 
 export interface UpdateViewpointDetailsArgs {
   id: string;
@@ -72,7 +72,7 @@ export const updateViewpointDetails = async ({
       })
       .where(eq(viewpointInteractionsTable.viewpointId, id))
       .catch((interactionError) => {
-        console.error(
+        logger.error(
           "Error updating viewpoint interactions:",
           interactionError
         );

@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/services/db";
-import { credEventsTable } from "@/db/schema";
+import { credEventsTable } from "@/db/schema";import { logger } from "@/lib/logger";
 
 export type CredEventKind = "ENDORSE" | "RESTAKE" | "SLASH" | "DOUBT";
 
@@ -24,11 +24,11 @@ export async function trackCredEvent({
       amount,
     });
 
-    console.log(
+    logger.log(
       `[trackCredEvent] Tracked ${kind} event: user=${userId}, point=${pointId}, amount=${amount}`
     );
   } catch (error) {
-    console.error("[trackCredEvent] Failed to track cred event:", error);
+    logger.error("[trackCredEvent] Failed to track cred event:", error);
     // Don't throw - we don't want to break the main action if event tracking fails
   }
 }
@@ -81,9 +81,9 @@ export async function trackCredEventsBatch(
   try {
     await db.insert(credEventsTable).values(events);
 
-    console.log(`[trackCredEventsBatch] Tracked ${events.length} cred events`);
+    logger.log(`[trackCredEventsBatch] Tracked ${events.length} cred events`);
   } catch (error) {
-    console.error(
+    logger.error(
       "[trackCredEventsBatch] Failed to track cred events batch:",
       error
     );

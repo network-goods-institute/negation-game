@@ -7,7 +7,7 @@ import {
 import { FC, PropsWithChildren, useState, useEffect, useRef } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
-import { userQueryKey } from "@/queries/users/useUser";
+import { userQueryKey } from "@/queries/users/useUser";import { logger } from "@/lib/logger";
 
 interface QueryClientProviderProps extends PropsWithChildren {
   initialUserData?: any;
@@ -76,11 +76,11 @@ function ClientAuthRefresher() {
         }
       } catch (error) {
         if (!cancelled && attempt <= 4) {
-          console.warn("Retrying Privy token refresh after error", error);
+          logger.warn("Retrying Privy token refresh after error", error);
           scheduleRetry(attempt);
           return;
         }
-        console.error("Failed to refresh Privy token:", error);
+        logger.error("Failed to refresh Privy token:", error);
       } finally {
         inFlightRef.current = false;
       }

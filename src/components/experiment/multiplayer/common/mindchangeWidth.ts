@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 export type MindchangePayload = {
   forward?: { average?: number; count?: number };
   backward?: { average?: number; count?: number };
@@ -19,7 +21,7 @@ export const computeMindchangeStrokeWidth = (
     const debug = typeof process !== 'undefined' && ["true", "1", "yes", "on"].includes(String(process.env.NEXT_PUBLIC_MINDCHANGE_DEBUG || '').toLowerCase());
     if (debug) {
       // eslint-disable-next-line no-console
-      console.info('[mindchange] width', { intensity, f, b, width });
+      logger.info('[mindchange] width', { intensity, f, b, width });
     }
   } catch {}
   return width;

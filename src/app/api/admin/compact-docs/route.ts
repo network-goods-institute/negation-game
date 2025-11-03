@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { compactAllDocs } from "@/services/yjsCompaction";
 import { getUserId } from "@/actions/users/getUserId";
-import { isUserSiteAdmin } from "@/utils/adminUtils";
+import { isUserSiteAdmin } from "@/utils/adminUtils";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, summary, details: results });
   } catch (error) {
-    console.error("Compaction failed:", error);
+    logger.error("Compaction failed:", error);
     return NextResponse.json(
       { error: "Compaction failed", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, summary, details: results });
   } catch (error) {
-    console.error("Compaction failed:", error);
+    logger.error("Compaction failed:", error);
     return NextResponse.json(
       { error: "Compaction failed", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }

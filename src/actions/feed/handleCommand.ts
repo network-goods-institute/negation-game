@@ -1,7 +1,7 @@
 import { db } from "@/services/db";
 import { pointsTable, spacesTable } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { decodeId } from "@/lib/negation-game/decodeId";
+import { decodeId } from "@/lib/negation-game/decodeId";import { logger } from "@/lib/logger";
 
 export enum CommandType {
   PIN = "pin",
@@ -45,7 +45,7 @@ export async function processPinCommand(
       if (decodedId === null) {
         pointId = parseInt(targetPointId, 10);
         if (isNaN(pointId)) {
-          console.error(`Invalid point ID format: ${targetPointId}`);
+          logger.error(`Invalid point ID format: ${targetPointId}`);
           return { success: false, error: "Invalid point ID format" };
         }
       } else {
@@ -55,7 +55,7 @@ export async function processPinCommand(
       // If decoding fails, try to parse as a number directly
       pointId = parseInt(targetPointId, 10);
       if (isNaN(pointId)) {
-        console.error(`Invalid point ID format: ${targetPointId}`);
+        logger.error(`Invalid point ID format: ${targetPointId}`);
         return { success: false, error: "Invalid point ID format" };
       }
     }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { encodeId } from '@/lib/negation-game/encodeId';
+import { encodeId } from '@/lib/negation-game/encodeId';import { logger } from "@/lib/logger";
 
 interface Props { sourceUrl: string; }
 
@@ -133,7 +133,7 @@ export default function ScrollSourceEmbedClient({ sourceUrl }: Props) {
                             .replace(/\b\w/g, c => c.toUpperCase());
                     }
                 } catch (e) {
-                    console.warn('Failed to decode URL component:', e);
+                    logger.warn('Failed to decode URL component:', e);
                 }
             }
 

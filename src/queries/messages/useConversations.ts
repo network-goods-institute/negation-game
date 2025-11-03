@@ -1,6 +1,6 @@
 import { useAuthenticatedQuery } from "@/queries/auth/useAuthenticatedQuery";
 import { getConversations } from "@/actions/messages/getConversations";
-import { useUser } from "@/queries/users/useUser";
+import { useUser } from "@/queries/users/useUser";import { logger } from "@/lib/logger";
 
 export const useConversations = (spaceId: string) => {
   const { data: user } = useUser();
@@ -26,10 +26,10 @@ export const useConversations = (spaceId: string) => {
     },
     meta: {
       onError: (error: Error) => {
-        console.error("Conversations query error:", error);
+        logger.error("Conversations query error:", error);
       },
       onSuccess: (data: any) => {
-        console.log("Conversations updated, count:", data?.length || 0);
+        logger.log("Conversations updated, count:", data?.length || 0);
       },
     },
   });

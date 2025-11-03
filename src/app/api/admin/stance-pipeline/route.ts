@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/actions/users/getUserId";
 import { stanceComputationPipeline } from "@/actions/analytics/stanceComputationPipeline";
-import { isUserSiteAdmin } from "@/utils/adminUtils";
+import { isUserSiteAdmin } from "@/utils/adminUtils";import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,13 +23,13 @@ export async function POST(request: NextRequest) {
 
     const targetSnapDay = snapDay || new Date().toISOString().slice(0, 10);
 
-    console.log(
+    logger.log(
       `🔄 [stance-pipeline] Running stance computation pipeline for ${targetSnapDay}`
     );
 
     const result = await stanceComputationPipeline(targetSnapDay);
 
-    console.log(`✅ [stance-pipeline] Completed with result:`, result);
+    logger.log(`✅ [stance-pipeline] Completed with result:`, result);
 
     return NextResponse.json({
       success: result.success,
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       snapDay: targetSnapDay,
     });
   } catch (error) {
-    console.error("❌ [stance-pipeline] Error:", error);
+    logger.error("❌ [stance-pipeline] Error:", error);
     return NextResponse.json(
       {
         error: "Failed to run stance computation pipeline",
@@ -68,13 +68,13 @@ export async function GET(request: NextRequest) {
     const snapDay =
       searchParams.get("snapDay") || new Date().toISOString().slice(0, 10);
 
-    console.log(
+    logger.log(
       `🔄 [stance-pipeline] Running stance computation pipeline for ${snapDay}`
     );
 
     const result = await stanceComputationPipeline(snapDay);
 
-    console.log(`✅ [stance-pipeline] Completed with result:`, result);
+    logger.log(`✅ [stance-pipeline] Completed with result:`, result);
 
     return NextResponse.json({
       success: result.success,
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       snapDay,
     });
   } catch (error) {
-    console.error("❌ [stance-pipeline] Error:", error);
+    logger.error("❌ [stance-pipeline] Error:", error);
     return NextResponse.json(
       {
         error: "Failed to run stance computation pipeline",

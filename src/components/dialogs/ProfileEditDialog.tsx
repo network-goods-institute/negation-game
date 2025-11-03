@@ -13,7 +13,7 @@ import { updateUserProfile } from "@/actions/users/updateUserProfile";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { userQueryKey } from "@/queries/users/useUser";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";import { logger } from "@/lib/logger";
 
 interface ProfileEditDialogProps {
     open: boolean;
@@ -90,7 +90,7 @@ const ProfileEditDialogContent = ({
             }
         } catch (error) {
             toast.error("An error occurred while updating your profile");
-            console.error(error);
+            logger.error(error);
         } finally {
             setIsSubmitting(false);
         }

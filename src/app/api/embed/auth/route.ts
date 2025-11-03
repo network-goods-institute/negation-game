@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { timingSafeEqual } from "crypto";
-import { createSecureErrorResponse } from "@/lib/security/headers";
+import { createSecureErrorResponse } from "@/lib/security/headers";import { logger } from "@/lib/logger";
 
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const correctPassword = process.env.EMBED_TEST_PASSWORD;
 
     if (!correctPassword) {
-      console.error("EMBED_TEST_PASSWORD environment variable not set");
+      logger.error("EMBED_TEST_PASSWORD environment variable not set");
       return createSecureErrorResponse(
         "Server configuration error",
         500,
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
       return response;
     } else {
-      console.warn(
+      logger.warn(
         `Failed authentication attempt from IP: ${clientIP}, Origin: ${origin}`
       );
 
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       return response;
     }
   } catch (error) {
-    console.error("Auth error:", error);
+    logger.error("Auth error:", error);
     return createSecureErrorResponse("Internal server error", 500, corsOrigin);
   }
 }

@@ -7,7 +7,7 @@ import {
 } from "@/db/tables/viewpointsTable";
 import { eq, and } from "drizzle-orm";
 import { createSecureErrorResponse } from "@/lib/security/headers";
-import { encodeId } from "@/lib/negation-game/encodeId";
+import { encodeId } from "@/lib/negation-game/encodeId";import { logger } from "@/lib/logger";
 
 const isDev = process.env.NODE_ENV !== "production";
 const ALLOWED_ORIGINS = [
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Topic detector error:", error);
+    logger.error("Topic detector error:", error);
     return createSecureErrorResponse(
       "Internal server error",
       500,

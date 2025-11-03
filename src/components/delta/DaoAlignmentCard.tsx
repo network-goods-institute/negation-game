@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { LoaderIcon, GaugeIcon } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";import { logger } from "@/lib/logger";
 
 export function DaoAlignmentCard() {
     const [daoDelta, setDaoDelta] = useState<number | null | undefined>();
@@ -16,7 +16,7 @@ export function DaoAlignmentCard() {
                 const data = await res.json();
                 setDaoDelta(data.delta);
             } catch (e) {
-                console.error("Failed to fetch DAO Δ", e);
+                logger.error("Failed to fetch DAO Δ", e);
                 setDaoDelta(null);
             } finally {
                 setLoading(false);

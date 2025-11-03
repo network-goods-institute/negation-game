@@ -5,7 +5,7 @@ import { chatsTable } from "@/db/tables/chatsTable";
 import { getUserId } from "@/actions/users/getUserId";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
-import { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";import { logger } from "@/lib/logger";
 
 const ChatMetadataSchema = z.object({
   id: z.string(),
@@ -137,7 +137,7 @@ export async function fetchChatContent(
 
     const validatedContent = ChatContentSchema.safeParse(chatData);
     if (!validatedContent.success) {
-      console.error(
+      logger.error(
         "Validation Error (fetchChatContent):",
         validatedContent.error.errors
       );
@@ -146,7 +146,7 @@ export async function fetchChatContent(
 
     return validatedContent.data;
   } catch (error) {
-    console.error("DB Error (fetchChatContent):", error);
+    logger.error("DB Error (fetchChatContent):", error);
     throw new Error("Failed to fetch chat content.");
   }
 }
@@ -169,7 +169,7 @@ export async function createDbChat(
   const validation = ClientChatCreateSchema.safeParse(chatData);
   if (!validation.success) {
     const error = `Invalid chat data: ${validation.error.message}`;
-    console.error("Validation Error (createDbChat):", validation.error.errors);
+    logger.error("Validation Error (createDbChat):", validation.error.errors);
     return { success: false, id: null, error };
   }
   const {
@@ -195,7 +195,7 @@ export async function createDbChat(
     });
     return { success: true, id: createId };
   } catch (error) {
-    console.error("DB Error (createDbChat):", error);
+    logger.error("DB Error (createDbChat):", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { success: false, id: null, error: errorMessage };
@@ -218,7 +218,7 @@ export async function updateDbChat(
   const updateValidation = ClientChatUpdateSchema.safeParse(chatData);
   if (!updateValidation.success) {
     const error = `Invalid chat data: ${updateValidation.error.message}`;
-    console.error(
+    logger.error(
       "Validation Error (updateDbChat):",
       updateValidation.error.errors
     );
@@ -256,7 +256,7 @@ export async function updateDbChat(
 
     return { success: true };
   } catch (error) {
-    console.error("DB Error (updateDbChat):", error);
+    logger.error("DB Error (updateDbChat):", error);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { success: false, error: errorMessage };

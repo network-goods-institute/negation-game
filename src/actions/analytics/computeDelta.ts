@@ -8,7 +8,7 @@ import {
 } from "@/db/schema";
 import { delta as deltaFn, stance } from "@/lib/negation-game/deltaScore";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
-import { getCachedDelta, setCachedDelta } from "@/lib/deltaCache";
+import { getCachedDelta, setCachedDelta } from "@/lib/deltaCache";import { logger } from "@/lib/logger";
 
 export interface DeltaResult {
   delta: number | null;
@@ -27,7 +27,7 @@ export async function computeDelta({
   rootPointId: number;
   snapDay?: string; // YYYY-MM-DD
 }): Promise<DeltaResult> {
-  console.log("[computeDelta] params", {
+  logger.log("[computeDelta] params", {
     userAId,
     userBId,
     rootPointId,
@@ -63,7 +63,7 @@ export async function computeDelta({
     signMap[c.pointId] = (c.sign as 1 | -1) ?? 1;
   });
 
-  console.log("[computeDelta] cluster pointIds", pointIds);
+  logger.log("[computeDelta] cluster pointIds", pointIds);
 
   // Try to get stances from the proper pipeline first
   let stancesRows = await db
@@ -81,7 +81,7 @@ export async function computeDelta({
       )
     );
 
-  console.log(
+  logger.log(
     `[computeDelta] Found ${stancesRows.length} stance rows from pipeline`
   );
 
@@ -92,7 +92,7 @@ export async function computeDelta({
 
   // If still no stances, use fallback computation with current endorsements
   if (stancesRows.length === 0) {
-    console.log(
+    logger.log(
       "[computeDelta] No stance data available after pipeline – trying fallback"
     );
     const fallbackResult = await computeDeltaFallback(
@@ -123,22 +123,22 @@ export async function computeDelta({
     bVec.push(mapB[pid] ?? 0);
   }
 
-  console.log("[computeDelta] per-point stance comparison (from pipeline):");
+  logger.log("[computeDelta] per-point stance comparison (from pipeline):");
   pointIds.forEach((pid, idx) => {
-    console.log(
+    logger.log(
       `  #${idx.toString().padStart(3, "0")} point ${pid}: sign=${signMap[pid]}, A=${mapA[pid] ?? 0}, B=${mapB[pid] ?? 0}`
     );
   });
 
   const nzA = aVec.filter((v) => v !== 0).length;
   const nzB = bVec.filter((v) => v !== 0).length;
-  console.log(`[computeDelta] non-zero counts -> A: ${nzA}, B: ${nzB}`);
+  logger.log(`[computeDelta] non-zero counts -> A: ${nzA}, B: ${nzB}`);
 
   const aNonZero = aVec.some((v) => v !== 0);
   const bNonZero = bVec.some((v) => v !== 0);
 
   const result = deltaFn(aVec, bVec);
-  console.log(`[computeDelta] Final delta: ${result}`);
+  logger.log(`[computeDelta] Final delta: ${result}`);
 
   const deltaResult: DeltaResult = {
     delta: result,
@@ -330,23 +330,23 @@ async function computeDeltaFallback(
     bVec.push(stanceB);
   }
 
-  console.log("[computeDeltaFallback] per-point stance comparison (fallback):");
+  logger.log("[computeDeltaFallback] per-point stance comparison (fallback):");
   pointIds.forEach((pid, idx) => {
     const engA = engagementA[pid];
     const engB = engagementB[pid];
     const stanceA = aVec[idx];
     const stanceB = bVec[idx];
-    console.log(
+    logger.log(
       `  #${idx.toString().padStart(3, "0")} point ${pid}: sign=${signMap[pid]}, E_A=${engA.endorse}, R_A=${engA.restake}, D_A=${engA.doubt}, stance_A=${stanceA.toFixed(4)}, E_B=${engB.endorse}, R_B=${engB.restake}, D_B=${engB.doubt}, stance_B=${stanceB.toFixed(4)}`
     );
   });
 
   const nzA = aVec.filter((v) => v !== 0).length;
   const nzB = bVec.filter((v) => v !== 0).length;
-  console.log(`[computeDeltaFallback] non-zero counts -> A: ${nzA}, B: ${nzB}`);
+  logger.log(`[computeDeltaFallback] non-zero counts -> A: ${nzA}, B: ${nzB}`);
 
   const result = deltaFn(aVec, bVec);
-  console.log(`[computeDeltaFallback] Final delta: ${result}`);
+  logger.log(`[computeDeltaFallback] Final delta: ${result}`);
 
   const aNonZero = aVec.some((v) => v !== 0);
   const bNonZero = bVec.some((v) => v !== 0);

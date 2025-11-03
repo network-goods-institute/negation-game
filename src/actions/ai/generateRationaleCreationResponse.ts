@@ -19,7 +19,7 @@ import {
 import { parse } from "node-html-parser";
 import { getDiscourseContent } from "@/actions/search/getDiscourseContent";
 import { toast } from "sonner";
-import { GraphCommand } from "@/types/graphCommands";
+import { GraphCommand } from "@/types/graphCommands";import { logger } from "@/lib/logger";
 
 const ALLOWED_DOMAINS = [
   "forum.ethereum.org",
@@ -102,14 +102,14 @@ async function fetchLinkContent(url: string): Promise<string | null> {
   }
 
   if (!isValidExternalUrl(url)) {
-    console.warn("Blocked request to invalid URL:", url);
+    logger.warn("Blocked request to invalid URL:", url);
     return null;
   }
 
   try {
     // Re-validate URL before making request
     if (!isValidExternalUrl(url)) {
-      console.warn("URL validation failed before fetch:", url);
+      logger.warn("URL validation failed before fetch:", url);
       return null;
     }
 
@@ -124,7 +124,7 @@ async function fetchLinkContent(url: string): Promise<string | null> {
       signal: AbortSignal.timeout(10000), // 10 second timeout
     });
     if (!response.ok) {
-      console.warn(
+      logger.warn(
         "Failed to fetch link content from URL:",
         url,
         "Status:",
@@ -139,7 +139,7 @@ async function fetchLinkContent(url: string): Promise<string | null> {
     const contentLength = response.headers.get("content-length");
     if (contentLength && parseInt(contentLength) > 5000000) {
       // 5MB limit
-      console.warn("Response too large:", url, "Size:", contentLength);
+      logger.warn("Response too large:", url, "Size:", contentLength);
       return null;
     }
 
@@ -165,7 +165,7 @@ async function fetchLinkContent(url: string): Promise<string | null> {
         return htmlContent.substring(0, 50000);
       }
     } else {
-      console.warn(
+      logger.warn(
         "Unsupported content type for URL:",
         url,
         "Type:",
@@ -174,7 +174,7 @@ async function fetchLinkContent(url: string): Promise<string | null> {
       return null;
     }
   } catch (error) {
-    console.error(
+    logger.error(
       "Error fetching link content from URL:",
       url,
       "Error:",
@@ -496,7 +496,7 @@ ${linkContext}
       commands: commands,
     };
   } catch (error) {
-    console.error("Error in generateRationaleCreationResponse:", error);
+    logger.error("Error in generateRationaleCreationResponse:", error);
     if (
       error instanceof Error &&
       (error.message.includes("AI response blocked") ||
@@ -619,7 +619,7 @@ function extractTextAndCommands(
 
         for (const cmd of commands) {
           if (!cmd.id || !cmd.type) {
-            console.error("Invalid command structure:", cmd);
+            logger.error("Invalid command structure:", cmd);
             throw new Error("Command missing required id or type field");
           }
         }
@@ -655,7 +655,7 @@ function extractTextAndCommands(
               }
 
               if (content.length > REGULAR_POINT_MAX_LENGTH) {
-                console.error("Point exceeds max length:", content);
+                logger.error("Point exceeds max length:", content);
                 throw new Error(
                   `AI generated point exceeding max length (${REGULAR_POINT_MAX_LENGTH} characters).`
                 );
@@ -687,14 +687,14 @@ function extractTextAndCommands(
         };
       }
     } catch (e) {
-      console.error("Failed to parse JSON:", e);
+      logger.error("Failed to parse JSON:", e);
       return {
         textContent,
         suggestedGraph: fallbackGraph,
       };
     }
   } catch (error) {
-    console.error("Error in extractTextAndCommands:", error);
+    logger.error("Error in extractTextAndCommands:", error);
     return {
       textContent: fullResponse,
       suggestedGraph: fallbackGraph,

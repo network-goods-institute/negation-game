@@ -1,5 +1,6 @@
 import { handleAuthError, isAuthError } from '../handleAuthError';
 import { toast } from 'sonner';
+import { logger } from "@/lib/logger";
 
 // Mock sonner toast
 jest.mock('sonner', () => ({
@@ -9,10 +10,21 @@ jest.mock('sonner', () => ({
     },
 }));
 
+// Mock logger
+jest.mock('@/lib/logger', () => ({
+    logger: {
+        log: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        info: jest.fn(),
+        debug: jest.fn(),
+    },
+}));
+
 describe('handleAuthError', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        // Mock console.error to prevent actual console output during tests
+        // Mock logger.error to prevent actual console output during tests
         jest.spyOn(console, 'error').mockImplementation();
     });
 
@@ -20,7 +32,7 @@ describe('handleAuthError', () => {
         const mockError = new Error('Authentication required');
         handleAuthError(mockError);
 
-        expect(console.error).toHaveBeenCalledWith('Authentication error:', mockError);
+        expect(logger.error).toHaveBeenCalledWith('Authentication error:', mockError);
         expect(toast.error).toHaveBeenCalledWith(
             'Authentication Issue',
             expect.objectContaining({

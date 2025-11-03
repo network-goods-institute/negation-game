@@ -1,7 +1,7 @@
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { AppNode } from "@/components/graph/nodes/AppNode";
 import { StatementNodeData } from "@/components/graph/nodes/StatementNode";
-import { Edge } from "@xyflow/react";
+import { Edge } from "@xyflow/react";import { logger } from "@/lib/logger";
 
 /**
  * Regenerates unique IDs for all nodes and edges in a graph
@@ -125,7 +125,7 @@ export const prepareGraphForCopy = (
   graphToCopy: ViewpointGraph,
   title: string = ""
 ): ViewpointGraph => {
-  console.log("Preparing graph for copy:", {
+  logger.log("Preparing graph for copy:", {
     nodeCount: graphToCopy.nodes.length,
     edgeCount: graphToCopy.edges.length,
   });
@@ -137,7 +137,7 @@ export const prepareGraphForCopy = (
     edges: [...graphToCopy.edges], // Shallow clone edges array
   };
 
-  console.log("Working graph (shallow clone):", {
+  logger.log("Working graph (shallow clone):", {
     nodeCount: workingGraph.nodes.length,
     edgeCount: workingGraph.edges.length,
   });
@@ -148,7 +148,7 @@ export const prepareGraphForCopy = (
   );
 
   if (statementNodeIndex >= 0) {
-    console.log("Found existing statement node at index:", statementNodeIndex);
+    logger.log("Found existing statement node at index:", statementNodeIndex);
     const existingNode = workingGraph.nodes[statementNodeIndex];
 
     // Safely access statement property only if it's a statement node
@@ -168,7 +168,7 @@ export const prepareGraphForCopy = (
       } as StatementNodeData,
     } as AppNode;
   } else {
-    console.log("No statement node found, adding one");
+    logger.log("No statement node found, adding one");
     // Add a statement node if none exists
     workingGraph.nodes.push({
       id: "statement",
@@ -181,7 +181,7 @@ export const prepareGraphForCopy = (
   }
 
   // Double-check final graph before returning
-  console.log("Final prepared graph:", {
+  logger.log("Final prepared graph:", {
     nodeCount: workingGraph.nodes.length,
     edgeCount: workingGraph.edges.length,
   });
@@ -215,7 +215,7 @@ export const copyViewpointToStorage = (
 
     const space = getSpaceFromUrl();
     if (!space) {
-      console.error("Space is required to copy viewpoint");
+      logger.error("Space is required to copy viewpoint");
       return false;
     }
 
@@ -252,8 +252,8 @@ export const copyViewpointAndNavigate = async (
   topicId?: number
 ): Promise<boolean> => {
   // Before storing, log the graph for debugging
-  console.log("Copying graph with nodes:", graphToCopy.nodes.length);
-  console.log("[copyViewpointAndNavigate] Topic info received:", {
+  logger.log("Copying graph with nodes:", graphToCopy.nodes.length);
+  logger.log("[copyViewpointAndNavigate] Topic info received:", {
     topic,
     topicId,
   });
@@ -274,7 +274,7 @@ export const copyViewpointAndNavigate = async (
     );
 
     if (!success) {
-      console.error("Failed to store copy data");
+      logger.error("Failed to store copy data");
       return false;
     }
 
@@ -293,13 +293,13 @@ export const copyViewpointAndNavigate = async (
     // Navigate to the new page under the explicit space, optionally auto-publishing
     const space = getSpaceFromUrl();
     if (!space) {
-      console.error("Space is required to navigate after copying");
+      logger.error("Space is required to navigate after copying");
       return false;
     }
     const url = `/s/${space}/rationale/new${
       autoPublish ? "?autoPublish=true" : ""
     }`;
-    console.log("Navigating to new rationale page:", url);
+    logger.log("Navigating to new rationale page:", url);
 
     // Use window.location for a full page reload
     // This ensures a clean slate for the new rationale
@@ -307,7 +307,7 @@ export const copyViewpointAndNavigate = async (
 
     return true;
   } catch (error) {
-    console.error("Error in copyViewpointAndNavigate:", error);
+    logger.error("Error in copyViewpointAndNavigate:", error);
     return false;
   }
 };

@@ -2,7 +2,7 @@ import { fetchFeedPage } from "@/actions/feed/fetchFeed";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 import { useFeedWorker } from "@/hooks/data/useFeedWorker";
-import { setPrivyToken } from "@/lib/privy/setPrivyToken";
+import { setPrivyToken } from "@/lib/privy/setPrivyToken";import { logger } from "@/lib/logger";
 let hasLoggedServerActionError = false;
 
 const isServerActionError = (error: any): boolean => {
@@ -46,14 +46,14 @@ export const useFeed = (options: { enabled?: boolean } = {}) => {
           try {
             processPoints(page, privyUser.id);
           } catch (workerError) {
-            console.error("Error processing points with worker:", workerError);
+            logger.error("Error processing points with worker:", workerError);
           }
         }
 
         return page || [];
       } catch (error: any) {
         if (isAuthError(error)) {
-          console.warn(
+          logger.warn(
             "Auth error detected in feed, attempting token refresh:",
             error
           );
@@ -61,7 +61,7 @@ export const useFeed = (options: { enabled?: boolean } = {}) => {
           try {
             const refreshed = await setPrivyToken();
             if (refreshed) {
-              console.log("Token refreshed successfully, retrying feed fetch");
+              logger.log("Token refreshed successfully, retrying feed fetch");
               const retryPage = await fetchFeedPage();
 
               if (
@@ -72,7 +72,7 @@ export const useFeed = (options: { enabled?: boolean } = {}) => {
                 try {
                   processPoints(retryPage, privyUser.id);
                 } catch (workerError) {
-                  console.error(
+                  logger.error(
                     "Error processing points with worker after retry:",
                     workerError
                   );
@@ -82,13 +82,13 @@ export const useFeed = (options: { enabled?: boolean } = {}) => {
               return retryPage || [];
             }
           } catch (refreshError) {
-            console.error("Failed to refresh token:", refreshError);
+            logger.error("Failed to refresh token:", refreshError);
           }
         }
 
         if (isServerActionError(error)) {
           if (!hasLoggedServerActionError) {
-            console.error(
+            logger.error(
               "Server action error (first occurrence only):",
               error
             );
@@ -104,7 +104,7 @@ export const useFeed = (options: { enabled?: boolean } = {}) => {
             return cachedData;
           }
         } else {
-          console.error("Error fetching feed:", error);
+          logger.error("Error fetching feed:", error);
         }
 
         const cachedData = queryClient.getQueryData([

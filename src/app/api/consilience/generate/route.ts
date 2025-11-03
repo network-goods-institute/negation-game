@@ -5,7 +5,7 @@ import { db } from "@/services/db";
 import { viewpointsTable, topicsTable, usersTable } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getDiscourseContent } from "@/actions/search/getDiscourseContent";
-import { z } from "zod";
+import { z } from "zod";import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
           discourseContent = content || "";
         }
       } catch (error) {
-        console.warn("Could not fetch discourse content:", error);
+        logger.warn("Could not fetch discourse content:", error);
       }
     }
 
@@ -239,7 +239,7 @@ RULES
 
           controller.close();
         } catch (error: any) {
-          console.error("Error in stream:", error);
+          logger.error("Error in stream:", error);
           if (error?.message === "stream_limit_exceeded") {
             controller.enqueue(
               encoder.encode(
@@ -261,7 +261,7 @@ RULES
       },
     });
   } catch (error) {
-    console.error("Error generating consilience:", error);
+    logger.error("Error generating consilience:", error);
     return NextResponse.json(
       { error: "Failed to generate consilience" },
       { status: 500 }

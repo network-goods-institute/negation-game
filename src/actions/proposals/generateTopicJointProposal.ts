@@ -5,7 +5,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import {
   analyzeTopicAlignment,
   type TopicRationaleAlignment,
-} from "./analyzeTopicAlignment";
+} from "./analyzeTopicAlignment";import { logger } from "@/lib/logger";
 
 export interface TopicJointProposalRequest {
   topicId: number;
@@ -191,7 +191,7 @@ IMPORTANT: This proposal represents the collective wisdom of ${request.selectedD
       proposalResult,
     };
   } catch (error) {
-    console.error("Error generating joint proposal:", error);
+    logger.error("Error generating joint proposal:", error);
     throw new Error("Failed to generate joint proposal. Please try again.");
   }
 }

@@ -6,7 +6,7 @@ import { eq, inArray, and } from "drizzle-orm";
 import type { PointSnapshot } from "@/actions/points/fetchPointSnapshots";
 import { ViewpointGraph } from "@/atoms/viewpointAtoms";
 import { PointNodeData } from "@/components/graph/nodes/PointNode";
-import { isFeatureEnabled } from "@/lib/featureFlags";
+import { isFeatureEnabled } from "@/lib/featureFlags";import { logger } from "@/lib/logger";
 
 interface EndorsementNotificationData {
   type: "endorsement";
@@ -243,7 +243,7 @@ class NotificationQueue {
     if (!this.processing) {
       setImmediate(() => {
         this.processQueue().catch((error) => {
-          console.error("Background notification processing failed:", error);
+          logger.error("Background notification processing failed:", error);
           this.processing = false;
         });
       });
@@ -259,7 +259,7 @@ class NotificationQueue {
       try {
         await this.processNotification(notification);
       } catch (error) {
-        console.error("Failed to process notification:", error);
+        logger.error("Failed to process notification:", error);
         // Could implement retry logic here
       }
     }
@@ -445,7 +445,7 @@ class NotificationQueue {
         try {
           aiSummary = await generateNotificationSummary(notificationData);
         } catch (error) {
-          console.warn(
+          logger.warn(
             "Failed to generate AI summary for notification:",
             error
           );
@@ -471,7 +471,7 @@ class NotificationQueue {
           notificationParams.map((params) => createNotification(params))
         );
       } catch (error) {
-        console.error(
+        logger.error(
           "Error processing rationale mention notifications:",
           error
         );
@@ -480,7 +480,7 @@ class NotificationQueue {
             const params = await task;
             await createNotification(params);
           } catch (individualError) {
-            console.error(
+            logger.error(
               "Failed to create individual notification:",
               individualError
             );

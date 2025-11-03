@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   isBrowser,
   areWorkersSupported,
-} from "@/lib/error-handling/buildDiagnostics";
+} from "@/lib/error-handling/buildDiagnostics";import { logger } from "@/lib/logger";
 
 const processPointsDirectly = (
   points: any[],
@@ -57,7 +57,6 @@ export const useFeedWorker = () => {
         new URL("../../workers/feedWorker.ts", import.meta.url),
         { type: "module" }
       );
-
       workerRef.current = worker;
       setIsWorkerSupported(true);
 
@@ -82,12 +81,12 @@ export const useFeedWorker = () => {
             );
           }
         } else if (e.data?.type === "ERROR") {
-          console.error("Worker error:", e.data.message);
+          logger.error("Worker error:", e.data.message);
         }
       };
 
       worker.onerror = (error) => {
-        console.error("Worker error event:", error);
+        logger.error("Worker error event:", error);
         setIsWorkerSupported(false);
       };
 
@@ -97,7 +96,7 @@ export const useFeedWorker = () => {
       };
     } catch (error) {
       if (!hasLoggedWorkerError) {
-        console.error("Error creating worker:", error);
+        logger.error("Error creating worker:", error);
         hasLoggedWorkerError = true;
       }
       setIsWorkerSupported(false);
@@ -128,7 +127,7 @@ export const useFeedWorker = () => {
         userId,
       });
     } catch (error) {
-      console.error("Error posting message to worker:", error);
+      logger.error("Error posting message to worker:", error);
       processPointsDirectly(points, userId, queryClient);
     }
   };

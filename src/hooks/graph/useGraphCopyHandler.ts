@@ -5,7 +5,7 @@ import { useAtomValue } from "jotai";
 import {
   viewpointTopicAtom,
   viewpointTopicIdAtom,
-} from "@/atoms/viewpointAtoms";
+} from "@/atoms/viewpointAtoms";import { logger } from "@/lib/logger";
 
 /**
  * Returns a callback to copy the given graph, handling errors and fallback navigation.
@@ -34,7 +34,7 @@ export function useGraphCopyHandler(
         );
 
         if (!result) {
-          console.error("Failed to copy viewpoint, forcing navigation");
+          logger.error("Failed to copy viewpoint, forcing navigation");
           // fallback navigation to new rationale in global space
           await new Promise((resolve) => setTimeout(resolve, 300));
           window.location.href = `/s/global/rationale/new`;
@@ -42,7 +42,7 @@ export function useGraphCopyHandler(
 
         return result;
       } catch (error) {
-        console.error("Error during copy operation:", error);
+        logger.error("Error during copy operation:", error);
         alert("There was an error copying the rationale. Please try again.");
         return false;
       }

@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState } from "react";import { logger } from "@/lib/logger";
 
 export type FavorHistoryDataPoint = {
   timestamp: Date;
@@ -133,12 +133,12 @@ export const useFavorHistory = ({
               error instanceof Error &&
               (error.name === "AbortError" || error.message === "Fetch timeout")
             ) {
-              console.warn(
+              logger.warn(
                 `[FavorHistory] Fetch timed out for ${id}, using fallback data`
               );
               setStatusMessage("Limited history available");
             } else {
-              console.error(
+              logger.error(
                 `[FavorHistory] Error fetching data for ${id}:`,
                 error
               );
@@ -183,7 +183,7 @@ export const useFavorHistory = ({
         }
       } catch (outerError: unknown) {
         // Handle any other errors in the outer try block
-        console.error(
+        logger.error(
           `[FavorHistory] Unexpected error for pointId ${id}:`,
           outerError
         );

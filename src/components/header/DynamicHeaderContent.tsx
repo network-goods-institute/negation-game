@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSpace } from '@/actions/spaces/fetchSpace';
 import { useState, useEffect } from 'react';
-import { Loader } from '@/components/ui/loader';
+import { Loader } from '@/components/ui/loader';import { logger } from "@/lib/logger";
 
 export function DynamicHeaderContent() {
     const pathname = usePathname();
@@ -20,7 +20,7 @@ export function DynamicHeaderContent() {
             try {
                 spaceId = decodeURIComponent(parts[2]);
             } catch (e) {
-                console.error('Failed to decode space ID:', parts[2], e);
+                logger.error('Failed to decode space ID:', parts[2], e);
                 spaceId = parts[2];
             }
         }

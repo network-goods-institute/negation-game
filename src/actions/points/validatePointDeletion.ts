@@ -6,7 +6,7 @@ import { pointsTable } from "@/db/tables/pointsTable";
 import { isWithinDeletionTimelock } from "@/lib/negation-game/deleteTimelock";
 import { negationsTable } from "@/db/tables/negationsTable";
 import { viewpointsTable } from "@/db/tables/viewpointsTable";
-import { eq, sql, and, or } from "drizzle-orm";
+import { eq, sql, and, or } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export interface ValidationResult {
   canDelete: boolean;
@@ -141,7 +141,7 @@ export const validatePointDeletion = async (
       },
     };
   } catch (error) {
-    console.error("Error validating point deletion:", error);
+    logger.error("Error validating point deletion:", error);
     return {
       canDelete: false,
       errors: ["An error occurred while validating deletion"],

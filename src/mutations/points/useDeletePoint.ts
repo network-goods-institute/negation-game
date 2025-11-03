@@ -4,7 +4,7 @@ import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { pointQueryKey } from "@/queries/points/usePointData";
 import { usePrivy } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 export const useDeletePoint = () => {
   const queryClient = useQueryClient();
@@ -68,7 +68,7 @@ export const useDeletePoint = () => {
       });
     },
     onError: (error) => {
-      console.error("Error deleting point:", error);
+      logger.error("Error deleting point:", error);
       toast.error("Failed to delete point");
     },
   });

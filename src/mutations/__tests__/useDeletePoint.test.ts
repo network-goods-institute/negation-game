@@ -1,12 +1,12 @@
 // Mock dependencies first
-const originalConsoleError = console.error;
+const originalConsoleError = logger.error;
 
 beforeEach(() => {
-  console.error = jest.fn();
+  logger.error = jest.fn();
 });
 
 afterEach(() => {
-  console.error = originalConsoleError;
+  logger.error = originalConsoleError;
 });
 
 jest.mock("../auth/useAuthenticatedMutation", () => ({
@@ -55,7 +55,7 @@ import { deletePoint } from "@/actions/points/deletePoint";
 import { useInvalidateRelatedPoints } from "@/queries/points/usePointData";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 describe("useDeletePoint", () => {
   // Setup common mocks

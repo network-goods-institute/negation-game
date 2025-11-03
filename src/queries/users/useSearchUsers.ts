@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { searchUsers } from "@/actions/users/searchUsers";
-import { useDebounce } from "@/hooks/utils/useDebounce";
+import { useDebounce } from "@/hooks/utils/useDebounce";import { logger } from "@/lib/logger";
 
 export const useSearchUsers = (query: string) => {
   const debouncedQuery = useDebounce(query, 300);
@@ -9,12 +9,12 @@ export const useSearchUsers = (query: string) => {
     queryKey: ["searchUsers", debouncedQuery],
     queryFn: async () => {
       try {
-        console.log("Searching for users with query:", debouncedQuery);
+        logger.log("Searching for users with query:", debouncedQuery);
         const result = await searchUsers(debouncedQuery);
-        console.log("Search results:", result);
+        logger.log("Search results:", result);
         return result;
       } catch (error) {
-        console.error("Search error:", error);
+        logger.error("Search error:", error);
         throw error;
       }
     },

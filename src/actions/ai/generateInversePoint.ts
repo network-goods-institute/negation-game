@@ -3,7 +3,7 @@
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { withRetry } from "@/lib/utils/withRetry";
+import { withRetry } from "@/lib/utils/withRetry";import { logger } from "@/lib/logger";
 
 const InverseSchema = z.object({
   inverse: z
@@ -58,7 +58,7 @@ Technology makes life easier -> Technology does not make life easier
 
     return result.inverse;
   } catch (error) {
-    console.error("Failed to generate inverse:", error);
+    logger.error("Failed to generate inverse:", error);
     return `Not ${content}`;
   }
 }

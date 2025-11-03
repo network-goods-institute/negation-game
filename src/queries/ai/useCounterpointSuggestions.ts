@@ -5,7 +5,7 @@ import {
   UseQueryResult,
 } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 export const counterpointSuggestionsKey = (pointId?: number) => [
   "counterpoint-suggestions",
@@ -56,7 +56,7 @@ export const useCounterpointSuggestions = (pointId?: number) => {
         toast.error(
           "Failed to stream counterpoint suggestions. Please contact support if this persists."
         );
-        console.error("Error consuming stream:", error);
+        logger.error("Error consuming stream:", error);
       } finally {
         reader.releaseLock();
       }

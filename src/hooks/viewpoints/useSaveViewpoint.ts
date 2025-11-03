@@ -9,7 +9,7 @@ import {
   viewpointGraphAtom,
   collapsedPointIdsAtom,
 } from "@/atoms/viewpointAtoms";
-import { useUpdateViewpointDetails } from "@/mutations/viewpoints/useUpdateViewpointDetails";
+import { useUpdateViewpointDetails } from "@/mutations/viewpoints/useUpdateViewpointDetails";import { logger } from "@/lib/logger";
 
 export interface UseSaveViewpointParams {
   viewpointId: string;
@@ -45,7 +45,7 @@ export default function useSaveViewpoint({
   const onSaveChanges = useCallback(
     async (filteredGraph: ViewpointGraph) => {
       if (!filteredGraph) {
-        console.error("[useSaveViewpoint] No graph to save");
+        logger.error("[useSaveViewpoint] No graph to save");
         return false;
       }
       try {
@@ -68,8 +68,8 @@ export default function useSaveViewpoint({
             graph: currentGraph,
           };
 
-          console.log("[useSaveViewpoint] Storing copy data:", copyData);
-          console.log("[useSaveViewpoint] Topic info:", { topic, topicId });
+          logger.log("[useSaveViewpoint] Storing copy data:", copyData);
+          logger.log("[useSaveViewpoint] Topic info:", { topic, topicId });
 
           const spaceFromBasePath = basePath?.startsWith("/s/")
             ? basePath.split("/")[2]
@@ -81,7 +81,7 @@ export default function useSaveViewpoint({
 
           // Use window.location for immediate full page reload (consistent with other copy flows)
           const url = `${basePath}/rationale/new`;
-          console.log(
+          logger.log(
             "[useSaveViewpoint] Navigating to new rationale page:",
             url
           );
@@ -116,7 +116,7 @@ export default function useSaveViewpoint({
         setCollapsedPointIds(new Set());
         return true;
       } catch (err) {
-        console.error("[useSaveViewpoint] save failed", err);
+        logger.error("[useSaveViewpoint] save failed", err);
         // rollback to original graph
         setGraph(originalGraph);
         return false;

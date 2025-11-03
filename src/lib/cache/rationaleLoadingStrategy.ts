@@ -3,6 +3,8 @@
  * Eliminates waterfall loading and coordinates all data dependencies
  */
 
+import { logger } from "@/lib/logger";
+
 export const RATIONALE_CACHE_CONFIG = {
   // Core data that changes infrequently
   POINTS: {
@@ -131,7 +133,7 @@ export function trackLoadingPerformance(
 
     // Log slow loading phases in development
     if (process.env.NODE_ENV === "development" && duration > 1000) {
-      console.warn(
+      logger.warn(
         `Slow loading in rationale ${rationaleId} phase ${phase}: ${duration}ms`
       );
     }

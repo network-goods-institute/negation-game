@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { generateBreadcrumbStructuredData } from "@/lib/seo/structuredData";
 import { generateBreadcrumbs } from "@/lib/seo/utils";
-import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
+import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";import { logger } from "@/lib/logger";
 
 interface Props {
   params: Promise<{ space: string }>;
@@ -81,7 +81,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     };
   } catch (error) {
-    console.error("Error generating space metadata:", error);
+    logger.error("Error generating space metadata:", error);
     return {
       title: "Error Loading Space",
       description: "There was an error loading this space.",

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { LoaderIcon, SwordsIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";import { logger } from "@/lib/logger";
 
 export function ContestedPointsCard() {
     const [points, setPoints] = useState<Array<{ pointId: number; content: string; positive: number; negative: number; contestedScore: number; }> | null>();
@@ -17,7 +17,7 @@ export function ContestedPointsCard() {
                 const data = await res.json();
                 setPoints(data.points);
             } catch (err) {
-                console.error(err);
+                logger.error(err);
                 setPoints(null);
             } finally {
                 setLoading(false);

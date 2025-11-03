@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchAllTopics } from "@/actions/topics/fetchTopics";
 import { getUserId } from "@/actions/users/getUserId";
-import { requireSpaceAdmin } from "@/utils/adminUtils";
+import { requireSpaceAdmin } from "@/utils/adminUtils";import { logger } from "@/lib/logger";
 
 export async function GET(
   request: Request,
@@ -19,7 +19,7 @@ export async function GET(
     const topics = await fetchAllTopics(spaceId);
     return NextResponse.json(topics);
   } catch (error) {
-    console.error("Error fetching topics:", error);
+    logger.error("Error fetching topics:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }

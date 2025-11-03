@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSetAtom } from "jotai";
-import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";
+import { visitedPointsAtom } from "@/atoms/visitedPointsAtom";import { logger } from "@/lib/logger";
 
 const DB_NAME = "appStorage";
 const STORE_NAME = "visitedPoints";
@@ -169,7 +169,7 @@ export function useVisitedPoints() {
           setVisitedPoints(allVisited);
         }
       })
-      .catch(console.error);
+      .catch(logger.error);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markPointAsRead = useCallback(

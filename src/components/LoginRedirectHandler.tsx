@@ -1,7 +1,7 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";import { logger } from "@/lib/logger";
 
 /**
  * Handles redirecting to sync.negationgame.com after a successful login
@@ -36,7 +36,7 @@ export const LoginRedirectHandler = () => {
         window.location.href = 'https://sync.negationgame.com';
       } else if (isLocalhost && !currentHost.includes('sync')) {
         // For localhost development, just log instead of redirecting
-        console.log('[LoginRedirectHandler] Would redirect to sync in production');
+        logger.log('[LoginRedirectHandler] Would redirect to sync in production');
       }
     }
   }, [ready, authenticated]);

@@ -7,7 +7,7 @@ import { DialogProps } from "@radix-ui/react-dialog";
 import { FC, useState, useEffect } from "react";
 import { useCollectEarnings } from "@/mutations/epistemic/useCollectEarnings";
 import { useEarningsPreview } from "@/queries/epistemic/useEarningsPreview";
-import { PointCard } from "@/components/cards/PointCard";
+import { PointCard } from "@/components/cards/PointCard";import { logger } from "@/lib/logger";
 
 interface EarningsDialogProps extends DialogProps {
   onOpenChange: (open: boolean) => void;
@@ -35,7 +35,7 @@ export const EarningsDialog: FC<EarningsDialogProps> = ({
       setAmount(result.totalEarnings);
       setCollected(true);
     } catch (error) {
-      console.error("Failed to collect earnings:", error);
+      logger.error("Failed to collect earnings:", error);
     }
   };
 

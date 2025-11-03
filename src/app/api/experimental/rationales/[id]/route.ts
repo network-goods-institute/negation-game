@@ -7,7 +7,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { isProductionRequest } from "@/utils/hosts";
 import { slugify } from "@/utils/slugify";
-import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,7 +103,7 @@ export async function DELETE(_req: Request, ctx: any) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete rationale:", error);
+    logger.error("Failed to delete rationale:", error);
     return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
   }
 }
@@ -172,7 +172,7 @@ export async function PATCH(req: Request, ctx: any) {
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Failed to update title:", error);
+    logger.error("Failed to update title:", error);
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
 }

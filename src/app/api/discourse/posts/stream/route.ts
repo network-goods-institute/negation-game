@@ -1,6 +1,6 @@
 // yes i'm making up this for user feedback lol
 
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
                       controller.close();
                       streamClosed = true;
                     } catch (error) {
-                      console.error(
+                      logger.error(
                         "[Discourse API Stream] Error sending completion message:",
                         error
                       );
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
                   }
                 }, 800); // Delay for completion message
               } catch (error) {
-                console.error(
+                logger.error(
                   "[Discourse API Stream] Error sending fetch message:",
                   error
                 );
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
           }, 500); // Delay for fetch message
         }
       } catch (error) {
-        console.error(
+        logger.error(
           "[Discourse API Stream] Error sending initial message:",
           error
         );
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
       }
     },
     cancel() {
-      console.log("[Discourse API Stream] Stream cancelled by client.");
+      logger.log("[Discourse API Stream] Stream cancelled by client.");
       streamClosed = true;
     },
   });

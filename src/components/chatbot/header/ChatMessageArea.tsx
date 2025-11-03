@@ -13,7 +13,7 @@ import { useChatState } from "@/hooks/chat/useChatState";
 import { useChatListManagement } from "@/hooks/chat/useChatListManagement";
 import { useDiscourseIntegration } from "@/hooks/data/useDiscourseIntegration";
 import { toast } from 'sonner';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";import { logger } from "@/lib/logger";
 
 export const ChatLoadingState = () => {
     return (
@@ -138,7 +138,7 @@ export function ChatMessageArea({
             setTimeout(() => setCopySuccessMessageId(null), 1000);
             toast.success('Raw text copied to clipboard!');
         } catch (err) {
-            console.error('Raw copy failed:', err);
+            logger.error('Raw copy failed:', err);
             setCopyingMessageId(null);
             toast.error('Failed to copy raw text.');
         }

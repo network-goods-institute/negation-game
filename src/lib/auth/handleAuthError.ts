@@ -1,6 +1,6 @@
 "use client";
 
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 /**
  * Handles authentication errors by showing a toast message to the user
@@ -15,7 +15,7 @@ export const handleAuthError = (
   error: unknown,
   actionDescription?: string
 ): void => {
-  console.error("Authentication error:", error);
+  logger.error("Authentication error:", error);
 
   const action = actionDescription ? ` when ${actionDescription}` : "";
 

@@ -2,7 +2,7 @@ import { TopicEmbedClient } from './TopicEmbedClient';
 import { fetchTopicById } from '@/actions/topics/fetchTopicById';
 import { fetchTopicEmbedViewpoints } from '@/actions/viewpoints/fetchTopicEmbedViewpoints';
 import { decodeId } from '@/lib/negation-game/decodeId';
-import { notFound } from 'next/navigation';
+import { notFound } from 'next/navigation';import { logger } from "@/lib/logger";
 
 interface Props {
     params: Promise<{
@@ -50,7 +50,7 @@ export default async function TopicEmbedPage({ params, searchParams }: Props) {
             />
         );
     } catch (error) {
-        console.error('Error loading embed topic:', error);
+        logger.error('Error loading embed topic:', error);
         notFound();
     }
 }

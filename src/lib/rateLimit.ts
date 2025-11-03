@@ -1,6 +1,6 @@
 import { db } from "@/services/db";
 import { rateLimitsTable } from "@/db/schema";
-import { eq, lt } from "drizzle-orm";
+import { eq, lt } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export async function checkRateLimit(
   userId: string,
@@ -72,11 +72,11 @@ export async function checkRateLimit(
       resetTime: entry.resetTime.getTime(),
     };
   } catch (error) {
-    console.error("[rateLimit] Database error:", error);
+    logger.error("[rateLimit] Database error:", error);
 
     // Fail open - allow the request if database is unavailable
     // This prevents rate limiting from breaking the application
-    console.warn("[rateLimit] Failing open due to database error");
+    logger.warn("[rateLimit] Failing open due to database error");
 
     return {
       allowed: true,
@@ -155,7 +155,7 @@ export async function checkRateLimitStrict(
       resetTime: entry.resetTime.getTime(),
     };
   } catch (error) {
-    console.error("[rateLimitStrict] Database error:", error);
+    logger.error("[rateLimitStrict] Database error:", error);
     return {
       allowed: false,
       remaining: 0,
@@ -179,14 +179,14 @@ export async function cleanupExpiredRateLimits(): Promise<number> {
     const deletedCount = (result as any).rowCount || 0;
 
     if (deletedCount > 0) {
-      console.log(
+      logger.log(
         `[rateLimit] Cleaned up ${deletedCount} expired rate limit entries`
       );
     }
 
     return deletedCount;
   } catch (error) {
-    console.error("[rateLimit] Error during cleanup:", error);
+    logger.error("[rateLimit] Error during cleanup:", error);
     return 0;
   }
 }

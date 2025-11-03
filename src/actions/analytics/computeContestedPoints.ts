@@ -9,7 +9,7 @@ import {
   negationsTable,
 } from "@/db/schema";
 import { eq, sql, and } from "drizzle-orm";
-import { dailySnapshotJob } from "@/actions/analytics/dailySnapshotJob";
+import { dailySnapshotJob } from "@/actions/analytics/dailySnapshotJob";import { logger } from "@/lib/logger";
 
 export interface ContestedPoint {
   pointId: number;
@@ -68,21 +68,21 @@ export async function computeContestedPoints({
   let aggRows = rows;
 
   if (rows.length === 0) {
-    console.log(
+    logger.log(
       "[computeContestedPoints] No daily_stances data, triggering background snapshot generation"
     );
 
     // Trigger snapshot generation in background (fire and forget)
     // This will help future requests but doesn't delay this one
     dailySnapshotJob(snapDay).catch((error) => {
-      console.error(
+      logger.error(
         "[computeContestedPoints] Background snapshot generation failed:",
         error
       );
     });
 
     // Immediately proceed to improved endorsement-based fallback
-    console.log(
+    logger.log(
       "[computeContestedPoints] Using endorsement fallback (cluster sign if available)"
     );
 
@@ -117,11 +117,11 @@ export async function computeContestedPoints({
 
     if (clusterAgg.length > 0) {
       aggRows = clusterAgg;
-      console.log(
+      logger.log(
         `[computeContestedPoints] Cluster-based fallback found ${aggRows.length} contested points`
       );
     } else {
-      console.log(
+      logger.log(
         "[computeContestedPoints] Cluster data missing – using heuristic sign fallback"
       );
 
@@ -143,7 +143,7 @@ export async function computeContestedPoints({
         );
 
       if (endorsementRows.length === 0) {
-        console.log("[computeContestedPoints] No endorsements found");
+        logger.log("[computeContestedPoints] No endorsements found");
         return [];
       }
 
@@ -197,7 +197,7 @@ export async function computeContestedPoints({
         }
       }
 
-      console.log(
+      logger.log(
         `[computeContestedPoints] Heuristic fallback found ${aggRows.length} contested points`
       );
     }
@@ -205,7 +205,7 @@ export async function computeContestedPoints({
 
   const sourceRows = aggRows;
 
-  console.log(
+  logger.log(
     `[computeContestedPoints] Final source rows: ${sourceRows.length}`
   );
 
@@ -244,7 +244,7 @@ export async function computeContestedPoints({
     .sort((a, b) => b.contestedScore - a.contestedScore)
     .slice(0, limit);
 
-  console.log(
+  logger.log(
     `[computeContestedPoints] returning ${result.length} contested points`
   );
 

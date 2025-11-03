@@ -3,7 +3,7 @@ import {
   updateNotificationPreferences,
   UpdateNotificationPreferencesArgs,
 } from "@/actions/notifications/updateNotificationPreferences";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 export const useUpdateNotificationPreferences = () => {
   const queryClient = useQueryClient();
@@ -16,7 +16,7 @@ export const useUpdateNotificationPreferences = () => {
       toast.success("Notification preferences updated");
     },
     onError: (error) => {
-      console.error("Failed to update notification preferences:", error);
+      logger.error("Failed to update notification preferences:", error);
       toast.error("Failed to update preferences");
     },
   });

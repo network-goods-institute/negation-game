@@ -3,7 +3,7 @@ import { useReactFlow } from "@xyflow/react";
 import { useSetAtom } from "jotai";
 import { connectNodesDialogAtom } from "@/atoms/connectNodesAtom";
 import { PreviewAppNode } from "@/types/rationaleGraph";
-import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointNode";
+import { PreviewPointNodeData } from "@/components/chatbot/preview/PreviewPointNode";import { logger } from "@/lib/logger";
 
 function findOverlappingForConnect(
   allNodes: PreviewAppNode[],
@@ -77,7 +77,7 @@ export function usePreviewConnectDetection(nodeId: string) {
             sourceId: nodeId,
             targetId: connectTargetId,
             onClose: () => {
-              console.log("Connect dialog closed");
+              logger.log("Connect dialog closed");
             },
           };
         }

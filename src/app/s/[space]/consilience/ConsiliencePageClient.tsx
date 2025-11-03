@@ -16,7 +16,7 @@ import { useSpace } from "@/queries/space/useSpace";
 import { useConsilienceAuthors } from "@/queries/consilience/useConsilienceAuthors";
 import { useUniqueRationaleAuthors } from "@/hooks/consilience/useUniqueRationaleAuthors";
 import { useTopics } from "@/queries/topics/useTopics";
-import { ConsilienceResults } from "./ConsilienceResults";
+import { ConsilienceResults } from "./ConsilienceResults";import { logger } from "@/lib/logger";
 
 interface ConsilienceState {
   step: "select" | "generating" | "results";
@@ -312,7 +312,7 @@ export function ConsiliencePageClient() {
         },
       }));
     } catch (error) {
-      console.error("Error generating consilience:", error);
+      logger.error("Error generating consilience:", error);
       setState((prev) => ({
         ...prev,
         step: "select",

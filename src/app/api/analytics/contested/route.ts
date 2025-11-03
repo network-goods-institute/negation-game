@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { computeContestedPoints } from "@/actions/analytics/computeContestedPoints";
 import { getUserId } from "@/actions/users/getUserId";
-import { checkRateLimitStrict } from "@/lib/rateLimit";
+import { checkRateLimitStrict } from "@/lib/rateLimit";import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ points });
   } catch (error) {
-    console.error("[/api/analytics/contested] Error:", error);
+    logger.error("[/api/analytics/contested] Error:", error);
     return NextResponse.json(
       { error: "Failed to compute contested points" },
       { status: 500 }

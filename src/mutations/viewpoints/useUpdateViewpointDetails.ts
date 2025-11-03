@@ -1,7 +1,7 @@
 import { updateViewpointDetails } from "@/actions/viewpoints/updateViewpointDetails";
 import { useAuthenticatedMutation } from "@/mutations/auth/useAuthenticatedMutation";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "sonner";import { logger } from "@/lib/logger";
 
 export const useUpdateViewpointDetails = () => {
   const queryClient = useQueryClient();
@@ -31,7 +31,7 @@ export const useUpdateViewpointDetails = () => {
       toast.success("Rationale details updated successfully");
     },
     onError: (error) => {
-      console.error("Error updating viewpoint details:", error);
+      logger.error("Error updating viewpoint details:", error);
       toast.error("Failed to update rationale details. Please try again.");
     },
   });

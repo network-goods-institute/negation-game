@@ -13,7 +13,7 @@ import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";
 import { trackEndorseEvent } from "@/actions/analytics/trackCredEvent";
 
 import { db } from "@/services/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";import { logger } from "@/lib/logger";
 
 export const endorse = async ({
   pointId,
@@ -70,7 +70,7 @@ export const endorse = async ({
       pointSnapshot: pointSnapshot ?? null,
     }),
   ]).catch((error) => {
-    console.error("Background endorsement tasks failed:", error);
+    logger.error("Background endorsement tasks failed:", error);
   });
 
   return endorsementId;

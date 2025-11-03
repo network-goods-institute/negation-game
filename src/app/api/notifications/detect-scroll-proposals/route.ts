@@ -1,6 +1,6 @@
 import { ScrollProposalWorker } from "@/workers/scrollProposalWorker";
 import { NextRequest, NextResponse } from "next/server";
-import { getUserId } from "@/actions/users/getUserId";
+import { getUserId } from "@/actions/users/getUserId";import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const maxDuration = 799;
@@ -21,13 +21,13 @@ export async function POST(request: NextRequest) {
     if (!isCronJob) {
       const userId = await getUserId();
       if (!userId) {
-        console.warn("[scroll-proposals] Unauthorized access attempt");
+        logger.warn("[scroll-proposals] Unauthorized access attempt");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      console.log(`[scroll-proposals] Manual execution by user ${userId}`);
+      logger.log(`[scroll-proposals] Manual execution by user ${userId}`);
     } else {
-      console.log("[scroll-proposals] Cron job execution started");
+      logger.log("[scroll-proposals] Cron job execution started");
     }
 
     const result = await ScrollProposalWorker.run();
@@ -35,10 +35,10 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime;
 
     if (result.success) {
-      console.log(
+      logger.log(
         `[scroll-proposals] Job completed successfully in ${duration}ms. ${isCronJob ? "(cron)" : "(manual)"}`
       );
-      console.log(`[scroll-proposals] Results:`, {
+      logger.log(`[scroll-proposals] Results:`, {
         success: result.success,
         message: result.message,
         lastRun: result.lastRun,
@@ -53,10 +53,10 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
-      console.error(
+      logger.error(
         `[scroll-proposals] Job failed in ${duration}ms: ${result.message}`
       );
-      console.error(`[scroll-proposals] Error details:`, result.message);
+      logger.error(`[scroll-proposals] Error details:`, result.message);
 
       return NextResponse.json(
         {
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(
+    logger.error(
       `[scroll-proposals] Unexpected error after ${duration}ms:`,
       error
     );
@@ -107,17 +107,17 @@ export async function GET(request: NextRequest) {
         request.headers.get("x-vercel-cron") === "1");
 
     if (isCronJob) {
-      console.log("[scroll-proposals] Cron job execution started");
+      logger.log("[scroll-proposals] Cron job execution started");
 
       const result = await ScrollProposalWorker.run();
 
       const duration = Date.now() - startTime;
 
       if (result.success) {
-        console.log(
+        logger.log(
           `[scroll-proposals] Cron job completed successfully in ${duration}ms`
         );
-        console.log(`[scroll-proposals] Results:`, {
+        logger.log(`[scroll-proposals] Results:`, {
           success: result.success,
           message: result.message,
           lastRun: result.lastRun,
@@ -132,10 +132,10 @@ export async function GET(request: NextRequest) {
           },
         });
       } else {
-        console.error(
+        logger.error(
           `[scroll-proposals] Cron job failed in ${duration}ms: ${result.message}`
         );
-        console.error(`[scroll-proposals] Error details:`, result.message);
+        logger.error(`[scroll-proposals] Error details:`, result.message);
 
         return NextResponse.json(
           {
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
     }
 
     const status = ScrollProposalWorker.getStatus();
-    console.log(
+    logger.log(
       `[scroll-proposals] Status check by user ${userId}: ${JSON.stringify(status)}`
     );
 
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`[scroll-proposals] Error after ${duration}ms:`, error);
+    logger.error(`[scroll-proposals] Error after ${duration}ms:`, error);
     return NextResponse.json(
       {
         error: "Failed to get status or run job",

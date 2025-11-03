@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { markAssignmentCompleted } from "@/actions/topics/manageRationaleAssignments";
+import { markAssignmentCompleted } from "@/actions/topics/manageRationaleAssignments";import { logger } from "@/lib/logger";
 
 export async function POST(
   request: Request,
@@ -19,7 +19,7 @@ export async function POST(
 
     return NextResponse.json(assignment);
   } catch (error) {
-    console.error("Error completing assignment:", error);
+    logger.error("Error completing assignment:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 }
