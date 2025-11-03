@@ -1,4 +1,5 @@
 import React from "react";
+import { toast } from "sonner";
 import {
   Node,
   Edge,
@@ -197,7 +198,22 @@ export const createGraphChangeHandlers = (
       params.targetHandle
     );
 
-    setEdges((eds) => addEdge(edge, eds));
+    setEdges((eds) => {
+      const pairExists = eds.some(
+        (e) =>
+          ((e.source === edge.source && e.target === edge.target) ||
+            (e.source === edge.target && e.target === edge.source)) &&
+          (e.type === "support" ||
+            e.type === "negation" ||
+            e.type === "option" ||
+            e.type === "comment")
+      );
+      if (pairExists) {
+        try { toast.warning?.("Cannot add duplicate edge"); } catch {}
+        return eds;
+      }
+      return addEdge(edge, eds);
+    });
 
     if (yEdgesMap && ydoc) {
       ydoc.transact(() => {

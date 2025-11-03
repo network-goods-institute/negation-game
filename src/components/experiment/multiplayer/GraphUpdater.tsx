@@ -8,9 +8,10 @@ interface GraphUpdaterProps {
   documentId?: string;
   centerQueueVersion?: number;
   consumeCenterQueue?: () => string[];
+  connectMode?: boolean;
 }
 
-export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNodes, documentId, centerQueueVersion, consumeCenterQueue }) => {
+export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNodes, documentId, centerQueueVersion, consumeCenterQueue, connectMode }) => {
   const rf = useReactFlow();
   const [dimsVersion, setDimsVersion] = useState(0);
   const pendingCenterIdsRef = useRef<Set<string>>(new Set());
@@ -59,6 +60,7 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
   }, [centerQueueVersion, consumeCenterQueue]);
 
   useEffect(() => {
+    if (connectMode) return;
     try {
       const eps = 0.1;
       const edgesList = edges as any[];
@@ -218,10 +220,11 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         }).concat(out.filter((n) => !existing.has(n.id)));
       });
     } catch { }
-  }, [nodes, edges, rf, setNodes, dimsVersion]);
+  }, [nodes, edges, rf, setNodes, dimsVersion, connectMode]);
 
   // Center newly-created nodes under their parents after measurement
   useEffect(() => {
+    if (connectMode) return;
     try {
       const eps = 0.1;
       const nodesToCenter: Array<{ nodeId: string; newX: number }> = [];
@@ -289,7 +292,12 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         pendingCenterIdsRef.current.delete(id);
       }
     } catch { }
-  }, [nodes, edges, setNodes, dimsVersion]);
+  }, [nodes, edges, setNodes, dimsVersion, connectMode]);
+
+  useEffect(() => {
+    if (!connectMode) return;
+    try { pendingCenterIdsRef.current = new Set(); } catch { }
+  }, [connectMode]);
 
   return null;
 };

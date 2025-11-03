@@ -328,6 +328,19 @@ export const useConnectionHandlers = ({
           childId,
           preferred
         );
+        const pairExists = edges.some(
+          (e) =>
+            ((e.source === childId && e.target === parentId) ||
+              (e.source === parentId && e.target === childId)) &&
+            (e.type === "support" ||
+              e.type === "negation" ||
+              e.type === "option" ||
+              e.type === "comment")
+        );
+        if (pairExists) {
+          try { toast.warning?.("Cannot add duplicate edge"); } catch {}
+          return;
+        }
         const exists = edges.some((e) => e.id === id);
         if (!exists) {
           setEdges((eds) =>

@@ -156,7 +156,9 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     localOrigin: localOriginRef.current,
     currentUserId: userId,
     onRemoteNodesAdded: (ids: string[]) => {
-      for (const id of ids) markNodeCenterOnce(id);
+      if (!connectMode) {
+        for (const id of ids) markNodeCenterOnce(id);
+      }
     }
   });
 
@@ -454,7 +456,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       setSelectedEdgeId(null);
       setHoveredEdgeId(null);
     },
-    onNodeAddedCenterOnce: markNodeCenterOnce,
+    onNodeAddedCenterOnce: (id: string) => { if (!connectMode) markNodeCenterOnce(id); },
     connectMode,
   });
 
@@ -750,7 +752,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                 mindchangeEdgeType={(mindchangeEdgeId || connectAnchorId) ? edges.find((e: any) => e.id === (mindchangeEdgeId || connectAnchorId))?.type : undefined}
               />
             </div>
-            <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} documentId={resolvedId || ''} centerQueueVersion={centerQueueVersion} consumeCenterQueue={consumeCenterQueue} />
+            <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} documentId={resolvedId || ''} centerQueueVersion={centerQueueVersion} consumeCenterQueue={consumeCenterQueue} connectMode={connectMode} />
           </GraphProvider>
         </PerfProvider>
 

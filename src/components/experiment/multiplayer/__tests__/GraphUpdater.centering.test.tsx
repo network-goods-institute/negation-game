@@ -104,4 +104,57 @@ describe("GraphUpdater centering behavior", () => {
     const updatedNew = latestNodes.find((n) => n.id === "child-new");
     expect(Math.abs(updatedNew.position.x - centeredX)).toBeLessThan(0.11);
   });
+
+  test("suppresses centering while in connect mode", async () => {
+    const parent: any = {
+      id: "p",
+      type: "point",
+      position: { x: 100, y: 100 },
+      data: {},
+      measured: { width: 200, height: 100 },
+    };
+    const child: any = {
+      id: "c",
+      type: "point",
+      position: { x: 0, y: 300 },
+      data: {},
+      measured: { width: 120, height: 80 },
+    };
+    const edge: any = { id: "e", type: "support", source: "c", target: "p" };
+
+    let latestNodes: any[] = [parent, child];
+    const setNodes = (updater: (nodes: any[]) => any[]) => {
+      latestNodes = updater(latestNodes);
+    };
+    const setNodesSpy = jest.fn(setNodes);
+
+    let centerQueue: string[] = ["c"];
+    let version = 1;
+    const consume = () => {
+      const out = centerQueue;
+      centerQueue = [];
+      return out;
+    };
+
+    render(
+      <ReactFlowProvider>
+        <GraphUpdater
+          nodes={latestNodes as any}
+          edges={[edge] as any}
+          setNodes={setNodesSpy as any}
+          documentId="doc-x"
+          centerQueueVersion={version}
+          consumeCenterQueue={consume}
+          connectMode={true}
+        />
+      </ReactFlowProvider>
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setNodesSpy).toHaveBeenCalledTimes(0);
+    expect(latestNodes.find((n) => n.id === "c")?.position?.x).toBe(0);
+  });
 });
