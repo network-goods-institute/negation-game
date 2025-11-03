@@ -9,7 +9,12 @@ jest.mock("@xyflow/react", () => {
   const Handle: React.FC<any> = (props) => (
     <div data-testid="handle" data-position={props.position} data-left={props.style?.left} data-top={props.style?.top} />
   );
-  return { __esModule: true, Position, ReactFlowProvider, Handle };
+  const useReactFlow = () => ({
+    setNodes: jest.fn(),
+    getNodes: jest.fn(() => []),
+    getEdges: jest.fn(() => []),
+  });
+  return { __esModule: true, Position, ReactFlowProvider, Handle, useReactFlow };
 });
 
 const Harness: React.FC<{ children: React.ReactNode }> = ({ children }) => (
