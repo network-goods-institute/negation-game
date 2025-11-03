@@ -17,6 +17,11 @@ describe("syncPaths helpers", () => {
       expect(isSyncHost("")).toBe(false);
       expect(isSyncHost(undefined as any)).toBe(false);
     });
+
+    it("returns false for IPv6 loopback hosts", () => {
+      expect(isSyncHost("::1")).toBe(false);
+      expect(isSyncHost("[::1]:3000")).toBe(false);
+    });
   });
 
   describe("buildRationaleDetailPath", () => {
