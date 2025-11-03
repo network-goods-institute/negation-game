@@ -30,6 +30,7 @@ import { isSyncHost } from "@/utils/hosts/syncPaths";
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
 const LAST_SHOWN_KEY = 'onboardingLastShown';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const AUTO_OPEN_ENABLED = false;
 
 interface OnboardingContextType {
     isOpen: boolean;
@@ -148,7 +149,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
         const dismissed = localStorage.getItem(LOCAL_STORAGE_KEY) === 'true';
         setIsPermanentlyDismissed(dismissed);
 
-        if (!dismissed && !suppressOnboarding && pathname !== '/') {
+        if (AUTO_OPEN_ENABLED && !dismissed && !suppressOnboarding && pathname !== '/') {
             const lastShown = localStorage.getItem(LAST_SHOWN_KEY);
             const now = Date.now();
             if (!lastShown || now - parseInt(lastShown, 10) > ONE_DAY_MS) {
