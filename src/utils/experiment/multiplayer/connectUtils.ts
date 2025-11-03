@@ -5,14 +5,14 @@ export const chooseEdgeType = (
   targetType?: string,
   preferredEdgeType?: "support" | "negation"
 ) => {
+  // Comment edges take priority over all other rules
+  if (sourceType === "comment" || targetType === "comment") {
+    return "comment";
+  }
+
   // All edges involving a statement (question) use option
   if (sourceType === "statement" || targetType === "statement") {
     return "option";
-  }
-
-  // All edges involving a comment node use comment edge type
-  if (sourceType === "comment" || targetType === "comment") {
-    return "comment";
   }
 
   // For point-to-point connections, use the preferred type (support or negation)

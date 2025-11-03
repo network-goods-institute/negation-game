@@ -14,6 +14,11 @@ describe("connect utils", () => {
     expect(chooseEdgeType("statement", "edge_anchor")).toBe("option");
   });
 
+  it("gives comment priority over statement (comment edges win)", () => {
+    expect(chooseEdgeType("comment", "statement")).toBe("comment");
+    expect(chooseEdgeType("statement", "comment")).toBe("comment");
+  });
+
   it("defaults to negation otherwise", () => {
     expect(chooseEdgeType("point", "point")).toBe("negation");
   });
