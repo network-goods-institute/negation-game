@@ -29,7 +29,11 @@ export const isProductionRequest = (
   if (!hostname) return isProductionEnvironment();
   const h = hostname.toLowerCase().trim();
   // Short-circuit specific Vercel deployment to non-prod
-  if (h === "negation-game-git-mindchange-network-goods-institute.vercel.app")
+  if (
+    h === "negation-game-git-mindchange-network-goods-institute.vercel.app" ||
+    h ===
+      "negation-game-git-carroll-mechan-def371-network-goods-institute.vercel.app"
+  )
     return false;
   // Treat as production if either the environment is production or the hostname is a production domain
   return isProductionEnvironment() || isProductionHostname(hostname);
