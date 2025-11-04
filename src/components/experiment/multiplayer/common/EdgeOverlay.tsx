@@ -1,7 +1,7 @@
 import React from 'react';
 import { EdgeLabelRenderer, useStore } from '@xyflow/react';
 import { createPortal } from 'react-dom';
-import { ContextMenu } from "../common/ContextMenu";
+import { MarketContextMenu } from './MarketContextMenu';
 import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
@@ -25,6 +25,10 @@ export interface EdgeOverlayProps {
   srcY?: number;
   tgtX?: number;
   tgtY?: number;
+  marketPrice?: number;
+  marketMine?: number;
+  marketTotal?: number;
+  marketInfluence?: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onAddObjection: () => void;
@@ -51,6 +55,10 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   selected = false,
   edgeId,
   edgeType,
+  marketPrice,
+  marketMine,
+  marketTotal,
+  marketInfluence,
   onMouseEnter,
   onMouseLeave,
   onAddObjection,
@@ -525,24 +533,50 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   {(edgeType === 'negation' || edgeType === 'objection') && (
                     isMindchangeEnabledClient() ? (
                       <MindchangeIndicators
-                      edgeId={edgeId}
-                      edgeType={edgeType}
-                      mindchange={mindchange}
+                        edgeId={edgeId}
+                        edgeType={edgeType}
+                        mindchange={mindchange}
                       />
                     ) : null
+                  )}
+
+                  {Number.isFinite(marketPrice as number) && (
+                    <div
+                      className="mt-1 flex items-center gap-2 px-2 py-1 rounded-md border border-stone-200 bg-white/95 text-stone-800 shadow-sm"
+                      style={{ pointerEvents: 'none' }}
+                      title={(() => {
+                        const parts: string[] = [];
+                        if (Number.isFinite(marketPrice as number)) parts.push(`Price: ${(marketPrice as number).toFixed(4)}`);
+                        if (Number.isFinite(marketMine as number) && (marketMine as number) > 0) parts.push(`Your: ${(marketMine as number).toFixed(2)}`);
+                        if (Number.isFinite(marketTotal as number) && (marketTotal as number) > 0) parts.push(`Total: ${(marketTotal as number).toFixed(2)}`);
+                        if (Number.isFinite(marketInfluence as number)) parts.push(`Influence: ${((marketInfluence as number) >= 0 ? '+' : '')}${(marketInfluence as number).toFixed(2)}`);
+                        return parts.join('   ');
+                      })()}
+                    >
+                      <span className="text-[11px] font-semibold">{`Price: ${(marketPrice as number).toFixed(4)}`}</span>
+                      {Number.isFinite(marketMine as number) && (marketMine as number) > 0 && (
+                        <span className="text-[10px] text-stone-600">{`You: ${(marketMine as number).toFixed(2)}`}</span>
+                      )}
+                      {Number.isFinite(marketTotal as number) && (marketTotal as number) > 0 && (
+                        <span className="text-[10px] text-stone-600">{`Total: ${(marketTotal as number).toFixed(2)}`}</span>
+                      )}
+                      {Number.isFinite(marketInfluence as number) && (
+                        <span className="text-[10px] text-stone-600">{`${(marketInfluence as number) >= 0 ? '+' : ''}${(marketInfluence as number).toFixed(2)}`}</span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
           </div>
-          <ContextMenu
+          <MarketContextMenu
             open={menuOpen}
             x={menuPos.x}
             y={menuPos.y}
             onClose={() => setMenuOpen(false)}
-            items={[
-              { label: 'Delete edge', danger: true, onClick: () => { try { (graph as any)?.deleteNode?.(edgeId); } catch { } } },
-            ]}
+            kind="edge"
+            entityId={edgeId}
+            onDelete={() => { try { (graph as any)?.deleteNode?.(edgeId); } catch { } }}
           />
         </div>,
         portalTarget

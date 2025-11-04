@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "dev-turbo": "next dev --turbo -p 3001",
-    "build": "next build",
+    "build": "git submodule sync --recursive && git submodule update --init --recursive --depth 1 && next build",
     "start": "next start",
     "lint": "next lint",
     "rebuild": "node-gyp rebuild",

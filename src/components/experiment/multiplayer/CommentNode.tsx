@@ -102,7 +102,7 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   const handleContextMenu = useContextMenuHandler({
     isEditing,
     onOpenMenu: (pos) => {
-      setMenuPos(pos);
+      setMenuPos({ x: pos.x, y: pos.y });
       setMenuOpen(true);
     },
   });

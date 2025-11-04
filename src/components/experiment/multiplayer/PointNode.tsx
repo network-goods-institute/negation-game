@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Position, useReactFlow } from '@xyflow/react';
+import { Position, useReactFlow, useViewport } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { ContextMenu } from './common/ContextMenu';
+import { MarketContextMenu } from './common/MarketContextMenu';
 import { toast } from 'sonner';
 import { X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
@@ -15,6 +15,10 @@ import { useForceHidePills } from './common/useForceHidePills';
 import { FavorSelector } from './common/FavorSelector';
 import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { LockIndicator } from './common/LockIndicator';
+import { useMarketData } from '@/hooks/market/useMarketData';
+import { getNodeDimensionsAndCenter } from '@/utils/experiment/multiplayer/nodeUtils';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
+import { MarketPriceZoomOverlay, MarketPriceHoverTooltip } from './market/MarketPriceOverlays';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -34,6 +38,7 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
+  const rf = useReactFlow();
   const {
     updateNodeContent,
     updateNodeHidden,
@@ -105,7 +110,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   });
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number; nodeRect?: DOMRect; nodeEl?: HTMLElement | null }>({ x: 0, y: 0 });
 
   const handleContextMenu = useContextMenuHandler({
     isEditing,
@@ -163,7 +168,11 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     return () => { try { ro.disconnect(); } catch { } };
   }, [parentId, id, setPairNodeHeight, wrapperRef]);
 
-  const rf = useReactFlow();
+  const { zoom } = useViewport();
+  const marketEnabled = isMarketEnabled();
+  const { globalMarketOverlays } = useGraphActions() as any;
+  const { price: priceValue, mine: mineValue, total: totalValue, hasPrice } = useMarketData(data);
+  const showPrice = Boolean(marketEnabled && hasPrice && zoom <= 0.9 && !globalMarketOverlays);
   const graphCtx = useGraphActions() as any;
   const mindchangeSelectable = useMemo(() => {
     try {
@@ -358,6 +367,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         {isConnectingFromNodeId === id && (
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
         )}
+        {showPrice && <MarketPriceZoomOverlay price={priceValue} mine={mineValue} />}
+        {marketEnabled && hasPrice && hovered && !globalMarketOverlays && (
+          <MarketPriceHoverTooltip price={priceValue} mine={mineValue} total={totalValue} />
+        )}
         <div
           ref={contentRef}
           contentEditable={isEditing && !locked && !hidden && !isConnectMode}
@@ -373,7 +386,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={onKeyDown}
-          className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
+          className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden || showPrice ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
           title={typeof value === 'string' ? value : undefined}
         >
           {value || 'New point'}
@@ -408,14 +421,16 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           </div>
         )}
       </NodeShell>
-      <ContextMenu
+      <MarketContextMenu
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
+        nodeRect={menuPos.nodeRect}
+        nodeEl={menuPos.nodeEl || undefined}
         onClose={() => setMenuOpen(false)}
-        items={[
-          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-        ]}
+        kind="node"
+        entityId={id}
+        onDelete={() => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } }}
       />
     </>
   );

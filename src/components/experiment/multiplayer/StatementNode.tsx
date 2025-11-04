@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { Position } from '@xyflow/react';
+import { Position, useViewport, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { ContextMenu } from './common/ContextMenu';
+import { MarketContextMenu } from './common/MarketContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
 import { usePerformanceMode } from './PerformanceContext';
@@ -10,6 +10,9 @@ import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { LockIndicator } from './common/LockIndicator';
+import { useMarketData } from '@/hooks/market/useMarketData';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
+import { MarketPriceZoomOverlay, MarketPriceHoverTooltip } from './market/MarketPriceOverlays';
 
 interface StatementNodeProps {
   id: string;
@@ -33,6 +36,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const { perfMode } = usePerformanceMode();
 
   const content = data?.statement || '';
+  const { zoom } = useViewport();
+  const marketEnabled = isMarketEnabled();
+  const { globalMarketOverlays } = useGraphActions() as any;
+  const { price: priceValue, mine: mineValue, total: totalValue, hasPrice } = useMarketData(data);
+  const showPrice = Boolean(marketEnabled && hasPrice && zoom <= 0.9 && !globalMarketOverlays);
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
@@ -84,7 +92,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number; nodeRect?: DOMRect; nodeEl?: HTMLElement | null }>({ x: 0, y: 0 });
 
   const handleContextMenu = useContextMenuHandler({
     isEditing,
@@ -165,6 +173,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
         {isConnectingFromNodeId === id && (
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
         )}
+
+        {showPrice && <MarketPriceZoomOverlay price={priceValue} mine={mineValue} />}
+        {marketEnabled && hasPrice && hovered && !globalMarketOverlays && (
+          <MarketPriceHoverTooltip price={priceValue} mine={mineValue} total={totalValue} />
+        )}
         <div
           ref={contentRef}
           contentEditable={isEditing && !locked && !hidden}
@@ -179,7 +192,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={onKeyDown}
-          className={`text-sm whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+          className={`text-sm whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden || showPrice ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
         >
           {value || 'New Question'}
         </div>
@@ -200,14 +213,16 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           />
         )}
       </NodeShell>
-      <ContextMenu
+      <MarketContextMenu
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
+        nodeRect={menuPos.nodeRect}
+        nodeEl={menuPos.nodeEl || undefined}
         onClose={() => setMenuOpen(false)}
-        items={[
-          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-        ]}
+        kind="node"
+        entityId={id}
+        onDelete={() => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } }}
       />
     </>
   );

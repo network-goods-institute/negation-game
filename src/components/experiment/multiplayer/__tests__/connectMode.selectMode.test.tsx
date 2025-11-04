@@ -39,6 +39,14 @@ jest.mock('@/hooks/experiment/multiplayer/useInitialGraph', () => ({
   useInitialGraph: () => ({ nodes: [], edges: [] }),
 }));
 
+jest.mock('@/hooks/market/useMarket', () => ({
+  useMarket: () => ({
+    view: { data: { prices: null, totals: null, userHoldings: null }, refetch: jest.fn() },
+    buyShares: { mutate: jest.fn() },
+    buyAmount: { mutate: jest.fn() },
+  }),
+}));
+
 jest.mock('@/hooks/experiment/multiplayer/useYjsMultiplayer', () => ({
   useYjsMultiplayer: () => ({
     nodes: [],

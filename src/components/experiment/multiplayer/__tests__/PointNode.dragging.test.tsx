@@ -7,6 +7,7 @@ jest.mock('@xyflow/react', () => {
     ...actual,
     useStore: jest.fn(),
     useReactFlow: jest.fn(() => ({ getEdges: jest.fn(), getNodes: jest.fn() })),
+    useViewport: jest.fn(() => ({ x: 0, y: 0, zoom: 1 })),
     Position: { Top: 'top', Bottom: 'bottom' },
   };
 });

@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 
 type GraphActions = {
+    globalMarketOverlays?: boolean;
     currentUserId?: string;
     updateNodeContent: (nodeId: string, content: string) => void;
     updateNodePosition?: (nodeId: string, x: number, y: number) => void;
@@ -84,6 +85,7 @@ export const useGraphActions = () => {
     const ctx = useContext(GraphContext);
     if (!ctx) {
         return {
+            globalMarketOverlays: false,
             currentUserId: undefined,
             updateNodeContent: () => { },
             updateNodePosition: () => { },

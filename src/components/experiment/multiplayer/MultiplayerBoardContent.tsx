@@ -36,6 +36,10 @@ import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 import { useMindchangeActions } from '@/hooks/experiment/multiplayer/useMindchangeActions';
 import { isMindchangeEnabledClient } from '@/utils/featureFlags';
+import { useMarket } from '@/hooks/market/useMarket';
+import { syncMarketDataToYDoc } from '@/utils/market/marketYDocSync';
+import { buildMarketViewPayload, isMarketEnabled } from '@/utils/market/marketUtils';
+import { logger } from '@/lib/logger';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -161,6 +165,125 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       }
     }
   });
+
+  const marketEnabled = isMarketEnabled();
+  const market = useMarket(resolvedId || '');
+  useEffect(() => {
+    if (!marketEnabled) return;
+    if (!ydoc || !yMetaMap) return;
+    try {
+      const marketData = {
+        prices: market.view.data?.prices || {},
+        holdings: {},
+        totals: market.view.data?.totals || {},
+        updatedAt: market.view.data?.updatedAt || new Date().toISOString(),
+      };
+      syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME);
+      try {
+        const pCount = Object.keys(marketData.prices).length;
+        const hCount = Object.keys(marketData.holdings).length;
+        const tCount = Object.keys(marketData.totals).length;
+        logger.info('[market/ui] wrote snapshot to yMetaMap', { docId: resolvedId, prices: pCount, holdings: hCount, totals: tCount, updatedAt: marketData.updatedAt });
+      } catch { }
+    } catch { }
+  }, [marketEnabled, market.view.data?.prices, market.view.data?.userHoldings, market.view.data?.totals, ydoc, yMetaMap, resolvedId]);
+
+  useEffect(() => {
+    if (!marketEnabled) return;
+    if (!ydoc || !yMetaMap) return;
+    const prices = market.view.data?.prices || null;
+    const hasServerPrices = prices && Object.keys(prices).length > 0;
+    if (hasServerPrices) return;
+    try {
+      const existing = (yMetaMap as any).get?.('market:prices') || null;
+      if (existing && Object.keys(existing).length > 0) return;
+    } catch { }
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
+    if (nodes.length === 0 && edges.length === 0) return;
+    (async () => {
+      try {
+        const payload = buildMarketViewPayload(nodes, edges);
+        const res = await fetch(`/api/market/${encodeURIComponent(resolvedId || '')}/view`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const view = await res.json();
+          const marketData = {
+            prices: view?.prices || {},
+            holdings: {},
+            totals: view?.totals || {},
+            updatedAt: view?.updatedAt || new Date().toISOString(),
+          };
+          syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME);
+          try { console.info('[market/ui] fallback POST view applied', { prices: Object.keys(marketData.prices).length }); } catch { }
+        }
+      } catch { }
+    })();
+  }, [marketEnabled, market.view.data?.prices, nodes, edges, ydoc, yMetaMap, resolvedId]);
+
+  useEffect(() => {
+    if (!marketEnabled) return;
+    if (!resolvedId || !ydoc || !yMetaMap) return;
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
+    const payload = buildMarketViewPayload(nodes, edges);
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/market/${encodeURIComponent(resolvedId || '')}/view`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: ctrl.signal,
+        });
+        if (!res.ok) return;
+        const view = await res.json();
+        const marketData = {
+          prices: view?.prices || {},
+          holdings: {},
+          totals: view?.totals || {},
+          updatedAt: view?.updatedAt || new Date().toISOString(),
+        };
+        syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME, 'live');
+        try { console.info('[market/ui] live POST view applied', { prices: Object.keys(marketData.prices).length }); } catch { }
+      } catch { }
+    }, 400);
+    return () => {
+      try { ctrl.abort(); } catch { }
+      window.clearTimeout(timer);
+    };
+  }, [marketEnabled, resolvedId, nodes, edges, ydoc, yMetaMap]);
+
+  useEffect(() => {
+    if (!marketEnabled) return;
+    const handler = () => { try { market.view.refetch?.(); } catch { } };
+    const optimistic = (e: any) => {
+      if (!ydoc || !yMetaMap) return;
+      try {
+        const detail = (e as CustomEvent)?.detail || {};
+        const evDoc = String(detail.docId || '');
+        const localSlug = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
+        const localResolved = String(resolvedId || '');
+        const currentId = localResolved || localSlug;
+        if (evDoc && currentId && evDoc !== currentId) return;
+        const sec = String(detail.securityId || '');
+        const delta = BigInt(String(detail.deltaScaled || '0'));
+        if (!sec || delta === 0n) return;
+        const existingHoldings = (yMetaMap as any).get?.('market:holdings') || {};
+        const existingTotals = (yMetaMap as any).get?.('market:totals') || {};
+        const currH = BigInt(String(existingHoldings[sec] || '0'));
+        const currT = BigInt(String(existingTotals[sec] || '0'));
+        const holdings = { ...existingHoldings, [sec]: (currH + delta).toString() };
+        const totals = { ...existingTotals, [sec]: (currT + delta).toString() };
+        syncMarketDataToYDoc(ydoc, yMetaMap, { holdings, totals, updatedAt: new Date().toISOString() }, resolvedId || '', ORIGIN.RUNTIME, 'optimistic');
+      } catch { }
+    };
+    try { window.addEventListener('market:refresh', handler); } catch { }
+    try { window.addEventListener('market:optimisticTrade', optimistic as any); } catch { }
+    try { console.info('[market/ui] listening for market:refresh'); } catch { }
+    return () => { try { window.removeEventListener('market:refresh', handler); } catch { } try { window.removeEventListener('market:optimisticTrade', optimistic as any); } catch { } };
+  }, [marketEnabled, market.view, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
     if (!isMindchangeEnabledClient()) return;
@@ -572,6 +695,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       <ReactFlowProvider>
         <PerfProvider value={{ perfMode: (((nodes?.length || 0) + (edges?.length || 0)) > 600) || perfBoost || grabMode, setPerfMode: setPerfBoost }}>
           <GraphProvider value={{
+            globalMarketOverlays: true,
             currentUserId: userId,
             updateNodeContent,
             updateNodeHidden,

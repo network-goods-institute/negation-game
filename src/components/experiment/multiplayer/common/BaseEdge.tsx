@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { EdgeProps, getBezierPath, getStraightPath, Position, useStore, Edge } from '@xyflow/react';
-import { ContextMenu } from './ContextMenu';
+import { MarketContextMenu } from './MarketContextMenu';
 import { EdgeOverlay } from './EdgeOverlay';
 import { EdgeMidpointControl } from './EdgeMidpointControl';
 import { EdgeInteractionOverlay } from './EdgeInteractionOverlay';
@@ -18,6 +18,7 @@ import { MainEdgeRenderer } from './MainEdgeRenderer';
 import { MindchangeBadges } from './MindchangeBadges';
 import { computeMindchangeStrokeWidth } from './computeMindchangeStrokeWidth';
 import { isMindchangeEnabledClient } from '@/utils/featureFlags';
+import { getMarkerIdForEdgeType } from './EdgeArrowMarkers';
 
 export interface BaseEdgeProps extends EdgeProps {
   edgeType: EdgeType;
@@ -147,6 +148,28 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const mindchangeRenderConfig = useMindchangeRenderConfig(mindchange, props.edgeType);
 
+  const infl = Number(((props as any).data?.market?.influence) ?? NaN);
+  const srcMine = Number((sourceNode as any)?.data?.market?.mine ?? 0);
+  const tgtMine = Number((targetNode as any)?.data?.market?.mine ?? 0);
+  const edgeTypeLocal = props.edgeType;
+  const marketMarkers = useMemo(() => {
+    try {
+      const infl = Number(((props as any).data?.market?.influence) ?? NaN);
+      if (Number.isNaN(infl)) return { start: undefined as string | undefined, end: undefined as string | undefined };
+      const srcMine = Number((sourceNode as any)?.data?.market?.mine ?? 0);
+      const tgtMine = Number((targetNode as any)?.data?.market?.mine ?? 0);
+      if (!(srcMine > 0 || tgtMine > 0)) return { start: undefined, end: undefined };
+      const tau = 0.2;
+      const markerId = getMarkerIdForEdgeType(edgeTypeLocal) || undefined;
+      if (!markerId) return { start: undefined, end: undefined };
+      if (infl > tau) return { start: undefined, end: `url(#${markerId})` };
+      if (infl < -tau) return { start: `url(#${markerId})`, end: undefined };
+      return { start: undefined, end: undefined };
+    } catch {
+      return { start: undefined as string | undefined, end: undefined as string | undefined };
+    }
+  }, [infl, srcMine, tgtMine, edgeTypeLocal]);
+
   const [bidirectionalLabelX, bidirectionalLabelY] = useMemo(() => {
     if (mindchangeRenderConfig.mode !== 'bidirectional' || !visual.useBezier) {
       return [null, null];
@@ -203,9 +226,16 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     const width = enableMindchange
       ? computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: props.edgeType })
       : visual.strokeWidth(relevance);
+    let marketWidth = width;
+    try {
+      const mp = Number(((props as any).data?.market?.price) ?? NaN);
+      if (!Number.isNaN(mp) && mp > 0) {
+        marketWidth = Math.max(width, 1 + Math.log(1 + 6 * Math.max(0, Math.min(1, mp))));
+      }
+    } catch { }
     const baseStyle = {
       stroke: visual.stroke,
-      strokeWidth: width,
+      strokeWidth: marketWidth,
     } as const;
 
     if (visual.strokeDasharray) {
@@ -289,10 +319,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     setSelectedEdge?.(null);
   };
 
-  const contextMenuItems = [
-    { label: 'Delete edge', danger: true, onClick: () => deleteNode?.(props.id as string) },
-  ];
-
   const sHidden = !!(sourceNode as any)?.data?.hidden;
   const tHidden = !!(targetNode as any)?.data?.hidden;
   const showAffordance = !(sHidden || tHidden);
@@ -371,8 +397,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           <MainEdgeRenderer
             mindchangeRenderMode={mindchangeRenderConfig.mode}
             mindchangeMarkerId={mindchangeRenderConfig.markerId}
-            mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
-            mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
+            mindchangeMarkerStart={mindchangeRenderConfig.markerStart || marketMarkers.start}
+            mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd || marketMarkers.end}
             hasForward={(props as any).data?.mindchange?.forward?.count > 0}
             hasBackward={(props as any).data?.mindchange?.backward?.count > 0}
             useBezier={visual.useBezier ?? false}
@@ -451,6 +477,10 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           selected={selected}
           edgeId={props.id as string}
           edgeType={props.edgeType}
+          marketPrice={Number(((props as any).data?.market?.price) ?? NaN)}
+          marketMine={Number(((props as any).data?.market?.mine) ?? NaN)}
+          marketTotal={Number(((props as any).data?.market?.total) ?? NaN)}
+          marketInfluence={Number(((props as any).data?.market?.influence) ?? NaN)}
           srcX={sourceX ?? 0}
           srcY={sourceY ?? 0}
           tgtX={targetX ?? 0}
@@ -472,12 +502,14 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
         />
       )}
 
-      <ContextMenu
+      <MarketContextMenu
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
         onClose={() => setMenuOpen(false)}
-        items={contextMenuItems}
+        kind="edge"
+        entityId={(props.id as string)}
+        onDelete={() => deleteNode?.(props.id as string)}
       />
     </>
   );

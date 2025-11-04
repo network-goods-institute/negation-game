@@ -43,3 +43,4 @@ supabase/
 *.dump
 .claude/
 *.diff
+carroll_mechanisms/

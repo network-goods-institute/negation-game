@@ -30,6 +30,14 @@ jest.mock('@/hooks/experiment/multiplayer/useInitialGraph', () => ({
   useInitialGraph: () => ({ nodes: [], edges: [] }),
 }));
 
+jest.mock('@/hooks/market/useMarket', () => ({
+  useMarket: () => ({
+    view: { data: { prices: null, totals: null, userHoldings: null }, refetch: jest.fn() },
+    buyShares: { mutate: jest.fn() },
+    buyAmount: { mutate: jest.fn() },
+  }),
+}));
+
 const yMeta = (() => {
   const store = new Map<string, any>([[`mindchange:e1`, { forward: 10, backward: 5, forwardCount: 1, backwardCount: 1 }]]);
   return {

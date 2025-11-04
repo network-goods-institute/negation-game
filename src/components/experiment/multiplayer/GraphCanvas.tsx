@@ -16,6 +16,11 @@ import { useGraphWheelHandler } from '@/hooks/experiment/multiplayer/useGraphWhe
 import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNodeHandlers';
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
 import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
+import { NodePriceOverlay } from './NodePriceOverlay';
+import { MarketHoverOverlay } from './MarketHoverOverlay';
+import { enrichWithMarketData, getDocIdFromURL } from '@/utils/market/marketUtils';
+import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
+import { logger } from '@/lib/logger';
 
 type YProvider = WebsocketProvider | null;
 
@@ -91,6 +96,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const rf = useReactFlow();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const graph = useGraphActions();
+  const [docId, setDocId] = React.useState<string | null>(null);
+  React.useEffect(() => { try { setDocId(getDocIdFromURL() || null); } catch { setDocId(null); } }, []);
+  const marketEnabled = process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
+  const userHoldingsLite = useUserHoldingsLite(marketEnabled ? docId : null, 5000);
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
   const suppressEdgeDeselectRef = React.useRef(false);
   const lastSelectionChangeRef = React.useRef<number>(0);
@@ -99,6 +108,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const midPanRef = React.useRef(false);
   const copiedNodeIdRef = React.useRef<string | null>(null);
   const altCloneMapRef = React.useRef<Map<string, { dupId: string; origin: { x: number; y: number } }>>(new Map());
+
+  const pricesMeta = (yMetaMap as any)?.get?.('market:prices') || null;
+  const totalsMeta = (yMetaMap as any)?.get?.('market:totals') || null;
+  const holdingsMeta = (yMetaMap as any)?.get?.('market:holdings') || null;
+  const updatedAtMeta = (yMetaMap as any)?.get?.('market:updatedAt') || null;
 
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
     connectMode: !!connectMode && !mindchangeMode,
@@ -113,6 +127,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const overlayId = (graph as any)?.overlayActiveEdgeId as (string | null);
       const visible = new Set<string>();
       if (overlayId) visible.add(String(overlayId));
+      const marketPrices: Record<string, number> | null = pricesMeta;
+      const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || holdingsMeta || null);
+      const marketTotals: Record<string, string> | null = totalsMeta;
       const enriched = (edges as any[]).map((e) => {
         const key = `mindchange:${e.id}`;
         const payload = yMetaMap?.get?.(key);
@@ -123,8 +140,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             backward: { average: Number((payload as any).backward || 0), count: Number((payload as any).backwardCount || 0) },
             ...(prevUser ? { userValue: prevUser } : {}),
           } as any;
-          return { ...e, data: { ...(e.data || {}), mindchange: mc } } as any;
+          e = { ...e, data: { ...(e.data || {}), mindchange: mc } } as any;
         }
+        // Enrich with market data
+        e = enrichWithMarketData(e, marketPrices, marketHoldings, marketTotals);
         return e;
       });
       const getNodeRect = (id: string) => {
@@ -144,7 +163,29 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     } catch {
       return edges;
     }
-  }, [edges, graph, yMetaMap, rf]);
+  }, [edges, graph, rf, userHoldingsLite.data, pricesMeta, totalsMeta, holdingsMeta, updatedAtMeta]);
+
+  const nodesForRender = React.useMemo(() => {
+    try {
+      const marketPrices: Record<string, number> | null = pricesMeta;
+      const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || holdingsMeta || null);
+      const marketTotals: Record<string, string> | null = totalsMeta;
+      const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals));
+      return enriched as any;
+    } catch {
+      return nodes as any;
+    }
+  }, [nodes, userHoldingsLite.data, pricesMeta, totalsMeta, holdingsMeta, updatedAtMeta]);
+
+  React.useEffect(() => {
+    try {
+      const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
+      const marketHoldings: Record<string, string> | null = (yMetaMap as any)?.get?.('market:holdings') || null;
+      const pCount = marketPrices ? Object.keys(marketPrices).length : 0;
+      const hCount = marketHoldings ? Object.keys(marketHoldings).length : 0;
+      logger.info('[market/ui] GraphCanvas overlays active', { prices: pCount, holdings: hCount });
+    } catch { }
+  }, [pricesMeta, holdingsMeta, totalsMeta, updatedAtMeta]);
 
   // Custom hooks for managing complex logic
   useGraphKeyboardHandlers({ graph, copiedNodeIdRef });
@@ -347,6 +388,17 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       onDoubleClick={onCanvasDoubleClick}
       data-testid="graph-canvas-root"
     >
+      {process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true' && Array.isArray(nodesForRender) && (
+        <>
+          <NodePriceOverlay nodes={nodesForRender as any} prices={(yMetaMap as any)?.get?.('market:prices') ?? null} />
+          <MarketHoverOverlay
+            prices={(yMetaMap as any)?.get?.('market:prices') ?? null}
+            totals={(yMetaMap as any)?.get?.('market:totals') ?? null}
+            holdings={userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null}
+            docId={docId}
+          />
+        </>
+      )}
       {(() => {
         // Wrap changes to intercept removals and route through multiplayer delete
         const handleNodesChange = (changes: any[]) => {
@@ -406,7 +458,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
         return (
           <ReactFlow
-            nodes={nodes}
+            nodes={nodesForRender as any}
             edges={edgesForRender}
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}

@@ -145,7 +145,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const handleContextMenu = useContextMenuHandler({
         isEditing,
         onOpenMenu: (pos) => {
-            setMenuPos(pos);
+            setMenuPos({ x: pos.x, y: pos.y });
             setMenuOpen(true);
         },
     });
