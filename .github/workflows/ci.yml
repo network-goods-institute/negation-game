@@ -16,6 +16,11 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Init submodules
+        env:
+          GITHUB_TOKEN: ${{ secrets.SUBMODULE_TOKEN }}
+        run: node scripts/init-submodules.js
+
       - name: Install pnpm
         uses: pnpm/action-setup@v2
         with:
