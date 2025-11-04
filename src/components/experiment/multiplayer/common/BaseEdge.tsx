@@ -151,19 +151,20 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const infl = Number(((props as any).data?.market?.influence) ?? NaN);
   const srcMine = Number((sourceNode as any)?.data?.market?.mine ?? 0);
   const tgtMine = Number((targetNode as any)?.data?.market?.mine ?? 0);
+  const marketPrice = Number(((props as any).data?.market?.price) ?? NaN);
   const edgeTypeLocal = props.edgeType;
   const marketMarkers = useMemo(() => {
     try {
-      const infl = Number(((props as any).data?.market?.influence) ?? NaN);
-      if (Number.isNaN(infl)) return { start: undefined as string | undefined, end: undefined as string | undefined };
-      const srcMine = Number((sourceNode as any)?.data?.market?.mine ?? 0);
-      const tgtMine = Number((targetNode as any)?.data?.market?.mine ?? 0);
-      if (!(srcMine > 0 || tgtMine > 0)) return { start: undefined, end: undefined };
+      const localInfl = infl;
+      if (Number.isNaN(localInfl)) return { start: undefined as string | undefined, end: undefined as string | undefined };
+      const localSrcMine = srcMine;
+      const localTgtMine = tgtMine;
+      if (!(localSrcMine > 0 || localTgtMine > 0)) return { start: undefined, end: undefined };
       const tau = 0.2;
       const markerId = getMarkerIdForEdgeType(edgeTypeLocal) || undefined;
       if (!markerId) return { start: undefined, end: undefined };
-      if (infl > tau) return { start: undefined, end: `url(#${markerId})` };
-      if (infl < -tau) return { start: `url(#${markerId})`, end: undefined };
+      if (localInfl > tau) return { start: undefined, end: `url(#${markerId})` };
+      if (localInfl < -tau) return { start: `url(#${markerId})`, end: undefined };
       return { start: undefined, end: undefined };
     } catch {
       return { start: undefined as string | undefined, end: undefined as string | undefined };
@@ -224,11 +225,11 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const edgeStyles = useMemo(() => {
     const width = enableMindchange
-      ? computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: props.edgeType })
+      ? computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: edgeTypeLocal })
       : visual.strokeWidth(relevance);
     let marketWidth = width;
     try {
-      const mp = Number(((props as any).data?.market?.price) ?? NaN);
+      const mp = marketPrice;
       if (!Number.isNaN(mp) && mp > 0) {
         marketWidth = Math.max(width, 1 + Math.log(1 + 6 * Math.max(0, Math.min(1, mp))));
       }
@@ -239,7 +240,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     } as const;
 
     if (visual.strokeDasharray) {
-      if (props.edgeType === 'objection') {
+      if (edgeTypeLocal === 'objection') {
         const useDotted = edgeIsObjectionStyle(targetNode?.type);
         return {
           ...baseStyle,
@@ -254,7 +255,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     }
 
     return baseStyle;
-  }, [visual, props.edgeType, targetNode, mindchange, enableMindchange, relevance]);
+  }, [visual, edgeTypeLocal, targetNode, mindchange, enableMindchange, relevance, marketPrice]);
 
   const edgeStylesWithPointer = useMemo(() => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;

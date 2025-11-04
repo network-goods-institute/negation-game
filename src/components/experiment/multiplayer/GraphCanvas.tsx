@@ -109,10 +109,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const copiedNodeIdRef = React.useRef<string | null>(null);
   const altCloneMapRef = React.useRef<Map<string, { dupId: string; origin: { x: number; y: number } }>>(new Map());
 
-  const pricesMeta = (yMetaMap as any)?.get?.('market:prices') || null;
-  const totalsMeta = (yMetaMap as any)?.get?.('market:totals') || null;
-  const holdingsMeta = (yMetaMap as any)?.get?.('market:holdings') || null;
-  const updatedAtMeta = (yMetaMap as any)?.get?.('market:updatedAt') || null;
+  const updatedAtMeta = React.useMemo(() => {
+    try { return (yMetaMap as any)?.get?.('market:updatedAt') || null; } catch { return null; }
+  }, [yMetaMap]);
+  // read live snapshots in memos below
 
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
     connectMode: !!connectMode && !mindchangeMode,
@@ -127,9 +127,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const overlayId = (graph as any)?.overlayActiveEdgeId as (string | null);
       const visible = new Set<string>();
       if (overlayId) visible.add(String(overlayId));
-      const marketPrices: Record<string, number> | null = pricesMeta;
-      const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || holdingsMeta || null);
-      const marketTotals: Record<string, string> | null = totalsMeta;
+      const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
+      const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
+      const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
       const enriched = (edges as any[]).map((e) => {
         const key = `mindchange:${e.id}`;
         const payload = yMetaMap?.get?.(key);
@@ -163,29 +163,20 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     } catch {
       return edges;
     }
-  }, [edges, graph, rf, userHoldingsLite.data, pricesMeta, totalsMeta, holdingsMeta, updatedAtMeta]);
+  }, [edges, graph, rf, userHoldingsLite.data, yMetaMap]);
 
   const nodesForRender = React.useMemo(() => {
     try {
-      const marketPrices: Record<string, number> | null = pricesMeta;
-      const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || holdingsMeta || null);
-      const marketTotals: Record<string, string> | null = totalsMeta;
+      const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
+      const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
+      const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
       const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals));
       return enriched as any;
     } catch {
       return nodes as any;
     }
-  }, [nodes, userHoldingsLite.data, pricesMeta, totalsMeta, holdingsMeta, updatedAtMeta]);
+  }, [nodes, userHoldingsLite.data, yMetaMap]);
 
-  React.useEffect(() => {
-    try {
-      const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
-      const marketHoldings: Record<string, string> | null = (yMetaMap as any)?.get?.('market:holdings') || null;
-      const pCount = marketPrices ? Object.keys(marketPrices).length : 0;
-      const hCount = marketHoldings ? Object.keys(marketHoldings).length : 0;
-      logger.info('[market/ui] GraphCanvas overlays active', { prices: pCount, holdings: hCount });
-    } catch { }
-  }, [pricesMeta, holdingsMeta, totalsMeta, updatedAtMeta]);
 
   // Custom hooks for managing complex logic
   useGraphKeyboardHandlers({ graph, copiedNodeIdRef });

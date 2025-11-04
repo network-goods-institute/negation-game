@@ -242,21 +242,23 @@ export const useNodeChrome = ({
     multipleSelected,
   ]);
 
-  // Edge-triggered visibility: react only to state transitions.
+  // Edge-triggered visibility: react only to state transitions to avoid render loops.
   const prevActiveRef = React.useRef<boolean>(false);
   useEffect(() => {
+    const wasActive = prevActiveRef.current;
+
     if (locked || hidden || (hidePillWhileEditing && editable.isEditing)) {
-      pill.hideNow?.();
+      if (wasActive) {
+        pill.hideNow?.();
+      }
       prevActiveRef.current = false;
       return;
     }
 
-    const wasActive = prevActiveRef.current;
-
-    if (isActive) {
+    if (isActive && !wasActive) {
       pill.cancelHide?.();
       pill.handleMouseEnter?.();
-    } else if (wasActive) {
+    } else if (!isActive && wasActive) {
       pill.scheduleHide?.();
     }
 

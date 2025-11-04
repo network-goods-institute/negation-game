@@ -84,6 +84,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   setMindchangeNextDir,
   selectMode,
 }) => {
+  const routeId = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
   const {
     connectMode,
     setConnectMode,
@@ -168,6 +169,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
 
   const marketEnabled = isMarketEnabled();
   const market = useMarket(resolvedId || '');
+  const livePostInFlightRef = React.useRef(false);
+  const lastLivePostRef = React.useRef(0);
   useEffect(() => {
     if (!marketEnabled) return;
     if (!ydoc || !yMetaMap) return;
@@ -186,7 +189,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         logger.info('[market/ui] wrote snapshot to yMetaMap', { docId: resolvedId, prices: pCount, holdings: hCount, totals: tCount, updatedAt: marketData.updatedAt });
       } catch { }
     } catch { }
-  }, [marketEnabled, market.view.data?.prices, market.view.data?.userHoldings, market.view.data?.totals, ydoc, yMetaMap, resolvedId]);
+  }, [marketEnabled, market.view.data?.prices, market.view.data?.userHoldings, market.view.data?.totals, market.view.data?.updatedAt, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -216,8 +219,10 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             totals: view?.totals || {},
             updatedAt: view?.updatedAt || new Date().toISOString(),
           };
-          syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME);
-          try { console.info('[market/ui] fallback POST view applied', { prices: Object.keys(marketData.prices).length }); } catch { }
+          const prevUpdated = (yMetaMap as any).get?.('market:updatedAt');
+          if (!prevUpdated || prevUpdated !== marketData.updatedAt) {
+            syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME);
+          }
         }
       } catch { }
     })();
@@ -230,6 +235,10 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     const payload = buildMarketViewPayload(nodes, edges);
     const ctrl = new AbortController();
     const timer = window.setTimeout(async () => {
+      if (livePostInFlightRef.current) return;
+      const now = Date.now();
+      if (now - lastLivePostRef.current < 2000) return;
+      livePostInFlightRef.current = true;
       try {
         const res = await fetch(`/api/market/${encodeURIComponent(resolvedId || '')}/view`, {
           method: 'POST',
@@ -245,15 +254,21 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
           totals: view?.totals || {},
           updatedAt: view?.updatedAt || new Date().toISOString(),
         };
-        syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME, 'live');
-        try { console.info('[market/ui] live POST view applied', { prices: Object.keys(marketData.prices).length }); } catch { }
+        const prevUpdated = (yMetaMap as any).get?.('market:updatedAt');
+        if (!prevUpdated || prevUpdated !== marketData.updatedAt) {
+          syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME, 'live');
+        }
+        lastLivePostRef.current = Date.now();
       } catch { }
+      finally {
+        livePostInFlightRef.current = false;
+      }
     }, 400);
     return () => {
       try { ctrl.abort(); } catch { }
       window.clearTimeout(timer);
     };
-  }, [marketEnabled, resolvedId, nodes, edges, ydoc, yMetaMap]);
+  }, [marketEnabled, resolvedId, nodes, edges, ydoc, yMetaMap, grabMode, connectMode]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -263,7 +278,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       try {
         const detail = (e as CustomEvent)?.detail || {};
         const evDoc = String(detail.docId || '');
-        const localSlug = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
+        const localSlug = routeId;
         const localResolved = String(resolvedId || '');
         const currentId = localResolved || localSlug;
         if (evDoc && currentId && evDoc !== currentId) return;
@@ -283,7 +298,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     try { window.addEventListener('market:optimisticTrade', optimistic as any); } catch { }
     try { console.info('[market/ui] listening for market:refresh'); } catch { }
     return () => { try { window.removeEventListener('market:refresh', handler); } catch { } try { window.removeEventListener('market:optimisticTrade', optimistic as any); } catch { } };
-  }, [marketEnabled, market.view, ydoc, yMetaMap, resolvedId]);
+  }, [marketEnabled, market.view, ydoc, yMetaMap, resolvedId, routeId]);
 
   useEffect(() => {
     if (!isMindchangeEnabledClient()) return;
