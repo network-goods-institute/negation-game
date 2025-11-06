@@ -8,6 +8,7 @@ interface EdgeSelectionHighlightProps {
   mindchangeRenderMode: 'normal' | 'bidirectional';
   mindchangeMarkerStart?: string;
   mindchangeMarkerEnd?: string;
+  edgeId?: string;
   useBezier: boolean;
   curvature?: number;
   sourceX: number;
@@ -26,6 +27,7 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
   mindchangeRenderMode,
   mindchangeMarkerStart,
   mindchangeMarkerEnd,
+  edgeId,
   useBezier,
   curvature,
   sourceX,
@@ -53,8 +55,8 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
     const b = getTrimmedLineCoords(sx, sy, tx, ty, -perpX, -perpY, sourceNode, targetNode);
     return (
       <>
-        <line x1={f.fromX} y1={f.fromY} x2={f.toX} y2={f.toY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
-        <line x1={b.toX} y1={b.toY} x2={b.fromX} y2={b.fromY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
+        <line data-edge-overlay={edgeId} x1={f.fromX} y1={f.fromY} x2={f.toX} y2={f.toY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
+        <line data-edge-overlay={edgeId} x1={b.toX} y1={b.toY} x2={b.fromX} y2={b.fromY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
       </>
     );
   }
@@ -106,8 +108,8 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
 
     return (
       <>
-        <path d={fPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
-        <path d={bPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
+        <path data-edge-overlay={edgeId} d={fPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
+        <path data-edge-overlay={edgeId} d={bPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
       </>
     );
   }
@@ -119,7 +121,7 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
     const ty = targetY ?? 0;
     const t = getTrimmedLineCoords(sx, sy, tx, ty, 0, 0, sourceNode, targetNode);
     return (
-      <line x1={t.fromX} y1={t.fromY} x2={t.toX} y2={t.toY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
+      <line data-edge-overlay={edgeId} x1={t.fromX} y1={t.fromY} x2={t.toX} y2={t.toY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
     );
   }
 
@@ -151,7 +153,7 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
         curvature: curvature,
       });
       return (
-        <path d={mcPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
+        <path data-edge-overlay={edgeId} d={mcPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
       );
     }
 
@@ -166,7 +168,7 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
         curvature: curvature,
       });
       return (
-        <path d={mcPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
+        <path data-edge-overlay={edgeId} d={mcPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />
       );
     }
 
@@ -205,22 +207,22 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
         targetPosition,
         curvature: curvature,
       });
-      return <path d={objPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
+      return <path data-edge-overlay={edgeId} d={objPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
     }
 
     if (pathD) {
-      return <path d={pathD} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
+      return <path data-edge-overlay={edgeId} d={pathD} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
     }
   }
 
   // Special handling for comment edges - use blue highlight for better visibility
   if (edgeType === 'comment') {
     return (
-      <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#3b82f6" strokeWidth={6} strokeLinecap="round" opacity={0.9} />
+      <line data-edge-overlay={edgeId} x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#3b82f6" strokeWidth={6} strokeLinecap="round" opacity={0.9} />
     );
   }
 
   return (
-    <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
+    <line data-edge-overlay={edgeId} x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#000" strokeWidth={8} strokeLinecap="round" opacity={0.85} />
   );
 };

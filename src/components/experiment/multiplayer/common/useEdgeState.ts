@@ -20,6 +20,14 @@ export interface EdgeState {
   setMenuOpen: (open: boolean) => void;
   setMenuPos: (pos: { x: number; y: number }) => void;
 
+  // Market interaction state
+  quickBuyOpen: boolean;
+  sidePanelOpen: boolean;
+  clickPos: { x: number; y: number };
+  setQuickBuyOpen: (open: boolean) => void;
+  setSidePanelOpen: (open: boolean) => void;
+  setClickPos: (pos: { x: number; y: number }) => void;
+
   // Hover and selection state
   isHovered: boolean;
   selected: boolean;
@@ -62,6 +70,9 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [quickBuyOpen, setQuickBuyOpen] = useState(false);
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+  const [clickPos, setClickPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isConnectHovered, setIsConnectHovered] = useState(false);
 
   const { sourceX, sourceY, targetX, targetY, source, target } = config || {};
@@ -104,6 +115,12 @@ export const useEdgeState = (config?: EdgeStateConfig): EdgeState => {
     menuPos,
     setMenuOpen,
     setMenuPos,
+    quickBuyOpen,
+    sidePanelOpen,
+    clickPos,
+    setQuickBuyOpen,
+    setSidePanelOpen,
+    setClickPos,
     isHovered,
     selected,
     setIsConnectHovered,

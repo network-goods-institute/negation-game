@@ -17,7 +17,8 @@ import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNod
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
 import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
 import { NodePriceOverlay } from './NodePriceOverlay';
-import { MarketHoverOverlay } from './MarketHoverOverlay';
+import { MiniHoverStats } from './MiniHoverStats';
+import { EdgePriceOverlay } from './EdgePriceOverlay';
 import { enrichWithMarketData, getDocIdFromURL } from '@/utils/market/marketUtils';
 import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
 import { logger } from '@/lib/logger';
@@ -382,12 +383,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       {process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true' && Array.isArray(nodesForRender) && (
         <>
           <NodePriceOverlay nodes={nodesForRender as any} prices={(yMetaMap as any)?.get?.('market:prices') ?? null} />
-          <MarketHoverOverlay
-            prices={(yMetaMap as any)?.get?.('market:prices') ?? null}
-            totals={(yMetaMap as any)?.get?.('market:totals') ?? null}
-            holdings={userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null}
-            docId={docId}
-          />
+          <EdgePriceOverlay edges={edgesForRender as any} />
+          <MiniHoverStats docId={docId} />
         </>
       )}
       {(() => {

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Position, useReactFlow, useViewport } from '@xyflow/react';
+import { Position, useReactFlow, useViewport, useStore } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { MarketContextMenu } from './common/MarketContextMenu';
 import { toast } from 'sonner';
 import { X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
@@ -10,7 +9,6 @@ import { inversePairEnabled } from '@/config/experiments';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
-import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { useForceHidePills } from './common/useForceHidePills';
 import { FavorSelector } from './common/FavorSelector';
 import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
@@ -18,7 +16,10 @@ import { LockIndicator } from './common/LockIndicator';
 import { useMarketData } from '@/hooks/market/useMarketData';
 import { getNodeDimensionsAndCenter } from '@/utils/experiment/multiplayer/nodeUtils';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
-import { MarketPriceZoomOverlay, MarketPriceHoverTooltip } from './market/MarketPriceOverlays';
+import { MarketPriceZoomOverlay } from './market/MarketPriceOverlays';
+import { InlineBuyControls } from './market/InlineBuyControls';
+import { MarketContextMenu } from './common/MarketContextMenu';
+import { InlineMarketDisplay, useInlineMarketDisplay } from './common/NodeWithMarket';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -108,17 +109,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     onPillMouseLeave: pill.handleMouseLeave,
     onHoverLeave: onHoverLeave,
   });
-
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number; nodeRect?: DOMRect; nodeEl?: HTMLElement | null }>({ x: 0, y: 0 });
-
-  const handleContextMenu = useContextMenuHandler({
-    isEditing,
-    onOpenMenu: (pos) => {
-      setMenuPos(pos);
-      setMenuOpen(true);
-    },
-  });
   const [sliverHovered, setSliverHovered] = useState(false);
   const [sliverAnimating, setSliverAnimating] = useState(false);
   const [sliverFading, setSliverFading] = useState(false);
@@ -173,6 +163,14 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const { globalMarketOverlays } = useGraphActions() as any;
   const { price: priceValue, mine: mineValue, total: totalValue, hasPrice } = useMarketData(data);
   const showPrice = Boolean(marketEnabled && hasPrice && zoom <= 0.9 && !globalMarketOverlays);
+  const isNodeDragging = useStore((s: any) => Boolean(s?.nodeInternals?.get?.(id)?.dragging));
+  const { showInlineMarket } = useInlineMarketDisplay({
+    id,
+    data,
+    selected: !!selected,
+    hidden,
+    showPrice,
+  });
   const graphCtx = useGraphActions() as any;
   const mindchangeSelectable = useMemo(() => {
     try {
@@ -249,7 +247,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
     const ringMindchange = mindchangeSelectable ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative origin-center group ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
   }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable]);
 
   const wrapperProps = {
@@ -320,11 +318,18 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       }
       onClick(e);
     },
-    onContextMenu: handleContextMenu,
     'data-selected': selected,
   } as React.HTMLAttributes<HTMLDivElement>;
 
   const { perfMode } = usePerformanceMode();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const onContextMenuNode = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setMenuOpen(true);
+  };
   return (
     <>
       <NodeShell
@@ -347,8 +352,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         beforeWrapper={beforeWrapper}
         wrapperRef={wrapperRef}
         wrapperClassName={wrapperClassName}
-        wrapperStyle={{ ...innerScaleStyle, opacity: hidden ? undefined : favorOpacity }}
-        wrapperProps={wrapperProps as any}
+        wrapperStyle={{
+          ...innerScaleStyle,
+          opacity: hidden ? undefined : favorOpacity,
+          marginTop: showInlineMarket ? '-96px' : undefined,
+        }}
+        wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
       >
         <LockIndicator locked={locked} lockOwner={lockOwner} />
@@ -368,8 +377,15 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
         )}
         {showPrice && <MarketPriceZoomOverlay price={priceValue} mine={mineValue} />}
-        {marketEnabled && hasPrice && hovered && !globalMarketOverlays && (
-          <MarketPriceHoverTooltip price={priceValue} mine={mineValue} total={totalValue} />
+        {!isNodeDragging && (
+          <InlineMarketDisplay
+            id={id}
+            data={data}
+            selected={!!selected}
+            hidden={hidden}
+            showPrice={showPrice}
+            offsetLeft="-left-4"
+          />
         )}
         <div
           ref={contentRef}
@@ -387,16 +403,20 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onBlur={onBlur}
           onKeyDown={onKeyDown}
           className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden || showPrice ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
+          style={{ marginTop: showInlineMarket ? '96px' : undefined }}
           title={typeof value === 'string' ? value : undefined}
         >
           {value || 'New point'}
         </div>
+        {selected && marketEnabled && hasPrice && !hidden && !isNodeDragging && (
+          <InlineBuyControls entityId={id} price={priceValue} initialMine={mineValue} initialTotal={totalValue} />
+        )}
         {hidden && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
             <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>
           </div>
         )}
-        {selected && !hidden && extras.showExtras && (
+        {selected && !hidden && extras.showExtras && !marketEnabled && (
           <div ref={(el) => extras.registerExtras?.(el)} className={`mt-1 mb-1 flex items-center gap-2 select-none`} style={{ position: 'relative', zIndex: 20 }}>
             <span className="text-[10px] uppercase tracking-wide text-stone-500 -translate-y-0.5">Favor</span>
             <FavorSelector
@@ -425,12 +445,11 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
-        nodeRect={menuPos.nodeRect}
-        nodeEl={menuPos.nodeEl || undefined}
         onClose={() => setMenuOpen(false)}
         kind="node"
         entityId={id}
         onDelete={() => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } }}
+        nodeEl={wrapperRef.current as any}
       />
     </>
   );

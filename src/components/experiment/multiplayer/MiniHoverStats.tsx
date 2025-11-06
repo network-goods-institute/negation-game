@@ -1,0 +1,221 @@
+"use client";
+import React from 'react';
+import { useReactFlow, useViewport } from '@xyflow/react';
+import { useGraphActions } from './GraphContext';
+import { normalizeSecurityId } from '@/utils/market/marketUtils';
+import { getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
+
+type Props = { docId: string | null };
+
+const DELTA_CACHE = new Map<string, { updatedAt: number; delta: number | null }>();
+const DELTA_TTL = 60_000;
+
+export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
+  const rf = useReactFlow();
+  const { x: vx, y: vy, zoom } = useViewport();
+  const graph = useGraphActions() as any;
+  const hoveredNodeId: string | null = graph?.hoveredNodeId ?? null;
+  const hoveredEdgeId: string | null = graph?.hoveredEdgeId ?? null;
+  const overlayEdgeId: string | null = graph?.overlayActiveEdgeId ?? null;
+
+  const [pct, setPct] = React.useState<number | null>(null);
+  const [delta, setDelta] = React.useState<number | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
+
+  const computePosition = React.useCallback(() => {
+    try {
+      const container = document.querySelector('[data-testid="graph-canvas-root"]') as HTMLElement | null;
+      if (!container) { setPos(null); return; }
+      if (hoveredNodeId) {
+        try {
+          const selNode = rf.getNode(hoveredNodeId) as any;
+          if (selNode?.selected) { setPos(null); return; }
+        } catch {}
+        // Prefer DOM position of node
+        try {
+          const nodeEl = document.querySelector(`.react-flow__node[data-id="${CSS.escape(String(hoveredNodeId))}"]`) as HTMLElement | null;
+          if (nodeEl) {
+            const rect = nodeEl.getBoundingClientRect();
+            const rootRect = container.getBoundingClientRect();
+            const left = rect.left - rootRect.left;
+            const top = rect.top - rootRect.top - 40;
+            setPos({ x: left, y: top });
+            return;
+          }
+        } catch {}
+        // Fallback to flow coords
+        const n = rf.getNode(hoveredNodeId) as any;
+        if (!n) { setPos(null); return; }
+        const x = (n.position?.x ?? 0) * zoom + vx;
+        const y = (n.position?.y ?? 0) * zoom + vy;
+        setPos({ x, y: y - 40 });
+        return;
+      }
+      const targetEdgeId = (hoveredEdgeId || overlayEdgeId) as string | null;
+      if (targetEdgeId) {
+        // Prefer the edge overlay container (portal) for exact top-left
+        try {
+          const overlayContainer = document.querySelector(`[data-edge-overlay-container="${CSS.escape(String(targetEdgeId))}"]`) as HTMLElement | null;
+          if (overlayContainer) {
+            const rect = overlayContainer.getBoundingClientRect();
+            const rootRect = container.getBoundingClientRect();
+            const left = rect.left - rootRect.left;
+            const top = rect.top - rootRect.top - 32;
+            setPos({ x: left, y: top });
+            return;
+          }
+        } catch {}
+        // Next: Prefer overlay stroke elements if present
+        try {
+          const selector = `[data-edge-overlay="${CSS.escape(String(targetEdgeId))}"]`;
+          const overlayEls = Array.from(document.querySelectorAll(selector)) as SVGGraphicsElement[];
+          const containerRect = container.getBoundingClientRect();
+          if (overlayEls.length > 0) {
+            let minLeft = Number.POSITIVE_INFINITY;
+            let minTop = Number.POSITIVE_INFINITY;
+            for (const el of overlayEls) {
+              const r = el.getBoundingClientRect();
+              if (r.left < minLeft) minLeft = r.left;
+              if (r.top < minTop) minTop = r.top;
+            }
+            if (Number.isFinite(minLeft) && Number.isFinite(minTop)) {
+              const left = minLeft - containerRect.left;
+              const top = minTop - containerRect.top - 32;
+              setPos({ x: left, y: top });
+              return;
+            }
+          }
+        } catch {}
+        // Fallback: compute from trimmed straight segment between node borders
+        const e = rf.getEdges().find((ee: any) => String(ee.id) === String(targetEdgeId)) as any;
+        if (!e) { setPos(null); return; }
+        const sn = rf.getNode(e.source) as any;
+        const tn = rf.getNode(e.target) as any;
+        if (!sn || !tn) { setPos(null); return; }
+        const sx = Number(sn.position?.x ?? 0) + Number(sn.width ?? 0) / 2;
+        const sy = Number(sn.position?.y ?? 0) + Number(sn.height ?? 0) / 2;
+        const tx = Number(tn.position?.x ?? 0) + Number(tn.width ?? 0) / 2;
+        const ty = Number(tn.position?.y ?? 0) + Number(tn.height ?? 0) / 2;
+        const tcoords = getTrimmedLineCoords(sx, sy, tx, ty, 0, 0, sn, tn);
+        const leftFlow = Math.min(tcoords.fromX, tcoords.toX);
+        const topFlow = Math.min(tcoords.fromY, tcoords.toY);
+        const left = leftFlow * zoom + vx;
+        const top = topFlow * zoom + vy - 32;
+        setPos({ x: left, y: top });
+        return;
+      }
+      setPos(null);
+    } catch { setPos(null); }
+  }, [hoveredNodeId, hoveredEdgeId, overlayEdgeId, rf, vx, vy, zoom]);
+
+  React.useEffect(() => {
+    // Start a rAF loop while something is hovered/active to keep position in sync with zoom/pan/drag
+    let rafId: number | null = null;
+    const tick = () => {
+      computePosition();
+      rafId = requestAnimationFrame(tick);
+    };
+    if (hoveredNodeId || hoveredEdgeId || overlayEdgeId) {
+      rafId = requestAnimationFrame(tick);
+    } else {
+      computePosition();
+    }
+    return () => { if (rafId != null) cancelAnimationFrame(rafId); };
+  }, [hoveredNodeId, hoveredEdgeId, overlayEdgeId, computePosition]);
+
+  React.useEffect(() => {
+    let aborted = false;
+    const id = hoveredNodeId || hoveredEdgeId || overlayEdgeId || null;
+    if (!id || !docId) { setPct(null); setDelta(null); setLoading(false); return; }
+    const norm = normalizeSecurityId(id);
+    try {
+      if (hoveredNodeId) {
+        const n = rf.getNode(hoveredNodeId) as any;
+        const p = Number(n?.data?.market?.price);
+        if (Number.isFinite(p)) setPct(p);
+      } else if (hoveredEdgeId || overlayEdgeId) {
+        const targetEdgeId = (hoveredEdgeId || overlayEdgeId) as string;
+        const e = rf.getEdges().find((ee: any) => String(ee.id) === String(targetEdgeId)) as any;
+        const p = Number(e?.data?.market?.price);
+        if (Number.isFinite(p)) setPct(p);
+      }
+    } catch {}
+
+    const cacheKey = `${docId}::${norm}`;
+    const cached = DELTA_CACHE.get(cacheKey);
+    if (cached && Date.now() - cached.updatedAt < DELTA_TTL) {
+      setDelta(cached.delta);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/market/${encodeURIComponent(docId)}/price-history`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ securityId: norm, limit: 20 }),
+        });
+        if (!res.ok) { setDelta(null); setLoading(false); return; }
+        const arr = await res.json();
+        const history: Array<{ timestamp: string; price: number }> = Array.isArray(arr) ? arr : [];
+        if (history.length === 0) { setDelta(null); setLoading(false); return; }
+        const last = history[history.length - 1];
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+        let baseline = history[0];
+        for (let i = history.length - 1; i >= 0; i--) {
+          const ts = Date.parse(history[i].timestamp);
+          if (Number.isFinite(ts) && ts <= cutoff) { baseline = history[i]; break; }
+        }
+        const p = Number(last.price);
+        const b = Number(baseline.price);
+        const d = Number.isFinite(p) && Number.isFinite(b) ? (p - b) : null;
+        DELTA_CACHE.set(cacheKey, { updatedAt: Date.now(), delta: d });
+        if (!aborted) { setDelta(d); setLoading(false); }
+      } catch { if (!aborted) { setPct(null); setDelta(null); } }
+    })();
+    return () => { aborted = true; };
+  }, [hoveredNodeId, hoveredEdgeId, overlayEdgeId, docId, rf]);
+
+  React.useEffect(() => {
+    const onRefresh = () => { try { DELTA_CACHE.clear(); } catch {} };
+    window.addEventListener('market:refresh', onRefresh as any);
+    return () => window.removeEventListener('market:refresh', onRefresh as any);
+  }, []);
+
+  try {
+    if (hoveredNodeId) {
+      const n = rf.getNode(hoveredNodeId) as any;
+      if (n?.selected) return null;
+    }
+  } catch {}
+  if (!pos || pct == null) return null;
+  const d = delta ?? 0;
+  const color = d > 0 ? 'text-emerald-700' : d < 0 ? 'text-rose-700' : 'text-stone-800';
+  const sign = d > 0 ? '+' : d < 0 ? '' : '';
+
+  return (
+    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 7 }}>
+      <div
+        className={`absolute bg-white/95 border border-stone-200 rounded-md shadow-sm px-2 py-1 flex items-center gap-1 text-[11px] ${color}`}
+        style={{ left: pos.x, top: pos.y }}
+      >
+        {loading ? (
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-emerald-500 animate-spin" />
+            <span>Loading…</span>
+          </div>
+        ) : (
+          <>
+            <span>{(pct * 100).toFixed(1)}%</span>
+            <span>{d !== 0 ? `(${sign}${(Math.abs(d) * 100).toFixed(1)}%)` : '(0.0%)'}</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+

@@ -1,19 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Position, useStore, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 
-import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
 import { usePerformanceMode } from '../PerformanceContext';
 import { useNodeChrome } from '../common/useNodeChrome';
-import { useContextMenuHandler } from '../common/useContextMenuHandler';
 import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 import { useForceHidePills } from '../common/useForceHidePills';
 import { FavorSelector } from '../common/FavorSelector';
 import { LockIndicator } from '../common/LockIndicator';
 import { useNodeExtrasVisibility } from '../common/useNodeExtrasVisibility';
+import { useMarketData } from '@/hooks/market/useMarketData';
+import { InlineMarketDisplay, useInlineMarketDisplay } from '../common/NodeWithMarket';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
+import { InlineBuyControls } from '../market/InlineBuyControls';
+import { MarketContextMenu } from '../common/MarketContextMenu';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -32,7 +35,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const graph = useGraphActions() as any;
     const {
         updateNodeContent,
-        updateNodeHidden,
         updateNodeFavor,
         addPointBelow,
         deleteNode,
@@ -121,6 +123,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         return !isExactlyOneObjection;
     });
     const { hovered, onMouseEnter, onMouseLeave } = hover;
+    const isNodeDragging = useStore((s: any) => Boolean(s?.nodeInternals?.get?.(id)?.dragging));
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 
     const forceHidePills = useForceHidePills({
@@ -133,22 +136,23 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const containerRef = useRef<HTMLDivElement | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
 
+    const marketEnabled = isMarketEnabled();
+    const { price: priceValue, hasPrice } = useMarketData(data as any);
+    const inlineEntityId = (data as any)?.parentEdgeId || id;
+    const { showInlineMarket } = useInlineMarketDisplay({
+        id: inlineEntityId,
+        data: data as any,
+        selected: !!selected,
+        hidden,
+        showPrice: false,
+    });
+
     useEffect(() => {
         if (wrapperRef.current && contentRef.current) {
             wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
         }
     }, [value, contentRef, wrapperRef]);
 
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-    const handleContextMenu = useContextMenuHandler({
-        isEditing,
-        onOpenMenu: (pos) => {
-            setMenuPos({ x: pos.x, y: pos.y });
-            setMenuOpen(true);
-        },
-    });
     const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 5));
 
     const favorOpacity = useFavorOpacity({
@@ -242,7 +246,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             }
             onClick(e);
         },
-        onContextMenu: handleContextMenu,
         onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
             // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
             e.stopPropagation();
@@ -263,9 +266,17 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         } catch { return false; }
     }, [graph, rfApi, id]);
     const isGrabMode = Boolean((graph as any)?.grabMode);
+    const [menuOpen, setMenuOpen] = React.useState(false);
+    const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
+    const onContextMenuNode = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setMenuPos({ x: e.clientX, y: e.clientY });
+        setMenuOpen(true);
+    };
     return (
         <>
-            <NodeShell
+                <NodeShell
                 handles={[
                     {
                         id: `${id}-source-handle`,
@@ -294,14 +305,29 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     },
                 }}
                 containerRef={containerRef}
+                containerClassName="relative inline-block group"
                 wrapperRef={wrapperRef}
-                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-all duration-300 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
+                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] inline-flex flex-col relative z-10 transition-all duration-300 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
-                wrapperStyle={{ ...innerScaleStyle, opacity: hidden ? undefined : favorOpacity } as any}
-                wrapperProps={wrapperProps as any}
+                wrapperStyle={{
+                    ...innerScaleStyle,
+                    opacity: hidden ? undefined : favorOpacity,
+                    marginTop: showInlineMarket ? '-96px' : undefined,
+                } as any}
+                wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
             >
                 <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
+                {!isNodeDragging && (
+                    <InlineMarketDisplay
+                        id={inlineEntityId}
+                        data={data as any}
+                        selected={!!selected}
+                        hidden={hidden}
+                        showPrice={false}
+                        offsetLeft="-left-4"
+                    />
+                )}
                 <div
                     ref={contentRef}
                     contentEditable={isEditing && !locked && !hidden}
@@ -318,16 +344,36 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     onBlur={onBlur}
                     onKeyDown={onKeyDown}
                     className={`text-sm ${pointLike ? 'text-gray-900' : 'text-amber-900'} leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+                    style={{ marginTop: showInlineMarket ? '96px' : undefined }}
                 >
                     {value || (pointLike ? 'New point' : 'New mitigation')}
                 </div>
+                {selected && marketEnabled && !!hasPrice && !hidden && (() => {
+                    if (isNodeDragging) return null;
+                    // Pass edge market stats if available
+                    let edgeMine: number | undefined = undefined;
+                    let edgeTotal: number | undefined = undefined;
+                    try {
+                        const edge = (rfApi.getEdges() as any[])?.find((e: any) => String(e.id) === String(inlineEntityId));
+                        if (edge && edge.data && edge.data.market) {
+                            const m = edge.data.market;
+                            const mineNum = Number(m.mine);
+                            const totNum = Number(m.total);
+                            edgeMine = Number.isFinite(mineNum) ? mineNum : undefined;
+                            edgeTotal = Number.isFinite(totNum) ? totNum : undefined;
+                        }
+                    } catch {}
+                    return (
+                        <InlineBuyControls entityId={inlineEntityId} price={priceValue as number} initialMine={edgeMine} initialTotal={edgeTotal} />
+                    );
+                })()}
                 {hidden && (
                     <div className="absolute inset-0 flex
 items-center justify-center pointer-events-none select-none">
                         <div className={`text-xs ${pointLike ? 'text-gray-600' : 'text-amber-600'} italic animate-fade-in`}>Hidden</div>
                     </div>
                 )}
-                {selected && !hidden && extras.showExtras && (
+                {selected && !hidden && extras.showExtras && !marketEnabled && (
                     <div ref={(el) => extras.registerExtras?.(el)} className="mt-1 mb-1 flex items-center gap-2 select-none" style={{ position: 'relative', zIndex: 20 }}>
                         <span className="text-[10px] uppercase tracking-wide text-stone-500 -translate-y-0.5">Favor</span>
                         <FavorSelector
@@ -352,14 +398,15 @@ items-center justify-center pointer-events-none select-none">
                     </div>
                 )}
             </NodeShell>
-            <ContextMenu
+            <MarketContextMenu
                 open={menuOpen}
                 x={menuPos.x}
                 y={menuPos.y}
                 onClose={() => setMenuOpen(false)}
-                items={[
-                    { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-                ]}
+                kind="node"
+                entityId={inlineEntityId}
+                onDelete={() => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } }}
+                nodeEl={wrapperRef.current as any}
             />
         </>
     );

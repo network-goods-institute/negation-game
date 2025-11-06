@@ -1,7 +1,10 @@
 import React, { useMemo } from 'react';
 import { EdgeProps, getBezierPath, getStraightPath, Position, useStore, Edge } from '@xyflow/react';
-import { MarketContextMenu } from './MarketContextMenu';
 import { EdgeOverlay } from './EdgeOverlay';
+import { MarketContextMenu } from './MarketContextMenu';
+import { QuickBuyActions } from '../market/QuickBuyActions';
+import { MarketSidePanel } from '../market/MarketSidePanel';
+import { normalizeSecurityId } from '@/utils/market/marketUtils';
 import { EdgeMidpointControl } from './EdgeMidpointControl';
 import { EdgeInteractionOverlay } from './EdgeInteractionOverlay';
 import { EdgeMaskDefs } from './EdgeMaskDefs';
@@ -49,6 +52,12 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     menuPos,
     setMenuOpen,
     setMenuPos,
+    quickBuyOpen,
+    sidePanelOpen,
+    clickPos,
+    setQuickBuyOpen,
+    setSidePanelOpen,
+    setClickPos,
     isHovered,
     selected,
     setIsConnectHovered,
@@ -230,8 +239,12 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     let marketWidth = width;
     try {
       const mp = marketPrice;
-      if (!Number.isNaN(mp) && mp > 0) {
-        marketWidth = Math.max(width, 1 + Math.log(1 + 6 * Math.max(0, Math.min(1, mp))));
+      if (Number.isFinite(mp)) {
+        // Log-scaled emphasis: 0 -> ~1.5px, 1 -> ~11.5px; obvious visual tie to price
+        const p = Math.max(0, Math.min(1, Number(mp)));
+        const strength = Math.log1p(99 * p) / Math.log(100); // 0..1 with log curve
+        const strongWidth = 1.5 + 10 * strength;
+        marketWidth = Math.max(width, strongWidth);
       }
     } catch { }
     const baseStyle = {
@@ -266,10 +279,15 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     (props as any).data?.mindchange?.backward?.count > 0
   ));
 
+  const hasMarketPrice = marketPrice != null && Number.isFinite(marketPrice);
+  const marketEnabled = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
+
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedEdge?.(props.id as string);
+
+    // Always open the delete/context menu on right-click
     setMenuPos({ x: e.clientX, y: e.clientY });
     setMenuOpen(true);
   };
@@ -307,6 +325,12 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       } else {
         completeConnectToEdge?.(props.id as string, midpoint.x, midpoint.y);
       }
+      return;
+    }
+    if (marketEnabled && hasMarketPrice) {
+      setClickPos({ x: e.clientX, y: e.clientY });
+      setQuickBuyOpen(true);
+      setSelectedEdge?.(props.id as string);
       return;
     }
     graphActions.clearNodeSelection?.();
@@ -354,6 +378,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             mindchangeRenderMode={mindchangeRenderConfig.mode}
             mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
             mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
+            edgeId={props.id as string}
             useBezier={visual.useBezier ?? false}
             curvature={visual.curvature}
             sourceX={sourceX ?? 0}
@@ -501,6 +526,31 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           suppress={endpointDragging}
           suppressReason={suppressReason}
         />
+      )}
+
+      {marketEnabled && hasMarketPrice && (
+        <>
+          <QuickBuyActions
+            open={quickBuyOpen}
+            onClose={() => setQuickBuyOpen(false)}
+            onExpand={() => {
+              setSidePanelOpen(true);
+              setQuickBuyOpen(false);
+            }}
+            entityId={normalizeSecurityId(props.id as string)}
+            x={clickPos.x}
+            y={clickPos.y}
+          />
+
+          <MarketSidePanel
+            open={sidePanelOpen}
+            onClose={() => setSidePanelOpen(false)}
+            entityId={normalizeSecurityId(props.id as string)}
+            entityType="edge"
+            currentPrice={marketPrice}
+            onDelete={() => deleteNode?.(props.id as string)}
+          />
+        </>
       )}
 
       <MarketContextMenu

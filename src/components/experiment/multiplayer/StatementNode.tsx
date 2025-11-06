@@ -1,18 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { Position, useViewport, useReactFlow } from '@xyflow/react';
+import { Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { MarketContextMenu } from './common/MarketContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
 import { usePerformanceMode } from './PerformanceContext';
 import { useNodeChrome } from './common/useNodeChrome';
-import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { LockIndicator } from './common/LockIndicator';
-import { useMarketData } from '@/hooks/market/useMarketData';
-import { isMarketEnabled } from '@/utils/market/marketUtils';
-import { MarketPriceZoomOverlay, MarketPriceHoverTooltip } from './market/MarketPriceOverlays';
+import { ContextMenu } from './common/ContextMenu';
 
 interface StatementNodeProps {
   id: string;
@@ -36,11 +32,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const { perfMode } = usePerformanceMode();
 
   const content = data?.statement || '';
-  const { zoom } = useViewport();
-  const marketEnabled = isMarketEnabled();
-  const { globalMarketOverlays } = useGraphActions() as any;
-  const { price: priceValue, mine: mineValue, total: totalValue, hasPrice } = useMarketData(data);
-  const showPrice = Boolean(marketEnabled && hasPrice && zoom <= 0.9 && !globalMarketOverlays);
+  
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
@@ -78,7 +70,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     onContentMouseLeave,
     onContentMouseUp,
     isConnectMode,
-  } = editable;
+  } = editable as any;
 
   const { hovered, onMouseEnter, onMouseLeave } = hover;
   const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
@@ -91,16 +83,9 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   });
 
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number; nodeRect?: DOMRect; nodeEl?: HTMLElement | null }>({ x: 0, y: 0 });
 
-  const handleContextMenu = useContextMenuHandler({
-    isEditing,
-    onOpenMenu: (pos) => {
-      setMenuPos(pos);
-      setMenuOpen(true);
-    },
-  });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   return (
     <>
@@ -131,9 +116,15 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             onMouseLeave();
             handleMouseLeave();
           },
+          onContextMenu: (e: React.MouseEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setMenuPos({ x: e.clientX, y: e.clientY });
+            setMenuOpen(true);
+          },
         }}
         wrapperRef={wrapperRef}
-        wrapperClassName={`px-5 py-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} ${isActive ? 'border-0' : 'border-2'} ${cursorClass} min-w-[240px] max-w-[360px] relative z-10 transition-all duration-300 ease-out origin-center ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+        wrapperClassName={`px-5 pt-3 pb-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} ${isActive ? 'border-0' : 'border-2'} ${cursorClass} min-w-[240px] max-w-[360px] relative z-10 origin-center ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${isActive ? '' : (hidden ? 'border-blue-300' : 'border-blue-200')}
             ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
@@ -159,7 +150,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             }
             onClick(e);
           },
-          onContextMenu: handleContextMenu,
           onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
             // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
             e.stopPropagation();
@@ -172,11 +162,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
         <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
         {isConnectingFromNodeId === id && (
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
-        )}
-
-        {showPrice && <MarketPriceZoomOverlay price={priceValue} mine={mineValue} />}
-        {marketEnabled && hasPrice && hovered && !globalMarketOverlays && (
-          <MarketPriceHoverTooltip price={priceValue} mine={mineValue} total={totalValue} />
         )}
         <div
           ref={contentRef}
@@ -192,7 +177,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={onKeyDown}
-          className={`text-sm whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden || showPrice ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+          className={`text-sm whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
         >
           {value || 'New Question'}
         </div>
@@ -213,16 +198,14 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           />
         )}
       </NodeShell>
-      <MarketContextMenu
+      <ContextMenu
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
-        nodeRect={menuPos.nodeRect}
-        nodeEl={menuPos.nodeEl || undefined}
         onClose={() => setMenuOpen(false)}
-        kind="node"
-        entityId={id}
-        onDelete={() => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } }}
+        items={[
+          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
+        ]}
       />
     </>
   );

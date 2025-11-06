@@ -40,7 +40,7 @@ export interface EdgeOverlayProps {
   mindchange?: {
     forward: { average: number; count: number };
     backward: { average: number; count: number };
-    userValue?: { forward: number; backward: number };
+    userValue?: { forward?: number; backward?: number };
   };
   relevance?: number;
   onUpdateRelevance?: (relevance: number) => void;
@@ -203,7 +203,25 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     }
   }, [edgeId, tx, ty, zoom]);
 
-  const showHUD = Boolean(overlayOpen) && !suppress && !grabMode && (overlayActiveId == null || overlayActiveId === edgeId);
+  const showHUD = Boolean(overlayOpen) && !suppress && !grabMode;
+
+  const mcForIndicators = React.useMemo(() => {
+    if (!mindchange) return undefined;
+    const fwdAvg = Number((mindchange as any)?.forward?.average ?? 0);
+    const fwdCnt = Number((mindchange as any)?.forward?.count ?? 0);
+    const bwdAvg = Number((mindchange as any)?.backward?.average ?? 0);
+    const bwdCnt = Number((mindchange as any)?.backward?.count ?? 0);
+    const uv = (mindchange as any)?.userValue;
+    const f = Number(uv?.forward);
+    const b = Number(uv?.backward);
+    type MCShape = NonNullable<React.ComponentProps<typeof MindchangeIndicators>['mindchange']>;
+    const base: MCShape = { forward: { average: fwdAvg, count: fwdCnt }, backward: { average: bwdAvg, count: bwdCnt } };
+    if (Number.isFinite(f) && Number.isFinite(b)) {
+      const withUser: MCShape = { ...base, userValue: { forward: f, backward: b } };
+      return withUser;
+    }
+    return base;
+  }, [mindchange]);
   React.useEffect(() => {
     try {
       if (showHUD) setOverlayActive?.(edgeId);
@@ -336,6 +354,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
       {portalTarget && showHUD && createPortal(
         <div
           ref={portalContainerRef}
+          data-edge-overlay-container={edgeId}
           style={{
             position: 'fixed',
             left: anchorScreenPos?.x ?? fallbackScreenLeft,
@@ -401,7 +420,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   )}
 
                   {(() => {
-                    if (isMindchangeEnabledClient()) return null;
+                    const marketEnabled = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
+                    if (isMindchangeEnabledClient() || marketEnabled) return null;
                     const rel = Math.max(1, Math.min(5, Math.round(Number(relevance || 0))));
                     if (edgeType === 'support' || edgeType === 'negation') {
                       return (
@@ -535,7 +555,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       <MindchangeIndicators
                         edgeId={edgeId}
                         edgeType={edgeType}
-                        mindchange={mindchange}
+                        mindchange={mcForIndicators}
                       />
                     ) : null
                   )}

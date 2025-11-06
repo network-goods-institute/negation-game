@@ -109,9 +109,19 @@ import { useStore } from '@xyflow/react';
 import { PointNode } from '../PointNode';
 
 describe('PointNode dragging UI behavior', () => {
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    process.env = { ...OLD_ENV, NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED: 'false' };
+  });
+
   afterEach(() => {
     cleanup();
     jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    process.env = OLD_ENV;
   });
 
   it('shows favor and pill when not dragging', () => {
