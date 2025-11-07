@@ -182,7 +182,7 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           return (
             <div
               key={`e-zoom-${e.id}`}
-              className="absolute"
+              className="absolute -m-1 p-1 rounded-full bg-white border border-stone-200"
               style={{ left: labelX as number, top: labelY as number, transform: 'translate(-50%, -50%)', zIndex: 0 }}
             >
               <svg width={size} height={size} className="drop-shadow-sm">

@@ -559,7 +559,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     };
                     return (
                       <div
-                        className="relative ml-2 -m-1 p-1 rounded-full"
+                        className="relative ml-2 -m-1 p-1 rounded-full bg-white border border-stone-200"
                         onMouseEnter={() => setHoverBuy(true)}
                         onMouseLeave={() => setHoverBuy(false)}
                         onMouseDown={(e) => e.preventDefault()}
