@@ -145,8 +145,11 @@ export async function buyAmount(
       }
     }
     const { shares, cost } = mm.buyAmount(normalized, spend);
+    let priceAfterFixed: bigint | undefined;
     let priceAfter: number | undefined;
     try {
+      const pf = mm.getPricesFixed?.();
+      priceAfterFixed = pf?.[normalized];
       priceAfter = mm.getPrices()?.[normalized];
     } catch {}
 
@@ -184,6 +187,7 @@ export async function buyAmount(
       securityId: normalized,
       deltaScaled: shares.toString(),
       costScaled: cost.toString(),
+      ...(priceAfterFixed != null ? { priceAfterScaled: priceAfterFixed.toString() } : {}),
     });
     try {
       logger.info?.("[market] buyAmount", {

@@ -1,0 +1,1 @@
+ALTER TABLE "market_trades" ADD COLUMN "price_after_scaled" text;

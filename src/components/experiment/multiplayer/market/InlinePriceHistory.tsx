@@ -4,7 +4,7 @@ import { normalizeSecurityId } from '@/utils/market/marketUtils';
 
 const PRICE_HISTORY_MEMCACHE = new Map<string, { updatedAt: number; data: PricePoint[] }>();
 const CACHE_TTL_MS = 60000;
-const POLL_INTERVAL_MS = 30000;
+const POLL_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_MARKET_POLL_INTERVAL_MS || 20000);
 
 type PricePoint = {
   timestamp: string;
@@ -151,8 +151,22 @@ export const InlinePriceHistory: React.FC<Props> = ({
     );
   }
 
-  const pricesRaw = history.length > 0 ? history.map((p) => p.price) : [currentPrice];
-  const prices = pricesRaw.length === 1 ? [pricesRaw[0], pricesRaw[0]] : pricesRaw;
+  // Build display series from history plus the latest price so chart is up-to-date
+  const displaySeries: PricePoint[] = (() => {
+    const series = Array.isArray(history) ? [...history] : [];
+    try {
+      const last = series[series.length - 1];
+      const lastPrice = Number(last?.price);
+      if (!Number.isFinite(lastPrice) || Math.abs(lastPrice - Number(currentPrice)) > 1e-9) {
+        series.push({ timestamp: new Date().toISOString(), price: Number(currentPrice) });
+      }
+    } catch {
+      series.push({ timestamp: new Date().toISOString(), price: Number(currentPrice) });
+    }
+    return series;
+  })();
+
+  const prices = displaySeries.length > 0 ? displaySeries.map((p) => p.price) : [currentPrice];
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
   const priceRange = maxPrice - minPrice || 1;
@@ -163,12 +177,32 @@ export const InlinePriceHistory: React.FC<Props> = ({
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
 
-  const denom = Math.max(1, prices.length - 1);
-  const points = prices.map((price, i) => {
-    const x = padding + (i / denom) * chartWidth;
-    const y = padding + chartHeight - ((price - minPrice) / priceRange) * chartHeight;
-    return { x, y };
+  // Time-aware x placement: scale x based on timestamps; fallback to even spacing if invalid
+  const times = displaySeries.map((p) => {
+    const t = Date.parse(p.timestamp);
+    return Number.isFinite(t) ? t : NaN;
   });
+  const hasValidTimes = times.some((t) => Number.isFinite(t));
+  let points: Array<{ x: number; y: number }> = [];
+  if (hasValidTimes) {
+    const validPairs = displaySeries.map((p, i) => ({ t: times[i], price: prices[i] }))
+      .filter((v) => Number.isFinite(v.t));
+    const tMin = Math.min(...validPairs.map((v) => v.t as number));
+    const tMax = Math.max(...validPairs.map((v) => v.t as number));
+    const tRange = Math.max(1, tMax - tMin);
+    points = validPairs.map(({ t, price }) => {
+      const x = padding + ((t - tMin) / tRange) * chartWidth;
+      const y = padding + chartHeight - ((price - minPrice) / priceRange) * chartHeight;
+      return { x, y };
+    });
+  } else {
+    const denom = Math.max(1, prices.length - 1);
+    points = prices.map((price, i) => {
+      const x = padding + (i / denom) * chartWidth;
+      const y = padding + chartHeight - ((price - minPrice) / priceRange) * chartHeight;
+      return { x, y };
+    });
+  }
 
   const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
 
