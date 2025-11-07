@@ -130,13 +130,14 @@ function handleSubdomain(
       });
       return NextResponse.rewrite(dest);
     }
-    // Canonicalize full experiment path to short /:id by redirecting
-    const expMatch = path.match(
-      /^\/experiment\/rationale\/multiplayer\/([^\/]+)\/?$/
-    );
-    if (expMatch) {
-      const idOrSlug = expMatch[1];
-      const to = new URL(`/${encodeURIComponent(idOrSlug)}`, req.url);
+    // Canonicalize experiment path to short /:id or root
+    if (path.startsWith("/experiment/rationale/multiplayer")) {
+      const segs = path.split("/").filter(Boolean);
+      const idOrSlug = segs.length >= 4 ? segs[3] : null;
+      const to = new URL(
+        idOrSlug ? `/${encodeURIComponent(idOrSlug)}` : "/",
+        req.url
+      );
       url.searchParams.forEach((value, key) => to.searchParams.set(key, value));
       return NextResponse.redirect(to, 307);
     }
