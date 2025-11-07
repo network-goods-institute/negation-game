@@ -16,6 +16,7 @@ type Props = {
   docId: string;
   currentPrice: number;
   className?: string;
+  variant?: 'default' | 'objection';
 };
 
 /**
@@ -26,7 +27,8 @@ export const InlinePriceHistory: React.FC<Props> = ({
   entityId,
   docId,
   currentPrice,
-  className = ''
+  className = '',
+  variant = 'default'
 }) => {
   const [history, setHistory] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,14 +83,26 @@ export const InlinePriceHistory: React.FC<Props> = ({
     const interval = window.setInterval(fetchOnce, POLL_INTERVAL_MS);
     const onRefresh = () => {
       // eslint-disable-next-line drizzle/enforce-delete-with-where
-      try { PRICE_HISTORY_MEMCACHE.delete(key); } catch {}
+      try { PRICE_HISTORY_MEMCACHE.delete(key); } catch { }
       fetchOnce();
     };
+    const onOptimistic = (e: any) => {
+      try {
+        const sid = String(e?.detail?.securityId || '');
+        if (sid === normalizeSecurityId(entityId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          try { PRICE_HISTORY_MEMCACHE.delete(key); } catch { }
+          fetchOnce();
+        }
+      } catch { }
+    };
     window.addEventListener('market:refresh', onRefresh as any);
+    window.addEventListener('market:optimisticTrade', onOptimistic as any);
     return () => {
       aborted = true;
       window.clearInterval(interval);
       window.removeEventListener('market:refresh', onRefresh as any);
+      window.removeEventListener('market:optimisticTrade', onOptimistic as any);
     };
   }, [entityId, docId]);
 
@@ -102,15 +116,15 @@ export const InlinePriceHistory: React.FC<Props> = ({
         if (Number.isFinite(cw) && cw >= 0) setBoxWidth(cw);
       }
     });
-    try { ro.observe(el); } catch {}
-    return () => { try { ro.disconnect(); } catch {} };
+    try { ro.observe(el); } catch { }
+    return () => { try { ro.disconnect(); } catch { } };
   }, []);
 
   if (loading) {
     return (
       <div className={`${className}`}>
         <div ref={boxRef} className="w-full max-w-full min-w-0 pointer-events-none select-none">
-          <div className="w-full max-w-full box-border overflow-hidden rounded-md border border-gray-200 bg-white/95 backdrop-blur-sm shadow-sm px-2 py-1.5">
+          <div className={`w-full max-w-full box-border overflow-hidden rounded-md subpixel-antialiased px-2 py-1.5 ${variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white'}`}>
             <div className="h-[40px] w-full animate-pulse bg-emerald-50 rounded" />
           </div>
         </div>
@@ -142,13 +156,13 @@ export const InlinePriceHistory: React.FC<Props> = ({
   return (
     <div className={`${className}`}>
       <div ref={boxRef} className="w-full max-w-full min-w-0 pointer-events-none select-none">
-        <div className="w-full max-w-full box-border overflow-hidden rounded-md border border-gray-200 bg-white/95 backdrop-blur-sm shadow-sm px-2 py-1.5">
-          <div className="text-[11px] font-semibold text-emerald-700 mb-1">{(currentPrice * 100).toFixed(1)}%</div>
+        <div className={`w-full max-w-full box-border overflow-hidden rounded-md subpixel-antialiased px-2 py-1.5 font-sans ${variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white'}`}>
+          <div className={`text-[14px] font-semibold mb-1 ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-700'}`}>{(currentPrice * 100).toFixed(1)}% chance</div>
           <svg width="100%" height={height} className="block w-full" preserveAspectRatio="none">
             <defs>
               <linearGradient id={`gradient-${entityId}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgb(16, 185, 129)" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="rgb(16, 185, 129)" stopOpacity="0.05" />
+                <stop offset="0%" stopColor={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"} stopOpacity="0.2" />
+                <stop offset="100%" stopColor={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"} stopOpacity="0.05" />
               </linearGradient>
             </defs>
             <path
@@ -158,7 +172,7 @@ export const InlinePriceHistory: React.FC<Props> = ({
             <path
               d={pathData}
               fill="none"
-              stroke="rgb(16, 185, 129)"
+              stroke={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"}
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -168,7 +182,7 @@ export const InlinePriceHistory: React.FC<Props> = ({
                 cx={points[points.length - 1].x}
                 cy={points[points.length - 1].y}
                 r="2"
-                fill="rgb(16, 185, 129)"
+                fill={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"}
               />
             )}
           </svg>

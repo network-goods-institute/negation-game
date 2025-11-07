@@ -1,7 +1,8 @@
 import React from 'react';
-import { EdgeLabelRenderer, useStore } from '@xyflow/react';
+import { EdgeLabelRenderer, useStore, useReactFlow } from '@xyflow/react';
 import { createPortal } from 'react-dom';
 import { MarketContextMenu } from './MarketContextMenu';
+import { InlineBuyControls } from '../market/InlineBuyControls';
 import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
@@ -33,7 +34,7 @@ export interface EdgeOverlayProps {
   onMouseLeave: () => void;
   onAddObjection: () => void;
   onToggleEdgeType?: () => void;
-  onConnectionClick?: () => void;
+  onConnectionClick?: (x: number, y: number) => void;
   starColor?: string;
   sourceLabel?: string;
   targetLabel?: string;
@@ -71,6 +72,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   suppress = false,
   suppressReason,
 }) => {
+  const rf = useReactFlow();
   const graph = useGraphActions();
   const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
   const setOverlayActive = (graph as any)?.setOverlayActiveEdge as ((id: string | null) => void) | undefined;
@@ -99,6 +101,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [anchorScreenPos, setAnchorScreenPos] = React.useState<{ x: number; y: number } | null>(null);
 
   const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [buyOpen, setBuyOpen] = React.useState(false);
+  const [buyPos, setBuyPos] = React.useState<{ x: number; y: number } | null>(null);
+  const buyContainerRef = React.useRef<HTMLDivElement | null>(null);
   const handlePortalMouseDown = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
       return;
@@ -114,11 +119,13 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const handleConnectionAwareClick = React.useCallback((e: React.MouseEvent, normalAction: () => void) => {
     if (connectMode && onConnectionClick) {
       e.stopPropagation();
-      onConnectionClick();
+      const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
+      const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
+      onConnectionClick(sx, sy);
       return;
     }
     normalAction();
-  }, [connectMode, onConnectionClick]);
+  }, [connectMode, onConnectionClick, anchorScreenPos?.x, anchorScreenPos?.y, fallbackScreenLeft, fallbackScreenTop]);
 
   const rawForwardAvg = Math.round(Number((mindchange as any)?.forward?.average ?? 0));
   const rawBackwardAvg = Math.round(Number((mindchange as any)?.backward?.average ?? 0));
@@ -314,12 +321,39 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     const lockForMindchange = Boolean((graph as any)?.mindchangeMode) &&
       (((graph as any)?.mindchangeEdgeId as string | null) === edgeId || Boolean(editDir));
     if (suppress) { setOverlayOpen(false); return; }
+    if (buyOpen) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (lockForMindchange) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (selected) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (isHovered) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (anchorHover) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (!isNearOverlay) setOverlayOpen(false);
-  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, editDir, suppress, setOverlayActive]);
+  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, editDir, suppress, setOverlayActive, buyOpen]);
+
+  React.useEffect(() => {
+    if (!buyOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      const inHud = !!portalContainerRef.current && portalContainerRef.current.contains(t as Node);
+      const inBuy = !!buyContainerRef.current && buyContainerRef.current.contains(t as Node);
+      if (inHud || inBuy) return;
+      setBuyOpen(false);
+      setOverlayOpen(false);
+      try { if (overlayActiveId === edgeId) setOverlayActive?.(null); } catch { }
+    };
+    window.addEventListener('pointerdown', handler, { capture: true } as any);
+    return () => window.removeEventListener('pointerdown', handler, { capture: true } as any);
+  }, [buyOpen, overlayActiveId, edgeId, setOverlayActive]);
+
+  // Prevent browser page zoom (Ctrl/⌘ + wheel) while interacting with the overlay/buy UI
+  React.useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if ((overlayOpen || buyOpen || isNearOverlay || anchorHover) && (e.ctrlKey || (e as any).metaKey)) {
+        try { e.preventDefault(); } catch { }
+      }
+    };
+    window.addEventListener('wheel', onWheel, { capture: true, passive: false } as any);
+    return () => window.removeEventListener('wheel', onWheel as any, { capture: true } as any);
+  }, [overlayOpen, buyOpen, isNearOverlay, anchorHover]);
 
   // Do not auto-close editor based on global mindchangeMode; editor can be opened directly
 
@@ -501,6 +535,63 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     </button>
                   )}
 
+                  {/* Buy circle (inline, to the right of Mitigate) */}
+                  {(() => {
+                    const priceNum = Number(marketPrice as number);
+                    if (!Number.isFinite(priceNum)) return null;
+                    const size = 20;
+                    const t = (edgeType || '').toLowerCase();
+                    const isSupport = t === 'support';
+                    const isNegation = t === 'negation';
+                    const isObjection = t === 'objection';
+                    const color = isSupport ? '#10b981' : (isNegation ? '#ef4444' : '#f59e0b');
+                    const fill = () => {
+                      const p = Math.max(0, Math.min(1, priceNum));
+                      if (isObjection) {
+                        const h = Math.round(size * p);
+                        const y = size - h;
+                        return (
+                          <g clipPath={`url(#edge-mini-clip-inline-${edgeId})`}>
+                            <g transform={`rotate(-45 ${size / 2} ${size / 2})`}>
+                              <rect x={0} y={y} width={size} height={h} fill={color} />
+                            </g>
+                          </g>
+                        );
+                      }
+                      const h = Math.round(size * p);
+                      const y = isSupport ? (size - h) : 0;
+                      return (
+                        <g clipPath={`url(#edge-mini-clip-inline-${edgeId})`}>
+                          <rect x={0} y={y} width={size} height={h} fill={color} />
+                        </g>
+                      );
+                    };
+                    return (
+                      <button
+                        type="button"
+                        aria-label="Buy"
+                        title="Buy"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
+                          const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
+                          setBuyPos({ x: sx, y: sy });
+                          setBuyOpen(true);
+                        }}
+                        className="h-7 w-7 rounded-full bg-white border border-gray-200 shadow-sm hover:shadow transition flex items-center justify-center ml-2"
+                        style={{ pointerEvents: 'auto' }}
+                      >
+                        <svg width={size} height={size}>
+                          <defs><clipPath id={`edge-mini-clip-inline-${edgeId}`}><circle cx={size / 2} cy={size / 2} r={size / 2} /></clipPath></defs>
+                          <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1} />
+                          {fill()}
+                          <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={1} />
+                        </svg>
+                      </button>
+                    );
+                  })()}
+
                   {editDir && (
                     // Editor only available when feature enabled
                     <MindchangeEditor
@@ -560,35 +651,79 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     ) : null
                   )}
 
-                  {Number.isFinite(marketPrice as number) && (
-                    <div
-                      className="mt-1 flex items-center gap-2 px-2 py-1 rounded-md border border-stone-200 bg-white/95 text-stone-800 shadow-sm"
-                      style={{ pointerEvents: 'none' }}
-                      title={(() => {
-                        const parts: string[] = [];
-                        if (Number.isFinite(marketPrice as number)) parts.push(`Price: ${(marketPrice as number).toFixed(4)}`);
-                        if (Number.isFinite(marketMine as number) && (marketMine as number) > 0) parts.push(`Your: ${(marketMine as number).toFixed(2)}`);
-                        if (Number.isFinite(marketTotal as number) && (marketTotal as number) > 0) parts.push(`Total: ${(marketTotal as number).toFixed(2)}`);
-                        if (Number.isFinite(marketInfluence as number)) parts.push(`Influence: ${((marketInfluence as number) >= 0 ? '+' : '')}${(marketInfluence as number).toFixed(2)}`);
-                        return parts.join('   ');
-                      })()}
-                    >
-                      <span className="text-[11px] font-semibold">{`Price: ${(marketPrice as number).toFixed(4)}`}</span>
-                      {Number.isFinite(marketMine as number) && (marketMine as number) > 0 && (
-                        <span className="text-[10px] text-stone-600">{`You: ${(marketMine as number).toFixed(2)}`}</span>
-                      )}
-                      {Number.isFinite(marketTotal as number) && (marketTotal as number) > 0 && (
-                        <span className="text-[10px] text-stone-600">{`Total: ${(marketTotal as number).toFixed(2)}`}</span>
-                      )}
-                      {Number.isFinite(marketInfluence as number) && (
-                        <span className="text-[10px] text-stone-600">{`${(marketInfluence as number) >= 0 ? '+' : ''}${(marketInfluence as number).toFixed(2)}`}</span>
-                      )}
-                    </div>
-                  )}
+                  {(() => {
+                    // Compute effective market values with objection fallback
+                    let effPrice = Number(marketPrice as number);
+                    let effMine = Number(marketMine as number);
+                    let effTotal = Number(marketTotal as number);
+                    let effInfl = Number(marketInfluence as number);
+                    if (!Number.isFinite(effPrice) && (edgeType === 'objection')) {
+                      try {
+                        const ed = rf.getEdges().find((ee: any) => String(ee.id) === String(edgeId)) as any;
+                        const targetId = String(ed?.target || '');
+                        if (targetId && targetId.startsWith('anchor:')) {
+                          const anchor = rf.getNode(targetId) as any;
+                          const baseId = String(anchor?.data?.parentEdgeId || '');
+                          if (baseId) {
+                            const base = rf.getEdges().find((ee: any) => String(ee.id) === baseId) as any;
+                            effPrice = Number(base?.data?.market?.price);
+                            effMine = Number(base?.data?.market?.mine);
+                            effTotal = Number(base?.data?.market?.total);
+                            effInfl = Number(base?.data?.market?.influence);
+                          }
+                        }
+                      } catch { }
+                    }
+                    if (!Number.isFinite(effPrice)) return null;
+                    return (
+                      <div
+                        className="mt-1 flex items-center gap-2 px-2 py-1 rounded-md border border-stone-200 bg-white/95 text-stone-800 shadow-sm"
+                        style={{ pointerEvents: 'none' }}
+                        title={(() => {
+                          const parts: string[] = [];
+                          if (Number.isFinite(effPrice)) parts.push(`Price: ${effPrice.toFixed(4)}`);
+                          if (Number.isFinite(effMine) && effMine > 0) parts.push(`You: ${effMine.toFixed(2)}`);
+                          if (Number.isFinite(effTotal) && effTotal > 0) parts.push(`Total: ${effTotal.toFixed(2)}`);
+                          if (Number.isFinite(effInfl)) parts.push(`Influence: ${(effInfl >= 0 ? '+' : '')}${effInfl.toFixed(2)}`);
+                          return parts.join('   ');
+                        })()}
+                      >
+                        <span className="text-[11px] font-semibold">{`Price: ${effPrice.toFixed(4)}`}</span>
+                        {Number.isFinite(effMine) && effMine > 0 && (
+                          <span className="text-[10px] text-stone-600">{`You: ${effMine.toFixed(2)}`}</span>
+                        )}
+                        {Number.isFinite(effTotal) && effTotal > 0 && (
+                          <span className="text-[10px] text-stone-600">{`Total: ${effTotal.toFixed(2)}`}</span>
+                        )}
+                        {Number.isFinite(effInfl) && (
+                          <span className="text-[10px] text-stone-600">{`${effInfl >= 0 ? '+' : ''}${effInfl.toFixed(2)}`}</span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
           </div>
+
+          {buyOpen && buyPos && portalTarget && createPortal(
+            <div
+              ref={buyContainerRef}
+              className="fixed z-[9998]"
+              style={{ left: buyPos.x, top: buyPos.y, transform: 'translate(-50%, 8px)', pointerEvents: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <InlineBuyControls
+                entityId={edgeId}
+                price={Number(marketPrice as number)}
+                initialOpen
+                onDismiss={() => setBuyOpen(false)}
+                variant={(edgeType === 'objection') ? 'objection' : 'default'}
+              />
+            </div>,
+            portalTarget
+          )}
+
           <MarketContextMenu
             open={menuOpen}
             x={menuPos.x}

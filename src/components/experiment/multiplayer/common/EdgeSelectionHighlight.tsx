@@ -189,27 +189,7 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
   }
 
   if (useBezier) {
-    // For objections without mindchange, match MainEdgeRenderer's BezierEdge position logic
-    if (edgeType === 'objection' && !mindchangeMarkerStart && !mindchangeMarkerEnd) {
-      let sourcePosition = Position.Right;
-      let targetPosition = Position.Left;
-      const objectionY = sourceNode?.position?.y ?? 0;
-      const anchorY = targetNode?.position?.y ?? 0;
-      sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
-      targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
-
-      const [objPath] = getBezierPath({
-        sourceX: sourceX ?? 0,
-        sourceY: sourceY ?? 0,
-        sourcePosition,
-        targetX: targetX ?? 0,
-        targetY: targetY ?? 0,
-        targetPosition,
-        curvature: curvature,
-      });
-      return <path data-edge-overlay={edgeId} d={objPath} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
-    }
-
+    // Always prefer the main edge renderer's computed path for highlight to ensure perfect alignment
     if (pathD) {
       return <path data-edge-overlay={edgeId} d={pathD} stroke="#000" strokeWidth={8} fill="none" strokeLinecap="round" opacity={0.85} />;
     }

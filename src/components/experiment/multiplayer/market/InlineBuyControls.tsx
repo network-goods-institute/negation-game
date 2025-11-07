@@ -1,7 +1,8 @@
 "use client";
 import React, { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { normalizeSecurityId, sharesToScaled, dispatchMarketRefresh } from '@/utils/market/marketUtils';
+import { normalizeSecurityId } from '@/utils/market/marketUtils';
+import { buyAmount as buyAmountClient } from '@/utils/market/marketContextMenu';
 
 type Props = {
   entityId: string;
@@ -10,17 +11,18 @@ type Props = {
   className?: string;
   initialMine?: number;
   initialTotal?: number;
+  variant?: 'default' | 'objection';
+  initialOpen?: boolean;
+  onDismiss?: () => void;
 };
 
-const PRESETS = [5, 10, 25, 100, 500];
+const PRESETS = [-50, -10, 10, 50];
 
-export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, className, initialMine, initialTotal }) => {
-  const [open, setOpen] = useState(false);
+export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, className, initialMine, initialTotal, variant = 'default', initialOpen = false, onDismiss }) => {
+  const [open, setOpen] = useState(initialOpen);
   const [amount, setAmount] = useState<number>(10);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [optimisticMine, setOptimisticMine] = useState<number | null>(null);
-  const [optimisticTotal, setOptimisticTotal] = useState<number | null>(null);
 
   const resolvedDocId = useMemo(() => {
     if (docId && docId.length > 0) return docId;
@@ -40,52 +42,20 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
   const estimatedPayout = useMemo(() => {
     const p = Number(price);
     if (!Number.isFinite(p) || p <= 0) return 0;
-    // NOTE: This formula is temporary and not correct. It is only a placeholder.
-    // Connor's placeholder: payout if you win ≈ amount / P(point)
     return amount / p;
   }, [amount, price]);
-
-  const estimatedGain = Math.max(0, estimatedPayout - amount);
 
   const onSubmit = async () => {
     try {
       if (submitting) return;
       setSubmitting(true);
-      if (!resolvedDocId) {
-        toast.error('Missing document id');
-        setSubmitting(false);
-        return;
-      }
-      const deltaScaled = sharesToScaled(estimatedShares);
-      // optimistic update (local UI only)
-      if (Number.isFinite(initialMine as any)) {
-        setOptimisticMine((initialMine || 0) + estimatedShares);
-      }
-      if (Number.isFinite(initialTotal as any)) {
-        setOptimisticTotal((initialTotal || 0) + estimatedShares);
-      }
-      const res = await fetch(`/api/market/${encodeURIComponent(resolvedDocId)}/buy-shares`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ securityId: normId, deltaScaled }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        toast.error(j?.error || 'Failed to buy');
-        // rollback optimistic
-        setOptimisticMine(null);
-        setOptimisticTotal(null);
-        setSubmitting(false);
-        return;
-      }
-      toast.success(`Purchased ~${estimatedShares.toFixed(2)} shares`);
-      try { dispatchMarketRefresh(); } catch {}
+
+      await buyAmountClient(normId, amount); // triggers optimistic event + refresh
+      toast.success(`Order placed`);
       setOpen(false);
       setSubmitting(false);
     } catch (e: any) {
       toast.error('Purchase failed');
-      setOptimisticMine(null);
-      setOptimisticTotal(null);
       setSubmitting(false);
     }
   };
@@ -124,86 +94,89 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
       style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25 }}
     >
       <div
-        className="w-full max-w-full overflow-hidden rounded-md border border-stone-200 bg-white/95 backdrop-blur-sm shadow-sm p-2 space-y-2 text-[11px]"
+        className={`w-full max-w-full min-w-0 overflow-hidden rounded-md p-2 space-y-2 text-[11px] subpixel-antialiased ${variant === 'objection' ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'border border-stone-200 bg-white text-stone-800'}`}
         data-interactive="true"
       >
-        <div className="flex items-center justify-between" data-interactive="true">
-          <div className="text-stone-700">Price: ${price.toFixed(2)}</div>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setOpen(false); }}
-            className="px-2 py-0.5 rounded border border-stone-300 text-stone-600 hover:bg-stone-50"
-          >
-            Close
-          </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-1" data-interactive="true">
-          {PRESETS.map((v) => (
+        <div className="flex items-center gap-1" data-interactive="true">
+          {PRESETS.map((delta) => (
             <button
-              key={v}
+              key={delta}
               type="button"
-              onClick={(e) => { e.stopPropagation(); setAmount(v); }}
-              className={`text-[10px] px-2 py-0.5 rounded border ${(amount === v) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const next = amount + delta;
+                setAmount(Math.max(-1000, Math.min(1000, next)));
+              }}
+              className={`text-[10px] px-2 py-0.5 rounded border bg-white ${variant === 'objection' ? 'text-amber-800 border-amber-300 hover:bg-amber-50' : 'text-stone-700 border-stone-300 hover:bg-stone-50'}`}
             >
-              ${v}
+              {delta > 0 ? `+${delta}` : `${delta}`}
             </button>
           ))}
-        </div>
-
-        <div className="min-w-0" data-interactive="true">
-          <input
-            type="range"
-            min={1}
-            max={500}
-            step={1}
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-full h-[4px]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 min-w-0" data-interactive="true">
-          <button type="button" onClick={(e) => { e.stopPropagation(); setAmount(Math.max(1, amount - 5)); }} className="px-2 py-0.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50">-5</button>
           <input
             type="number"
-            className="w-20 text-[11px] border rounded px-2 py-0.5"
+            className={`ml-1 flex-1 text-[11px] border rounded px-2 py-0.5 subpixel-antialiased ${variant === 'objection' ? 'border-amber-300' : ''}`}
             value={amount}
-            min={1}
-            max={500}
-            onChange={(e) => setAmount(Math.max(1, Math.min(500, Number(e.target.value))))}
+            min={-1000}
+            max={1000}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              if (!Number.isFinite(val)) return;
+              setAmount(Math.max(-1000, Math.min(1000, val)));
+            }}
+            placeholder="Amount"
           />
-          <button type="button" onClick={(e) => { e.stopPropagation(); setAmount(Math.min(500, amount + 5)); }} className="px-2 py-0.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50">+5</button>
         </div>
 
-        <div className="text-[11px] text-stone-700" data-interactive="true">Estimated shares: {estimatedShares.toFixed(2)}</div>
-        <div className="text-[11px] text-stone-700" data-interactive="true">Estimated payout: ${estimatedPayout.toFixed(2)}</div>
-        <div className="text-[11px] text-stone-700" data-interactive="true">Estimated gain: ${estimatedGain.toFixed(2)}</div>
-        {(initialMine != null || optimisticMine != null) && (
-          <div className="text-[11px] text-stone-600" data-interactive="true">
-            Your shares (after): {(optimisticMine ?? initialMine ?? 0).toFixed(2)}
-          </div>
-        )}
-        {(initialTotal != null || optimisticTotal != null) && (
-          <div className="text-[11px] text-stone-600" data-interactive="true">
-            Total shares (after): {(optimisticTotal ?? initialTotal ?? 0).toFixed(2)}
-          </div>
-        )}
+        {(() => {
+          // Bipolar log slider: [-100,100] with 0 -> 0; magnitude maps log between 1..1000
+          const MIN_MAG = 1;
+          const MAX_MAG = 1000;
+          const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+          const amt = clamp(amount, -MAX_MAG, MAX_MAG);
+          const mag = Math.abs(amt);
+          let sliderVal = 0;
+          if (mag >= MIN_MAG) {
+            const t = Math.log(mag / MIN_MAG) / Math.log(MAX_MAG / MIN_MAG);
+            sliderVal = Math.round((amt < 0 ? -1 : 1) * t * 100);
+          } else if (mag > 0) {
+            sliderVal = 0;
+          }
+          const onSlider = (v: number) => {
+            const sign = v < 0 ? -1 : v > 0 ? 1 : 0;
+            const t = Math.abs(v) / 100;
+            if (sign === 0) {
+              setAmount(0);
+              return;
+            }
+            const nextMag = MIN_MAG * Math.exp(Math.log(MAX_MAG / MIN_MAG) * t);
+            setAmount(Math.round(sign * nextMag));
+          };
+          return (
+            <input
+              type="range"
+              min={-100}
+              max={100}
+              value={sliderVal}
+              onChange={(e) => onSlider(Number(e.target.value))}
+              className="w-full h-[4px]"
+            />
+          );
+        })()}
 
         <div className="flex gap-2 min-w-0" data-interactive="true">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onSubmit(); }}
             disabled={submitting}
-            className="flex-1 min-w-0 text-[11px] bg-stone-900 text-white rounded-md px-2.5 py-1 hover:bg-black transition whitespace-nowrap truncate disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`flex-1 min-w-0 text-[11px] rounded-md px-2.5 py-1 transition whitespace-nowrap truncate disabled:opacity-50 disabled:cursor-not-allowed ${variant === 'objection' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-stone-900 hover:bg-black text-white'}`}
           >
-            {submitting ? 'Buying…' : `Buy $${amount} (Estimated payout ${estimatedPayout.toFixed(0)})`}
+            {submitting ? 'Buying…' : `Buy $${amount} (Estimated payout $${estimatedPayout.toFixed(0)})`}
           </button>
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); if (!submitting) setOpen(false); }}
+            onClick={(e) => { e.stopPropagation(); if (!submitting) { setOpen(false); onDismiss?.(); } }}
             disabled={submitting}
-            className="text-[11px] bg-white border border-stone-300 text-stone-700 rounded-md px-2.5 py-1 hover:bg-stone-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`text-[11px] bg-white rounded-md px-2.5 py-1 transition disabled:opacity-50 disabled:cursor-not-allowed ${variant === 'objection' ? 'border border-amber-300 text-amber-800 hover:bg-amber-50' : 'border border-stone-300 text-stone-700 hover:bg-stone-50'}`}
           >
             Cancel
           </button>

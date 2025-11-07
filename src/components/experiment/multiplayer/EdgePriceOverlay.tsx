@@ -25,8 +25,22 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.9, 
   const { zoom, x: vx, y: vy } = useViewport();
   const graph = useGraphActions() as any;
   const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
+  const hoveredEdgeId = (graph as any)?.hoveredEdgeId as (string | null);
+  const [tick, setTick] = React.useState(0);
 
   const show = zoom <= zoomThreshold;
+
+  React.useEffect(() => {
+    if (!show) return;
+    let raf = 0;
+    const loop = () => {
+      setTick((t) => (t + 1) % 1000000);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [show]);
+
   if (!show || !Array.isArray(edges) || edges.length === 0) return null;
 
   // Compute a clamped size multiplier relative to the threshold
@@ -40,14 +54,33 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.9, 
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 6 }}>
       {edges.map((e) => {
         try {
-          const price = Number((e as any)?.data?.market?.price);
-          if (!Number.isFinite(price)) return null;
+          let price = Number((e as any)?.data?.market?.price);
           const t = (e.type || '').toLowerCase() as EdgeType | string;
           const isSupport = t === 'support';
           const isNegation = t === 'negation';
           const isObjection = t === 'objection';
           if (!isSupport && !isNegation && !isObjection) return null;
-          if (e.selected || overlayActiveId === e.id) return null;
+
+          // For objection edges that may not carry their own market price,
+          // fall back to the base edge (via anchor node's parentEdgeId).
+          if (!Number.isFinite(price) && isObjection) {
+            try {
+              const obj = rf.getEdge(String(e.id)) as any;
+              const anchorId = String(obj?.target || '');
+              if (anchorId && anchorId.startsWith('anchor:')) {
+                const anchor = rf.getNode(anchorId) as any;
+                const baseId = String(anchor?.data?.parentEdgeId || '');
+                if (baseId) {
+                  const base = rf.getEdge(baseId) as any;
+                  const p2 = Number(base?.data?.market?.price);
+                  if (Number.isFinite(p2)) price = p2;
+                }
+              }
+            } catch { }
+          }
+
+          if (!Number.isFinite(price)) return null;
+          if (e.selected || overlayActiveId === e.id || hoveredEdgeId === e.id) return null;
 
           let screenX: number | null = null;
           let screenY: number | null = null;

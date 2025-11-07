@@ -137,13 +137,13 @@ export const MarketContextMenu: React.FC<Props> = ({ open, x, y, onClose, kind, 
             </div>
 
             <div className="space-y-1.5">
-              <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Buy</div>
+              <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">Buy (spend)</div>
               <div className="flex gap-1.5">
                 <input
                   type="number"
                   value={buyAmt}
                   onChange={(e) => setBuyAmt(e.target.value)}
-                  placeholder="Amount"
+                  placeholder="Spend amount"
                   className="flex-1 text-xs px-2 py-1.5 rounded border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:bg-gray-50"
                   disabled={busy}
                 />

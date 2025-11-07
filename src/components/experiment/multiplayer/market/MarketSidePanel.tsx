@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { buyShares, sellShares, buyAmount, sellAmount, closePosition } from '@/utils/market/marketContextMenu';
+import { buyAmount } from '@/utils/market/marketContextMenu';
 
 type Props = {
   open: boolean;
@@ -22,8 +22,28 @@ export const MarketSidePanel: React.FC<Props> = ({
   const root = typeof document !== 'undefined' ? document.body : null;
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [buyAmt, setBuyAmt] = useState<string>('');
-  const [sellAmt, setSellAmt] = useState<string>('');
   const [busy, setBusy] = useState(false);
+
+
+  const MIN_AMT = 1;
+  const MAX_AMT = 1000;
+  const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+  const amountNumber = useMemo(() => {
+    const n = Number(buyAmt);
+    return Number.isFinite(n) && n > 0 ? clamp(n, MIN_AMT, MAX_AMT) : 0;
+  }, [buyAmt]);
+  const amountToSlider = useCallback((amt: number) => {
+    if (!amt || amt <= 0) return 0;
+    const t = Math.log(amt / MIN_AMT) / Math.log(MAX_AMT / MIN_AMT);
+    return Math.round(clamp(t * 100, 0, 100));
+  }, []);
+  const sliderToAmount = (val: number) => {
+    const t = clamp(val, 0, 100) / 100;
+    const amt = MIN_AMT * Math.exp(Math.log(MAX_AMT / MIN_AMT) * t);
+    return Math.round(amt);
+  };
+  const [slider, setSlider] = useState<number>(amountToSlider(amountNumber));
+  useEffect(() => { setSlider(amountToSlider(amountNumber)); }, [amountNumber, amountToSlider]);
 
   useEffect(() => {
     if (!open) return;
@@ -59,7 +79,7 @@ export const MarketSidePanel: React.FC<Props> = ({
     >
       <div
         ref={panelRef}
-        className="bg-white h-full w-[400px] shadow-2xl flex flex-col animate-slide-in-right"
+        className="bg-white h-full w-[400px] shadow-2xl flex flex-col subpixel-antialiased"
         onClick={(e) => e.stopPropagation()}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -92,158 +112,75 @@ export const MarketSidePanel: React.FC<Props> = ({
         </div>
 
         {marketEnabled ? (
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Current Price
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 font-sans subpixel-antialiased">
+            {/* Bet amount */}
+            <div className="rounded-lg p-4 space-y-3 bg-gray-50">
+              <div className="text-base font-semibold text-gray-800">Bet amount</div>
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    value={buyAmt}
+                    onChange={(e) => setBuyAmt(e.target.value)}
+                    placeholder="Amount"
+                    className="w-full text-lg px-4 py-3 rounded-lg border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:bg-gray-50 subpixel-antialiased"
+                    disabled={busy}
+                  />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</div>
+                </div>
+                {[-10, +10, +50].map((delta) => (
+                  <button
+                    key={delta}
+                    className="px-3 py-2 rounded-md bg-gray-200 text-gray-800 text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => {
+                      const n = Number(buyAmt) || 0;
+                      const next = clamp(n + delta, MIN_AMT, MAX_AMT);
+                      setBuyAmt(String(next));
+                    }}
+                    disabled={busy}
+                  >
+                    {delta > 0 ? `+${delta}` : `${delta}`}
+                  </button>
+                ))}
               </div>
-              <div className="text-2xl font-bold text-gray-900">
-                {currentPrice != null ? currentPrice.toFixed(4) : '—'}
-              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={slider}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setSlider(v);
+                  setBuyAmt(String(sliderToAmount(v)));
+                }}
+              />
             </div>
 
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Quick Actions
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  className="px-3 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={async () => {
-                    if (busy) return;
-                    try {
-                      setBusy(true);
-                      await buyShares(entityId, 1);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                  disabled={busy}
-                >
-                  +1
-                </button>
-                <button
-                  className="px-3 py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={async () => {
-                    if (busy) return;
-                    try {
-                      setBusy(true);
-                      await sellShares(entityId, 1);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                  disabled={busy}
-                >
-                  −1
-                </button>
-                <button
-                  className="px-3 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={async () => {
-                    if (busy) return;
-                    try {
-                      setBusy(true);
-                      await closePosition(entityId);
-                    } finally {
-                      setBusy(false);
-                      onClose();
-                    }
-                  }}
-                  disabled={busy}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
+            {/* CTA */}
+            <button
+              className="w-full px-4 py-4 rounded-lg bg-emerald-500 text-white text-base font-semibold hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={async () => {
+                const n = Number(buyAmt);
+                if (!Number.isFinite(n) || n <= 0 || busy) return;
+                try {
+                  setBusy(true);
+                  await buyAmount(entityId, n);
+                } finally {
+                  setBusy(false);
+                  setBuyAmt('');
+                }
+              }}
+              disabled={busy || !(Number.isFinite(Number(buyAmt)) && Number(buyAmt) > 0)}
+            >
+              {(() => {
+                const amount = Number(buyAmt) || 0;
+                const p = Number(currentPrice || 0);
+                const payoutIfWin = p > 0 ? (amount / p) : 0;
+                const win = Math.max(0, payoutIfWin - amount);
+                return `Buy to win $${win.toFixed(0)}`;
+              })()}
+            </button>
 
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Buy
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={buyAmt}
-                  onChange={(e) => setBuyAmt(e.target.value)}
-                  placeholder="Amount"
-                  className="flex-1 text-sm px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:bg-gray-50"
-                  disabled={busy}
-                />
-                <button
-                  className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={async () => {
-                    const n = Number(buyAmt);
-                    if (!Number.isFinite(n) || n === 0 || busy) return;
-                    try {
-                      setBusy(true);
-                      await buyAmount(entityId, n);
-                    } finally {
-                      setBusy(false);
-                      setBuyAmt('');
-                    }
-                  }}
-                  disabled={busy}
-                >
-                  Buy
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Sell
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={sellAmt}
-                  onChange={(e) => setSellAmt(e.target.value)}
-                  placeholder="Amount"
-                  className="flex-1 text-sm px-3 py-2 rounded-lg border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 disabled:opacity-50 disabled:bg-gray-50"
-                  disabled={busy}
-                />
-                <button
-                  className="px-4 py-2 rounded-lg bg-rose-500 text-white text-sm font-medium hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={async () => {
-                    const n = Number(sellAmt);
-                    if (!Number.isFinite(n) || n === 0 || busy) return;
-                    try {
-                      setBusy(true);
-                      await sellAmount(entityId, n);
-                    } finally {
-                      setBusy(false);
-                      setSellAmt('');
-                    }
-                  }}
-                  disabled={busy}
-                >
-                  Sell
-                </button>
-              </div>
-            </div>
-
-            {busy && (
-              <div className="flex items-center justify-center gap-2 text-sm text-gray-500 py-2">
-                <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-emerald-500 animate-spin" />
-                <span>Processing...</span>
-              </div>
-            )}
-
-            {onDelete && (
-              <div className="pt-4 border-t border-gray-200">
-                <button
-                  className="w-full px-4 py-2 rounded-lg bg-red-50 text-red-600 border border-red-200 text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
-                  onClick={() => {
-                    if (busy) return;
-                    onDelete();
-                    onClose();
-                  }}
-                  disabled={busy}
-                >
-                  Delete {entityType === 'node' ? 'Node' : 'Edge'}
-                </button>
-              </div>
-            )}
           </div>
         ) : (
           <div className="flex-1 p-4">

@@ -2,8 +2,6 @@ import React, { useMemo } from 'react';
 import { EdgeProps, getBezierPath, getStraightPath, Position, useStore, Edge } from '@xyflow/react';
 import { EdgeOverlay } from './EdgeOverlay';
 import { MarketContextMenu } from './MarketContextMenu';
-import { QuickBuyActions } from '../market/QuickBuyActions';
-import { MarketSidePanel } from '../market/MarketSidePanel';
 import { normalizeSecurityId } from '@/utils/market/marketUtils';
 import { EdgeMidpointControl } from './EdgeMidpointControl';
 import { EdgeInteractionOverlay } from './EdgeInteractionOverlay';
@@ -516,7 +514,11 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
           onAddObjection={handleAddObjection}
           onToggleEdgeType={() => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
-          onConnectionClick={undefined}
+          onConnectionClick={(sx: number, sy: number) => {
+            setClickPos({ x: sx, y: sy });
+            setQuickBuyOpen(true);
+            setSelectedEdge?.(props.id as string);
+          }}
           starColor={visual.starColor}
           sourceLabel={(sourceNode as any)?.data?.content || (sourceNode as any)?.data?.statement}
           targetLabel={(targetNode as any)?.data?.content || (targetNode as any)?.data?.statement}
@@ -528,30 +530,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
         />
       )}
 
-      {marketEnabled && hasMarketPrice && (
-        <>
-          <QuickBuyActions
-            open={quickBuyOpen}
-            onClose={() => setQuickBuyOpen(false)}
-            onExpand={() => {
-              setSidePanelOpen(true);
-              setQuickBuyOpen(false);
-            }}
-            entityId={normalizeSecurityId(props.id as string)}
-            x={clickPos.x}
-            y={clickPos.y}
-          />
-
-          <MarketSidePanel
-            open={sidePanelOpen}
-            onClose={() => setSidePanelOpen(false)}
-            entityId={normalizeSecurityId(props.id as string)}
-            entityType="edge"
-            currentPrice={marketPrice}
-            onDelete={() => deleteNode?.(props.id as string)}
-          />
-        </>
-      )}
+      {/* Edge-level quick buy and side panel removed; edge buy handled inline via EdgeOverlay */}
 
       <MarketContextMenu
         open={menuOpen}

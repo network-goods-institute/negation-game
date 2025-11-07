@@ -23,6 +23,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
   const [loading, setLoading] = React.useState(false);
 
   const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
+  const [maxWidthPx, setMaxWidthPx] = React.useState<number | null>(null);
 
   const computePosition = React.useCallback(() => {
     try {
@@ -42,6 +43,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
             const left = rect.left - rootRect.left;
             const top = rect.top - rootRect.top - 40;
             setPos({ x: left, y: top });
+            setMaxWidthPx(Math.max(0, Math.floor(rect.width)));
             return;
           }
         } catch {}
@@ -50,6 +52,10 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         if (!n) { setPos(null); return; }
         const x = (n.position?.x ?? 0) * zoom + vx;
         const y = (n.position?.y ?? 0) * zoom + vy;
+        try {
+          const w = Number(n?.width ?? n?.measured?.width ?? 0);
+          if (Number.isFinite(w) && w > 0) setMaxWidthPx(Math.max(0, Math.floor(w * zoom)));
+        } catch {}
         setPos({ x, y: y - 40 });
         return;
       }
@@ -64,6 +70,39 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
             const left = rect.left - rootRect.left;
             const top = rect.top - rootRect.top - 32;
             setPos({ x: left, y: top });
+            // For edges, cap width by relevant node widths.
+            try {
+              const e = rf.getEdges().find((ee: any) => String(ee.id) === String(targetEdgeId)) as any;
+              if (e) {
+                const isObjection = String(e.type || '') === 'objection';
+                let sw = 0;
+                let tw = 0;
+                if (isObjection) {
+                  // Prefer the objection node width; anchor nodes are tiny.
+                  const objNode = rf.getNode(e.source) as any;
+                  sw = Number(objNode?.width ?? objNode?.measured?.width ?? 0);
+                  const anchor = rf.getNode(e.target) as any;
+                  const baseId = String(anchor?.data?.parentEdgeId || '');
+                  if (baseId) {
+                    const base = rf.getEdges().find((ee: any) => String(ee.id) === baseId) as any;
+                    const bs = rf.getNode(base?.source) as any;
+                    const bt = rf.getNode(base?.target) as any;
+                    const bsw = Number(bs?.width ?? bs?.measured?.width ?? 0);
+                    const btw = Number(bt?.width ?? bt?.measured?.width ?? 0);
+                    tw = Math.min(bsw || 0, btw || 0);
+                  } else {
+                    tw = sw;
+                  }
+                } else {
+                  const sn = rf.getNode(e.source) as any;
+                  const tn = rf.getNode(e.target) as any;
+                  sw = Number(sn?.width ?? sn?.measured?.width ?? 0);
+                  tw = Number(tn?.width ?? tn?.measured?.width ?? 0);
+                }
+                const cap = Math.max(0, Math.floor(Math.min(sw || 0, tw || 0) * zoom));
+                setMaxWidthPx(cap > 0 ? cap : null);
+              }
+            } catch {}
             return;
           }
         } catch {}
@@ -84,6 +123,36 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
               const left = minLeft - containerRect.left;
               const top = minTop - containerRect.top - 32;
               setPos({ x: left, y: top });
+              try {
+                const e = rf.getEdges().find((ee: any) => String(ee.id) === String(targetEdgeId)) as any;
+                if (e) {
+                  const isObjection = String(e.type || '') === 'objection';
+                  let sw = 0, tw = 0;
+                  if (isObjection) {
+                    const objNode = rf.getNode(e.source) as any;
+                    sw = Number(objNode?.width ?? objNode?.measured?.width ?? 0);
+                    const anchor = rf.getNode(e.target) as any;
+                    const baseId = String(anchor?.data?.parentEdgeId || '');
+                    if (baseId) {
+                      const base = rf.getEdges().find((ee: any) => String(ee.id) === baseId) as any;
+                      const bs = rf.getNode(base?.source) as any;
+                      const bt = rf.getNode(base?.target) as any;
+                      const bsw = Number(bs?.width ?? bs?.measured?.width ?? 0);
+                      const btw = Number(bt?.width ?? bt?.measured?.width ?? 0);
+                      tw = Math.min(bsw || 0, btw || 0);
+                    } else {
+                      tw = sw;
+                    }
+                  } else {
+                    const sn = rf.getNode(e.source) as any;
+                    const tn = rf.getNode(e.target) as any;
+                    sw = Number(sn?.width ?? sn?.measured?.width ?? 0);
+                    tw = Number(tn?.width ?? tn?.measured?.width ?? 0);
+                  }
+                  const cap = Math.max(0, Math.floor(Math.min(sw || 0, tw || 0) * zoom));
+                  setMaxWidthPx(cap > 0 ? cap : null);
+                }
+              } catch {}
               return;
             }
           }
@@ -104,9 +173,33 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         const left = leftFlow * zoom + vx;
         const top = topFlow * zoom + vy - 32;
         setPos({ x: left, y: top });
+        try {
+          const edge = rf.getEdges().find((ee: any) => String(ee.id) === String(targetEdgeId)) as any;
+          const isObjection = String(edge?.type || '') === 'objection';
+          let sw2 = Number(sn?.width ?? sn?.measured?.width ?? 0);
+          let tw2 = Number(tn?.width ?? tn?.measured?.width ?? 0);
+          if (isObjection) {
+            // Use objection node width and attempt to include base edge widths if available
+            const anchor = tn;
+            const baseId = String(anchor?.data?.parentEdgeId || '');
+            if (baseId) {
+              const base = rf.getEdges().find((ee: any) => String(ee.id) === baseId) as any;
+              const bs = rf.getNode(base?.source) as any;
+              const bt = rf.getNode(base?.target) as any;
+              const bsw = Number(bs?.width ?? bs?.measured?.width ?? 0);
+              const btw = Number(bt?.width ?? bt?.measured?.width ?? 0);
+              tw2 = Math.min(bsw || 0, btw || 0);
+            } else {
+              tw2 = sw2;
+            }
+          }
+          const cap = Math.max(0, Math.floor(Math.min(sw2 || 0, tw2 || 0) * zoom));
+          setMaxWidthPx(cap > 0 ? cap : null);
+        } catch {}
         return;
       }
       setPos(null);
+      setMaxWidthPx(null);
     } catch { setPos(null); }
   }, [hoveredNodeId, hoveredEdgeId, overlayEdgeId, rf, vx, vy, zoom]);
 
@@ -195,12 +288,13 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
   const d = delta ?? 0;
   const color = d > 0 ? 'text-emerald-700' : d < 0 ? 'text-rose-700' : 'text-stone-800';
   const sign = d > 0 ? '+' : d < 0 ? '' : '';
+  const fontSizePx = Math.max(10, Math.min(13, 12 + (zoom - 1) * 2));
 
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 7 }}>
       <div
-        className={`absolute bg-white/95 border border-stone-200 rounded-md shadow-sm px-2 py-1 flex items-center gap-1 text-[11px] ${color}`}
-        style={{ left: pos.x, top: pos.y }}
+        className={`absolute bg-white subpixel-antialiased border border-stone-200 rounded-md shadow-sm px-2.5 py-1.5 flex items-center gap-1 font-sans ${color}`}
+        style={{ left: Math.round(pos.x), top: Math.round(pos.y), maxWidth: maxWidthPx != null ? `${maxWidthPx}px` : undefined, fontSize: fontSizePx }}
       >
         {loading ? (
           <div className="flex items-center gap-1">
@@ -209,8 +303,8 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
           </div>
         ) : (
           <>
-            <span>{(pct * 100).toFixed(1)}%</span>
-            <span>{d !== 0 ? `(${sign}${(Math.abs(d) * 100).toFixed(1)}%)` : '(0.0%)'}</span>
+            <span className="whitespace-nowrap overflow-hidden text-ellipsis">{(pct * 100).toFixed(1)}% chance</span>
+            <span className="whitespace-nowrap overflow-hidden text-ellipsis">{d !== 0 ? `(${sign}${(Math.abs(d) * 100).toFixed(1)}%)` : '(0.0%)'}</span>
           </>
         )}
       </div>

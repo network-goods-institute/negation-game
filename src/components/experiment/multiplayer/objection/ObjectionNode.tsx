@@ -138,10 +138,21 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     const marketEnabled = isMarketEnabled();
     const { price: priceValue, hasPrice } = useMarketData(data as any);
-    const inlineEntityId = (data as any)?.parentEdgeId || id;
+    // Resolve the objection edge (security to trade) from the graph
+    const rfApi = useReactFlow();
+    const rfEdges = rfApi.getEdges() as any[];
+    const objectionEdge = React.useMemo(() => {
+        try {
+            return rfEdges.find((e: any) => String(e.type || '') === 'objection' && String(e.source) === String(id)) || null;
+        } catch { return null; }
+    }, [rfEdges, id]);
+    const objectionEdgeId = String((objectionEdge as any)?.id || '');
+
+    // Use the objection edge's market data for price display
+    const objectionEdgeData = (objectionEdge as any)?.data || {};
     const { showInlineMarket } = useInlineMarketDisplay({
-        id: inlineEntityId,
-        data: data as any,
+        id: objectionEdgeId,
+        data: objectionEdgeData,
         selected: !!selected,
         hidden,
         showPrice: false,
@@ -255,7 +266,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     } as React.HTMLAttributes<HTMLDivElement>;
 
     const { perfMode } = usePerformanceMode();
-    const rfApi = useReactFlow();
     const mindchangeHighlight = React.useMemo(() => {
         try {
             if (!(graph as any)?.mindchangeMode || !(graph as any)?.mindchangeEdgeId || (graph as any)?.mindchangeNextDir) return false;
@@ -276,7 +286,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     };
     return (
         <>
-                <NodeShell
+            <NodeShell
                 handles={[
                     {
                         id: `${id}-source-handle`,
@@ -318,14 +328,15 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
             >
                 <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
-                {!isNodeDragging && (
+                {!isNodeDragging && objectionEdge && objectionEdgeId && (
                     <InlineMarketDisplay
-                        id={inlineEntityId}
-                        data={data as any}
+                        id={objectionEdgeId}
+                        data={objectionEdgeData as any}
                         selected={!!selected}
                         hidden={hidden}
                         showPrice={false}
                         offsetLeft="-left-4"
+                        variant="objection"
                     />
                 )}
                 <div
@@ -348,23 +359,20 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 >
                     {value || (pointLike ? 'New point' : 'New mitigation')}
                 </div>
-                {selected && marketEnabled && !!hasPrice && !hidden && (() => {
+                {selected && marketEnabled && !hidden && objectionEdge && objectionEdgeId && (() => {
                     if (isNodeDragging) return null;
-                    // Pass edge market stats if available
-                    let edgeMine: number | undefined = undefined;
-                    let edgeTotal: number | undefined = undefined;
-                    try {
-                        const edge = (rfApi.getEdges() as any[])?.find((e: any) => String(e.id) === String(inlineEntityId));
-                        if (edge && edge.data && edge.data.market) {
-                            const m = edge.data.market;
-                            const mineNum = Number(m.mine);
-                            const totNum = Number(m.total);
-                            edgeMine = Number.isFinite(mineNum) ? mineNum : undefined;
-                            edgeTotal = Number.isFinite(totNum) ? totNum : undefined;
-                        }
-                    } catch {}
+                    const mkt = (objectionEdge as any)?.data?.market || {};
+                    const edgePrice = Number(mkt.price);
+                    const edgeMine = Number.isFinite(Number(mkt.mine)) ? Number(mkt.mine) : undefined;
+                    const edgeTotal = Number.isFinite(Number(mkt.total)) ? Number(mkt.total) : undefined;
                     return (
-                        <InlineBuyControls entityId={inlineEntityId} price={priceValue as number} initialMine={edgeMine} initialTotal={edgeTotal} />
+                        <InlineBuyControls
+                            entityId={objectionEdgeId}
+                            price={Number.isFinite(edgePrice) ? edgePrice : 0}
+                            initialMine={edgeMine}
+                            initialTotal={edgeTotal}
+                            variant="objection"
+                        />
                     );
                 })()}
                 {hidden && (
@@ -404,7 +412,7 @@ items-center justify-center pointer-events-none select-none">
                 y={menuPos.y}
                 onClose={() => setMenuOpen(false)}
                 kind="node"
-                entityId={inlineEntityId}
+                entityId={objectionEdgeId || id}
                 onDelete={() => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } }}
                 nodeEl={wrapperRef.current as any}
             />
