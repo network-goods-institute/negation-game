@@ -17,6 +17,7 @@ type Props = {
   currentPrice: number;
   className?: string;
   variant?: 'default' | 'objection';
+  compact?: boolean; // When true, removes padding and background (for embedding in other containers)
 };
 
 /**
@@ -28,7 +29,8 @@ export const InlinePriceHistory: React.FC<Props> = ({
   docId,
   currentPrice,
   className = '',
-  variant = 'default'
+  variant = 'default',
+  compact = false
 }) => {
   const [history, setHistory] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,10 +124,10 @@ export const InlinePriceHistory: React.FC<Props> = ({
 
   if (loading) {
     return (
-      <div className={`${className}`}>
-        <div ref={boxRef} className="w-full max-w-full min-w-0 pointer-events-none select-none">
-          <div className={`w-full max-w-full box-border overflow-hidden rounded-md subpixel-antialiased px-2 py-1.5 ${variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white'}`}>
-            <div className="h-[40px] w-full animate-pulse bg-emerald-50 rounded" />
+      <div className={`w-full min-w-0 overflow-hidden ${className}`}>
+        <div ref={boxRef} className="w-full min-w-0 pointer-events-none select-none overflow-hidden">
+          <div className={`w-full min-w-0 box-border overflow-hidden rounded-md subpixel-antialiased ${compact ? '' : 'px-2 py-1.5'} ${compact ? '' : (variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white')}`}>
+            <div className="h-[40px] w-full min-w-0 animate-pulse bg-emerald-50 rounded" />
           </div>
         </div>
       </div>
@@ -154,11 +156,11 @@ export const InlinePriceHistory: React.FC<Props> = ({
   const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
 
   return (
-    <div className={`${className}`}>
-      <div ref={boxRef} className="w-full max-w-full min-w-0 pointer-events-none select-none">
-        <div className={`w-full max-w-full box-border overflow-hidden rounded-md subpixel-antialiased px-2 py-1.5 font-sans ${variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white'}`}>
-          <div className={`text-[14px] font-semibold mb-1 ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-700'}`}>{(currentPrice * 100).toFixed(1)}% chance</div>
-          <svg width="100%" height={height} className="block w-full" preserveAspectRatio="none">
+    <div className={`w-full min-w-0 overflow-hidden ${className}`}>
+      <div ref={boxRef} className="w-full min-w-0 pointer-events-none select-none overflow-hidden">
+        <div className={`w-full min-w-0 box-border overflow-hidden rounded-md subpixel-antialiased font-sans ${compact ? '' : 'px-2 py-1.5'} ${compact ? '' : (variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white')}`}>
+          <div className={`w-full min-w-0 overflow-hidden text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-700'}`}>{(currentPrice * 100).toFixed(1)}% chance</div>
+          <svg width="100%" height={height} className="block w-full min-w-0" preserveAspectRatio="none">
             <defs>
               <linearGradient id={`gradient-${entityId}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"} stopOpacity="0.2" />

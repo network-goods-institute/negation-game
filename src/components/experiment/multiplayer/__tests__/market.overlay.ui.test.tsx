@@ -5,7 +5,7 @@ import { MiniHoverStats } from '@/components/experiment/multiplayer/MiniHoverSta
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
 
 jest.mock('@xyflow/react', () => ({
-  useViewport: () => ({ x: 0, y: 0, zoom: 0.8 }),
+  useViewport: () => ({ x: 0, y: 0, zoom: 0.5 }),
   useReactFlow: () => ({
     getNode: (id: string) => ({ id, position: { x: 100, y: 100 }, width: 120, height: 60 }),
   }),

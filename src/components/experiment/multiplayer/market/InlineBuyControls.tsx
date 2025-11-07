@@ -3,6 +3,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { normalizeSecurityId } from '@/utils/market/marketUtils';
 import { buyAmount as buyAmountClient } from '@/utils/market/marketContextMenu';
+import { InlinePriceHistory } from './InlinePriceHistory';
 
 type Props = {
   entityId: string;
@@ -69,7 +70,7 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onDragStart={(e) => e.preventDefault()}
-        style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25 }}
+        style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, width: '320px', maxWidth: '320px' }}
       >
         <button
           type="button"
@@ -91,12 +92,22 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onDragStart={(e) => e.preventDefault()}
-      style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25 }}
+      style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, width: '320px', maxWidth: '320px' }}
     >
       <div
-        className={`w-full max-w-full min-w-0 overflow-hidden rounded-md p-2 space-y-2 text-[11px] subpixel-antialiased ${variant === 'objection' ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'border border-stone-200 bg-white text-stone-800'}`}
+        className={`w-full min-w-0 overflow-hidden rounded-md p-2 space-y-2 text-[11px] subpixel-antialiased ${variant === 'objection' ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'border border-stone-200 bg-white text-stone-800'}`}
         data-interactive="true"
       >
+        <div className="w-full max-w-[320px] min-w-0 overflow-hidden">
+          <InlinePriceHistory
+            entityId={entityId}
+            docId={resolvedDocId}
+            currentPrice={price}
+            variant={variant}
+            className="w-full max-w-[320px] min-w-0"
+            compact={true}
+          />
+        </div>
         <div className="flex items-center gap-1" data-interactive="true">
           {PRESETS.map((delta) => (
             <button
