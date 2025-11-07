@@ -404,7 +404,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onKeyDown={onKeyDown}
           className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden || showPrice ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
           style={{ marginTop: showInlineMarket ? '96px' : undefined }}
-          title={typeof value === 'string' ? value : undefined}
         >
           {value || 'New point'}
         </div>
