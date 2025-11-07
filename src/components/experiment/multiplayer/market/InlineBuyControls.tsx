@@ -54,7 +54,7 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
     if (submitting) return;
     setSubmitting(true);
     try {
-      toast.info('Order placed');
+      toast.info('Order placed ✅');
       setOpen(false);
       onDismiss?.();
 

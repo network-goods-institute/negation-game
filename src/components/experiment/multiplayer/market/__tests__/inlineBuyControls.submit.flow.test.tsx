@@ -28,7 +28,7 @@ describe("InlineBuyControls submit flow", () => {
     expect(onDismiss).toHaveBeenCalled();
 
     const { toast } = require("sonner");
-    expect(toast.info).toHaveBeenCalledWith("Order placed");
+    expect(toast.info).toHaveBeenCalledWith("Order placed ✅");
 
     await act(async () => {
       await Promise.resolve();
