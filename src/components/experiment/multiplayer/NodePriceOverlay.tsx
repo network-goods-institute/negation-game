@@ -35,13 +35,29 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
           const sh = Math.max(1, Math.round(h * zoom));
           // Scale text size with zoom level - smaller as we zoom out more
           const fontSizePx = Math.max(10, Math.min(13, 12 + (zoom - 1) * 2));
+          const fillHeight = Math.round(sh * p);
+          const fillY = sh - fillHeight;
+          const isObjection = (n as any)?.type === 'objection';
+          const color = isObjection ? '#f59e0b' : '#d1d5db'; // orange for objection, light grey otherwise
           return (
             <div
               key={`price-${n.id}`}
-              className="absolute bg-white subpixel-antialiased border border-stone-200 text-stone-800 shadow-sm rounded-md overflow-hidden font-sans"
+              className="absolute subpixel-antialiased rounded-md overflow-hidden font-sans"
               style={{ left: sx, top: sy, transform: "translate(-50%, -50%)", width: sw, height: sh }}
             >
-              <div className="w-full h-full flex items-center justify-center px-2 py-1 font-semibold" style={{ fontSize: fontSizePx }}>
+              <svg width={sw} height={sh} className="absolute inset-0 drop-shadow-sm">
+                <defs>
+                  <clipPath id={`node-clip-${n.id}`}>
+                    <rect x={0} y={0} width={sw} height={sh} rx={6} />
+                  </clipPath>
+                </defs>
+                <rect x={0} y={0} width={sw} height={sh} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1} rx={6} />
+                <g clipPath={`url(#node-clip-${n.id})`}>
+                  <rect x={0} y={fillY} width={sw} height={fillHeight} fill={color} />
+                </g>
+                <rect x={0} y={0} width={sw} height={sh} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={1} rx={6} />
+              </svg>
+              <div className="relative w-full h-full flex items-center justify-center px-2 py-1 font-semibold text-stone-800" style={{ fontSize: fontSizePx }}>
                 {(p * 100).toFixed(1)}% chance
               </div>
             </div>

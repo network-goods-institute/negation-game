@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { Position, useStore, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 
@@ -13,9 +14,17 @@ import { FavorSelector } from '../common/FavorSelector';
 import { LockIndicator } from '../common/LockIndicator';
 import { useNodeExtrasVisibility } from '../common/useNodeExtrasVisibility';
 import { useMarketData } from '@/hooks/market/useMarketData';
-import { InlineMarketDisplay, useInlineMarketDisplay } from '../common/NodeWithMarket';
+import { useInlineMarketDisplay } from '../common/NodeWithMarket';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
-import { InlineBuyControls } from '../market/InlineBuyControls';
+// Lazy-load heavy market UI for objections as well
+const InlineMarketDisplayLazy = dynamic(
+  () => import('../common/NodeWithMarket').then(m => m.InlineMarketDisplay),
+  { ssr: false, loading: () => null }
+);
+const InlineBuyControlsLazy = dynamic(
+  () => import('../market/InlineBuyControls').then(m => m.InlineBuyControls),
+  { ssr: false, loading: () => null }
+);
 import { MarketContextMenu } from '../common/MarketContextMenu';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
@@ -123,7 +132,19 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         return !isExactlyOneObjection;
     });
     const { hovered, onMouseEnter, onMouseLeave } = hover;
-    const isNodeDragging = useStore((s: any) => Boolean(s?.nodeInternals?.get?.(id)?.dragging));
+    const isNodeDragging = useStore((s: any) => {
+        try {
+            const fromInternals = s?.nodeInternals?.get?.(id);
+            if (fromInternals && typeof fromInternals === 'object') {
+                return Boolean((fromInternals as any).dragging);
+            }
+            const nodesArr = Array.isArray(s.nodes) ? s.nodes : Array.from(s.nodes?.values?.() || []);
+            const self = nodesArr.find((n: any) => String(n?.id) === String(id));
+            return Boolean(self?.dragging);
+        } catch {
+            return false;
+        }
+    });
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 
     const forceHidePills = useForceHidePills({
@@ -322,14 +343,14 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 wrapperStyle={{
                     ...innerScaleStyle,
                     opacity: hidden ? undefined : favorOpacity,
-                    marginTop: showInlineMarket ? '-96px' : undefined,
+                    marginTop: (!isEditing && !isNodeDragging && showInlineMarket) ? '-96px' : undefined,
                 } as any}
                 wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
             >
                 <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
-                {!isNodeDragging && objectionEdge && objectionEdgeId && (
-                    <InlineMarketDisplay
+                {!isEditing && !isNodeDragging && objectionEdge && objectionEdgeId && (
+                    <InlineMarketDisplayLazy
                         id={objectionEdgeId}
                         data={objectionEdgeData as any}
                         selected={!!selected}
@@ -355,18 +376,18 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     onBlur={onBlur}
                     onKeyDown={onKeyDown}
                     className={`text-sm ${pointLike ? 'text-gray-900' : 'text-amber-900'} leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
-                    style={{ marginTop: showInlineMarket ? '96px' : undefined }}
+                    style={{ marginTop: (!isEditing && !isNodeDragging && showInlineMarket) ? '96px' : undefined }}
                 >
                     {value || (pointLike ? 'New point' : 'New mitigation')}
                 </div>
-                {selected && marketEnabled && !hidden && objectionEdge && objectionEdgeId && (() => {
+                {selected && marketEnabled && !hidden && objectionEdge && objectionEdgeId && !isEditing && (() => {
                     if (isNodeDragging) return null;
                     const mkt = (objectionEdge as any)?.data?.market || {};
                     const edgePrice = Number(mkt.price);
                     const edgeMine = Number.isFinite(Number(mkt.mine)) ? Number(mkt.mine) : undefined;
                     const edgeTotal = Number.isFinite(Number(mkt.total)) ? Number(mkt.total) : undefined;
                     return (
-                        <InlineBuyControls
+                        <InlineBuyControlsLazy
                             entityId={objectionEdgeId}
                             price={Number.isFinite(edgePrice) ? edgePrice : 0}
                             initialMine={edgeMine}
