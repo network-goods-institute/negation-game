@@ -3,6 +3,7 @@ import { EdgeLabelRenderer, useStore, useReactFlow } from '@xyflow/react';
 import { createPortal } from 'react-dom';
 import { MarketContextMenu } from './MarketContextMenu';
 import { InlineBuyControls } from '../market/InlineBuyControls';
+import { InlinePriceHistory } from '../market/InlinePriceHistory';
 import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
@@ -104,6 +105,10 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [buyOpen, setBuyOpen] = React.useState(false);
   const [buyPos, setBuyPos] = React.useState<{ x: number; y: number } | null>(null);
   const buyContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [hoverBuy, setHoverBuy] = React.useState(false);
+  const docId = React.useMemo(() => {
+    try { return window.location.pathname.split('/').pop() || ''; } catch { return ''; }
+  }, []);
   const handlePortalMouseDown = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
       return;
@@ -515,27 +520,13 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={handleClick}
                         className="rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-white text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 active:scale-95 transition-all duration-150 border border-gray-200"
-                        title="Mindchange"
                       >
                         Mindchange
                       </button>
                     );
                   })()}
 
-                  {!editDir && (
-                    <button
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); setOverlayOpen(false); })}
-                      type="button"
-                      data-interactive="true"
-                      className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-gradient-to-b from-gray-800 to-gray-900 text-white shadow-md hover:shadow-lg hover:from-gray-700 hover:to-gray-800 active:scale-95 transition-all duration-150 border border-gray-700"
-                      title="Add mitigation to this relation"
-                    >
-                      Mitigate
-                    </button>
-                  )}
-
-                  {/* Buy circle (inline, to the right of Mitigate) */}
+                  {/* Buy circle (inline, left of Mitigate) */}
                   {(() => {
                     const priceNum = Number(marketPrice as number);
                     if (!Number.isFinite(priceNum)) return null;
@@ -567,30 +558,65 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       );
                     };
                     return (
-                      <button
-                        type="button"
-                        aria-label="Buy"
-                        title="Buy"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
-                          const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
-                          setBuyPos({ x: sx, y: sy });
-                          setBuyOpen(true);
-                        }}
-                        className="h-7 w-7 rounded-full bg-white border border-gray-200 shadow-sm hover:shadow transition flex items-center justify-center ml-2"
-                        style={{ pointerEvents: 'auto' }}
-                      >
-                        <svg width={size} height={size}>
-                          <defs><clipPath id={`edge-mini-clip-inline-${edgeId}`}><circle cx={size / 2} cy={size / 2} r={size / 2} /></clipPath></defs>
-                          <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1} />
-                          {fill()}
-                          <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={1} />
-                        </svg>
-                      </button>
+                      <div className="relative ml-2" onMouseEnter={() => setHoverBuy(true)} onMouseLeave={() => setHoverBuy(false)}>
+                        <button
+                          type="button"
+                          aria-label="Buy"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
+                            const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
+                            setBuyPos({ x: sx, y: sy });
+                            setBuyOpen(true);
+                          }}
+                          className="h-7 w-7 rounded-full bg-white border border-gray-200 shadow-sm hover:shadow transition flex items-center justify-center"
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          <svg width={size} height={size}>
+                            <defs><clipPath id={`edge-mini-clip-inline-${edgeId}`}><circle cx={size / 2} cy={size / 2} r={size / 2} /></clipPath></defs>
+                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1} />
+                            {fill()}
+                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={1} />
+                          </svg>
+                        </button>
+                        {hoverBuy && (
+                          <div
+                            data-testid="buy-circle-tooltip"
+                            className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 rounded-md shadow-md ${isObjection ? 'bg-amber-50 border border-amber-200' : 'bg-white border border-stone-200'}`}
+                            style={{ width: '220px', pointerEvents: 'none' }}
+                          >
+                            <InlinePriceHistory
+                              entityId={edgeId}
+                              docId={docId}
+                              currentPrice={priceNum}
+                              variant={isObjection ? 'objection' : 'default'}
+                              className="w-full"
+                              compact={true}
+                            />
+                          </div>
+                        )}
+                      </div>
                     );
                   })()}
+
+                  {!editDir && (
+                    <button
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={(e) => handleConnectionAwareClick(e, () => {
+                        e.stopPropagation();
+                        const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
+                        const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
+                        setBuyPos({ x: sx, y: sy });
+                        setBuyOpen(true);
+                      })}
+                      type="button"
+                      data-interactive="true"
+                      className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-gradient-to-b from-gray-800 to-gray-900 text-white shadow-md hover:shadow-lg hover:from-gray-700 hover:to-gray-800 active:scale-95 transition-all duration-150 border border-gray-700"
+                    >
+                      Mitigate
+                    </button>
+                  )}
 
                   {editDir && (
                     // Editor only available when feature enabled
@@ -641,7 +667,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     />
                   )}
 
-                  {(edgeType === 'negation' || edgeType === 'objection') && (
+                  {(edgeType === 'negation' || edgeType === 'objection') && !hoverBuy && (
                     isMindchangeEnabledClient() ? (
                       <MindchangeIndicators
                         edgeId={edgeId}
@@ -651,56 +677,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     ) : null
                   )}
 
-                  {(() => {
-                    // Compute effective market values with objection fallback
-                    let effPrice = Number(marketPrice as number);
-                    let effMine = Number(marketMine as number);
-                    let effTotal = Number(marketTotal as number);
-                    let effInfl = Number(marketInfluence as number);
-                    if (!Number.isFinite(effPrice) && (edgeType === 'objection')) {
-                      try {
-                        const ed = rf.getEdges().find((ee: any) => String(ee.id) === String(edgeId)) as any;
-                        const targetId = String(ed?.target || '');
-                        if (targetId && targetId.startsWith('anchor:')) {
-                          const anchor = rf.getNode(targetId) as any;
-                          const baseId = String(anchor?.data?.parentEdgeId || '');
-                          if (baseId) {
-                            const base = rf.getEdges().find((ee: any) => String(ee.id) === baseId) as any;
-                            effPrice = Number(base?.data?.market?.price);
-                            effMine = Number(base?.data?.market?.mine);
-                            effTotal = Number(base?.data?.market?.total);
-                            effInfl = Number(base?.data?.market?.influence);
-                          }
-                        }
-                      } catch { }
-                    }
-                    if (!Number.isFinite(effPrice)) return null;
-                    return (
-                      <div
-                        className="mt-1 flex items-center gap-2 px-2 py-1 rounded-md border border-stone-200 bg-white/95 text-stone-800 shadow-sm"
-                        style={{ pointerEvents: 'none' }}
-                        title={(() => {
-                          const parts: string[] = [];
-                          if (Number.isFinite(effPrice)) parts.push(`Price: ${effPrice.toFixed(4)}`);
-                          if (Number.isFinite(effMine) && effMine > 0) parts.push(`You: ${effMine.toFixed(2)}`);
-                          if (Number.isFinite(effTotal) && effTotal > 0) parts.push(`Total: ${effTotal.toFixed(2)}`);
-                          if (Number.isFinite(effInfl)) parts.push(`Influence: ${(effInfl >= 0 ? '+' : '')}${effInfl.toFixed(2)}`);
-                          return parts.join('   ');
-                        })()}
-                      >
-                        <span className="text-[11px] font-semibold">{`Price: ${effPrice.toFixed(4)}`}</span>
-                        {Number.isFinite(effMine) && effMine > 0 && (
-                          <span className="text-[10px] text-stone-600">{`You: ${effMine.toFixed(2)}`}</span>
-                        )}
-                        {Number.isFinite(effTotal) && effTotal > 0 && (
-                          <span className="text-[10px] text-stone-600">{`Total: ${effTotal.toFixed(2)}`}</span>
-                        )}
-                        {Number.isFinite(effInfl) && (
-                          <span className="text-[10px] text-stone-600">{`${effInfl >= 0 ? '+' : ''}${effInfl.toFixed(2)}`}</span>
-                        )}
-                      </div>
-                    );
-                  })()}
                 </div>
               </div>
             </div>
