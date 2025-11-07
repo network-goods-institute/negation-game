@@ -10,7 +10,7 @@ type Props = {
   zoomThreshold?: number;
 };
 
-export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.9 }: Props) {
+export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) {
   const { zoom, x: vx, y: vy } = useViewport();
   const graph = useGraphActions() as any;
   const hoveredNodeId: string | null = graph?.hoveredNodeId ?? null;
