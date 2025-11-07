@@ -609,10 +609,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={(e) => handleConnectionAwareClick(e, () => {
                         e.stopPropagation();
-                        const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
-                        const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
-                        setBuyPos({ x: sx, y: sy });
-                        setBuyOpen(true);
+                        onAddObjection();
+                        setOverlayOpen(false);
+                        setOverlayActive?.(null);
                       })}
                       type="button"
                       data-interactive="true"
