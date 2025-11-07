@@ -2,7 +2,8 @@ import { SPACE_HEADER, USER_HEADER } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
 import { getPrivyClient } from "@/lib/privy/getPrivyClient";
-import { NextRequest, NextResponse } from "next/server";import { logger } from "@/lib/logger";
+import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // Special subdomains that shouldn't redirect to a space
 const BLACKLISTED_SUBDOMAINS = new Set(["www", "api", "admin"]);
@@ -104,6 +105,57 @@ function handleSubdomain(
       return NextResponse.rewrite(dest);
     }
     const boardMatch = path.match(/^\/board\/([^/]+)\/?$/);
+    if (boardMatch) {
+      const idOrSlug = boardMatch[1];
+      const dest = new URL(
+        `/experiment/rationale/multiplayer/${encodeURIComponent(idOrSlug)}`,
+        req.url
+      );
+      url.searchParams.forEach((value, key) => {
+        dest.searchParams.set(key, value);
+      });
+      return NextResponse.rewrite(dest);
+    }
+    return NextResponse.next();
+  }
+
+  // Handle market subdomain - public market boards (no auth gate)
+  if (subdomain === "market") {
+    const path = url.pathname;
+    // Root → board index
+    if (path === "/" || path === "") {
+      const dest = new URL("/experiment/rationale/multiplayer", req.url);
+      url.searchParams.forEach((value, key) => {
+        dest.searchParams.set(key, value);
+      });
+      return NextResponse.rewrite(dest);
+    }
+    // Allow direct board links at /:idOrSlug
+    const singleSeg = path.match(/^\/([^\/]+)\/?$/);
+    if (singleSeg) {
+      const idOrSlug = singleSeg[1];
+      // Avoid rewriting known static/platform routes
+      const reserved = new Set([
+        "api",
+        "_next",
+        "favicon.ico",
+        "robots.txt",
+        "sitemap.xml",
+        "assets",
+        "static",
+      ]);
+      if (!reserved.has(idOrSlug)) {
+        const dest = new URL(
+          `/experiment/rationale/multiplayer/${encodeURIComponent(idOrSlug)}`,
+          req.url
+        );
+        url.searchParams.forEach((value, key) => {
+          dest.searchParams.set(key, value);
+        });
+        return NextResponse.rewrite(dest);
+      }
+    }
+    const boardMatch = path.match(/^\/board\/([^\/]+)\/?$/);
     if (boardMatch) {
       const idOrSlug = boardMatch[1];
       const dest = new URL(

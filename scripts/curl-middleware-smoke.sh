@@ -177,6 +177,11 @@ main() {
   assert_no_redirect "/" "sync.negationgame.com"
   assert_no_redirect "/board/test-board" "sync.negationgame.com"
 
+  # Subdomain: market (rewrite to multiplayer routes, no redirect)
+  assert_no_redirect "/" "market.negationgame.com"
+  assert_no_redirect "/HBou3R" "market.negationgame.com"
+  assert_no_redirect "/board/abc123?foo=bar" "market.negationgame.com"
+
   # Embeds on play: allow iframes and unified CSP
   assert_header_absent "/embed/scroll/source" "X-Frame-Options" "play.negationgame.com"
   assert_header_contains "/embed/scroll/source" "Content-Security-Policy" "frame-ancestors" "play.negationgame.com"

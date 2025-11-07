@@ -32,7 +32,9 @@ export const isProductionRequest = (
   if (
     h === "negation-game-git-mindchange-network-goods-institute.vercel.app" ||
     h ===
-      "negation-game-git-carroll-mechan-def371-network-goods-institute.vercel.app"
+      "negation-game-git-carroll-mechan-def371-network-goods-institute.vercel.app" ||
+    // Treat market.negationgame.com as non-production (allow anon)
+    h === "market.negationgame.com"
   )
     return false;
   // Treat as production if either the environment is production or the hostname is a production domain
