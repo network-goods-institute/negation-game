@@ -51,16 +51,19 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
   }, [amount, price]);
 
   const onSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      if (submitting) return;
-      setSubmitting(true);
-
-      await buyAmountClient(normId, amount); // triggers optimistic event + refresh
-      toast.success(`Order placed`);
+      toast.info('Order placed');
       setOpen(false);
-      setSubmitting(false);
+      onDismiss?.();
+
+      await buyAmountClient(normId, amount);
+
+      toast.success('Order complete 🎉');
     } catch (e: any) {
       toast.error('Purchase failed');
+    } finally {
       setSubmitting(false);
     }
   };
@@ -277,5 +280,3 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
     </div>
   );
 };
-
-

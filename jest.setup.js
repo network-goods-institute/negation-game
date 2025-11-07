@@ -238,3 +238,13 @@ if (typeof window !== 'undefined') {
     Object.defineProperty(window, 'open', { value: jest.fn(), writable: true });
   } catch {}
 }
+
+// Polyfill ResizeObserver for tests
+if (typeof global.ResizeObserver === 'undefined') {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
