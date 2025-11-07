@@ -130,6 +130,16 @@ function handleSubdomain(
       });
       return NextResponse.rewrite(dest);
     }
+    // Canonicalize full experiment path to short /:id by redirecting
+    const expMatch = path.match(
+      /^\/experiment\/rationale\/multiplayer\/([^\/]+)\/?$/
+    );
+    if (expMatch) {
+      const idOrSlug = expMatch[1];
+      const to = new URL(`/${encodeURIComponent(idOrSlug)}`, req.url);
+      url.searchParams.forEach((value, key) => to.searchParams.set(key, value));
+      return NextResponse.redirect(to, 307);
+    }
     // Allow direct board links at /:idOrSlug
     const singleSeg = path.match(/^\/([^\/]+)\/?$/);
     if (singleSeg) {

@@ -335,6 +335,21 @@ describe("Middleware", () => {
       );
       expect(result?.type).toBe("rewrite");
     });
+
+    test("market subdomain experiment path redirects to short /:id", async () => {
+      const result = await mockMiddleware(
+        "https://market.negationgame.com/experiment/rationale/multiplayer/HBou3R",
+        "market.negationgame.com"
+      );
+
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining("/HBou3R"),
+        }),
+        expect.anything()
+      );
+      expect(result?.type).toBe("redirect");
+    });
   });
 
   describe("Path handling", () => {

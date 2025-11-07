@@ -182,6 +182,9 @@ main() {
   assert_no_redirect "/HBou3R" "market.negationgame.com"
   assert_no_redirect "/board/abc123?foo=bar" "market.negationgame.com"
 
+  # Canonicalize: experiment path redirects to short /:id on market subdomain
+  assert_redirect "/experiment/rationale/multiplayer/HBou3R" "/HBou3R" "market.negationgame.com"
+
   # Embeds on play: allow iframes and unified CSP
   assert_header_absent "/embed/scroll/source" "X-Frame-Options" "play.negationgame.com"
   assert_header_contains "/embed/scroll/source" "Content-Security-Policy" "frame-ancestors" "play.negationgame.com"
