@@ -163,6 +163,15 @@ export const InlinePriceHistory: React.FC<Props> = ({
     } catch {
       series.push({ timestamp: new Date().toISOString(), price: Number(currentPrice) });
     }
+    if (series.length === 1) {
+      const only = series[0];
+      let dupTs = new Date().toISOString();
+      try {
+        const t = Date.parse(only.timestamp);
+        if (Number.isFinite(t)) dupTs = new Date(t + 1000).toISOString();
+      } catch { }
+      series.push({ timestamp: dupTs, price: only.price });
+    }
     return series;
   })();
 
