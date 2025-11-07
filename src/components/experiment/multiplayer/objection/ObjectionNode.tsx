@@ -372,6 +372,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                             initialMine={edgeMine}
                             initialTotal={edgeTotal}
                             variant="objection"
+                            showPriceHistory={false}
                         />
                     );
                 })()}

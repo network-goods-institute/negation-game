@@ -126,8 +126,13 @@ export const InlinePriceHistory: React.FC<Props> = ({
     return (
       <div className={`w-full min-w-0 overflow-hidden ${className}`}>
         <div ref={boxRef} className="w-full min-w-0 pointer-events-none select-none overflow-hidden">
-          <div className={`w-full min-w-0 box-border overflow-hidden rounded-md subpixel-antialiased ${compact ? '' : 'px-2 py-1.5'} ${compact ? '' : (variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white')}`}>
-            <div className="h-[40px] w-full min-w-0 animate-pulse bg-emerald-50 rounded" />
+          <div className={`w-full min-w-0 box-border overflow-hidden rounded-md subpixel-antialiased font-sans ${compact ? '' : 'px-2 py-1.5'} ${compact ? '' : (variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white')}`}>
+            <div className={`text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-700'}`}>
+              {(currentPrice * 100).toFixed(1)}% chance
+            </div>
+            <div className="h-[40px] w-full animate-pulse bg-stone-200/50 rounded relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shimmer" style={{ animationDuration: '1.5s' }} />
+            </div>
           </div>
         </div>
       </div>

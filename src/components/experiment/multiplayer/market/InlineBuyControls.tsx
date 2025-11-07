@@ -15,13 +15,17 @@ type Props = {
   variant?: 'default' | 'objection';
   initialOpen?: boolean;
   onDismiss?: () => void;
+  showPriceHistory?: boolean; // Show inline price history chart (default true for edges, false for nodes)
 };
 
-const PRESETS = [-50, -10, 10, 50];
+const PRESETS = [10, 50];
 
-export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, className, initialMine, initialTotal, variant = 'default', initialOpen = false, onDismiss }) => {
+export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, className, initialMine, initialTotal, variant = 'default', initialOpen = false, onDismiss, showPriceHistory = true }) => {
   const [open, setOpen] = useState(initialOpen);
-  const [amount, setAmount] = useState<number>(10);
+  const [amount, setAmount] = useState<number>(50);
+  const userShares = Number(initialMine || 0);
+  const userHasShares = userShares > 0;
+  const maxNegative = -Math.floor(userShares);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -70,7 +74,7 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onDragStart={(e) => e.preventDefault()}
-        style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, width: '320px', maxWidth: '320px' }}
+        style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, maxWidth: '100%' }}
       >
         <button
           type="button"
@@ -92,106 +96,183 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onDragStart={(e) => e.preventDefault()}
-      style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, width: '320px', maxWidth: '320px' }}
+      style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, maxWidth: '100%' }}
     >
       <div
-        className={`w-full min-w-0 overflow-hidden rounded-md p-2 space-y-2 text-[11px] subpixel-antialiased ${variant === 'objection' ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'border border-stone-200 bg-white text-stone-800'}`}
+        className={`relative w-full min-w-0 overflow-hidden rounded-md p-2 space-y-2 text-[11px] subpixel-antialiased ${variant === 'objection' ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'border border-stone-200 bg-white text-stone-800'}`}
         data-interactive="true"
       >
-        <div className="w-full max-w-[320px] min-w-0 overflow-hidden">
-          <InlinePriceHistory
-            entityId={entityId}
-            docId={resolvedDocId}
-            currentPrice={price}
-            variant={variant}
-            className="w-full max-w-[320px] min-w-0"
-            compact={true}
-          />
-        </div>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); if (!submitting) { setOpen(false); onDismiss?.(); } }}
+          disabled={submitting}
+          className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded transition disabled:opacity-50"
+          aria-label="Close"
+        >
+          ×
+        </button>
+        {showPriceHistory && (
+          <div className="w-full min-w-0 overflow-hidden">
+            <InlinePriceHistory
+              entityId={entityId}
+              docId={resolvedDocId}
+              currentPrice={price}
+              variant={variant}
+              className="w-full min-w-0"
+              compact={true}
+            />
+          </div>
+        )}
         <div className="flex items-center gap-1" data-interactive="true">
-          {PRESETS.map((delta) => (
+          {userHasShares && [-50, -10].map((delta) => (
             <button
               key={delta}
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 const next = amount + delta;
-                setAmount(Math.max(-1000, Math.min(1000, next)));
+                setAmount(Math.max(maxNegative, Math.min(1000, next)));
               }}
               className={`text-[10px] px-2 py-0.5 rounded border bg-white ${variant === 'objection' ? 'text-amber-800 border-amber-300 hover:bg-amber-50' : 'text-stone-700 border-stone-300 hover:bg-stone-50'}`}
             >
-              {delta > 0 ? `+${delta}` : `${delta}`}
+              {delta}
+            </button>
+          ))}
+          {PRESETS.map((delta) => (
+            <button
+              key={delta}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAmount(delta);
+              }}
+              className={`text-[10px] px-2 py-0.5 rounded border bg-white ${variant === 'objection' ? 'text-amber-800 border-amber-300 hover:bg-amber-50' : 'text-stone-700 border-stone-300 hover:bg-stone-50'}`}
+            >
+              +{delta}
             </button>
           ))}
           <input
             type="number"
             className={`ml-1 flex-1 text-[11px] border rounded px-2 py-0.5 subpixel-antialiased ${variant === 'objection' ? 'border-amber-300' : ''}`}
             value={amount}
-            min={-1000}
+            min={maxNegative}
             max={1000}
             onChange={(e) => {
               const val = Number(e.target.value);
               if (!Number.isFinite(val)) return;
-              setAmount(Math.max(-1000, Math.min(1000, val)));
+              setAmount(Math.max(maxNegative, Math.min(1000, val)));
             }}
             placeholder="Amount"
           />
         </div>
 
         {(() => {
-          // Bipolar log slider: [-100,100] with 0 -> 0; magnitude maps log between 1..1000
           const MIN_MAG = 1;
           const MAX_MAG = 1000;
           const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
-          const amt = clamp(amount, -MAX_MAG, MAX_MAG);
-          const mag = Math.abs(amt);
-          let sliderVal = 0;
-          if (mag >= MIN_MAG) {
-            const t = Math.log(mag / MIN_MAG) / Math.log(MAX_MAG / MIN_MAG);
-            sliderVal = Math.round((amt < 0 ? -1 : 1) * t * 100);
-          } else if (mag > 0) {
-            sliderVal = 0;
-          }
-          const onSlider = (v: number) => {
-            const sign = v < 0 ? -1 : v > 0 ? 1 : 0;
-            const t = Math.abs(v) / 100;
-            if (sign === 0) {
-              setAmount(0);
-              return;
+
+          if (userHasShares) {
+            // Bipolar log slider: [-100,100] with 0 -> 0; magnitude maps log between 1..maxNegative (negative) and 1..1000 (positive)
+            const amt = clamp(amount, maxNegative, MAX_MAG);
+            const mag = Math.abs(amt);
+            let sliderVal = 0;
+            if (mag >= MIN_MAG) {
+              const maxMag = amt < 0 ? Math.abs(maxNegative) : MAX_MAG;
+              const t = Math.log(mag / MIN_MAG) / Math.log(maxMag / MIN_MAG);
+              sliderVal = Math.round((amt < 0 ? -1 : 1) * t * 100);
+            } else if (mag > 0) {
+              sliderVal = 0;
             }
-            const nextMag = MIN_MAG * Math.exp(Math.log(MAX_MAG / MIN_MAG) * t);
-            setAmount(Math.round(sign * nextMag));
-          };
+            const onSlider = (v: number) => {
+              const sign = v < 0 ? -1 : v > 0 ? 1 : 0;
+              const t = Math.abs(v) / 100;
+              if (sign === 0) {
+                setAmount(0);
+                return;
+              }
+              const maxMag = sign < 0 ? Math.abs(maxNegative) : MAX_MAG;
+              const nextMag = MIN_MAG * Math.exp(Math.log(maxMag / MIN_MAG) * t);
+              setAmount(Math.round(sign * nextMag));
+            };
+            return (
+              <input
+                type="range"
+                min={-100}
+                max={100}
+                value={sliderVal}
+                onChange={(e) => onSlider(Number(e.target.value))}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerMove={(e) => e.stopPropagation()}
+                className="w-full h-[4px] accent-emerald-600"
+              />
+            );
+          } else {
+            // Unipolar log slider: [0,100] mapping to 0..1000
+            const amt = clamp(amount, 0, MAX_MAG);
+            let sliderVal = 0;
+            if (amt >= MIN_MAG) {
+              const t = Math.log(amt / MIN_MAG) / Math.log(MAX_MAG / MIN_MAG);
+              sliderVal = Math.round(t * 100);
+            }
+            const onSlider = (v: number) => {
+              const t = v / 100;
+              if (v === 0) {
+                setAmount(0);
+                return;
+              }
+              const nextMag = MIN_MAG * Math.exp(Math.log(MAX_MAG / MIN_MAG) * t);
+              setAmount(Math.round(nextMag));
+            };
+            return (
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={sliderVal}
+                onChange={(e) => onSlider(Number(e.target.value))}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerMove={(e) => e.stopPropagation()}
+                className="w-full h-[4px] accent-emerald-600"
+              />
+            );
+          }
+        })()}
+
+        {(() => {
+          // Calculate position info
+          const currentShares = Number(initialMine || 0);
+          const currentPosition = currentShares * price;
+          const newShares = currentShares + estimatedShares;
+          const newPosition = newShares * price;
+          const gain = newPosition - currentPosition;
+          const totalOutstanding = Number(initialTotal || 0);
+
           return (
-            <input
-              type="range"
-              min={-100}
-              max={100}
-              value={sliderVal}
-              onChange={(e) => onSlider(Number(e.target.value))}
-              className="w-full h-[4px]"
-            />
+            <div className="text-[11px] text-stone-700 space-y-1" data-interactive="true">
+              {currentShares > 0 && (
+                <div>
+                  ${Math.round(currentPosition)} your position ({Math.round(currentShares)} shares) {gain >= 0 ? (
+                    <span className="text-emerald-700">+${Math.round(gain)} gain</span>
+                  ) : (
+                    <span className="text-red-700">-${Math.round(Math.abs(gain))} loss</span>
+                  )} {totalOutstanding > 0 && <span className="text-stone-500">• {Math.round(totalOutstanding)} shares outstanding</span>}
+                </div>
+              )}
+              {currentShares === 0 && totalOutstanding > 0 && (
+                <div className="text-stone-500">{Math.round(totalOutstanding)} shares outstanding</div>
+              )}
+            </div>
           );
         })()}
 
-        <div className="flex gap-2 min-w-0" data-interactive="true">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onSubmit(); }}
-            disabled={submitting}
-            className={`flex-1 min-w-0 text-[11px] rounded-md px-2.5 py-1 transition whitespace-nowrap truncate disabled:opacity-50 disabled:cursor-not-allowed ${variant === 'objection' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-stone-900 hover:bg-black text-white'}`}
-          >
-            {submitting ? 'Buying…' : `Buy $${amount} (Estimated payout $${estimatedPayout.toFixed(0)})`}
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); if (!submitting) { setOpen(false); onDismiss?.(); } }}
-            disabled={submitting}
-            className={`text-[11px] bg-white rounded-md px-2.5 py-1 transition disabled:opacity-50 disabled:cursor-not-allowed ${variant === 'objection' ? 'border border-amber-300 text-amber-800 hover:bg-amber-50' : 'border border-stone-300 text-stone-700 hover:bg-stone-50'}`}
-          >
-            Cancel
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onSubmit(); }}
+          disabled={submitting}
+          className="w-full text-sm bg-emerald-600 text-white rounded-md px-3 py-1.5 hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {submitting ? 'Buying…' : `Buy ($${estimatedPayout.toFixed(0)})`}
+        </button>
       </div>
     </div>
   );

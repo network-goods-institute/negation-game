@@ -409,7 +409,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           {value || 'New point'}
         </div>
         {selected && marketEnabled && hasPrice && !hidden && !isNodeDragging && (
-          <InlineBuyControls entityId={id} price={priceValue} initialMine={mineValue} initialTotal={totalValue} />
+          <InlineBuyControls entityId={id} price={priceValue} initialMine={mineValue} initialTotal={totalValue} showPriceHistory={false} />
         )}
         {hidden && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
