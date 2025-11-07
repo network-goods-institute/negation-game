@@ -286,7 +286,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
   } catch {}
   if (!pos || pct == null) return null;
   const d = delta ?? 0;
-  const color = d > 0 ? 'text-emerald-700' : d < 0 ? 'text-rose-700' : 'text-stone-800';
+  const color = d > 0 ? 'text-emerald-600' : d < 0 ? 'text-rose-600' : 'text-stone-800';
   const sign = d > 0 ? '+' : d < 0 ? '' : '';
   const fontSizePx = Math.max(10, Math.min(13, 12 + (zoom - 1) * 2));
 

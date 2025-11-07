@@ -118,7 +118,7 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       starColor: "text-yellow-500",
       strokeWidth: (scale) => Math.max(1, Math.min(8, scale * 1.6)),
       strokeDasharray: "8,4",
-      midpointContent: makeIcon("#f97316", [45], 12, 2),
+      midpointContent: makeIcon("#f97316", [-45], 12, 2),
       useBezier: true,
       curvature: 0.35,
     },

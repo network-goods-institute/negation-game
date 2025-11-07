@@ -125,8 +125,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       if (props.edgeType === 'objection') {
         const objectionY = sourceNode?.position?.y ?? 0;
         const anchorY = targetNode?.position?.y ?? 0;
-        sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
-        targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
+        // Align bezier orientation with MainEdgeRenderer and GraphUpdater
+        sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+        targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
       }
 
       return getBezierPath({
@@ -272,6 +273,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
   }, [edgeStyles, grabMode]);
 
+  // Selection overlay stroke should scale with actual edge width to avoid looking outdated
+  const overlayStrokeWidth = Math.max(6, Math.round(Number((edgeStyles as any)?.strokeWidth ?? 2)) + 4);
+
   const mindchangeActive = !!(mindchange && (
     (props as any).data?.mindchange?.forward?.count > 0 ||
     (props as any).data?.mindchange?.backward?.count > 0
@@ -387,6 +391,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             targetNode={targetNode}
             edgeType={props.edgeType}
             pathD={pathD}
+            overlayStrokeWidth={overlayStrokeWidth}
           />
 
           {shouldRenderOverlay && connectMode && isHovered && !selected && (

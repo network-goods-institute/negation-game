@@ -138,7 +138,7 @@ const PositionAndReturn: React.FC<{ id: string; price: number; mine?: number | n
   return (
     <div className={`mt-1 w-max max-w-full pointer-events-none font-sans text-[12px] tabular-nums leading-tight px-1 rounded-sm ${variant === 'objection' ? 'bg-amber-50 text-amber-900' : 'bg-white/90 text-stone-800'}`}>
       <span className="mr-2">{posSign}${Math.round(Math.abs(positionMoney))}</span>
-      <span className={returnMoney >= 0 ? (variant === 'objection' ? 'text-amber-700' : 'text-emerald-700') : 'text-rose-700'}>
+      <span className={returnMoney >= 0 ? (variant === 'objection' ? 'text-amber-700' : 'text-emerald-600') : 'text-rose-600'}>
         {retSign}${Math.round(Math.abs(returnMoney))}
       </span>
     </div>

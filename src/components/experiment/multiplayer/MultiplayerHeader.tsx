@@ -293,6 +293,16 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           currentUserId={userId}
           canWrite={!proxyMode}
         />
+        <div className="mt-3 pt-3 border-t border-stone-200">
+          <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-purple-50 border border-purple-200 rounded-md text-xs text-purple-700 group relative">
+            <span className="font-semibold">Carroll Mechanisms</span>
+            <span className="px-1 py-0.5 bg-purple-200 text-purple-800 rounded text-[10px] font-bold">ALPHA</span>
+            <div className="absolute left-0 top-full mt-1 w-72 p-2 bg-gray-900 text-white text-xs rounded-md shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
+              <p className="font-semibold mb-1">Initial Prototype</p>
+              <p>Bugs are to be expected. Behavior and design may change drastically and without warning.</p>
+            </div>
+          </div>
+        </div>
         {(!isConnected || connectionError || connectionState === 'connecting' || connectionState === 'failed') && (
           <div className="text-xs mt-1 p-2 rounded flex items-center justify-between gap-2"
             style={{ backgroundColor: '#fff7ed', color: '#9a3412' }}>

@@ -261,9 +261,9 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
               {currentShares > 0 && (
                 <div>
                   ${Math.round(currentPosition)} your position ({Math.round(currentShares)} shares) {gain >= 0 ? (
-                    <span className="text-emerald-700">+${Math.round(gain)} gain</span>
+                    <span className="text-emerald-600">+${Math.round(gain)} gain</span>
                   ) : (
-                    <span className="text-red-700">-${Math.round(Math.abs(gain))} loss</span>
+                    <span className="text-rose-600">-${Math.round(Math.abs(gain))} loss</span>
                   )} {totalOutstanding > 0 && <span className="text-stone-500">• {Math.round(totalOutstanding)} shares outstanding</span>}
                 </div>
               )}

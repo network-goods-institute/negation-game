@@ -34,6 +34,7 @@ export const InlinePriceHistory: React.FC<Props> = ({
 }) => {
   const [history, setHistory] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [boxWidth, setBoxWidth] = useState<number>(0);
 
@@ -60,7 +61,11 @@ export const InlinePriceHistory: React.FC<Props> = ({
           }
         );
         if (!res.ok) {
-          if (!aborted && !cached) setHistory([]);
+          if (!aborted && !cached) {
+            setHistory([]);
+            setError(true);
+            setLoading(false);
+          }
           return;
         }
         const data = await res.json();
@@ -68,11 +73,13 @@ export const InlinePriceHistory: React.FC<Props> = ({
         PRICE_HISTORY_MEMCACHE.set(key, { updatedAt: Date.now(), data: arr });
         if (!aborted) {
           setHistory(arr);
+          setError(false);
           setLoading(false);
         }
       } catch {
         if (!aborted && !cached) {
           setHistory([]);
+          setError(true);
           setLoading(false);
         }
       }
@@ -122,12 +129,17 @@ export const InlinePriceHistory: React.FC<Props> = ({
     return () => { try { ro.disconnect(); } catch { } };
   }, []);
 
+  // Don't render if error and no history data
+  if (error && history.length === 0 && !loading) {
+    return null;
+  }
+
   if (loading) {
     return (
       <div className={`w-full min-w-0 overflow-hidden ${className}`}>
         <div ref={boxRef} className="w-full min-w-0 pointer-events-none select-none overflow-hidden">
           <div className={`w-full min-w-0 box-border overflow-hidden rounded-md subpixel-antialiased font-sans ${compact ? '' : 'px-2 py-1.5'} ${compact ? '' : (variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white')}`}>
-            <div className={`text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-700'}`}>
+            <div className={`text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-600'}`}>
               {(currentPrice * 100).toFixed(1)}% chance
             </div>
             <div className="h-[40px] w-full animate-pulse bg-stone-200/50 rounded relative overflow-hidden">
@@ -164,7 +176,7 @@ export const InlinePriceHistory: React.FC<Props> = ({
     <div className={`w-full min-w-0 overflow-hidden ${className}`}>
       <div ref={boxRef} className="w-full min-w-0 pointer-events-none select-none overflow-hidden">
         <div className={`w-full min-w-0 box-border overflow-hidden rounded-md subpixel-antialiased font-sans ${compact ? '' : 'px-2 py-1.5'} ${compact ? '' : (variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white')}`}>
-          <div className={`w-full min-w-0 overflow-hidden text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-700'}`}>{(currentPrice * 100).toFixed(1)}% chance</div>
+          <div className={`w-full min-w-0 overflow-hidden text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-600'}`}>{(currentPrice * 100).toFixed(1)}% chance</div>
           <svg width="100%" height={height} className="block w-full min-w-0" preserveAspectRatio="none">
             <defs>
               <linearGradient id={`gradient-${entityId}`} x1="0" y1="0" x2="0" y2="1">
