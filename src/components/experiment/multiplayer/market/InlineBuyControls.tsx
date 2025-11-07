@@ -79,14 +79,20 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
         onDragStart={(e) => e.preventDefault()}
         style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, maxWidth: '100%' }}
       >
-        <button
-          type="button"
+        <div
+          className="-m-4 p-4"
           onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-          role="button"
-          className="w-full text-sm bg-emerald-600 text-white rounded-md px-3 py-1.5 hover:bg-emerald-700 transition"
+          style={{ cursor: 'pointer' }}
         >
-          Buy
-        </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+            role="button"
+            className="w-full text-sm bg-emerald-600 text-white rounded-md px-3 py-1.5 hover:bg-emerald-700 transition"
+          >
+            Buy
+          </button>
+        </div>
       </div>
     );
   }
@@ -102,7 +108,7 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
       style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, maxWidth: '100%' }}
     >
       <div
-        className={`relative w-full min-w-0 overflow-hidden rounded-md p-2 space-y-2 text-[11px] subpixel-antialiased ${variant === 'objection' ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'border border-stone-200 bg-white text-stone-800'}`}
+        className={`relative w-full min-w-0 overflow-visible rounded-md p-2 space-y-2 text-[11px] subpixel-antialiased ${variant === 'objection' ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'border border-stone-200 bg-white text-stone-800'}`}
         data-interactive="true"
       >
         <button
@@ -272,7 +278,7 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
           type="button"
           onClick={(e) => { e.stopPropagation(); onSubmit(); }}
           disabled={submitting}
-          className="w-full text-sm bg-emerald-600 text-white rounded-md px-3 py-1.5 hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="relative z-20 w-full text-sm bg-emerald-600 text-white rounded-md px-3 py-1.5 hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? 'Buying…' : `Buy ($${estimatedPayout.toFixed(0)})`}
         </button>

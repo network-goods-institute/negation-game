@@ -558,20 +558,24 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                       );
                     };
                     return (
-                      <div className="relative ml-2" onMouseEnter={() => setHoverBuy(true)} onMouseLeave={() => setHoverBuy(false)}>
+                      <div
+                        className="relative ml-2 -m-1 p-1 rounded-full"
+                        onMouseEnter={() => setHoverBuy(true)}
+                        onMouseLeave={() => setHoverBuy(false)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
+                          const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
+                          setBuyPos({ x: sx, y: sy });
+                          setBuyOpen(true);
+                        }}
+                        style={{ pointerEvents: 'auto' }}
+                      >
                         <button
                           type="button"
                           aria-label="Buy"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
-                            const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
-                            setBuyPos({ x: sx, y: sy });
-                            setBuyOpen(true);
-                          }}
-                          className="h-7 w-7 rounded-full bg-white border border-gray-200 shadow-sm hover:shadow transition flex items-center justify-center"
-                          style={{ pointerEvents: 'auto' }}
+                          className="h-7 w-7 rounded-full bg-transparent border border-transparent shadow-none transition flex items-center justify-center"
                         >
                           <svg width={size} height={size}>
                             <defs><clipPath id={`edge-mini-clip-inline-${edgeId}`}><circle cx={size / 2} cy={size / 2} r={size / 2} /></clipPath></defs>

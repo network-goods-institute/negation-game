@@ -4,6 +4,7 @@ import { Node, Edge } from "@xyflow/react";
 import { WebsocketProvider } from "y-websocket";
 import { fetchYjsAuthToken, getRefreshDelayMs } from "./yjs/auth";
 import { HydrationStatus } from "./useYjsDocumentHydration";import { logger } from "@/lib/logger";
+import { createConnectionGrace } from "./connectionGrace";
 
 interface UseYjsProviderConnectionProps {
   roomName: string;
@@ -61,6 +62,11 @@ export const useYjsProviderConnection = ({
   const restartProviderWithNewTokenRef = useRef<(() => Promise<void>) | null>(
     null
   );
+  const connectionGraceRef = useRef<ReturnType<typeof createConnectionGrace> | null>(null);
+  const graceMs = useMemo(() => {
+    const env = Number(process.env.NEXT_PUBLIC_MP_DISCONNECT_GRACE_MS || "");
+    return Number.isFinite(env) && env > 0 ? env : 1200;
+  }, []);
 
   const clearRefreshTimer = useCallback(() => {
     if (refreshTimerRef.current) {
@@ -240,6 +246,9 @@ export const useYjsProviderConnection = ({
         }
       });
 
+      if (!connectionGraceRef.current) {
+        connectionGraceRef.current = createConnectionGrace(graceMs, setIsConnected);
+      }
       provider.on("status", (status: { status: string }) => {
         const connected = status?.status === "connected";
         logger.log("[YJS Provider] status event received:", {
@@ -249,7 +258,7 @@ export const useYjsProviderConnection = ({
           roomname: provider.roomname,
         });
 
-        setIsConnected(connected);
+        connectionGraceRef.current?.onStatus(connected);
         if (connected) {
           logger.log(
             "[YJS Provider] status - connected, clearing error and setting state to connected"
@@ -290,6 +299,7 @@ export const useYjsProviderConnection = ({
 
       provider.on("connection-error", () => {
         logger.error("[YJS Provider] connection-error event received");
+        try { connectionGraceRef.current?.forceDisconnectNow(); } catch {}
         setConnectionState("failed");
         setConnectionError("WebSocket connection failed");
       });
@@ -304,6 +314,7 @@ export const useYjsProviderConnection = ({
       setConnectionState,
       setIsConnected,
       shouldSeedOnConnectRef,
+      graceMs,
     ]
   );
 
@@ -314,6 +325,7 @@ export const useYjsProviderConnection = ({
       providerRef.current?.destroy?.();
     } catch {}
     providerRef.current = null;
+    try { connectionGraceRef.current?.dispose(); } catch {}
   }, [clearFallbackSeedingTimer, clearRefreshTimer]);
 
   const createProvider = useCallback(async () => {
