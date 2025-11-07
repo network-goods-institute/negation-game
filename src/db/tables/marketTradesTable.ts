@@ -9,6 +9,7 @@ export const marketTradesTable = pgTable("market_trades", {
   costScaled: text("cost_scaled").notNull(),
   // Optional: closing price after this trade (fixed-point 1e18 scale)
   priceAfterScaled: text("price_after_scaled"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
-

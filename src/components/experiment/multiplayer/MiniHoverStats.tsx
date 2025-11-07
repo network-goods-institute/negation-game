@@ -33,7 +33,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         try {
           const selNode = rf.getNode(hoveredNodeId) as any;
           if (selNode?.selected) { setPos(null); return; }
-        } catch {}
+        } catch { }
         // Prefer DOM position of node
         try {
           const nodeEl = document.querySelector(`.react-flow__node[data-id="${CSS.escape(String(hoveredNodeId))}"]`) as HTMLElement | null;
@@ -46,7 +46,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
             setMaxWidthPx(Math.max(0, Math.floor(rect.width)));
             return;
           }
-        } catch {}
+        } catch { }
         // Fallback to flow coords
         const n = rf.getNode(hoveredNodeId) as any;
         if (!n) { setPos(null); return; }
@@ -55,7 +55,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         try {
           const w = Number(n?.width ?? n?.measured?.width ?? 0);
           if (Number.isFinite(w) && w > 0) setMaxWidthPx(Math.max(0, Math.floor(w * zoom)));
-        } catch {}
+        } catch { }
         setPos({ x, y: y - 40 });
         return;
       }
@@ -102,10 +102,10 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
                 const cap = Math.max(0, Math.floor(Math.min(sw || 0, tw || 0) * zoom));
                 setMaxWidthPx(cap > 0 ? cap : null);
               }
-            } catch {}
+            } catch { }
             return;
           }
-        } catch {}
+        } catch { }
         // Next: Prefer overlay stroke elements if present
         try {
           const selector = `[data-edge-overlay="${CSS.escape(String(targetEdgeId))}"]`;
@@ -152,11 +152,11 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
                   const cap = Math.max(0, Math.floor(Math.min(sw || 0, tw || 0) * zoom));
                   setMaxWidthPx(cap > 0 ? cap : null);
                 }
-              } catch {}
+              } catch { }
               return;
             }
           }
-        } catch {}
+        } catch { }
         // Fallback: compute from trimmed straight segment between node borders
         const e = rf.getEdges().find((ee: any) => String(ee.id) === String(targetEdgeId)) as any;
         if (!e) { setPos(null); return; }
@@ -195,7 +195,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
           }
           const cap = Math.max(0, Math.floor(Math.min(sw2 || 0, tw2 || 0) * zoom));
           setMaxWidthPx(cap > 0 ? cap : null);
-        } catch {}
+        } catch { }
         return;
       }
       setPos(null);
@@ -234,7 +234,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         const p = Number(e?.data?.market?.price);
         if (Number.isFinite(p)) setPct(p);
       }
-    } catch {}
+    } catch { }
 
     const cacheKey = `${docId}::${norm}`;
     const cached = DELTA_CACHE.get(cacheKey);
@@ -273,7 +273,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
   }, [hoveredNodeId, hoveredEdgeId, overlayEdgeId, docId, rf]);
 
   React.useEffect(() => {
-    const onRefresh = () => { try { DELTA_CACHE.clear(); } catch {} };
+    const onRefresh = () => { try { DELTA_CACHE.clear(); } catch { } };
     window.addEventListener('market:refresh', onRefresh as any);
     return () => window.removeEventListener('market:refresh', onRefresh as any);
   }, []);
@@ -283,7 +283,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
       const n = rf.getNode(hoveredNodeId) as any;
       if (n?.selected) return null;
     }
-  } catch {}
+  } catch { }
   if (!pos || pct == null) return null;
   const d = delta ?? 0;
   const color = d > 0 ? 'text-emerald-600' : d < 0 ? 'text-rose-600' : 'text-stone-800';
@@ -296,16 +296,17 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         className={`absolute bg-white subpixel-antialiased border border-stone-200 rounded-md shadow-sm px-2.5 py-1.5 flex items-center gap-1 font-sans ${color}`}
         style={{ left: Math.round(pos.x), top: Math.round(pos.y), maxWidth: maxWidthPx != null ? `${maxWidthPx}px` : undefined, fontSize: fontSizePx }}
       >
+        {/* Always show immediate price (chance) */}
+        <span className="whitespace-nowrap overflow-hidden text-ellipsis">{(pct * 100).toFixed(1)}% chance</span>
+        {/* Show loading state just for the change, then update */}
         {loading ? (
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-emerald-500 animate-spin" />
-            <span>Loading…</span>
-          </div>
+          <span className="whitespace-nowrap overflow-hidden text-ellipsis text-stone-500 flex items-center gap-1">
+            <span>(</span>
+            <span className="inline-block w-3 h-3 rounded-full border-2 border-gray-300 border-t-emerald-500 animate-spin" />
+            <span>)</span>
+          </span>
         ) : (
-          <>
-            <span className="whitespace-nowrap overflow-hidden text-ellipsis">{(pct * 100).toFixed(1)}% chance</span>
-            <span className="whitespace-nowrap overflow-hidden text-ellipsis">{d !== 0 ? `(${sign}${(Math.abs(d) * 100).toFixed(1)}%)` : '(0.0%)'}</span>
-          </>
+          <span className="whitespace-nowrap overflow-hidden text-ellipsis">{d !== 0 ? `(${sign}${(Math.abs(d) * 100).toFixed(1)}%)` : '(0.0%)'}</span>
         )}
       </div>
     </div>
