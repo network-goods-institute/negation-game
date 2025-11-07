@@ -40,7 +40,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
           if (nodeEl) {
             const rect = nodeEl.getBoundingClientRect();
             const rootRect = container.getBoundingClientRect();
-            const left = rect.left - rootRect.left;
+            const left = (rect.left - rootRect.left) + rect.width / 2; // center of node
             const top = rect.top - rootRect.top - 40;
             setPos({ x: left, y: top });
             setMaxWidthPx(Math.max(0, Math.floor(rect.width)));
@@ -50,10 +50,10 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         // Fallback to flow coords
         const n = rf.getNode(hoveredNodeId) as any;
         if (!n) { setPos(null); return; }
-        const x = (n.position?.x ?? 0) * zoom + vx;
+        const w = Number(n?.width ?? n?.measured?.width ?? 0);
+        const x = ((n.position?.x ?? 0) + (Number.isFinite(w) ? w / 2 : 0)) * zoom + vx;
         const y = (n.position?.y ?? 0) * zoom + vy;
         try {
-          const w = Number(n?.width ?? n?.measured?.width ?? 0);
           if (Number.isFinite(w) && w > 0) setMaxWidthPx(Math.max(0, Math.floor(w * zoom)));
         } catch { }
         setPos({ x, y: y - 40 });
@@ -67,7 +67,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
           if (overlayContainer) {
             const rect = overlayContainer.getBoundingClientRect();
             const rootRect = container.getBoundingClientRect();
-            const left = rect.left - rootRect.left;
+            const left = (rect.left - rootRect.left) + rect.width / 2; // center of overlay container
             const top = rect.top - rootRect.top - 32;
             setPos({ x: left, y: top });
             // For edges, cap width by relevant node widths.
@@ -114,13 +114,17 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
           if (overlayEls.length > 0) {
             let minLeft = Number.POSITIVE_INFINITY;
             let minTop = Number.POSITIVE_INFINITY;
+            let maxRight = Number.NEGATIVE_INFINITY;
             for (const el of overlayEls) {
               const r = el.getBoundingClientRect();
               if (r.left < minLeft) minLeft = r.left;
               if (r.top < minTop) minTop = r.top;
+              const right = r.left + r.width;
+              if (right > maxRight) maxRight = right;
             }
-            if (Number.isFinite(minLeft) && Number.isFinite(minTop)) {
-              const left = minLeft - containerRect.left;
+            if (Number.isFinite(minLeft) && Number.isFinite(minTop) && Number.isFinite(maxRight)) {
+              const centerLeft = (minLeft + maxRight) / 2;
+              const left = centerLeft - containerRect.left;
               const top = minTop - containerRect.top - 32;
               setPos({ x: left, y: top });
               try {
@@ -168,9 +172,9 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         const tx = Number(tn.position?.x ?? 0) + Number(tn.width ?? 0) / 2;
         const ty = Number(tn.position?.y ?? 0) + Number(tn.height ?? 0) / 2;
         const tcoords = getTrimmedLineCoords(sx, sy, tx, ty, 0, 0, sn, tn);
-        const leftFlow = Math.min(tcoords.fromX, tcoords.toX);
+        const midX = (tcoords.fromX + tcoords.toX) / 2;
         const topFlow = Math.min(tcoords.fromY, tcoords.toY);
-        const left = leftFlow * zoom + vx;
+        const left = midX * zoom + vx;
         const top = topFlow * zoom + vy - 32;
         setPos({ x: left, y: top });
         try {
@@ -294,7 +298,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 7 }}>
       <div
         className={`absolute bg-white subpixel-antialiased border border-stone-200 rounded-md shadow-sm px-2.5 py-1.5 flex items-center gap-1 font-sans ${color}`}
-        style={{ left: Math.round(pos.x), top: Math.round(pos.y), maxWidth: maxWidthPx != null ? `${maxWidthPx}px` : undefined, fontSize: fontSizePx }}
+        style={{ left: Math.round(pos.x), top: Math.round(pos.y), transform: 'translate(-50%, 0)', maxWidth: maxWidthPx != null ? `${maxWidthPx}px` : undefined, minWidth: 140, fontSize: fontSizePx }}
       >
         {/* Always show immediate price (chance) */}
         <span className="whitespace-nowrap overflow-hidden text-ellipsis">{(pct * 100).toFixed(1)}% chance</span>

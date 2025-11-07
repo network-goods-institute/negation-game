@@ -21,7 +21,7 @@ interface Props {
   sizePx?: number; // nominal circle diameter in px at threshold zoom
 }
 
-export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.9, sizePx = 28 }) => {
+export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, sizePx = 28 }) => {
   const rf = useReactFlow();
   const { zoom, x: vx, y: vy } = useViewport();
   const graph = useGraphActions() as any;

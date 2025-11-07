@@ -34,7 +34,7 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
           const sw = Math.max(1, Math.round(w * zoom));
           const sh = Math.max(1, Math.round(h * zoom));
           // Scale text size with zoom level - smaller as we zoom out more
-          const fontSizePx = Math.max(10, Math.min(13, 12 + (zoom - 1) * 2));
+          const fontSizePx = Math.max(8, Math.min(13, 12 + (zoom - 1) * 2));
           const fillHeight = Math.round(sh * p);
           const fillY = sh - fillHeight;
           const isObjection = (n as any)?.type === 'objection';
@@ -57,8 +57,9 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
                 </g>
                 <rect x={0} y={0} width={sw} height={sh} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={1} rx={6} />
               </svg>
-              <div className="relative w-full h-full flex items-center justify-center px-2 py-1 font-semibold text-stone-800" style={{ fontSize: fontSizePx }}>
-                {(p * 100).toFixed(1)}% chance
+              <div className="relative w-full h-full flex items-center justify-center px-1.5 py-1 font-semibold text-stone-800" style={{ fontSize: fontSizePx }}>
+                {/* Condense label when very narrow to avoid truncation */}
+                {sw < 72 ? `${(p * 100).toFixed(0)}%` : `${(p * 100).toFixed(1)}% chance`}
               </div>
             </div>
           );
