@@ -246,7 +246,15 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
           body: JSON.stringify(payload),
           signal: ctrl.signal,
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          try {
+            const txt = await res.text();
+            if (txt && /outcome enumeration cap exceeded/i.test(txt)) {
+              toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
+            }
+          } catch {}
+          return;
+        }
         const view = await res.json();
         const marketData = {
           prices: view?.prices || {},
@@ -541,6 +549,35 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     });
   }, [setNodes]);
 
+  const refreshMarketNow = useCallback(async () => {
+    try { await forceSave?.(); } catch {}
+    try {
+      if (marketEnabled && ydoc && yMetaMap && resolvedId) {
+        const res = await fetch(`/api/market/${encodeURIComponent(resolvedId)}/view`, { method: 'GET' });
+        if (!res.ok) {
+          try {
+            const txt = await res.text();
+            if (txt && /outcome enumeration cap exceeded/i.test(txt)) {
+              toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
+            }
+          } catch {}
+          return;
+        }
+        const view = await res.json();
+        const marketData = {
+          prices: view?.prices || {},
+          holdings: {},
+          totals: view?.totals || {},
+          updatedAt: view?.updatedAt || new Date().toISOString(),
+        };
+        const prevUpdated = (yMetaMap as any).get?.('market:updatedAt');
+        if (!prevUpdated || prevUpdated !== marketData.updatedAt) {
+          syncMarketDataToYDoc(ydoc as any, yMetaMap as any, marketData, resolvedId || '', ORIGIN.RUNTIME);
+        }
+      }
+    } catch {}
+  }, [forceSave, marketEnabled, ydoc, yMetaMap, resolvedId]);
+
   const {
     updateNodeContent,
     updateNodeHidden,
@@ -594,7 +631,10 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       setSelectedEdgeId(null);
       setHoveredEdgeId(null);
     },
-    onNodeAddedCenterOnce: (id: string) => { if (!connectMode) markNodeCenterOnce(id); },
+    onNodeAddedCenterOnce: async (id: string) => {
+      if (!connectMode) markNodeCenterOnce(id);
+      await refreshMarketNow();
+    },
     connectMode,
   });
 
@@ -608,7 +648,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     localOriginRef.current,
     () => nodes as any[],
     () => preferredEdgeTypeRef.current,
-    connectMode
+    connectMode,
+    async () => { await refreshMarketNow(); }
   );
 
   const {

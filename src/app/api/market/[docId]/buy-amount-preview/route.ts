@@ -51,7 +51,7 @@ export async function POST(req: Request, ctx: any) {
   }
 
   let mm = createMarketMaker(structure, defaultB, securities, {
-    enumerationCap: 1 << 18,
+    enumerationCap: 1 << 19,
   });
   for (const sec of securities) mm.setShares(sec, totals.get(sec) || 0n);
 
@@ -98,7 +98,7 @@ export async function POST(req: Request, ctx: any) {
       for (const sec of augSecurities) augTotals.set(sec, totals.get(sec) || 0n);
       augTotals.set(normalized, augTotals.get(normalized) || 0n);
       mm = createMarketMaker(augStructure, defaultB, augSecurities, {
-        enumerationCap: 1 << 18,
+        enumerationCap: 1 << 19,
       });
       for (const sec of augSecurities) mm.setShares(sec, augTotals.get(sec) || 0n);
     }

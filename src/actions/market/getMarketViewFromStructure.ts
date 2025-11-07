@@ -55,7 +55,7 @@ export async function getMarketViewFromStructure(docId: string, userId: string |
     totals.set(id, (totals.get(id) || 0n) + BigInt(r.amountScaled || "0"));
   }
 
-  const mm = createMarketMaker(structure, defaultB, securities, { enumerationCap: 1 << 18 });
+  const mm = createMarketMaker(structure, defaultB, securities, { enumerationCap: 1 << 19 });
   for (const sec of securities) mm.setShares(sec, totals.get(sec) || 0n);
   const prices = mm.getPrices();
   try {

@@ -82,7 +82,7 @@ export async function getMarketView(docId: string, userId?: string): Promise<Mar
   const totals = new Map<string, bigint>();
   for (const sec of mmSecs) totals.set(sec, rawTotals.get(sec) || 0n);
 
-  const mm = createMarketMaker(mmStruct, defaultB, mmSecs, { enumerationCap: 1 << 18 });
+  const mm = createMarketMaker(mmStruct, defaultB, mmSecs, { enumerationCap: 1 << 19 });
   for (const sec of mmSecs) mm.setShares(sec, totals.get(sec) || 0n);
   const prices = mm.getPrices();
   try {
