@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Position, useStore, useReactFlow } from '@xyflow/react';
+import { Position, useReactFlow, useStore } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 
 import { ContextMenu } from '../common/ContextMenu';
@@ -167,37 +167,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         wrapperRef: wrapperRef as any,
     });
 
-
-
-    const sourceHandlePosition = useStore((s: any) => {
-        const edges: any[] = s.edges || [];
-        const obj = edges.find((edge: any) => edge.type === 'objection' && edge.source === id);
-        if (!obj) return Position.Top;
-        const anchor: any = s.nodeInternals?.get?.(obj.target);
-        const self: any = s.nodeInternals?.get?.(id);
-        if (!anchor || !self) return Position.Top;
-        const anchorY = anchor.position?.y ?? 0;
-        const selfY = self.position?.y ?? 0;
-        return anchorY < selfY ? Position.Bottom : Position.Top;
-    }, (prev: any, next: any) => {
-        // Re-run when edges or node positions change
-        const prevObj = prev.edges?.find((edge: any) => edge.type === 'objection' && edge.source === id);
-        const nextObj = next.edges?.find((edge: any) => edge.type === 'objection' && edge.source === id);
-
-        if (!prevObj && !nextObj) return true;
-        if (!prevObj || !nextObj) return false;
-
-        const prevAnchor = prev.nodeInternals?.get?.(prevObj.target);
-        const nextAnchor = next.nodeInternals?.get?.(nextObj.target);
-        const prevSelf = prev.nodeInternals?.get?.(id);
-        const nextSelf = next.nodeInternals?.get?.(id);
-
-        return (
-            prevAnchor?.position?.y === nextAnchor?.position?.y &&
-            prevSelf?.position?.y === nextSelf?.position?.y
-        );
-    });
-
     const wrapperProps = {
         onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
             if (isConnectMode) {
@@ -270,14 +239,14 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     {
                         id: `${id}-source-handle`,
                         type: 'source',
-                        position: sourceHandlePosition,
-                        style: { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' },
+                        position: Position.Top,
+                        style: { left: '50%', top: '0px', transform: 'translate(-50%, 0)' },
                     },
                     {
                         id: `${id}-incoming-handle`,
                         type: 'target',
-                        position: Position.Bottom,
-                        style: { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' },
+                        position: Position.Top,
+                        style: { left: '50%', top: '0px', transform: 'translate(-50%, 0)' },
                     },
                 ]}
                 rootRef={rootRef}

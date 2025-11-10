@@ -191,13 +191,13 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
             id: `${id}-source-handle`,
             type: 'source',
             position: Position.Top,
-            style: { left: '12%', top: '10%', transform: 'translate(-50%, -50%)' },
+            style: { left: '50%', top: '0px', transform: 'translate(-50%, 0)' },
           },
           {
             id: `${id}-incoming-handle`,
             type: 'target',
             position: Position.Top,
-            style: { left: '12%', top: '10%', transform: 'translate(-50%, -50%)' },
+            style: { left: '50%', top: '0px', transform: 'translate(-50%, 0)' },
           },
         ]}
         rootRef={rootRef}

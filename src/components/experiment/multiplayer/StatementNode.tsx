@@ -101,14 +101,14 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           {
             id: `${id}-source-handle`,
             type: 'source',
-            position: Position.Bottom,
-            style: { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' },
+            position: Position.Top,
+            style: { left: '50%', top: '0px', transform: 'translate(-50%, 0)' },
           },
           {
             id: `${id}-incoming-handle`,
             type: 'target',
             position: Position.Top,
-            style: { left: '50%', top: '50%', transform: 'translate(-50%, -50%)' },
+            style: { left: '50%', top: '0px', transform: 'translate(-50%, 0)' },
           },
         ]}
         rootRef={rootRef}
