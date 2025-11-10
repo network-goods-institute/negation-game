@@ -16,6 +16,7 @@ import { useGraphWheelHandler } from '@/hooks/experiment/multiplayer/useGraphWhe
 import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNodeHandlers';
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
 import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
+import { SnapLines } from './SnapLines';
 
 type YProvider = WebsocketProvider | null;
 
@@ -163,6 +164,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     handleNodeDragStart: handleNodeDragStartInternal,
     handleNodeDrag,
     handleNodeDragStop: handleNodeDragStopInternal,
+    snapResult,
   } = useGraphNodeHandlers({
     graph,
     grabMode,
@@ -497,6 +499,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       })(), edgesLayer)}
       {/* Global arrow markers for mindchange edges */}
       {edgesLayer && createPortal(<EdgeArrowMarkers />, edgesLayer)}
+      {/* Snap lines for node dragging */}
+      <SnapLines
+        snappedX={snapResult?.snappedX ?? false}
+        snappedY={snapResult?.snappedY ?? false}
+        snapX={snapResult?.snapLineX ?? null}
+        snapY={snapResult?.snapLineY ?? null}
+        edgesLayer={edgesLayer}
+      />
       <CursorOverlay cursors={cursors} />
       <OffscreenNeighborPreviews blurAllNodes={blurAllNodes} />
       {!grabMode && !perfMode && (
