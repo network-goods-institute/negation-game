@@ -251,7 +251,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   };
   return (
     <>
-      <div className="absolute top-4 left-4 z-10 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 w-80">
+      <div className="absolute top-4 left-4 z-[60] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 w-80">
         {/* Header with Back button */}
         <div className="px-4 py-3 border-b border-stone-100">
           <Link
@@ -392,6 +392,10 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
             const activeErrors = collectActiveErrors();
             const hasMultipleErrors = activeErrors.length > 1;
 
+            if (activeErrors.length === 0) {
+              return null;
+            }
+
             // Show carousel if multiple errors OR in debug mode
             if (hasMultipleErrors || debugShowAllStates) {
               const scenario = activeErrors[currentErrorIndex % activeErrors.length];
@@ -513,7 +517,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           })()}
         </div>
       </div>
-      <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+      <div className="absolute top-4 right-4 z-[60] flex flex-col items-end gap-2">
         <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
           {proxyMode ? (
             <>
