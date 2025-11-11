@@ -4,6 +4,7 @@ import * as Y from "yjs";
 import { getDocSnapshotBuffer } from "@/services/yjsCompaction";
 import { createStructure, buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
+import { marketCache } from "@/lib/cache/marketCache";
 
 type RFNode = { id: string };
 type RFEdge = { id: string; source: string; target: string; type?: string };
@@ -16,6 +17,12 @@ export type ReconciledMarket = {
 
 export async function reconcileTradableSecurities(docId: string): Promise<ReconciledMarket> {
   const canonicalId = await resolveSlugToId(docId);
+
+  const cached = marketCache.getStructure(canonicalId);
+  if (cached) {
+    return cached;
+  }
+
   const buf = await getDocSnapshotBuffer(canonicalId);
   const ydoc = new Y.Doc();
   if (buf && buf.byteLength) {
@@ -61,5 +68,9 @@ export async function reconcileTradableSecurities(docId: string): Promise<Reconc
   const securities = buildSecurities(structure, { includeNegations: negationAllow });
 
   // Read-only reconciliation: never mutate the collaborative document in view path
-  return { structure, securities, persisted: false };
+  const result = { structure, securities, persisted: false };
+
+  marketCache.setStructure(canonicalId, result);
+
+  return result;
 }

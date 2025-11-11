@@ -11,6 +11,7 @@ import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { logger } from "@/lib/logger";
 import { ensureSecurityInDoc } from "@/actions/market/ensureSecurityInDoc";
+import { marketCache } from "@/lib/cache/marketCache";
 
 export async function buyAmount(
   docId: string,
@@ -282,5 +283,8 @@ export async function buyAmount(
       .where(eq(marketStateTable.docId, canonicalId));
     return { cost: cost.toString(), shares: shares.toString() };
   });
+
+  marketCache.invalidateMarketView(canonicalId);
+
   return result;
 }

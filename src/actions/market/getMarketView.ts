@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { createStructure, buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
+import { marketCache } from "@/lib/cache/marketCache";
 
 export type MarketView = {
   prices: Record<string, number>;
@@ -20,6 +21,21 @@ export async function getMarketView(
   userId?: string
 ): Promise<MarketView> {
   const canonicalId = await resolveSlugToId(docId);
+
+  const cached = marketCache.getMarketView(canonicalId, userId);
+  if (cached) {
+    try {
+      logger.log(
+        JSON.stringify({
+          event: "market_view_cache_hit",
+          docId: canonicalId,
+          userId: userId ? "present" : "anon",
+        })
+      );
+    } catch {}
+    return cached;
+  }
+
   const { structure, securities } =
     await reconcileTradableSecurities(canonicalId);
   try {
@@ -97,7 +113,6 @@ export async function getMarketView(
     } catch {}
   }
 
-  // Build totals for the finalized security set
   const totals = new Map<string, bigint>();
   for (const sec of mmSecs) totals.set(sec, rawTotals.get(sec) || 0n);
 
@@ -143,10 +158,14 @@ export async function getMarketView(
   const outTotals: Record<string, string> = {};
   for (const sec of mmSecs) outTotals[sec] = (totals.get(sec) || 0n).toString();
 
-  return {
+  const view: MarketView = {
     prices,
     totals: outTotals,
     userHoldings,
     updatedAt: new Date().toISOString(),
   };
+
+  marketCache.setMarketView(canonicalId, userId, view);
+
+  return view;
 }

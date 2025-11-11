@@ -11,6 +11,7 @@ import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { logger } from "@/lib/logger";
 import { ensureSecurityInDoc } from "@/actions/market/ensureSecurityInDoc";
+import { marketCache } from "@/lib/cache/marketCache";
 
 export async function buyShares(
   docId: string,
@@ -19,7 +20,6 @@ export async function buyShares(
 ) {
   const userId = await (async () => {
     try {
-      // Prefer authenticated; fallback anonymous
       const u = await getUserId();
       return u || (await getUserIdOrAnonymous());
     } catch {
@@ -73,9 +73,8 @@ export async function buyShares(
       if (isKnownNameEarly || isKnownEdgeEarly) {
         await ensureSecurityInDoc(canonicalId, normalized);
       }
-    } catch {}
+    } catch {    }
 
-    // Retry rebuild a few times in case of recent structural changes
     if (!totals.has(normalized)) {
       for (let i = 0; i < 3 && !totals.has(normalized); i++) {
         await new Promise((r) => setTimeout(r, 150));
@@ -282,5 +281,8 @@ export async function buyShares(
       .where(eq(marketStateTable.docId, canonicalId));
     return { cost: (cost as unknown as bigint).toString() };
   });
+
+  marketCache.invalidateMarketView(canonicalId);
+
   return result;
 }

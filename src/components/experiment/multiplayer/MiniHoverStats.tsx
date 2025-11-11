@@ -253,7 +253,7 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
         const res = await fetch(`/api/market/${encodeURIComponent(docId)}/price-history`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ securityId: norm, limit: 20 }),
+          body: JSON.stringify({ securityId: norm, limit: 100 }),
         });
         if (!res.ok) { setDelta(null); setLoading(false); return; }
         const arr = await res.json();

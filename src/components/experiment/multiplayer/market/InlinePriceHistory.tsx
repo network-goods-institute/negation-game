@@ -40,6 +40,7 @@ export const InlinePriceHistory: React.FC<Props> = ({
 
   useEffect(() => {
     let aborted = false;
+    let intervalId: number | null = null;
     const key = `${docId}::${normalizeSecurityId(entityId)}`;
 
     const cached = PRICE_HISTORY_MEMCACHE.get(key);
@@ -51,13 +52,17 @@ export const InlinePriceHistory: React.FC<Props> = ({
     }
 
     const fetchOnce = async () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        return;
+      }
+
       try {
         const res = await fetch(
           `/api/market/${encodeURIComponent(docId)}/price-history`,
           {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ securityId: normalizeSecurityId(entityId), limit: 10 }),
+            body: JSON.stringify({ securityId: normalizeSecurityId(entityId), limit: 50 }),
           }
         );
         if (!res.ok) {
@@ -89,9 +94,35 @@ export const InlinePriceHistory: React.FC<Props> = ({
       fetchOnce();
     }
 
-    const interval = window.setInterval(fetchOnce, POLL_INTERVAL_MS);
+    const startPolling = () => {
+      if (intervalId === null) {
+        intervalId = window.setInterval(fetchOnce, POLL_INTERVAL_MS);
+      }
+    };
+
+    const stopPolling = () => {
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        // Resume polling and fetch immediately when tab becomes visible
+        fetchOnce();
+        startPolling();
+      }
+    };
+
+    if (typeof document === 'undefined' || !document.hidden) {
+      startPolling();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     const onRefresh = () => {
-      // eslint-disable-next-line drizzle/enforce-delete-with-where
       try { PRICE_HISTORY_MEMCACHE.delete(key); } catch { }
       fetchOnce();
     };
@@ -99,7 +130,6 @@ export const InlinePriceHistory: React.FC<Props> = ({
       try {
         const sid = String(e?.detail?.securityId || '');
         if (sid === normalizeSecurityId(entityId)) {
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
           try { PRICE_HISTORY_MEMCACHE.delete(key); } catch { }
           fetchOnce();
         }
@@ -109,7 +139,8 @@ export const InlinePriceHistory: React.FC<Props> = ({
     window.addEventListener('market:optimisticTrade', onOptimistic as any);
     return () => {
       aborted = true;
-      window.clearInterval(interval);
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('market:refresh', onRefresh as any);
       window.removeEventListener('market:optimisticTrade', onOptimistic as any);
     };
@@ -129,7 +160,6 @@ export const InlinePriceHistory: React.FC<Props> = ({
     return () => { try { ro.disconnect(); } catch { } };
   }, []);
 
-  // Don't render if error and no history data
   if (error && history.length === 0 && !loading) {
     return null;
   }
@@ -151,7 +181,6 @@ export const InlinePriceHistory: React.FC<Props> = ({
     );
   }
 
-  // Build display series from history plus the latest price so chart is up-to-date
   const displaySeries: PricePoint[] = (() => {
     const series = Array.isArray(history) ? [...history] : [];
     try {
@@ -186,7 +215,6 @@ export const InlinePriceHistory: React.FC<Props> = ({
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
 
-  // Time-aware x placement: scale x based on timestamps; fallback to even spacing if invalid
   const times = displaySeries.map((p) => {
     const t = Date.parse(p.timestamp);
     return Number.isFinite(t) ? t : NaN;
