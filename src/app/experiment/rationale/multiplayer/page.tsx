@@ -187,23 +187,19 @@ export default function MultiplayerRationaleIndexPage() {
     );
   }
 
-  if (!authenticated) {
-    return (
-      <div className="fixed inset-0 top-16 bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg border text-center max-w-md">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Login Required</h1>
-          <p className="text-gray-600 mb-6">You need to be logged in to access the multiplayer board system.</p>
-          <Button onClick={login as any} className="bg-sync hover:bg-sync-hover">Login</Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={`fixed inset-0 top-16 ${robotoSlab.className} overflow-y-auto bg-white`}>
 
       <TooltipProvider>
         <div className="relative max-w-7xl mx-auto p-8 pb-16 pt-12">
+          {ready && !authenticated && (
+            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 flex items-center justify-between" role="status" aria-live="polite">
+              <div className="pr-4">
+                You&apos;re not logged in. Login to see your own boards and boards shared with you. You can still create a new board.
+              </div>
+              <Button onClick={login as any} className="bg-sync hover:bg-sync-hover">Login</Button>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-stone-800">My Boards</h1>

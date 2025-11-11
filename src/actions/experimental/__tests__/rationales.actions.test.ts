@@ -1,7 +1,11 @@
 jest.mock("@/actions/users/getUserId", () => ({
   getUserId: jest.fn(async () => "me"),
 }));
+jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
+  getUserIdOrAnonymous: jest.fn(async () => "me"),
+}));
 import { getUserId } from "@/actions/users/getUserId";
+import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 
 const mockDb: any = {
   execute: jest.fn(),
@@ -155,6 +159,48 @@ describe("rationales actions", () => {
     const res = await createRationale({});
     expect(res.id).toMatch(/^m-/);
     expect(res.title).toBe("Untitled");
+  });
+
+  it("createRationale allows anonymous creation via getUserIdOrAnonymous", async () => {
+    (getUserIdOrAnonymous as unknown as jest.Mock).mockResolvedValueOnce("anon-123");
+
+    const insertedDocs: any[] = [];
+    const insertedAccess: any[] = [];
+
+    // Provide a transaction-scoped tx that records values passed to .values(...)
+    let insertCall = 0;
+    const tx: any = {
+      insert: jest.fn(() => ({
+        values: (obj: any) => {
+          insertCall++;
+          if (insertCall === 1) insertedDocs.push(obj);
+          if (insertCall === 2) insertedAccess.push(obj);
+          return { onConflictDoNothing: jest.fn(() => Promise.resolve()) };
+        },
+      })),
+      update: jest.fn(() => ({ where: jest.fn(() => Promise.resolve()) })),
+    };
+
+    mockDb.transaction.mockImplementation(async (callback: any) => callback(tx));
+    mockDb.update = jest.fn(() => ({
+      where: jest.fn(() => Promise.resolve()),
+    }));
+
+    const { createRationale } = await import(
+      "@/actions/experimental/rationales"
+    );
+    await createRationale({ title: "Hello" });
+
+    // Validate inserted owner and access
+    expect(insertedDocs.length).toBe(1);
+    expect(insertedDocs[0]).toEqual(
+      expect.objectContaining({ ownerId: "anon-123" })
+    );
+
+    expect(insertedAccess.length).toBe(1);
+    expect(insertedAccess[0]).toEqual(
+      expect.objectContaining({ userId: "anon-123" })
+    );
   });
 
   it("duplicateRationale duplicates board with copy of title", async () => {

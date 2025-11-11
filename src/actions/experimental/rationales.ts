@@ -2,6 +2,7 @@
 
 import { db } from "@/services/db";
 import { getUserId } from "@/actions/users/getUserId";
+import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
@@ -187,8 +188,7 @@ export async function createRationale(params?: {
   id?: string;
   title?: string;
 }) {
-  const userId = await getUserId();
-  if (!userId) throw new Error("Unauthorized");
+  const userId = await getUserIdOrAnonymous();
   const id = params?.id || `m-${nanoid()}`;
   const title = (params?.title || DEFAULT_TITLE).trim() || DEFAULT_TITLE;
 
