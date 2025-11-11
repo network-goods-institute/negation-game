@@ -43,6 +43,7 @@ export const useYjsMultiplayer = ({
   >("initializing");
   const [nextSaveTime, setNextSaveTime] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasSyncedOnce, setHasSyncedOnce] = useState(false);
 
   const ydocRef = useRef<Y.Doc | null>(null);
   const yNodesMapRef = useRef<Y.Map<Node> | null>(null);
@@ -151,6 +152,11 @@ export const useYjsMultiplayer = ({
     seededOnceRef,
     didResyncOnConnectRef,
     hydrationStatusRef,
+    onFirstSync: () => {
+      try {
+        setHasSyncedOnce(true);
+      } catch {}
+    },
     initialNodes,
     initialEdges,
     forceSaveRef,
@@ -285,6 +291,8 @@ export const useYjsMultiplayer = ({
     connectionError,
     connectionState,
     isConnected,
+    hasSyncedOnce,
+    isReady: Boolean(isConnected && hasSyncedOnce),
     isSaving,
     resyncNow: resyncFromServer,
     undo,

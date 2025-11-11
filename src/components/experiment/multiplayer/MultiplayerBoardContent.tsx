@@ -36,6 +36,7 @@ import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 import { useMindchangeActions } from '@/hooks/experiment/multiplayer/useMindchangeActions';
 import { isMindchangeEnabledClient } from '@/utils/featureFlags';
+import { BoardLoading } from './BoardLoading';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -138,6 +139,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     connectionError,
     isConnected,
     connectionState,
+    hasSyncedOnce,
+    isReady,
     isSaving,
     forceSave,
     interruptSave,
@@ -532,6 +535,16 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       setMindchangeSelectMode(false);
     }
   });
+
+  const fullyReady = Boolean(initialGraph && resolvedId && (isReady || connectionState === 'failed'));
+
+  if (!fullyReady) {
+    return (
+      <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
+        <BoardLoading />
+      </div>
+    );
+  }
 
   return (
     <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
