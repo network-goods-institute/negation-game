@@ -143,6 +143,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     interruptSave,
     nextSaveTime,
     resyncNow,
+    restartProviderWithNewToken,
     undo,
     redo,
     stopCapturing,
@@ -558,6 +559,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         onTitleSavingStop={handleTitleSavingStop}
         titleEditingUser={titleEditingUser}
         onResyncNow={resyncNow}
+        onRetryConnection={restartProviderWithNewToken}
         onUrlUpdate={(id, slug) => {
           try {
             if (ydoc && yMetaMap) {
