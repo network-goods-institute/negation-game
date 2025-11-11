@@ -30,11 +30,13 @@ class LRUCache<T> {
 
     // Check if expired
     if (Date.now() - entry.timestamp > this.ttl) {
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
       this.cache.delete(key);
       return null;
     }
 
     // Move to end (LRU)
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     this.cache.delete(key);
     this.cache.set(key, entry);
     return entry.data;
@@ -42,12 +44,14 @@ class LRUCache<T> {
 
   set(key: string, data: T): void {
     // Remove if exists (to update position)
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     this.cache.delete(key);
 
     // Evict oldest if at capacity
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
       if (firstKey !== undefined) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
         this.cache.delete(firstKey);
       }
     }
@@ -56,12 +60,14 @@ class LRUCache<T> {
   }
 
   invalidate(key: string): void {
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     this.cache.delete(key);
   }
 
   invalidatePattern(pattern: RegExp): void {
     for (const key of Array.from(this.cache.keys())) {
       if (pattern.test(key)) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
         this.cache.delete(key);
       }
     }

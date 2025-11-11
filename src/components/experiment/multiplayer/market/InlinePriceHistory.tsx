@@ -123,6 +123,7 @@ export const InlinePriceHistory: React.FC<Props> = ({
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     const onRefresh = () => {
+      // eslint-disable-next-line drizzle/enforce-delete-with-where
       try { PRICE_HISTORY_MEMCACHE.delete(key); } catch { }
       fetchOnce();
     };
@@ -130,6 +131,7 @@ export const InlinePriceHistory: React.FC<Props> = ({
       try {
         const sid = String(e?.detail?.securityId || '');
         if (sid === normalizeSecurityId(entityId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
           try { PRICE_HISTORY_MEMCACHE.delete(key); } catch { }
           fetchOnce();
         }
