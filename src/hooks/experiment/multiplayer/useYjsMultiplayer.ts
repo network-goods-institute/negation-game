@@ -44,6 +44,9 @@ export const useYjsMultiplayer = ({
   const [nextSaveTime, setNextSaveTime] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasSyncedOnce, setHasSyncedOnce] = useState(false);
+  const [connectedWithGrace, setConnectedWithGrace] = useState(false);
+  const disconnectAtRef = useRef<number | null>(null);
+  const graceTimerRef = useRef<number | null>(null);
 
   const ydocRef = useRef<Y.Doc | null>(null);
   const yNodesMapRef = useRef<Y.Map<Node> | null>(null);
@@ -70,6 +73,49 @@ export const useYjsMultiplayer = ({
   useEffect(() => {
     localOriginRef.current = localOrigin;
   }, [localOrigin]);
+
+  const disconnectGraceMs = useRef<number>(
+    Number(process.env.NEXT_PUBLIC_MULTIPLAYER_DISCONNECT_GRACE_MS || 4000)
+  );
+
+  useEffect(() => {
+    // Apply a grace window where brief disconnects don't flip the board to read-only
+    if (isConnected) {
+      disconnectAtRef.current = null;
+      if (graceTimerRef.current) {
+        clearTimeout(graceTimerRef.current);
+        graceTimerRef.current = null;
+      }
+      setConnectedWithGrace(true);
+      return;
+    }
+
+    const now = Date.now();
+    if (disconnectAtRef.current == null) {
+      disconnectAtRef.current = now;
+    }
+    const elapsed = now - disconnectAtRef.current;
+    const remaining = disconnectGraceMs.current - elapsed;
+    if (remaining > 0) {
+      setConnectedWithGrace(true);
+      if (graceTimerRef.current) {
+        clearTimeout(graceTimerRef.current);
+      }
+      graceTimerRef.current = window.setTimeout(() => {
+        setConnectedWithGrace(false);
+        graceTimerRef.current = null;
+      }, remaining);
+    } else {
+      setConnectedWithGrace(false);
+    }
+
+    return () => {
+      if (graceTimerRef.current) {
+        clearTimeout(graceTimerRef.current);
+        graceTimerRef.current = null;
+      }
+    };
+  }, [isConnected]);
 
   const persistId = roomName.includes(":")
     ? roomName.slice(roomName.indexOf(":") + 1)
@@ -291,6 +337,7 @@ export const useYjsMultiplayer = ({
     connectionError,
     connectionState,
     isConnected,
+    connectedWithGrace,
     hasSyncedOnce,
     isReady: Boolean(isConnected && hasSyncedOnce),
     isSaving,

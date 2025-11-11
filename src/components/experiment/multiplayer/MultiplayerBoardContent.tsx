@@ -138,6 +138,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     syncYMapFromArray,
     connectionError,
     isConnected,
+    connectedWithGrace,
     connectionState,
     hasSyncedOnce,
     isReady,
@@ -248,7 +249,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
 
   const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
   const { canWrite } = useWriteAccess(provider, userId);
-  const canEdit = Boolean(canWrite && isConnected);
+  const canEdit = Boolean(canWrite && (isConnected || connectedWithGrace));
 
   useEffect(() => {
     if (!connectMode) return;
@@ -552,7 +553,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         username={username}
         userColor={userColor}
         provider={provider}
-        isConnected={isConnected}
+        isConnected={Boolean(isConnected || connectedWithGrace)}
         connectionError={connectionError}
         connectionState={connectionState as any}
         isSaving={isSaving}
