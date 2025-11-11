@@ -38,6 +38,28 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   }
   const show = side === 'PRICE';
 
+  const [isZooming, setIsZooming] = React.useState(false);
+  const prevZoomRef = React.useRef(zoom);
+  const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    if (Math.abs(zoom - prevZoomRef.current) > 0.001) {
+      setIsZooming(true);
+      prevZoomRef.current = zoom;
+
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current);
+      }
+      zoomTimeoutRef.current = setTimeout(() => setIsZooming(false), 150);
+    }
+
+    return () => {
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current);
+      }
+    };
+  }, [zoom]);
+
   React.useEffect(() => {
     if (!show) return;
     let raf = 0;
@@ -49,11 +71,12 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
     return () => cancelAnimationFrame(raf);
   }, [show]);
 
-  if (!show || !Array.isArray(edges) || edges.length === 0) return null;
+  if (!show || !Array.isArray(edges) || edges.length === 0 || isZooming) return null;
 
-  // Compute a clamped size multiplier relative to the threshold
-  const scale = Math.max(0.25, Math.min(1, zoom / zoomThreshold));
-  const computedSize = Math.max(12, Math.min(sizePx, Math.round(sizePx * scale)));
+  // Compute size in flow coordinates (divide by zoom to convert from screen pixels)
+  const baseScreenSize = sizePx;
+  const minScreenSize = 12;
+  const flowSize = Math.max(minScreenSize / zoom, baseScreenSize / zoom);
 
   const viewportEl = typeof document !== 'undefined' ? (document.querySelector('.react-flow__viewport') as HTMLElement | null) : null;
   const viewportRect = viewportEl ? viewportEl.getBoundingClientRect() : null;
@@ -92,9 +115,10 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           if (!Number.isFinite(price)) return null;
           if (e.selected || overlayActiveId === e.id || hoveredEdgeId === e.id) return null;
 
-          // Compute label coords; prefer actual label anchor, fallback to geometric midpoint
+          // Try to use actual edge label position from DOM
           let labelX: number | null = null;
           let labelY: number | null = null;
+
           if (viewportRect) {
             try {
               const anchor = document.querySelector(`[data-anchor-edge-id="${CSS.escape(String(e.id))}"]`) as HTMLElement | null;
@@ -102,12 +126,14 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
                 const rect = anchor.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
-                labelX = (centerX - viewportRect.left) / Math.max(zoom, 0.0001);
-                labelY = (centerY - viewportRect.top) / Math.max(zoom, 0.0001);
+                labelX = (centerX - viewportRect.left) / zoom;
+                labelY = (centerY - viewportRect.top) / zoom;
               }
             } catch {}
           }
-          if (!Number.isFinite(labelX as number) || !Number.isFinite(labelY as number)) {
+
+          // Fallback to geometric calculation if anchor not found
+          if (!Number.isFinite(labelX) || !Number.isFinite(labelY)) {
             const sn = rf.getNode(e.source) as any;
             const tn = rf.getNode(e.target) as any;
             if (!sn || !tn) return null;
@@ -157,7 +183,7 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           }
 
           const p = Math.max(0, Math.min(1, price));
-          const size = Math.max(4, Math.round(computedSize / Math.max(zoom, 0.0001)));
+          const size = flowSize;
           const color = isSupport ? '#10b981' : (isNegation ? '#ef4444' : '#f59e0b');
 
           const fillRect = () => {
@@ -189,18 +215,18 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           return (
             <div
               key={`e-zoom-${e.id}`}
-              className="absolute -m-1 p-1 rounded-full bg-white border border-stone-200"
+              className="absolute"
               style={{ left: labelX as number, top: labelY as number, transform: 'translate(-50%, -50%)', zIndex: 0 }}
             >
-              <svg width={size} height={size} className="drop-shadow-sm">
+              <svg width={size} height={size} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.08)) drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
                 <defs>
                   <clipPath id={`edge-clip-${e.id}`}>
                     <circle cx={size / 2} cy={size / 2} r={size / 2} />
                   </clipPath>
                 </defs>
-                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1} />
+                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 0.5} fill="#ffffff" stroke="#d1d5db" strokeWidth={0.5} />
                 {fillRect()}
-                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={1} />
+                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 0.5} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={0.5} />
               </svg>
             </div>
           );

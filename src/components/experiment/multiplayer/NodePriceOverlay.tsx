@@ -41,33 +41,48 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
           const sy = Math.round(centerY * zoom + vy);
           const sw = Math.max(1, Math.round(w * zoom));
           const sh = Math.max(1, Math.round(h * zoom));
-          // Scale text size with zoom level - smaller as we zoom out more
-          const fontSizePx = Math.max(8, Math.min(13, 12 + (zoom - 1) * 2));
           const fillHeight = Math.round(sh * p);
           const fillY = sh - fillHeight;
           const isObjection = (n as any)?.type === 'objection';
-          const color = isObjection ? '#f59e0b' : '#d1d5db'; // orange for objection, light grey otherwise
+          const color = isObjection ? '#f59e0b' : '#d1d5db';
+
+          // Base font size on node width - roughly 1/8th of width for good fit
+          const fontSize = Math.max(6, Math.min(14, sw / 8));
+          const text = `${(p * 100).toFixed(1)}% chance`;
+
           return (
             <div
               key={`price-${n.id}`}
-              className="absolute subpixel-antialiased rounded-md overflow-hidden font-sans"
+              className="absolute"
               style={{ left: sx, top: sy, transform: "translate(-50%, -50%)", width: sw, height: sh }}
             >
-              <svg width={sw} height={sh} className="absolute inset-0 drop-shadow-sm">
+              {/* SVG background with price fill */}
+              <svg width={sw} height={sh} className="absolute inset-0 pointer-events-none" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.06)) drop-shadow(0 1px 3px rgba(0,0,0,0.1))' }}>
                 <defs>
                   <clipPath id={`node-clip-${n.id}`}>
                     <rect x={0} y={0} width={sw} height={sh} rx={6} />
                   </clipPath>
                 </defs>
-                <rect x={0} y={0} width={sw} height={sh} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1} rx={6} />
+                <rect x={0} y={0} width={sw} height={sh} fill="rgba(255,255,255,0.95)" stroke="#d1d5db" strokeWidth={0.5} rx={6} />
                 <g clipPath={`url(#node-clip-${n.id})`}>
                   <rect x={0} y={fillY} width={sw} height={fillHeight} fill={color} />
                 </g>
-                <rect x={0} y={0} width={sw} height={sh} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={1} rx={6} />
+                <rect x={0} y={0} width={sw} height={sh} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth={0.5} rx={6} />
               </svg>
-              <div className="relative w-full h-full flex items-center justify-center px-1.5 py-1 font-semibold text-stone-800" style={{ fontSize: fontSizePx }}>
-                {/* Condense label when very narrow to avoid truncation */}
-                {sw < 72 ? `${(p * 100).toFixed(0)}%` : `${(p * 100).toFixed(1)}% chance`}
+              {/* Text overlay - not constrained by SVG bounds */}
+              <div
+                className="absolute inset-0 flex items-center justify-center pointer-events-none select-none backdrop-blur-[0.5px]"
+                style={{
+                  fontSize: `${fontSize}px`,
+                  padding: '0 4px',
+                }}
+              >
+                <span className="font-medium text-stone-800 whitespace-nowrap" style={{
+                  textShadow: '0 1px 2px rgba(255,255,255,0.9), 0 0 8px rgba(255,255,255,0.7)',
+                  letterSpacing: '-0.02em'
+                }}>
+                  {text}
+                </span>
               </div>
             </div>
           );
