@@ -112,13 +112,10 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     const pointLike = useStore((s: any) => {
         const edges: any[] = s.edges || [];
-        const touching = edges.filter((edge: any) => {
-            const touchesNode = edge.source === id || edge.target === id;
-            const isCommentEdge = (edge.type || '') === 'comment';
-            return touchesNode && !isCommentEdge;
-        });
-        const isExactlyOneObjection = touching.length === 1 && (touching[0]?.type || '') === 'objection';
-        return !isExactlyOneObjection;
+        const hasNegationConnected = edges.some((edge: any) => (edge.type || '') === 'negation' && (edge.source === id || edge.target === id));
+        if (hasNegationConnected) return true;
+        const hasOutgoingObjection = edges.some((edge: any) => (edge.type || '') === 'objection' && edge.source === id);
+        return !hasOutgoingObjection;
     });
     const { hovered, onMouseEnter, onMouseLeave } = hover;
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
