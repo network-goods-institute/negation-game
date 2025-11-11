@@ -60,6 +60,13 @@ describe('marketContextMenu', () => {
       );
     });
 
+    it('should dispatch tradeComplete after successful purchase', async () => {
+      await buyShares('node-123', 1);
+      expect(window.dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'market:tradeComplete' })
+      );
+    });
+
     it('should handle fetch errors gracefully', async () => {
       (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
@@ -107,6 +114,14 @@ describe('marketContextMenu', () => {
 
       expect(window.dispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'market:refresh' })
+      );
+    });
+
+    it('should dispatch tradeComplete after successful amount purchase', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ shares: '1000000000000000000' }) });
+      await buyAmount('node-123', 1);
+      expect(window.dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'market:tradeComplete' })
       );
     });
 

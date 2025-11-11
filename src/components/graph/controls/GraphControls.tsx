@@ -146,4 +146,4 @@ export const GraphControls: React.FC<GraphControlsProps> = ({
             )}
         </>
     );
-}; 
+};

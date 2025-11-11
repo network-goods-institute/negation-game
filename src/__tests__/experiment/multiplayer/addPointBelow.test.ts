@@ -119,4 +119,28 @@ describe('createAddPointBelow', () => {
     expect(result?.edgeType).toBe('option');
     expect(env.getEdges()[0].type).toBe('option');
   });
+
+  it('positions new point directly below parent without extra offset', () => {
+    const env = buildEnv({ id: 'p1', type: 'point' });
+    const addPointBelow = createAddPointBelow(
+      env.getNodes(),
+      env.yNodesMap,
+      env.yEdgesMap,
+      env.yTextMap,
+      env.doc,
+      true,
+      {},
+      { current: {} },
+      env.setNodes,
+      env.setEdges,
+      undefined,
+      undefined,
+      undefined,
+      { getPreferredEdgeType: () => 'support' }
+    );
+    addPointBelow('p1');
+    const nodes = env.getNodes();
+    const child = nodes.find((n) => n.id !== 'p1') as any;
+    expect(child.position.y).toBe(120);
+  });
 });

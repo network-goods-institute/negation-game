@@ -25,7 +25,11 @@ const InlineBuyControlsLazy = dynamic(
   () => import('../market/InlineBuyControls').then(m => m.InlineBuyControls),
   { ssr: false, loading: () => null }
 );
-import { MarketContextMenu } from '../common/MarketContextMenu';
+const InlineMarketPendingLazy = dynamic(
+  () => import('../common/NodeWithMarket').then(m => m.InlineMarketPending),
+  { ssr: false, loading: () => null }
+);
+import { ContextMenu } from '../common/ContextMenu';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -300,6 +304,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const onContextMenuNode = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (isEditing) return;
         e.preventDefault();
         e.stopPropagation();
         setMenuPos({ x: e.clientX, y: e.clientY });
@@ -338,7 +343,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 containerRef={containerRef}
                 containerClassName="relative inline-block group"
                 wrapperRef={wrapperRef}
-                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] inline-flex flex-col relative z-10 transition-all duration-300 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
+                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] inline-flex flex-col relative z-10 transition-transform duration-400 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
                 wrapperStyle={{
                     ...innerScaleStyle,
@@ -346,7 +351,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     marginTop: (!isEditing && !isNodeDragging && showInlineMarket) ? '-96px' : undefined,
                 } as any}
                 wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
-                highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
+                highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-400 ease-out z-0`}
             >
                 <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
                 {!isEditing && !isNodeDragging && objectionEdge && objectionEdgeId && (
@@ -359,6 +364,17 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                         offsetLeft="-left-4"
                         variant="objection"
                     />
+                )}
+                {objectionEdge && objectionEdgeId && (
+                  <InlineMarketPendingLazy
+                    id={objectionEdgeId}
+                    selected={!!selected}
+                    hidden={hidden}
+                    showPrice={false}
+                    hasPrice={Boolean((objectionEdge as any)?.data?.market && Number.isFinite(Number((objectionEdge as any).data.market.price)))}
+                    offsetLeft="-left-4"
+                    variant="objection"
+                  />
                 )}
                 <div
                     ref={contentRef}
@@ -428,15 +444,16 @@ items-center justify-center pointer-events-none select-none">
                     </div>
                 )}
             </NodeShell>
-            <MarketContextMenu
+            <ContextMenu
                 open={menuOpen}
                 x={menuPos.x}
                 y={menuPos.y}
                 onClose={() => setMenuOpen(false)}
-                kind="node"
-                entityId={objectionEdgeId || id}
-                onDelete={() => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } }}
-                nodeEl={wrapperRef.current as any}
+                items={[{
+                    label: 'Delete',
+                    danger: true,
+                    onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode?.(id); } }
+                }]}
             />
         </>
     );

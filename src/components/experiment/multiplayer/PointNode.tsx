@@ -17,7 +17,7 @@ import { LockIndicator } from './common/LockIndicator';
 import { useMarketData } from '@/hooks/market/useMarketData';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
 import { MarketPriceZoomOverlay } from './market/MarketPriceOverlays';
-import { MarketContextMenu } from './common/MarketContextMenu';
+import { ContextMenu } from './common/ContextMenu';
 import { useInlineMarketDisplay } from './common/NodeWithMarket';
 
 // Lazy-load heavy market UI: price history graph and buy controls
@@ -27,6 +27,10 @@ const InlineMarketDisplayLazy = dynamic(
 );
 const InlineBuyControlsLazy = dynamic(
   () => import('./market/InlineBuyControls').then(m => m.InlineBuyControls),
+  { ssr: false, loading: () => null }
+);
+const InlineMarketPendingLazy = dynamic(
+  () => import('./common/NodeWithMarket').then(m => m.InlineMarketPending),
   { ssr: false, loading: () => null }
 );
 
@@ -268,7 +272,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
     const ringMindchange = mindchangeSelectable ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative origin-center group ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative origin-center group transition-transform duration-400 ease-out ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
   }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable]);
 
   const wrapperProps = {
@@ -346,6 +350,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const onContextMenuNode = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isEditing) return;
     e.preventDefault();
     e.stopPropagation();
     setMenuPos({ x: e.clientX, y: e.clientY });
@@ -408,6 +413,14 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             offsetLeft="-left-4"
           />
         )}
+        <InlineMarketPendingLazy
+          id={id}
+          selected={!!selected}
+          hidden={hidden}
+          showPrice={showPrice}
+          hasPrice={hasPrice}
+          offsetLeft="-left-4"
+        />
         <div
           ref={contentRef}
           contentEditable={isEditing && !locked && !hidden && !isConnectMode}
@@ -461,16 +474,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           </div>
         )}
       </NodeShell>
-      <MarketContextMenu
-        open={menuOpen}
-        x={menuPos.x}
-        y={menuPos.y}
-        onClose={() => setMenuOpen(false)}
-        kind="node"
-        entityId={id}
-        onDelete={() => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } }}
-        nodeEl={wrapperRef.current as any}
-      />
+      <ContextMenu open={menuOpen} x={menuPos.x} y={menuPos.y} onClose={() => setMenuOpen(false)} items={[{ label: "Delete", danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || "another user"}`); } else { deleteNode?.(id); } } }]} />
     </>
   );
 };

@@ -65,5 +65,3 @@ describe("buyAmount with anonymous user", () => {
     expect(trade.userId).toBe("anon-u2");
   });
 });
-
-

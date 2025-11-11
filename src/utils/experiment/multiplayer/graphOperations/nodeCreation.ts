@@ -135,7 +135,7 @@ export const createAddNegationBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: { x: newPos.x, y: newPos.y + 32 },
+      position: { x: newPos.x, y: newPos.y },
       data: { content: "New point", favor: 5, createdAt: Date.now() },
       selected: true,
     };
@@ -216,7 +216,7 @@ export const createAddSupportBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: { x: newPos.x, y: newPos.y + 32 },
+      position: { x: newPos.x, y: newPos.y },
       data: { content: "New Support", favor: 5, createdAt: Date.now() },
       selected: true,
     };
@@ -309,7 +309,7 @@ export const createAddPointBelow = (
       type: "point",
       position: {
         x: newPos.x,
-        y: newPos.y + (parentType === "comment" ? -10 : 32),
+        y: newPos.y,
       },
       data: { content: defaultContent, favor: 5, createdAt: Date.now() },
       selected: true,

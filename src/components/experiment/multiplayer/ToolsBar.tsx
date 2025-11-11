@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2, HelpCircle } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToolbarButton } from "./ToolbarButton";
+import { MarketModeControls } from "./MarketModeControls";
 
 interface ToolsBarProps {
   connectMode: boolean;
@@ -199,6 +200,11 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
           >
             <Redo2 className="h-5 w-5" />
           </ToolbarButton>
+
+          <div className="h-6 w-px bg-stone-200 mx-2" />
+
+          {/* Market overlay mode controls (Auto / Text / Price) */}
+          <MarketModeControls />
 
           <div className="h-6 w-px bg-stone-200 mx-2" />
 

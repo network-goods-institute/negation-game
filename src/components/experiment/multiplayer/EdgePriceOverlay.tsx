@@ -5,6 +5,8 @@ import { useReactFlow, useViewport, getBezierPath, getStraightPath, Position } f
 import { useGraphActions } from './GraphContext';
 import { getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
 import { EDGE_CONFIGURATIONS, EdgeType } from './common/EdgeConfiguration';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
 
 interface EdgeLike {
   id: string;
@@ -28,8 +30,13 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
   const hoveredEdgeId = (graph as any)?.hoveredEdgeId as (string | null);
   const [tick, setTick] = React.useState(0);
-
-  const show = zoom <= zoomThreshold;
+  const state = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  let side = computeSide(state);
+  if (state === 'AUTO_TEXT' || state === 'AUTO_PRICE') {
+    side = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+  }
+  const show = side === 'PRICE';
 
   React.useEffect(() => {
     if (!show) return;

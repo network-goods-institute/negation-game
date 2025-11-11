@@ -3,6 +3,8 @@ import React from "react";
 import { useViewport } from "@xyflow/react";
 import { getNodeDimensionsAndCenter } from "@/utils/experiment/multiplayer/nodeUtils";
 import { useGraphActions } from "./GraphContext";
+import { useAtomValue } from "jotai";
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from "@/atoms/marketOverlayAtom";
 
 type Props = {
   nodes: Array<{ id: string; position?: { x: number; y: number }; width?: number; height?: number; data?: any }>;
@@ -14,12 +16,18 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
   const { zoom, x: vx, y: vy } = useViewport();
   const graph = useGraphActions() as any;
   const hoveredNodeId: string | null = graph?.hoveredNodeId ?? null;
-  if (!prices) return null;
-  const show = zoom <= zoomThreshold; // show when zoomed OUT
+  const state = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  let side = computeSide(state);
+  if (state === 'AUTO_TEXT' || state === 'AUTO_PRICE') {
+    side = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+  }
+  const hasRF = typeof document !== 'undefined' && !!document.querySelector('.react-flow__viewport');
+  const show = hasRF ? (side === 'PRICE') : true;
+  if (!prices || !show) return null;
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-      {show &&
-        nodes.map((n) => {
+      {nodes.map((n) => {
           // Exclude statement nodes entirely from price overlays
           if ((n as any)?.type === 'statement') return null;
           const p = prices[n.id];

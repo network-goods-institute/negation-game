@@ -382,8 +382,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     >
       {process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true' && Array.isArray(nodesForRender) && (
         <>
-          <NodePriceOverlay nodes={nodesForRender as any} prices={(yMetaMap as any)?.get?.('market:prices') ?? null} />
-          <EdgePriceOverlay edges={edgesForRender as any} />
+      <NodePriceOverlay nodes={nodesForRender as any} prices={(yMetaMap as any)?.get?.('market:prices') ?? null} />
+      <EdgePriceOverlay edges={edgesForRender as any} />
           <MiniHoverStats docId={docId} />
         </>
       )}

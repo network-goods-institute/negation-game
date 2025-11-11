@@ -553,7 +553,12 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     try { await forceSave?.(); } catch {}
     try {
       if (marketEnabled && ydoc && yMetaMap && resolvedId) {
-        const res = await fetch(`/api/market/${encodeURIComponent(resolvedId)}/view`, { method: 'GET' });
+        const payload = buildMarketViewPayload(nodes, edges);
+        const res = await fetch(`/api/market/${encodeURIComponent(resolvedId)}/view`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
         if (!res.ok) {
           try {
             const txt = await res.text();
@@ -576,7 +581,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         }
       }
     } catch {}
-  }, [forceSave, marketEnabled, ydoc, yMetaMap, resolvedId]);
+  }, [forceSave, marketEnabled, ydoc, yMetaMap, resolvedId, nodes, edges]);
 
   const {
     updateNodeContent,

@@ -21,6 +21,13 @@ export async function POST(req: Request, ctx: any) {
     return NextResponse.json({ error: "securityId required" }, { status: 400 });
   // Ensure an anonymous session is established when needed
   await getUserIdOrAnonymous();
-  const res = await buyAmount(docId, securityId, spendScaled);
-  return NextResponse.json(res, { status: 200 });
+  try {
+    const res = await buyAmount(docId, securityId, spendScaled);
+    return NextResponse.json(res, { status: 200 });
+  } catch (e) {
+    const msg = String((e as any)?.message || "buyAmount failed");
+    const status = /unknown security/i.test(msg) ? 422 : 500;
+    return NextResponse.json({ error: msg }, { status });
+  }
 }
+

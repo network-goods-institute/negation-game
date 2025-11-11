@@ -57,12 +57,16 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
       toast.info('Order placed ✅');
       setOpen(false);
       onDismiss?.();
-
-      await buyAmountClient(normId, amount);
-
-      toast.success('Order complete 🎉');
+      const result = await buyAmountClient(normId, amount) as any;
+      const success = result !== false;
+      if (success) {
+        toast.success('Order complete 🎉');
+      } else {
+        toast.error('Order failed');
+      }
     } catch (e: any) {
-      toast.error('Purchase failed');
+      const msg = String(e?.message || 'Order failed');
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -72,7 +76,7 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
     return (
       <div
         ref={boxRef}
-        className={`mt-2 nodrag nopan ${className || ''}`}
+        className={`mt-2 nodrag nopan ${className || ''} animate-in fade-in-0 zoom-in-95`}
         data-interactive="true"
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
@@ -100,7 +104,7 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
   return (
     <div
       ref={boxRef}
-      className={`mt-2 nodrag nopan ${className || ''}`}
+      className={`mt-2 nodrag nopan ${className || ''} animate-in fade-in-0 zoom-in-95`}
       data-interactive="true"
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
@@ -115,10 +119,10 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
           type="button"
           onClick={(e) => { e.stopPropagation(); if (!submitting) { setOpen(false); onDismiss?.(); } }}
           disabled={submitting}
-          className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded transition disabled:opacity-50"
+          className="absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center text-stone-600 hover:text-stone-900 bg-white border border-stone-300 hover:bg-stone-100 rounded-full transition disabled:opacity-50 shadow-sm"
           aria-label="Close"
         >
-          ×
+          <span className="text-[14px] leading-none">×</span>
         </button>
         {showPriceHistory && (
           <div className="w-full min-w-0 overflow-hidden">
@@ -133,46 +137,61 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
           </div>
         )}
         <div className="flex items-center gap-1" data-interactive="true">
-          {userHasShares && [-50, -10].map((delta) => (
-            <button
-              key={delta}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                const next = amount + delta;
-                setAmount(Math.max(maxNegative, Math.min(1000, next)));
+          <div className="ml-1 relative flex-1">
+            <input
+              type="number"
+              className={`w-full text-[11px] border rounded pl-24 pr-24 py-0.5 subpixel-antialiased ${variant === 'objection' ? 'border-amber-300' : ''}`}
+              value={amount}
+              min={maxNegative}
+              max={1000}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                if (!Number.isFinite(val)) return;
+                setAmount(Math.max(maxNegative, Math.min(1000, val)));
               }}
-              className={`text-[10px] px-2 py-0.5 rounded border bg-white ${variant === 'objection' ? 'text-amber-800 border-amber-300 hover:bg-amber-50' : 'text-stone-700 border-stone-300 hover:bg-stone-50'}`}
-            >
-              {delta}
-            </button>
-          ))}
-          {PRESETS.map((delta) => (
-            <button
-              key={delta}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setAmount(delta);
-              }}
-              className={`text-[10px] px-2 py-0.5 rounded border bg-white ${variant === 'objection' ? 'text-amber-800 border-amber-300 hover:bg-amber-50' : 'text-stone-700 border-stone-300 hover:bg-stone-50'}`}
-            >
-              +{delta}
-            </button>
-          ))}
-          <input
-            type="number"
-            className={`ml-1 flex-1 text-[11px] border rounded px-2 py-0.5 subpixel-antialiased ${variant === 'objection' ? 'border-amber-300' : ''}`}
-            value={amount}
-            min={maxNegative}
-            max={1000}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              if (!Number.isFinite(val)) return;
-              setAmount(Math.max(maxNegative, Math.min(1000, val)));
-            }}
-            placeholder="Amount"
-          />
+              placeholder="Amount"
+            />
+            <div className="absolute left-1 top-1/2 -translate-y-1/2 flex gap-1">
+              <button
+                type="button"
+                aria-label="Decrement by 50"
+                onClick={(e) => { e.stopPropagation(); const next = amount - 50; setAmount(Math.max(maxNegative, next)); }}
+                className="h-5 px-1 rounded border text-[10px] bg-white hover:bg-stone-50"
+                disabled={amount <= maxNegative}
+              >
+                −50
+              </button>
+              <button
+                type="button"
+                aria-label="Decrement by 10"
+                onClick={(e) => { e.stopPropagation(); const next = amount - 10; setAmount(Math.max(maxNegative, next)); }}
+                className="h-5 px-1 rounded border text-[10px] bg-white hover:bg-stone-50"
+                disabled={amount <= maxNegative}
+              >
+                −10
+              </button>
+            </div>
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+              <button
+                type="button"
+                aria-label="Increment by 10"
+                onClick={(e) => { e.stopPropagation(); const next = amount + 10; setAmount(Math.min(1000, next)); }}
+                className="h-5 px-1 rounded border text-[10px] bg-white hover:bg-stone-50"
+                disabled={amount >= 1000}
+              >
+                +10
+              </button>
+              <button
+                type="button"
+                aria-label="Increment by 50"
+                onClick={(e) => { e.stopPropagation(); const next = amount + 50; setAmount(Math.min(1000, next)); }}
+                className="h-5 px-1 rounded border text-[10px] bg-white hover:bg-stone-50"
+                disabled={amount >= 1000}
+              >
+                +50
+              </button>
+            </div>
+          </div>
         </div>
 
         {(() => {
@@ -286,3 +305,4 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
     </div>
   );
 };
+

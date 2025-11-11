@@ -9,7 +9,7 @@ export function useUserHoldingsLite(docId: string | null | undefined, refreshMs:
   const lastServerBaseRef = React.useRef<Record<string, string>>({});
   const inFlightRef = React.useRef<boolean>(false);
   const lastFetchRef = React.useRef<number>(0);
-  const MIN_COOLDOWN_MS = 1500;
+  const MIN_COOLDOWN_MS = 500;
 
   const fetchOnce = React.useCallback(async () => {
     if (!docId) return;

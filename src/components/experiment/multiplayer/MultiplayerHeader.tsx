@@ -4,6 +4,7 @@ import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
 import { buildRationaleIndexPath } from '@/utils/hosts/syncPaths';
 import { useSafeJson } from '@/hooks/network/useSafeJson';import { logger } from "@/lib/logger";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type YProvider = WebsocketProvider | null;
 
@@ -70,6 +71,67 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   const titleCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestTitleRef = useRef<string>(title || 'Untitled');
+  const [pendingTrades, setPendingTrades] = useState(0);
+  const [pendingLocal, setPendingLocal] = useState(0);
+
+  useEffect(() => {
+    const bumpLocal = (delta: number) => {
+      setPendingLocal((p) => {
+        const next = Math.max(0, p + delta);
+        try { (provider as any)?.awareness?.setLocalStateField?.('marketPending', next); } catch {}
+        return next;
+      });
+    };
+    const onStart = (e: any) => {
+      try {
+        const d = (e as CustomEvent)?.detail || {};
+        bumpLocal(1);
+      } catch {}
+    };
+    const onFinish = (e: any) => {
+      try {
+        const d = (e as CustomEvent)?.detail || {};
+        bumpLocal(-1);
+      } catch {}
+    };
+    try { window.addEventListener('market:tradeStarted', onStart as any); } catch {}
+    try { window.addEventListener('market:tradeFinished', onFinish as any); } catch {}
+    return () => {
+      try { window.removeEventListener('market:tradeStarted', onStart as any); } catch {}
+      try { window.removeEventListener('market:tradeFinished', onFinish as any); } catch {}
+    };
+  }, [documentId, provider]);
+
+  useEffect(() => {
+    let disposed = false;
+    const recompute = () => {
+      try {
+        const aw = (provider as any)?.awareness;
+        if (!aw) return;
+        const states = Array.from(aw.getStates?.().values?.() || []);
+        let sum = 0;
+        for (const st of states) {
+          const v = Number((st as any)?.marketPending ?? 0);
+          if (Number.isFinite(v) && v > 0) sum += v;
+        }
+        if (!disposed) setPendingTrades(sum);
+      } catch {}
+    };
+    recompute();
+    try {
+      const aw = (provider as any)?.awareness;
+      if (aw) {
+        const onChange = () => recompute();
+        aw.on?.('change', onChange);
+        return () => { disposed = true; aw.off?.('change', onChange); };
+      }
+    } catch {}
+    return () => { disposed = true; };
+  }, [provider]);
+
+  useEffect(() => {
+    try { (provider as any)?.awareness?.setLocalStateField?.('marketPending', pendingLocal); } catch {}
+  }, [provider, pendingLocal]);
 
   useEffect(() => {
     setLocalTitle(title || 'Untitled');
@@ -335,7 +397,8 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
         )}
       </div>
       <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
-        <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
+        <div className="relative">
+          <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
           {proxyMode ? (
             <>
               <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
@@ -386,6 +449,29 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
               )}
             </>
           )}
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className={`absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full text-[10px] leading-none flex items-center justify-center shadow ${pendingTrades > 0 ? 'bg-emerald-600 text-white' : 'bg-stone-300 text-stone-700'}`}
+                  aria-label="Pending trades"
+                  aria-live="polite"
+                  role="status"
+                >
+                  {pendingTrades}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="left" align="end" className="text-xs">
+                <div className="flex flex-col gap-0.5">
+                  <div className="font-semibold">Pending trades</div>
+                  <div>Total: {pendingTrades}</div>
+                  <div>Yours: {pendingLocal}</div>
+                  <div>Others: {Math.max(0, pendingTrades - pendingLocal)}</div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     </>

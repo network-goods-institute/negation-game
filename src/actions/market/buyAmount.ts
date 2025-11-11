@@ -64,8 +64,12 @@ export async function buyAmount(
     for (const sec of securities) mm.setShares(sec, totals.get(sec) || 0n);
     const normalized = normalize(securityId);
     try {
-      const isKnownNameEarly = Array.isArray((structure as any)?.names) && (structure as any).names.includes(normalized);
-      const isKnownEdgeEarly = Array.isArray((structure as any)?.edges) && (structure as any).edges.some((e: any) => e?.name === normalized);
+      const isKnownNameEarly =
+        Array.isArray((structure as any)?.names) &&
+        (structure as any).names.includes(normalized);
+      const isKnownEdgeEarly =
+        Array.isArray((structure as any)?.edges) &&
+        (structure as any).edges.some((e: any) => e?.name === normalized);
       if (isKnownNameEarly || isKnownEdgeEarly) {
         await ensureSecurityInDoc(canonicalId, normalized);
       }

@@ -74,5 +74,3 @@ describe("buyShares with anonymous user", () => {
     expect(trade.userId).toBe("anon-u1");
   });
 });
-
-

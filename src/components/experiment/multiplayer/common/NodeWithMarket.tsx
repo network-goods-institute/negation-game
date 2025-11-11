@@ -72,6 +72,28 @@ export const InlineMarketDisplay: React.FC<InlineMarketDisplayProps> = ({
   );
 };
 
+export const InlineMarketPending: React.FC<{
+  id: string;
+  selected?: boolean;
+  hidden?: boolean;
+  showPrice?: boolean;
+  hasPrice?: boolean;
+  offsetLeft?: string;
+  variant?: 'default' | 'objection';
+}> = ({ id, selected, hidden, showPrice, hasPrice, offsetLeft = '-left-4', variant = 'default' }) => {
+  const marketEnabled = isMarketEnabled();
+  const showPending = Boolean(selected && marketEnabled && !hidden && !showPrice && !hasPrice);
+  if (!showPending) return null;
+  return (
+    <div className={`absolute -top-10 ${offsetLeft} pointer-events-none z-20 p-2`}>
+      <div className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded shadow-sm ${variant === 'objection' ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-white/95 text-stone-700 border border-stone-200'}`}>
+        <span className="inline-block w-2.5 h-2.5 rounded-full border-2 border-stone-300 border-t-stone-600 animate-spin" />
+        <span>Preparing market…</span>
+      </div>
+    </div>
+  );
+};
+
 const PositionAndReturn: React.FC<{ id: string; price: number; mine?: number | null; variant?: 'default' | 'objection' }> = ({ id, price, mine, variant = 'default' }) => {
   const [ret, setRet] = React.useState<number>(0);
   const [optimisticSharesDelta, setOptimisticSharesDelta] = React.useState<number>(0);

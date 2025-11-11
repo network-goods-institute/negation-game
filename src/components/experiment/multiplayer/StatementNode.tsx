@@ -124,7 +124,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           },
         }}
         wrapperRef={wrapperRef}
-        wrapperClassName={`px-5 pt-3 pb-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} ${isActive ? 'border-0' : 'border-2'} ${cursorClass} min-w-[240px] max-w-[360px] relative z-10 origin-center ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
+        wrapperClassName={`px-5 pt-3 pb-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} ${isActive ? 'border-0' : 'border-2'} ${cursorClass} min-w-[240px] max-w-[360px] relative z-10 origin-center transition-transform duration-400 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}
             ${isActive ? '' : (hidden ? 'border-blue-300' : 'border-blue-200')}
             ${isConnectingFromNodeId === id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white shadow-md' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
@@ -157,7 +157,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           },
           'data-selected': selected,
         } as any}
-        highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-blue-600 opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
+        highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-blue-600 opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-400 ease-out z-0`}
       >
         <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
         {isConnectingFromNodeId === id && (
