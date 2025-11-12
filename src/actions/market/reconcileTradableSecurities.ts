@@ -1,10 +1,10 @@
 "use server";
 
 import * as Y from "yjs";
+import { safeUnstableCache } from "@/lib/cache/nextCache";
 import { getDocSnapshotBuffer } from "@/services/yjsCompaction";
 import { createStructure, buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
-import { marketCache } from "@/lib/cache/marketCache";
 
 type RFNode = { id: string };
 type RFEdge = { id: string; source: string; target: string; type?: string };
@@ -15,18 +15,15 @@ export type ReconciledMarket = {
   persisted: boolean;
 };
 
-export async function reconcileTradableSecurities(docId: string): Promise<ReconciledMarket> {
-  const canonicalId = await resolveSlugToId(docId);
-
-  const cached = marketCache.getStructure(canonicalId);
-  if (cached) {
-    return cached;
-  }
-
+async function computeReconciledMarket(
+  canonicalId: string
+): Promise<ReconciledMarket> {
   const buf = await getDocSnapshotBuffer(canonicalId);
   const ydoc = new Y.Doc();
   if (buf && buf.byteLength) {
-    try { Y.applyUpdate(ydoc, new Uint8Array(buf)); } catch {}
+    try {
+      Y.applyUpdate(ydoc, new Uint8Array(buf));
+    } catch {}
   }
   const yNodes = ydoc.getMap<RFNode>("nodes");
   const yEdges = ydoc.getMap<RFEdge>("edges");
@@ -42,7 +39,12 @@ export async function reconcileTradableSecurities(docId: string): Promise<Reconc
     const id = normalize(n?.id);
     if (id) rawNodeSet.add(id);
   }
-  const edgesList: Array<{ id: string; source: string; target: string; type?: string }> = [];
+  const edgesList: Array<{
+    id: string;
+    source: string;
+    target: string;
+    type?: string;
+  }> = [];
   for (const e of yEdges.values()) {
     if (!e || !e.id) continue;
     const src = normalize(e.source);
@@ -65,12 +67,30 @@ export async function reconcileTradableSecurities(docId: string): Promise<Reconc
   const negationAllow = edgesList
     .filter((e) => e?.type === "negation" || e?.type === "objection")
     .map((e) => e.id);
-  const securities = buildSecurities(structure, { includeNegations: negationAllow });
+  const securities = buildSecurities(structure, {
+    includeNegations: negationAllow,
+  });
 
   // Read-only reconciliation: never mutate the collaborative document in view path
-  const result = { structure, securities, persisted: false };
+  return { structure, securities, persisted: false };
+}
 
-  marketCache.setStructure(canonicalId, result);
+export async function reconcileTradableSecurities(
+  docId: string
+): Promise<ReconciledMarket> {
+  const canonicalId = await resolveSlugToId(docId);
 
-  return result;
+  // Use unstable_cache to cache structure parsing across serverless instances
+  const getCachedStructure = safeUnstableCache(
+    async (canonicalId: string) => {
+      return computeReconciledMarket(canonicalId);
+    },
+    ["market-structure", canonicalId],
+    {
+      tags: [`market-structure:${canonicalId}`],
+      revalidate: 30,
+    }
+  );
+
+  return getCachedStructure(canonicalId);
 }

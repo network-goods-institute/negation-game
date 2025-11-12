@@ -23,7 +23,7 @@ interface Props {
   sizePx?: number; // nominal circle diameter in px at threshold zoom
 }
 
-export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, sizePx = 28 }) => {
+export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, sizePx = 24 }) => {
   const rf = useReactFlow();
   const { zoom, x: vx, y: vy } = useViewport();
   const graph = useGraphActions() as any;
@@ -221,12 +221,15 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
               <svg width={size} height={size} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.08)) drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
                 <defs>
                   <clipPath id={`edge-clip-${e.id}`}>
-                    <circle cx={size / 2} cy={size / 2} r={size / 2} />
+                    <circle cx={size / 2} cy={size / 2} r={(size / 2) - 6} />
                   </clipPath>
                 </defs>
-                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 0.5} fill="#ffffff" stroke="#d1d5db" strokeWidth={0.5} />
+                {/* Outer white frame - prominent border */}
+                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 0.5} fill="white" stroke="white" strokeWidth={6} />
+                {/* Inner circle background */}
+                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 6} fill="#ffffff" stroke="#e5e7eb" strokeWidth={0.5} />
                 {fillRect()}
-                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 0.5} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={0.5} />
+                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 6} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={0.5} />
               </svg>
             </div>
           );

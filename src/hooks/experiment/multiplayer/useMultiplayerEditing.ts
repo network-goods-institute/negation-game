@@ -162,10 +162,13 @@ export const useMultiplayerEditing = ({
       setLocks(lockRes);
     };
 
-    rebuild();
+    // Defer initial rebuild to avoid setState during render
+    const timeoutId = setTimeout(() => rebuild(), 0);
+
     awareness.on("change", rebuild);
     awareness.on?.("update", rebuild);
     return () => {
+      clearTimeout(timeoutId);
       awareness.off("change", rebuild);
       awareness.off?.("update", rebuild);
     };

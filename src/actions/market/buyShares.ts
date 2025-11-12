@@ -1,5 +1,6 @@
 "use server";
 import { db } from "@/services/db";
+import { safeRevalidateTag } from "@/lib/cache/nextCache";
 import { marketHoldingsTable } from "@/db/tables/marketHoldingsTable";
 import { marketTradesTable } from "@/db/tables/marketTradesTable";
 import { marketStateTable } from "@/db/tables/marketStateTable";
@@ -11,7 +12,6 @@ import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { logger } from "@/lib/logger";
 import { ensureSecurityInDoc } from "@/actions/market/ensureSecurityInDoc";
-import { marketCache } from "@/lib/cache/marketCache";
 
 export async function buyShares(
   docId: string,
@@ -282,7 +282,9 @@ export async function buyShares(
     return { cost: (cost as unknown as bigint).toString() };
   });
 
-  marketCache.invalidateMarketView(canonicalId);
+  // Invalidate Next.js cache for this market
+  safeRevalidateTag(`market-view:${canonicalId}`);
+  safeRevalidateTag(`market-structure:${canonicalId}`);
 
   return result;
 }

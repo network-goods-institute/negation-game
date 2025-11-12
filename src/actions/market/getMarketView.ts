@@ -1,5 +1,6 @@
 "use server";
 import { db } from "@/services/db";
+import { safeUnstableCache } from "@/lib/cache/nextCache";
 import { marketHoldingsTable } from "@/db/tables/marketHoldingsTable";
 import { reconcileTradableSecurities } from "@/actions/market/reconcileTradableSecurities";
 import { createMarketMaker, defaultB } from "@/lib/carroll/market";
@@ -7,7 +8,6 @@ import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { createStructure, buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
-import { marketCache } from "@/lib/cache/marketCache";
 
 export type MarketView = {
   prices: Record<string, number>;
@@ -16,26 +16,10 @@ export type MarketView = {
   updatedAt: string;
 };
 
-export async function getMarketView(
-  docId: string,
+async function computeMarketView(
+  canonicalId: string,
   userId?: string
 ): Promise<MarketView> {
-  const canonicalId = await resolveSlugToId(docId);
-
-  const cached = marketCache.getMarketView(canonicalId, userId);
-  if (cached) {
-    try {
-      logger.log(
-        JSON.stringify({
-          event: "market_view_cache_hit",
-          docId: canonicalId,
-          userId: userId ? "present" : "anon",
-        })
-      );
-    } catch {}
-    return cached;
-  }
-
   const { structure, securities } =
     await reconcileTradableSecurities(canonicalId);
   try {
@@ -165,7 +149,25 @@ export async function getMarketView(
     updatedAt: new Date().toISOString(),
   };
 
-  marketCache.setMarketView(canonicalId, userId, view);
-
   return view;
+}
+
+export async function getMarketView(
+  docId: string,
+  userId?: string
+): Promise<MarketView> {
+  const canonicalId = await resolveSlugToId(docId);
+
+  const getCachedMarketView = safeUnstableCache(
+    async (canonicalId: string, userId?: string) => {
+      return computeMarketView(canonicalId, userId);
+    },
+    ["market-view", canonicalId, userId || "anon"],
+    {
+      tags: [`market-view:${canonicalId}`],
+      revalidate: 30,
+    }
+  );
+
+  return getCachedMarketView(canonicalId, userId);
 }

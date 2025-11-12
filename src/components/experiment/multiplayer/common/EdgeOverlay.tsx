@@ -530,7 +530,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   {(() => {
                     const priceNum = Number(marketPrice as number);
                     if (!Number.isFinite(priceNum)) return null;
-                    const size = 20;
+                    const size = 24;
                     const t = (edgeType || '').toLowerCase();
                     const isSupport = t === 'support';
                     const isNegation = t === 'negation';
@@ -578,10 +578,13 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                           className="h-7 w-7 rounded-full bg-transparent border border-transparent shadow-none transition flex items-center justify-center"
                         >
                           <svg width={size} height={size}>
-                            <defs><clipPath id={`edge-mini-clip-inline-${edgeId}`}><circle cx={size / 2} cy={size / 2} r={size / 2} /></clipPath></defs>
-                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1} />
+                            <defs><clipPath id={`edge-mini-clip-inline-${edgeId}`}><circle cx={size / 2} cy={size / 2} r={(size / 2) - 2} /></clipPath></defs>
+                            {/* Thin white frame so inner circle is big */}
+                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 0.5} fill="white" stroke="white" strokeWidth={2} />
+                            {/* Inner circle background */}
+                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 2} fill="#ffffff" stroke="#e5e7eb" strokeWidth={0.5} />
                             {fill()}
-                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 1} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={1} />
+                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 2} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={0.5} />
                           </svg>
                         </button>
                         {hoverBuy && (

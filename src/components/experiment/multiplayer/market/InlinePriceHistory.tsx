@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { normalizeSecurityId } from '@/utils/market/marketUtils';
 
 const PRICE_HISTORY_MEMCACHE = new Map<string, { updatedAt: number; data: PricePoint[] }>();
@@ -9,6 +10,8 @@ const POLL_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_MARKET_POLL_INTERVAL_MS 
 type PricePoint = {
   timestamp: string;
   price: number;
+  deltaScaled?: string;
+  costScaled?: string;
 };
 
 type Props = {
@@ -36,7 +39,18 @@ export const InlinePriceHistory: React.FC<Props> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const [boxWidth, setBoxWidth] = useState<number>(0);
+  const [tooltipData, setTooltipData] = useState<{
+    x: number;
+    y: number;
+    screenX: number;
+    screenY: number;
+    price: number;
+    timestamp: string;
+    deltaScaled?: string;
+    costScaled?: string;
+  } | null>(null);
 
   useEffect(() => {
     let aborted = false;
@@ -212,8 +226,8 @@ export const InlinePriceHistory: React.FC<Props> = ({
   const priceRange = maxPrice - minPrice || 1;
 
   const height = 40;
-  const padding = 3;
-  const width = Math.max(0, Math.floor(boxWidth) - padding * 2);
+  const padding = 8;
+  const width = Math.max(0, Math.floor(boxWidth));
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
 
@@ -245,12 +259,117 @@ export const InlinePriceHistory: React.FC<Props> = ({
 
   const pathData = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x},${p.y}`).join(' ');
 
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current || points.length === 0) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    let closestIndex = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const dx = points[i].x - mouseX;
+      const dy = points[i].y - mouseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) {
+        minDist = dist;
+        closestIndex = i;
+      }
+    }
+
+    const dataPoint = displaySeries[closestIndex];
+    if (dataPoint) {
+      // Calculate screen position for tooltip
+      const screenX = rect.left + points[closestIndex].x;
+      const screenY = rect.top + points[closestIndex].y;
+
+      setTooltipData({
+        x: points[closestIndex].x,
+        y: points[closestIndex].y,
+        screenX,
+        screenY,
+        price: dataPoint.price,
+        timestamp: dataPoint.timestamp,
+        deltaScaled: dataPoint.deltaScaled,
+        costScaled: dataPoint.costScaled,
+      });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setTooltipData(null);
+  };
+
+  const formatTimestamp = (ts: string) => {
+    try {
+      const date = new Date(ts);
+      const now = new Date();
+      const diff = now.getTime() - date.getTime();
+      const minutes = Math.floor(diff / 60000);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      if (days > 0) return `${days}d ago`;
+      if (hours > 0) return `${hours}h ago`;
+      if (minutes > 0) return `${minutes}m ago`;
+      return 'just now';
+    } catch {
+      return '';
+    }
+  };
+
+  const getSecurityType = () => {
+    const normalized = normalizeSecurityId(entityId);
+    // Check if it looks like a node (p-, s-, c-, group- prefixes)
+    if (/^(p-|s-|c-|group-)/.test(normalized)) return 'node';
+    // Otherwise assume it's an edge
+    return 'edge';
+  };
+
+  const formatTradeInfo = (deltaScaled?: string, costScaled?: string) => {
+    if (!deltaScaled || !costScaled) return null;
+
+    try {
+      const delta = BigInt(deltaScaled);
+      const cost = BigInt(costScaled);
+      const isBuy = delta > 0n;
+
+      const deltaNum = Math.abs(Number(delta) / 1e18);
+      const costNum = Math.abs(Number(cost) / 1e18);
+
+      // Format numbers nicely
+      const formatNum = (n: number) => {
+        if (n >= 1000) return n.toFixed(0);
+        if (n >= 100) return n.toFixed(1);
+        if (n >= 1) return n.toFixed(2);
+        return n.toFixed(3);
+      };
+
+      return {
+        action: isBuy ? 'Bought' : 'Sold',
+        shares: formatNum(deltaNum),
+        cost: formatNum(costNum),
+      };
+    } catch {
+      return null;
+    }
+  };
+
   return (
     <div className={`w-full min-w-0 overflow-hidden ${className}`}>
-      <div ref={boxRef} className="w-full min-w-0 pointer-events-none select-none overflow-hidden">
+      <div ref={boxRef} className="w-full min-w-0 select-none overflow-hidden" style={{ pointerEvents: 'auto' }}>
         <div className={`w-full min-w-0 box-border overflow-hidden rounded-md subpixel-antialiased font-sans ${compact ? '' : 'px-2 py-1.5'} ${compact ? '' : (variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white')}`}>
           <div className={`w-full min-w-0 overflow-hidden text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-600'}`}>{(currentPrice * 100).toFixed(1)}% chance</div>
-          <svg width="100%" height={height} className="block w-full min-w-0" preserveAspectRatio="none">
+          <div className="relative">
+            <svg
+              ref={svgRef}
+              width="100%"
+              height={height}
+              viewBox={`0 0 ${width} ${height}`}
+              className="block w-full min-w-0 cursor-crosshair"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+            >
             <defs>
               <linearGradient id={`gradient-${entityId}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"} stopOpacity="0.2" />
@@ -269,17 +388,99 @@ export const InlinePriceHistory: React.FC<Props> = ({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {points.length > 0 && (
-              <circle
-                cx={points[points.length - 1].x}
-                cy={points[points.length - 1].y}
-                r="2"
-                fill={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"}
-              />
+            {points.length > 0 && !tooltipData && (
+              <>
+                <circle
+                  cx={points[points.length - 1].x}
+                  cy={points[points.length - 1].y}
+                  r="6"
+                  fill={variant === 'objection' ? "rgba(245, 158, 11, 0.15)" : "rgba(16, 185, 129, 0.15)"}
+                />
+                <circle
+                  cx={points[points.length - 1].x}
+                  cy={points[points.length - 1].y}
+                  r="4"
+                  fill="white"
+                  stroke={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"}
+                  strokeWidth="2"
+                />
+              </>
+            )}
+            {tooltipData && (
+              <>
+                <line
+                  x1={tooltipData.x}
+                  y1="0"
+                  x2={tooltipData.x}
+                  y2={height}
+                  stroke={variant === 'objection' ? "rgba(245, 158, 11, 0.3)" : "rgba(16, 185, 129, 0.3)"}
+                  strokeWidth="1"
+                  strokeDasharray="2,2"
+                />
+                <circle
+                  cx={tooltipData.x}
+                  cy={tooltipData.y}
+                  r="7"
+                  fill={variant === 'objection' ? "rgba(245, 158, 11, 0.2)" : "rgba(16, 185, 129, 0.2)"}
+                  stroke="none"
+                />
+                <circle
+                  cx={tooltipData.x}
+                  cy={tooltipData.y}
+                  r="5"
+                  fill="white"
+                  stroke={variant === 'objection' ? "rgb(245, 158, 11)" : "rgb(16, 185, 129)"}
+                  strokeWidth="2.5"
+                />
+              </>
             )}
           </svg>
+          </div>
         </div>
       </div>
+      {tooltipData && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed z-[9999] px-2 py-1.5 text-xs font-medium bg-white border border-gray-200 rounded shadow-lg pointer-events-none"
+          style={{
+            left: `${tooltipData.screenX}px`,
+            top: `${tooltipData.screenY}px`,
+            transform: 'translate(-50%, -100%) translateY(-8px)',
+          }}
+        >
+          <div className="font-semibold text-gray-900">{(tooltipData.price * 100).toFixed(1)}%</div>
+          <div className="text-gray-500 text-[10px] mb-1">{formatTimestamp(tooltipData.timestamp)}</div>
+          {(() => {
+            const tradeInfo = formatTradeInfo(tooltipData.deltaScaled, tooltipData.costScaled);
+            const securityType = getSecurityType();
+            if (!tradeInfo) {
+              return (
+                <div className="text-[10px] border-t border-gray-200 pt-1">
+                  <div className="text-gray-500 italic">
+                    Price updated
+                  </div>
+                  <div className="text-gray-400 text-[9px]">
+                    (no trade on this {securityType})
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="text-[10px] border-t border-gray-200 pt-1 space-y-0.5">
+                <div className={tradeInfo.action === 'Bought' ? 'text-green-600' : 'text-red-600'}>
+                  {tradeInfo.action} {tradeInfo.shares} shares
+                </div>
+                <div className="text-gray-600">
+                  for ${tradeInfo.cost}
+                </div>
+                <div className="text-gray-400 text-[9px] italic">
+                  (trade on this {securityType})
+                </div>
+              </div>
+            );
+          })()}
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
