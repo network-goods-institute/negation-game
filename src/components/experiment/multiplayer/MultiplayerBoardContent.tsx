@@ -4,6 +4,7 @@ import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { ReactFlowProvider, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { toast } from 'sonner';
+import { showReadOnlyToast } from '@/utils/readonlyToast';
 import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
 import { MultiplayerHeader } from './MultiplayerHeader';
@@ -33,6 +34,7 @@ import { useInitialGraph } from '@/hooks/experiment/multiplayer/useInitialGraph'
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
 import { getMindchangeAveragesForEdges } from '@/actions/experimental/mindchange';
 import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
+import { isProductionRequest } from '@/utils/hosts';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
 import { useMindchangeActions } from '@/hooks/experiment/multiplayer/useMindchangeActions';
 import { isMindchangeEnabledClient } from '@/utils/featureFlags';
@@ -124,6 +126,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   const { pairHeights, setPairNodeHeight, commitGroupLayout: commitGroupLayoutBase } = usePairHeights();
   const initialGraph = useInitialGraph();
 
+  const isProdHost = typeof window !== 'undefined' ? isProductionRequest(window.location.hostname) : false;
+
   const {
     nodes,
     edges,
@@ -158,6 +162,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     initialNodes: initialGraph?.nodes || [],
     initialEdges: initialGraph?.edges || [],
     enabled: Boolean(initialGraph) && Boolean(resolvedId),
+    allowPersistence: !(isProdHost && !authenticated),
     localOrigin: localOriginRef.current,
     currentUserId: userId,
     onRemoteNodesAdded: (ids: string[]) => {
@@ -248,7 +253,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   }, [dbTitle, resolvedId, routeParams?.id]);
 
   const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
-  const { canWrite } = useWriteAccess(provider, userId);
+  const { canWrite } = useWriteAccess(provider, userId, { authenticated });
   const canEdit = Boolean(canWrite && (isConnected || connectedWithGrace));
 
   useEffect(() => {
@@ -721,7 +726,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                 onBackgroundDoubleClick={(flowX, flowY) => {
                   if (connectMode) return;
                   if (!canEdit) {
-                    toast.warning("Read-only mode: Changes won't be saved");
+                    showReadOnlyToast();
                     return;
                   }
                   const nodeId = addNodeAtPosition('point', flowX, flowY);

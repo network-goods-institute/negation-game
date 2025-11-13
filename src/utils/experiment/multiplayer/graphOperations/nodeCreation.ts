@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 import type { MutableRefObject } from "react";
 
 import {
@@ -39,7 +40,7 @@ export const createAddNodeAtPosition = (
     y: number
   ): string => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return "";
     }
     const idBase =
@@ -120,7 +121,7 @@ export const createAddNegationBelow = (
       return;
     }
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
     const now = Date.now();
@@ -201,7 +202,7 @@ export const createAddSupportBelow = (
       return;
     }
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
     const now = Date.now();
@@ -279,7 +280,7 @@ export const createAddPointBelow = (
       return;
     }
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
     const now = Date.now();

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AuthGate } from '@/components/auth/AuthGate';
 import { isProductionEnvironment, isProductionRequest } from '@/utils/hosts';
 import { useAuthSetup } from '@/hooks/experiment/multiplayer/useAuthSetup';
 import { useModeState } from '@/hooks/experiment/multiplayer/useModeState';
@@ -41,9 +40,6 @@ export default function MultiplayerBoardDetailPage() {
     return <BoardNotFound />;
   }
 
-  if (privyReady && !authenticated && requireAuth) {
-    return <AuthGate onLogin={login as any} />;
-  }
 
   if (!privyReady || !resolvedId) {
     return <BoardLoading />;

@@ -72,7 +72,8 @@ export const useYjsSynchronization = ({
   onSaveComplete,
   onRemoteNodesAdded,
   currentUserId,
-}: UseYjsSynchronizationProps & { currentUserId?: string }): SynchronizationHandlers => {
+  allowPersistence = true,
+}: UseYjsSynchronizationProps & { currentUserId?: string; allowPersistence?: boolean }): SynchronizationHandlers => {
   const lastNodesSignatureRef = useRef<string>("");
   const lastEdgesSignatureRef = useRef<string>("");
   const forceSaveRef = useRef<(() => Promise<void>) | null>(null);
@@ -92,11 +93,11 @@ export const useYjsSynchronization = ({
     }
 
     const {
-      scheduleSave,
-      forceSave,
+      scheduleSave: scheduleSaveReal,
+      forceSave: forceSaveReal,
       syncFromMeta,
-      interruptSave,
-      interruptSaveForCleanup,
+      interruptSave: interruptSaveReal,
+      interruptSaveForCleanup: interruptSaveForCleanupReal,
     } = createScheduleSave(
       ydocRef,
       serverVectorRef,
@@ -110,17 +111,27 @@ export const useYjsSynchronization = ({
       onSaveComplete
     );
 
-    forceSaveRef.current = forceSave;
-    scheduleSaveRef.current = scheduleSave;
-    interruptSaveRef.current = interruptSave;
-    interruptSaveForCleanupRef.current = interruptSaveForCleanup;
+    if (allowPersistence) {
+      forceSaveRef.current = forceSaveReal;
+      scheduleSaveRef.current = scheduleSaveReal;
+      interruptSaveRef.current = interruptSaveReal;
+      interruptSaveForCleanupRef.current = interruptSaveForCleanupReal;
+    } else {
+      // No-op persistence handlers for read-only mode
+      forceSaveRef.current = async () => Promise.resolve();
+      scheduleSaveRef.current = () => {};
+      interruptSaveRef.current = () => {};
+      interruptSaveForCleanupRef.current = () => {};
+    }
 
     const onDocUpdate = (_update: Uint8Array, origin: unknown) => {
       if (origin === localOriginRef.current) {
-        // This is a local change - schedule a save
-        try {
-          scheduleSave();
-        } catch {}
+        // This is a local change - schedule a save if allowed
+        if (allowPersistence) {
+          try {
+            scheduleSaveRef.current?.();
+          } catch {}
+        }
         return;
       }
       if (serverVectorRef.current) {
@@ -443,6 +454,7 @@ export const useYjsSynchronization = ({
     onSaveComplete,
     onRemoteNodesAdded,
     currentUserId,
+    allowPersistence,
   ]);
 
   const getForceSave = useCallback(() => forceSaveRef.current, []);

@@ -157,7 +157,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
 
           {/* Connect (line) */}
           <ToolbarButton
-            label={readOnly ? "Read-only" : "Connect"}
+            label={readOnly ? "Read-only (Log in to make changes)" : "Connect"}
             shortcut={readOnly ? undefined : "A"}
             disabled={!!readOnly}
             active={!!connectMode}

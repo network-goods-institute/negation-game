@@ -51,7 +51,7 @@ describe("useWriteAccess arbitration", () => {
     // @ts-ignore test injection
     awareness._states.set(3, { user: { id: "u1", name: "Alice", color: "#f00", sessionId: "s-remote" } });
 
-    const { result } = renderHook(() => useWriteAccess(provider, "u1"));
+    const { result } = renderHook(() => useWriteAccess(provider, "u1", { authenticated: true }));
 
     act(() => {
       jest.advanceTimersByTime(1100);
@@ -69,7 +69,7 @@ describe("useWriteAccess arbitration", () => {
     // @ts-ignore test injection
     awareness._states.set(7, { user: { id: "u1", sessionId: "s-remote" } });
 
-    const { result } = renderHook(() => useWriteAccess(provider, "u1"));
+    const { result } = renderHook(() => useWriteAccess(provider, "u1", { authenticated: true }));
 
     act(() => {
       jest.advanceTimersByTime(1100);
@@ -87,7 +87,7 @@ describe("useWriteAccess arbitration", () => {
     // @ts-ignore test injection
     awareness._states.set(3, { user: { id: "u1", sessionId: "s-local" } });
 
-    const { result } = renderHook(() => useWriteAccess(provider, "u1"));
+    const { result } = renderHook(() => useWriteAccess(provider, "u1", { authenticated: true }));
 
     act(() => {
       jest.advanceTimersByTime(1100);
@@ -105,7 +105,7 @@ describe("useWriteAccess arbitration", () => {
     // @ts-ignore test injection
     awareness._states.set(3, { user: { id: "u1", sessionId: "s-shared" } });
 
-    const { result } = renderHook(() => useWriteAccess(provider, "u1"));
+    const { result } = renderHook(() => useWriteAccess(provider, "u1", { authenticated: true }));
     act(() => {
       jest.advanceTimersByTime(1100);
     });
@@ -121,7 +121,7 @@ describe("useWriteAccess arbitration", () => {
     // @ts-ignore test injection
     awareness._states.set(3, { user: { id: "u1", sessionId: "s-remote" } });
 
-    const { result } = renderHook(() => useWriteAccess(provider, "u1"));
+    const { result } = renderHook(() => useWriteAccess(provider, "u1", { authenticated: true }));
 
     act(() => {
       jest.advanceTimersByTime(1100);

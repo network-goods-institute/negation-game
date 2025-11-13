@@ -304,6 +304,7 @@ export const useYjsProviderConnection = ({
     [
       canSeed,
       didResyncOnConnectRef,
+      onFirstSync,
       onResyncFromServer,
       seedDocument,
       seededOnceRef,

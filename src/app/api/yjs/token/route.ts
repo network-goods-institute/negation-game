@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { isProductionRequest } from "@/utils/hosts";
-import { createHash } from "crypto";import { logger } from "@/lib/logger";
+import { createHash } from "crypto";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: Request) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
@@ -11,18 +11,9 @@ export async function POST(req: Request) {
 
   const url = new URL(req.url);
   const hostname = url.hostname;
-  // Require auth on production requests; allow anon only on non-production requests
-  const nonProd = !isProductionRequest(hostname);
-
-  let userId: string | null = null;
-  if (nonProd) {
-    userId = await getUserIdOrAnonymous();
-  } else {
-    userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  // Allow anonymous tokens for viewing on ALL environments (including production).
+  // Writes are still blocked server-side at the updates route on production.
+  const userId = await getUserIdOrAnonymous();
 
   const secret = process.env.YJS_AUTH_SECRET;
   if (!secret) {
@@ -34,7 +25,13 @@ export async function POST(req: Request) {
   }
   const timestamp = Math.floor(Date.now() / 1000);
   const expiry = timestamp + 60 * 60 * 8;
-  const payload = JSON.stringify({ userId, expiry });
+  // Include a hint for potential readonly handling (current server ignores this and relies on HTTP write guards)
+  const readonly = isProductionRequest(hostname) && !userId;
+  const payload = JSON.stringify({
+    userId,
+    expiry,
+    mode: readonly ? "readonly" : "rw",
+  });
   const payloadB64 = Buffer.from(payload).toString("base64");
   const signature = createHash("sha256")
     .update(payloadB64 + secret)
