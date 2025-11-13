@@ -32,6 +32,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { buildRationaleDetailPath } from "@/utils/hosts/syncPaths";
+import * as Y from "yjs";
+import { WebsocketProvider } from "y-websocket";
+import { fetchYjsAuthToken } from "@/hooks/experiment/multiplayer/yjs/auth";
+import { logger } from "@/lib/logger";
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -137,10 +141,176 @@ export default function MultiplayerRationaleIndexPage() {
     if (duplicatingId) return;
     setDuplicatingId(docId);
     try {
+      try {
+        logger.log(
+          JSON.stringify({
+            event: "duplicate_click",
+            stage: "begin",
+            docId,
+            currentTitle,
+          })
+        );
+      } catch { }
       const nextTitle = `${(currentTitle || 'Untitled').trim() || 'Untitled'} (Copy)`;
-      const res = await duplicateRationale(docId, { title: nextTitle });
+
+      const getSnapshotBase64 = async (): Promise<string | null> => {
+        try {
+          const wsUrl = process.env.NEXT_PUBLIC_YJS_WS_URL || "";
+          try {
+            logger.log(
+              JSON.stringify({
+                event: "duplicate_click",
+                stage: "ws_config",
+                docId,
+                hasWsUrl: Boolean(wsUrl),
+              })
+            );
+          } catch { }
+          if (!wsUrl) return null;
+
+          const roomName = `rationale:${docId}`;
+          const doc = new Y.Doc();
+
+          let token: string | null = null;
+          try {
+            const auth = await fetchYjsAuthToken();
+            token = auth?.token || null;
+            logger.log(
+              JSON.stringify({
+                event: "duplicate_click",
+                stage: "token_fetched",
+                docId,
+                tokenLength: token?.length || 0,
+              })
+            );
+          } catch (e) {
+            try {
+              logger.log(
+                JSON.stringify({
+                  event: "duplicate_click",
+                  stage: "token_failed",
+                  docId,
+                  error: e instanceof Error ? e.message : String(e),
+                })
+              );
+            } catch { }
+          }
+
+          const provider = new WebsocketProvider(wsUrl, roomName, doc, {
+            WebSocketPolyfill: class extends WebSocket {
+              constructor(url: string, protocols?: string | string[]) {
+                const withAuth =
+                  token && token.length ? `${url}?auth=${encodeURIComponent(token)}` : url;
+                super(withAuth, protocols);
+              }
+            } as unknown as typeof WebSocket,
+          });
+
+          const waitForSync = () =>
+            new Promise<void>((resolve, reject) => {
+              let settled = false;
+              const timeout = window.setTimeout(() => {
+                if (!settled) {
+                  settled = true;
+                  try { provider.destroy(); } catch { }
+                  try {
+                    logger.log(
+                      JSON.stringify({
+                        event: "duplicate_click",
+                        stage: "sync_timeout",
+                        docId,
+                      })
+                    );
+                  } catch { }
+                  resolve(); // best-effort fallback even if timeout
+                }
+              }, 2500);
+              provider.on("sync", () => {
+                if (settled) return;
+                settled = true;
+                try { window.clearTimeout(timeout); } catch { }
+                try {
+                  logger.log(
+                    JSON.stringify({
+                      event: "duplicate_click",
+                      stage: "sync_ok",
+                      docId,
+                    })
+                  );
+                } catch { }
+                resolve();
+              });
+              provider.on("connection-error", () => {
+                if (settled) return;
+                settled = true;
+                try { window.clearTimeout(timeout); } catch { }
+                try {
+                  logger.log(
+                    JSON.stringify({
+                      event: "duplicate_click",
+                      stage: "connection_error",
+                      docId,
+                    })
+                  );
+                } catch { }
+                resolve();
+              });
+              provider.connect();
+            });
+
+          await waitForSync();
+
+          const update = Y.encodeStateAsUpdate(doc);
+          const u8 = new Uint8Array(update);
+          try {
+            logger.log(
+              JSON.stringify({
+                event: "duplicate_click",
+                stage: "encode_state",
+                docId,
+                bytes: u8.length,
+              })
+            );
+          } catch { }
+          let binary = "";
+          const chunk = 0x8000;
+          for (let i = 0; i < u8.length; i += chunk) {
+            binary += String.fromCharCode(...u8.subarray(i, i + chunk));
+          }
+          try { provider.destroy(); } catch { }
+          return btoa(binary);
+        } catch {
+          return null;
+        }
+      };
+
+      const snapshotBase64 = await getSnapshotBase64();
+      try {
+        logger.log(
+          JSON.stringify({
+            event: "duplicate_click",
+            stage: "snapshot_ready",
+            docId,
+            hasSnapshot: Boolean(snapshotBase64),
+            snapshotBytesApprox: snapshotBase64 ? snapshotBase64.length : 0,
+          })
+        );
+      } catch { }
+
+      const res = await duplicateRationale(docId, { title: nextTitle, snapshotBase64: snapshotBase64 || undefined });
       const host = typeof window !== 'undefined' ? window.location.host : '';
       toast.success('Board duplicated');
+      try {
+        logger.log(
+          JSON.stringify({
+            event: "duplicate_click",
+            stage: "done",
+            docId,
+            newId: res?.id,
+            slug: res?.slug || null,
+          })
+        );
+      } catch { }
       window.location.href = buildRationaleDetailPath(res.id, host, res.slug || undefined);
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase();
