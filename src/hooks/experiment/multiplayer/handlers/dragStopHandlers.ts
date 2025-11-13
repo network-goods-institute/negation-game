@@ -54,6 +54,28 @@ export function createHandleNodeDragStop({
   onNodeDragStop?: (e: any, node: any) => void;
 }) {
   return (e: any, node: any) => {
+    const cleanup = () => {
+      dragStateRef.current.nodeId = null;
+      dragStateRef.current.position = null;
+      dragStateRef.current.selectedNodeIds = [];
+      dragStateRef.current.initialGroupBounds = null;
+      dragStateRef.current.initialPositionsById = {};
+      dragStateRef.current.initialSizesById = {};
+      if (dragStateRef.current.rafId) {
+        cancelAnimationFrame(dragStateRef.current.rafId);
+        dragStateRef.current.rafId = null;
+      }
+      setSnapResult(null);
+      onNodeDragStop?.(e, node);
+      graph?.stopCapturing?.();
+      const mapping = altCloneMapRef.current.get(String(node.id));
+      if (mapping) {
+        graph?.unlockNode?.(mapping.dupId);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        altCloneMapRef.current.delete(String(node.id));
+      }
+    };
+
     try {
       const isPrimaryNode = node.id === dragStateRef.current.nodeId;
       const ctrlPressed = e?.ctrlKey || e?.nativeEvent?.ctrlKey || false;
@@ -117,6 +139,7 @@ export function createHandleNodeDragStop({
               }
               requestAnimationFrame(() => {
                 dragStateRef.current.finalizingSnap = false;
+                cleanup();
               });
             });
           });
@@ -141,30 +164,16 @@ export function createHandleNodeDragStop({
             graph.updateNodePosition?.(node.id, finalX, finalY);
             requestAnimationFrame(() => {
               dragStateRef.current.finalizingSnap = false;
+              cleanup();
             });
           });
         }
+
+        // Defer cleanup to the requestAnimationFrame chain above
+        return;
       }
     } catch {}
 
-    dragStateRef.current.nodeId = null;
-    dragStateRef.current.position = null;
-    dragStateRef.current.selectedNodeIds = [];
-    dragStateRef.current.initialGroupBounds = null;
-    dragStateRef.current.initialPositionsById = {};
-    dragStateRef.current.initialSizesById = {};
-    if (dragStateRef.current.rafId) {
-      cancelAnimationFrame(dragStateRef.current.rafId);
-      dragStateRef.current.rafId = null;
-    }
-    setSnapResult(null);
-    onNodeDragStop?.(e, node);
-    graph?.stopCapturing?.();
-    const mapping = altCloneMapRef.current.get(String(node.id));
-    if (mapping) {
-      graph?.unlockNode?.(mapping.dupId);
-      // eslint-disable-next-line drizzle/enforce-delete-with-where
-      altCloneMapRef.current.delete(String(node.id));
-    }
+    cleanup();
   };
 }
