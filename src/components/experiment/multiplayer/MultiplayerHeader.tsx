@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
 import { buildRationaleIndexPath } from '@/utils/hosts/syncPaths';
-import { useSafeJson } from '@/hooks/network/useSafeJson';import { logger } from "@/lib/logger";
+import { useSafeJson } from '@/hooks/network/useSafeJson'; import { logger } from "@/lib/logger";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type YProvider = WebsocketProvider | null;
@@ -76,29 +76,25 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
 
   useEffect(() => {
     const bumpLocal = (delta: number) => {
-      setPendingLocal((p) => {
-        const next = Math.max(0, p + delta);
-        try { (provider as any)?.awareness?.setLocalStateField?.('marketPending', next); } catch {}
-        return next;
-      });
+      setPendingLocal((p) => Math.max(0, p + delta));
     };
     const onStart = (e: any) => {
       try {
         const d = (e as CustomEvent)?.detail || {};
         bumpLocal(1);
-      } catch {}
+      } catch { }
     };
     const onFinish = (e: any) => {
       try {
         const d = (e as CustomEvent)?.detail || {};
         bumpLocal(-1);
-      } catch {}
+      } catch { }
     };
-    try { window.addEventListener('market:tradeStarted', onStart as any); } catch {}
-    try { window.addEventListener('market:tradeFinished', onFinish as any); } catch {}
+    try { window.addEventListener('market:tradeStarted', onStart as any); } catch { }
+    try { window.addEventListener('market:tradeFinished', onFinish as any); } catch { }
     return () => {
-      try { window.removeEventListener('market:tradeStarted', onStart as any); } catch {}
-      try { window.removeEventListener('market:tradeFinished', onFinish as any); } catch {}
+      try { window.removeEventListener('market:tradeStarted', onStart as any); } catch { }
+      try { window.removeEventListener('market:tradeFinished', onFinish as any); } catch { }
     };
   }, [documentId, provider]);
 
@@ -115,7 +111,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           if (Number.isFinite(v) && v > 0) sum += v;
         }
         if (!disposed) setPendingTrades(sum);
-      } catch {}
+      } catch { }
     };
     recompute();
     try {
@@ -125,12 +121,12 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
         aw.on?.('change', onChange);
         return () => { disposed = true; aw.off?.('change', onChange); };
       }
-    } catch {}
+    } catch { }
     return () => { disposed = true; };
   }, [provider]);
 
   useEffect(() => {
-    try { (provider as any)?.awareness?.setLocalStateField?.('marketPending', pendingLocal); } catch {}
+    try { (provider as any)?.awareness?.setLocalStateField?.('marketPending', pendingLocal); } catch { }
   }, [provider, pendingLocal]);
 
   useEffect(() => {
@@ -397,8 +393,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
         )}
       </div>
       <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
-        <div className="relative">
-          <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
+        <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
           {proxyMode ? (
             <>
               <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
@@ -449,31 +444,86 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
               )}
             </>
           )}
-          </div>
+        </div>
+        <div className="flex items-end justify-end">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className={`absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full text-[10px] leading-none flex items-center justify-center shadow ${pendingTrades > 0 ? 'bg-emerald-600 text-white' : 'bg-stone-300 text-stone-700'}`}
+                  className={`group relative flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1.5 shadow-sm hover:shadow-md transition-all cursor-help ${pendingTrades > 0
+                    ? 'border-blue-200'
+                    : 'border-stone-200'
+                    }`}
                   aria-label="Pending trades"
                   aria-live="polite"
                   role="status"
                 >
-                  {pendingTrades}
+                  <div className="relative flex items-center justify-center">
+                    <svg
+                      className={`w-3.5 h-3.5 ${pendingTrades > 0
+                        ? 'text-blue-500 animate-pulse'
+                        : 'text-stone-400'
+                        }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                  </div>
+                  <span className={`text-xs font-medium relative inline-flex items-center ${pendingTrades > 0
+                    ? 'text-blue-700'
+                    : 'text-stone-600'
+                    }`}>
+                    <span
+                      key={pendingTrades}
+                      className="inline-block animate-fade-in-scale"
+                    >
+                      {pendingTrades}
+                    </span>
+                    <span className="ml-1">{pendingTrades === 1 ? 'trade' : 'trades'}</span>
+                  </span>
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="left" align="end" className="text-xs">
-                <div className="flex flex-col gap-0.5">
-                  <div className="font-semibold">Pending trades</div>
-                  <div>Total: {pendingTrades}</div>
-                  <div>Yours: {pendingLocal}</div>
-                  <div>Others: {Math.max(0, pendingTrades - pendingLocal)}</div>
+              <TooltipContent side="left" align="end" alignOffset={-90} className="bg-white border-stone-200 shadow-lg px-4 py-3">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 pb-2 border-b border-stone-200">
+                    <svg
+                      className={`w-4 h-4 ${pendingTrades > 0 ? 'text-blue-500' : 'text-stone-400'}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    <span className="font-semibold text-sm text-stone-900">
+                      {pendingTrades > 0 ? 'Active Trades' : 'No Active Trades'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    <div className="text-stone-500 text-xs">Total:</div>
+                    <div className="text-stone-900 font-semibold text-xs text-right tabular-nums">{pendingTrades}</div>
+                    <div className="text-stone-500 text-xs">Yours:</div>
+                    <div className="text-blue-600 font-semibold text-xs text-right tabular-nums">{pendingLocal}</div>
+                    <div className="text-stone-500 text-xs">Others:</div>
+                    <div className="text-purple-600 font-semibold text-xs text-right tabular-nums">{Math.max(0, pendingTrades - pendingLocal)}</div>
+                  </div>
                 </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
-      </div>
+      </div >
     </>
   );
 };

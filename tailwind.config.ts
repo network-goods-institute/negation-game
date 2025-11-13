@@ -125,12 +125,19 @@ const config = {
           from: { transform: "translateX(100%)" },
           to: { transform: "translateX(0)" },
         },
+
+        fadeInScale: {
+          "0%": { opacity: "0", transform: "scale(0.8)" },
+          "50%": { opacity: "1", transform: "scale(1.1)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fadeIn .5s ease-in-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
+        "fade-in-scale": "fadeInScale 0.3s ease-out",
       },
     },
   },

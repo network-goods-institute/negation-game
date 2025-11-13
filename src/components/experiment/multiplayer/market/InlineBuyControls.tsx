@@ -76,27 +76,44 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
     return (
       <div
         ref={boxRef}
-        className={`mt-2 nodrag nopan ${className || ''} animate-in fade-in-0 zoom-in-95`}
+        className={`mt-2 nodrag nopan ${className || ''}`}
         data-interactive="true"
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onDragStart={(e) => e.preventDefault()}
-        style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, maxWidth: '100%' }}
+        style={{ pointerEvents: 'auto', position: 'relative', zIndex: 2000, maxWidth: '100%' }}
       >
-        <div
-          className="-m-4 p-4"
-          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-          style={{ cursor: 'pointer' }}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setOpen(true);
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}
+          role="button"
+          style={{
+            pointerEvents: 'auto',
+            width: '100%',
+            display: 'block',
+            touchAction: 'none',
+            position: 'relative',
+            zIndex: 1
+          }}
+          className="text-sm bg-emerald-600 text-white rounded-lg px-4 py-2 hover:bg-emerald-700 active:bg-emerald-800 transition cursor-pointer shadow-lg font-medium"
         >
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-            role="button"
-            className="w-full text-sm bg-emerald-600 text-white rounded-md px-3 py-1.5 hover:bg-emerald-700 transition"
-          >
-            Buy
-          </button>
-        </div>
+          Buy
+        </button>
       </div>
     );
   }
@@ -109,7 +126,12 @@ export const InlineBuyControls: React.FC<Props> = ({ entityId, docId, price, cla
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onDragStart={(e) => e.preventDefault()}
-      style={{ pointerEvents: 'auto', position: 'relative', zIndex: 25, maxWidth: '100%' }}
+      style={{
+        position: 'relative',
+        zIndex: 2000,
+        pointerEvents: 'auto',
+        maxWidth: '100%'
+      }}
     >
       <div
         className={`relative w-full min-w-0 overflow-visible rounded-md p-2 space-y-2 text-[11px] subpixel-antialiased ${variant === 'objection' ? 'border border-amber-300 bg-amber-50 text-amber-900' : 'border border-stone-200 bg-white text-stone-800'}`}
