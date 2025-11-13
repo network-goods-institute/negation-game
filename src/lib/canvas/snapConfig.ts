@@ -1,0 +1,7 @@
+export const SNAP_CONFIG = {
+  THRESHOLD_PX: 32,
+  SNAP_LINE_COLOR: "#3b82f6",
+  SNAP_LINE_OPACITY: 0.5,
+  SNAP_LINE_STROKE_WIDTH: 1,
+  SNAP_LINE_DASH_ARRAY: "4 4",
+} as const;

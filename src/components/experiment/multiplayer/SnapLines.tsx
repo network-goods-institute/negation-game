@@ -1,5 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { SNAP_CONFIG } from "@/lib/canvas/snapConfig";
 
 interface SnapLinesProps {
   snappedX: boolean;
@@ -8,6 +9,8 @@ interface SnapLinesProps {
   snapY: number | null;
   edgesLayer: SVGElement | null;
 }
+
+const LINE_EXTENT = 1000000;
 
 export const SnapLines: React.FC<SnapLinesProps> = ({
   snappedX,
@@ -20,35 +23,35 @@ export const SnapLines: React.FC<SnapLinesProps> = ({
 
   const lines: React.ReactNode[] = [];
 
-  if (snappedX && snapX !== null) {
+  if (snappedX && snapX !== null && isFinite(snapX)) {
     lines.push(
       <line
         key="snap-x"
         x1={snapX}
-        y1={-100000}
+        y1={-LINE_EXTENT}
         x2={snapX}
-        y2={100000}
-        stroke="#3b82f6"
-        strokeWidth={1}
-        strokeDasharray="4 4"
-        opacity={0.5}
+        y2={LINE_EXTENT}
+        stroke={SNAP_CONFIG.SNAP_LINE_COLOR}
+        strokeWidth={SNAP_CONFIG.SNAP_LINE_STROKE_WIDTH}
+        strokeDasharray={SNAP_CONFIG.SNAP_LINE_DASH_ARRAY}
+        opacity={SNAP_CONFIG.SNAP_LINE_OPACITY}
         pointerEvents="none"
       />
     );
   }
 
-  if (snappedY && snapY !== null) {
+  if (snappedY && snapY !== null && isFinite(snapY)) {
     lines.push(
       <line
         key="snap-y"
-        x1={-100000}
+        x1={-LINE_EXTENT}
         y1={snapY}
-        x2={100000}
+        x2={LINE_EXTENT}
         y2={snapY}
-        stroke="#3b82f6"
-        strokeWidth={1}
-        strokeDasharray="4 4"
-        opacity={0.5}
+        stroke={SNAP_CONFIG.SNAP_LINE_COLOR}
+        strokeWidth={SNAP_CONFIG.SNAP_LINE_STROKE_WIDTH}
+        strokeDasharray={SNAP_CONFIG.SNAP_LINE_DASH_ARRAY}
+        opacity={SNAP_CONFIG.SNAP_LINE_OPACITY}
         pointerEvents="none"
       />
     );
