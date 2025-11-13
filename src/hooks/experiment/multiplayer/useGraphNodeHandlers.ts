@@ -1,6 +1,7 @@
 import React from "react";
 import { useReactFlow } from "@xyflow/react";
 import { toast } from "sonner";import { logger } from "@/lib/logger";
+import { useNodeDragSnapping } from "./useNodeDragSnapping";
 
 interface UseGraphNodeHandlersProps {
   graph: any;
@@ -24,6 +25,14 @@ export const useGraphNodeHandlers = ({
   altCloneMapRef,
 }: UseGraphNodeHandlersProps) => {
   const rf = useReactFlow();
+  const [draggedNodeId, setDraggedNodeId] = React.useState<string | null>(null);
+  const [draggedPosition, setDraggedPosition] = React.useState<{ x: number; y: number } | null>(null);
+
+  const snapResult = useNodeDragSnapping({
+    draggedNodeId,
+    draggedPosition,
+    enabled: true,
+  });
 
   const handleNodeClick = React.useCallback(
     (e: any, node: any) => {
@@ -113,6 +122,8 @@ export const useGraphNodeHandlers = ({
 
   const handleNodeDragStart = React.useCallback(
     (e: any, node: any) => {
+      setDraggedNodeId(node.id);
+      setDraggedPosition(node.position);
       onNodeDragStart?.(e, node);
       try {
         // Block dragging a node if any objection connected to an edge with this node as endpoint is being edited
@@ -226,6 +237,8 @@ export const useGraphNodeHandlers = ({
   const handleNodeDrag = React.useCallback(
     (_: any, node: any) => {
       try {
+        setDraggedPosition(node.position);
+
         const mapping = altCloneMapRef.current.get(String(node.id));
         if (mapping) {
           graph.updateNodePosition?.(
@@ -239,19 +252,23 @@ export const useGraphNodeHandlers = ({
             mapping.origin.y
           );
         } else {
+          const finalX = snapResult?.x ?? node.position?.x ?? 0;
+          const finalY = snapResult?.y ?? node.position?.y ?? 0;
           graph.updateNodePosition?.(
             node.id,
-            node.position?.x ?? 0,
-            node.position?.y ?? 0
+            finalX,
+            finalY
           );
         }
       } catch {}
     },
-    [graph, altCloneMapRef]
+    [graph, altCloneMapRef, snapResult]
   );
 
   const handleNodeDragStop = React.useCallback(
     (e: any, node: any) => {
+      setDraggedNodeId(null);
+      setDraggedPosition(null);
       onNodeDragStop?.(e, node);
       graph?.stopCapturing?.();
       const mapping = altCloneMapRef.current.get(String(node.id));
@@ -269,5 +286,6 @@ export const useGraphNodeHandlers = ({
     handleNodeDragStart,
     handleNodeDrag,
     handleNodeDragStop,
+    snapResult,
   };
 };
