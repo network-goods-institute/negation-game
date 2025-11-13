@@ -344,7 +344,7 @@ export const useGraphOperations = ({
   const updateNodeFavor = useCallback(
     (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
       if (!canWrite) {
-        try { (require('sonner') as any).toast?.warning?.("Read-only mode: Changes won't be saved"); } catch {}
+        try { (require('@/utils/readonlyToast') as any).showReadOnlyToast?.(); } catch {}
         return;
       }
       setNodes((nds) =>

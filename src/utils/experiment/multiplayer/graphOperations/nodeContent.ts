@@ -1,7 +1,7 @@
 /* eslint-disable drizzle/enforce-delete-with-where */
 import * as Y from "yjs";
 import { ORIGIN } from "@/hooks/experiment/multiplayer/yjs/origins";
-import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 
 import { getDefaultContentForType } from "./shared";
 
@@ -14,7 +14,7 @@ export const createUpdateNodeContent = (
 ) => {
   return (nodeId: string, content: string) => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
 
@@ -80,7 +80,7 @@ export const createUpdateNodeHidden = (
 ) => {
   return (nodeId: string, hidden: boolean) => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
     let nextFromState: any | null = null;
@@ -115,7 +115,7 @@ export const createUpdateNodePosition = (
   const eps = 0.01;
   return (nodeId: string, x: number, y: number) => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
     if (connectMode) {
@@ -168,7 +168,7 @@ export const createUpdateNodeType = (
     newType: "point" | "statement" | "title" | "objection" | "comment"
   ) => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
 

@@ -1,13 +1,29 @@
 import { useEffect, useState, useCallback } from "react";
 import { useTabIdentifier } from "./useTabIdentifier";
 import { WebsocketProvider } from "y-websocket";
+import { isProductionRequest } from "@/utils/hosts";
 type YProvider = WebsocketProvider | null;
 
-export const useWriteAccess = (provider: YProvider, userId: string) => {
+export const useWriteAccess = (
+  provider: YProvider,
+  userId: string,
+  opts?: { authenticated?: boolean }
+) => {
   const [canWrite, setCanWrite] = useState(true);
   const { sessionId: localSessionId } = useTabIdentifier();
 
   const calculate = useCallback(() => {
+    try {
+      const host =
+        typeof window !== "undefined" ? window.location.hostname : "";
+      const prod = isProductionRequest(host);
+      const isAuthenticated = Boolean(opts?.authenticated);
+      if (prod && !isAuthenticated) {
+        setCanWrite(false);
+        return;
+      }
+    } catch {}
+
     if (!provider || !userId) {
       setCanWrite(true);
       return;
@@ -43,7 +59,9 @@ export const useWriteAccess = (provider: YProvider, userId: string) => {
       });
 
       const localAwarenessState = awareness.getLocalState?.() || {};
-      const localAwarenessSession = localAwarenessState?.user?.sessionId as string | undefined;
+      const localAwarenessSession = localAwarenessState?.user?.sessionId as
+        | string
+        | undefined;
 
       const candidateKeys: string[] = [];
       if (localAwarenessSession) candidateKeys.push(localAwarenessSession);
@@ -63,15 +81,19 @@ export const useWriteAccess = (provider: YProvider, userId: string) => {
       const shouldWrite = !hasMatch
         ? true
         : hasCandidateKey
-        ? myGroupMin === globalMin
-        : false;
+          ? myGroupMin === globalMin
+          : false;
       setCanWrite(shouldWrite);
     } catch {
       setCanWrite(true);
     }
-  }, [provider, userId, localSessionId]);
+  }, [provider, userId, localSessionId, opts?.authenticated]);
 
   useEffect(() => {
+    try {
+      calculate();
+    } catch {}
+
     if (!provider || !userId) return;
     const awareness = provider.awareness as any;
 

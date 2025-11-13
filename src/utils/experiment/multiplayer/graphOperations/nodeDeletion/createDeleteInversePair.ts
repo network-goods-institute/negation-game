@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 
 export const createDeleteInversePair = (
   nodes: any[],
@@ -16,7 +17,7 @@ export const createDeleteInversePair = (
 ) => {
   return (inverseNodeId: string) => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
 

@@ -16,6 +16,7 @@ interface UseYjsMultiplayerProps {
   initialNodes: Node[];
   initialEdges: Edge[];
   enabled?: boolean;
+  allowPersistence?: boolean;
   localOrigin?: unknown;
   isLockedForMe?: (nodeId: string) => boolean;
   onSaveComplete?: () => void;
@@ -28,6 +29,7 @@ export const useYjsMultiplayer = ({
   initialNodes,
   initialEdges,
   enabled = true,
+  allowPersistence = true,
   localOrigin,
   isLockedForMe,
   onSaveComplete,
@@ -180,6 +182,7 @@ export const useYjsMultiplayer = ({
     onSaveComplete,
     onRemoteNodesAdded,
     currentUserId,
+    allowPersistence,
   });
 
   const {
