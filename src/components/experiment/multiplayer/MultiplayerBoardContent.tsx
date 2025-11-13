@@ -249,7 +249,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         if (!res.ok) {
           try {
             const txt = await res.text();
-            if (txt && /outcome enumeration cap exceeded/i.test(txt)) {
+            if (txt && (/outcome enumeration cap exceeded/i.test(txt) || /too many variables/i.test(txt))) {
               toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
             }
           } catch {}
@@ -562,7 +562,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         if (!res.ok) {
           try {
             const txt = await res.text();
-            if (txt && /outcome enumeration cap exceeded/i.test(txt)) {
+            if (txt && (/outcome enumeration cap exceeded/i.test(txt) || /too many variables/i.test(txt))) {
               toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
             }
           } catch {}

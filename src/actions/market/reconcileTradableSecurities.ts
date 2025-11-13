@@ -57,10 +57,16 @@ async function computeReconciledMarket(
     if (e.source) augNodes.add(e.source);
     if (e.target) augNodes.add(e.target);
   }
+  // Dedupe edges by id and drop invalid/self-referential edges
   const triples: Array<[string, string, string]> = [];
+  const seenEdgeNames = new Set<string>();
   for (const e of edgesList) {
+    if (!e || !e.id) continue;
+    if (seenEdgeNames.has(e.id)) continue;
     if (!e.source || !e.target) continue;
+    if (e.id === e.source || e.id === e.target) continue;
     triples.push([e.id, e.source, e.target]);
+    seenEdgeNames.add(e.id);
   }
 
   const structure = createStructure(Array.from(augNodes), triples);

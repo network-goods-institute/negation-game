@@ -29,13 +29,27 @@ export async function getMarketViewFromStructure(docId: string, userId: string |
         .filter((s) => !s.startsWith("anchor:"))
     )
   );
-  const triples: Array<[string, string, string]> = [];
+  // Normalize edges, dedupe by id, and only keep edges whose endpoints exist
+  const normalizedEdges: Array<{ id: string; src: string; tgt: string }> = [];
+  const seenEdgeNames = new Set<string>();
   for (const e of override?.edges || []) {
     if (!e || !e.id) continue;
+    if (seenEdgeNames.has(e.id)) continue; // drop duplicates
     const src = (e.source || "").startsWith("anchor:") ? e.source.slice("anchor:".length) : e.source;
     const tgt = (e.target || "").startsWith("anchor:") ? e.target.slice("anchor:".length) : e.target;
     if (!src || !tgt) continue;
-    triples.push([e.id, src, tgt]);
+    if (e.id === src || e.id === tgt) continue; // invalid self-reference
+    normalizedEdges.push({ id: e.id, src, tgt });
+    seenEdgeNames.add(e.id);
+  }
+  const nodeSet = new Set(nodeIds);
+  const edgeNameSet = new Set(normalizedEdges.map((e) => e.id));
+  const triples: Array<[string, string, string]> = [];
+  for (const e of normalizedEdges) {
+    const fromOk = nodeSet.has(e.src) || edgeNameSet.has(e.src);
+    const toOk = nodeSet.has(e.tgt) || edgeNameSet.has(e.tgt);
+    if (!fromOk || !toOk) continue;
+    triples.push([e.id, e.src, e.tgt]);
   }
   const structure = createStructure(nodeIds, triples);
   const securities = buildSecurities(structure, { includeNegations: "all" });
