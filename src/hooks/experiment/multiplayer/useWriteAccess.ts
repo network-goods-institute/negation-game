@@ -17,7 +17,8 @@ export const useWriteAccess = (
       const host =
         typeof window !== "undefined" ? window.location.hostname : "";
       const prod = isProductionRequest(host);
-      const isAuthenticated = Boolean(opts?.authenticated);
+      // Default to false for safety - explicit authentication required on production
+      const isAuthenticated = opts?.authenticated ?? false;
       if (prod && !isAuthenticated) {
         setCanWrite(false);
         return;
