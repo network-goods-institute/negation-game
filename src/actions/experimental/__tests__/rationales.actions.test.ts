@@ -489,4 +489,16 @@ describe("rationales actions", () => {
     expect(["connormcmk", "me"]).toContain(out.ownerId);
     expect(mockDb.insert).toHaveBeenCalled();
   });
+
+  it("recordOpen throws when document does not exist", async () => {
+    mockDb.select.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [],
+        }),
+      }),
+    }));
+    const { recordOpen } = await import("@/actions/experimental/rationales");
+    await expect(recordOpen("missing-doc")).rejects.toThrow(/not found/i);
+  });
 });

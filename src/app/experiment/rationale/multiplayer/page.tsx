@@ -495,7 +495,14 @@ export default function MultiplayerRationaleIndexPage() {
                             if (openingId) return;
                             setOpeningId(d.id);
                             try {
-                              try { await recordOpen(d.id); } catch { }
+                              try { await recordOpen(d.id); } catch (err: any) {
+                                const msg = (err?.message || "").toLowerCase();
+                                if (msg.includes("not found")) {
+                                  toast.error("Board no longer exists.");
+                                  setOpeningId(null);
+                                  return;
+                                }
+                              }
                               const host = typeof window !== 'undefined' ? window.location.host : '';
                               router.push(buildRationaleDetailPath(d.id, host, slug));
                             } catch (e: any) {
@@ -624,7 +631,14 @@ export default function MultiplayerRationaleIndexPage() {
                                 if (openingId) return;
                                 setOpeningId(d.id);
                                 try {
-                                  try { await recordOpen(d.id); } catch { }
+                                  try { await recordOpen(d.id); } catch (err: any) {
+                                    const msg = (err?.message || "").toLowerCase();
+                                    if (msg.includes("not found")) {
+                                      toast.error("Board no longer exists.");
+                                      setOpeningId(null);
+                                      return;
+                                    }
+                                  }
                                   const host = typeof window !== 'undefined' ? window.location.host : '';
                                   router.push(buildRationaleDetailPath(d.id, host, slug));
                                 } catch (e: any) {

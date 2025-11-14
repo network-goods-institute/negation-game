@@ -133,10 +133,6 @@ export async function recordOpen(docId: string) {
   // Resolve slug to canonical id if needed
   const canonicalId = await resolveSlugToId(docId);
 
-  await db
-    .insert(mpDocsTable)
-    .values({ id: canonicalId, ownerId: userId, title: DEFAULT_TITLE })
-    .onConflictDoNothing();
   const row = (
     await db
       .select()
@@ -144,6 +140,9 @@ export async function recordOpen(docId: string) {
       .where(eq(mpDocsTable.id, canonicalId))
       .limit(1)
   )[0] as any;
+  if (!row) {
+    throw new Error("Document not found");
+  }
   if (row && !row.ownerId) {
     await db
       .update(mpDocsTable)
@@ -444,7 +443,8 @@ export async function duplicateRationale(
 
   try {
     const firstAt = (updates as any[])?.[0]?.createdAt || null;
-    const lastAt = (updates as any[])?.[(updates as any[]).length - 1]?.createdAt || null;
+    const lastAt =
+      (updates as any[])?.[(updates as any[]).length - 1]?.createdAt || null;
     logger.log(
       JSON.stringify({
         event: "duplicate_rationale",
@@ -493,104 +493,104 @@ export async function duplicateRationale(
       WHERE id = ${canonicalSourceId}
       LIMIT 1
     `)) as unknown as Array<{
-      snapshot: Buffer | null;
-      snapshot_at: Date | null;
-    }>;
-    const snapshotBuf = snapRows?.[0]?.snapshot
-      ? Buffer.from(snapRows[0].snapshot as any)
-      : null;
-    const snapshotAt: Date | null = snapRows?.[0]?.snapshot_at
-      ? snapRows[0].snapshot_at instanceof Date
-        ? snapRows[0].snapshot_at
-        : new Date(snapRows[0].snapshot_at as any)
-      : null;
+        snapshot: Buffer | null;
+        snapshot_at: Date | null;
+      }>;
+      const snapshotBuf = snapRows?.[0]?.snapshot
+        ? Buffer.from(snapRows[0].snapshot as any)
+        : null;
+      const snapshotAt: Date | null = snapRows?.[0]?.snapshot_at
+        ? snapRows[0].snapshot_at instanceof Date
+          ? snapRows[0].snapshot_at
+          : new Date(snapRows[0].snapshot_at as any)
+        : null;
 
-    try {
-      logger.log(
-        JSON.stringify({
-          event: "duplicate_rationale",
-          stage: "snapshot_meta",
-          sourceId: canonicalSourceId,
-          hasSnapshot: Boolean(snapshotBuf && snapshotBuf.length),
-          snapshotAt,
-        })
-      );
-    } catch {}
-
-    if (snapshotBuf && snapshotBuf.length > 0) {
-      const ydoc = new Y.Doc();
       try {
-        Y.applyUpdate(ydoc, new Uint8Array(snapshotBuf));
+        logger.log(
+          JSON.stringify({
+            event: "duplicate_rationale",
+            stage: "snapshot_meta",
+            sourceId: canonicalSourceId,
+            hasSnapshot: Boolean(snapshotBuf && snapshotBuf.length),
+            snapshotAt,
+          })
+        );
       } catch {}
-      // Append tail updates strictly newer than snapshot_at (if present)
-      let tail: Array<{ update_bin: Buffer }> = [];
-      try {
-        if (snapshotAt) {
-          tail = (await db.execute(sql`
+
+      if (snapshotBuf && snapshotBuf.length > 0) {
+        const ydoc = new Y.Doc();
+        try {
+          Y.applyUpdate(ydoc, new Uint8Array(snapshotBuf));
+        } catch {}
+        // Append tail updates strictly newer than snapshot_at (if present)
+        let tail: Array<{ update_bin: Buffer }> = [];
+        try {
+          if (snapshotAt) {
+            tail = (await db.execute(sql`
             SELECT "update_bin"
             FROM "mp_doc_updates"
             WHERE "doc_id" = ${canonicalSourceId}
               AND "created_at" > ${snapshotAt}
             ORDER BY "created_at" ASC
           `)) as unknown as Array<{ update_bin: Buffer }>;
-        } else {
-          tail = (await db.execute(sql`
+          } else {
+            tail = (await db.execute(sql`
             SELECT "update_bin"
             FROM "mp_doc_updates"
             WHERE "doc_id" = ${canonicalSourceId}
             ORDER BY "created_at" ASC
           `)) as unknown as Array<{ update_bin: Buffer }>;
+          }
+        } catch {}
+        for (const r of tail as any[]) {
+          const b = r.update_bin as Buffer;
+          if (b && b.length) {
+            try {
+              Y.applyUpdate(ydoc, new Uint8Array(b));
+            } catch {}
+          }
         }
-      } catch {}
-      for (const r of tail as any[]) {
-        const b = r.update_bin as Buffer;
-        if (b && b.length) {
+        const out = Y.encodeStateAsUpdate(ydoc);
+        if (out && out.byteLength > 0) {
+          mergedUpdate = Buffer.from(out);
           try {
-            Y.applyUpdate(ydoc, new Uint8Array(b));
+            const yNodes = ydoc.getMap<any>("nodes");
+            const yEdges = ydoc.getMap<any>("edges");
+            const yText = ydoc.getMap<any>("node_text");
+            const yMeta = ydoc.getMap<any>("meta");
+            logger.log(
+              JSON.stringify({
+                event: "duplicate_rationale",
+                stage: "snapshot_built",
+                sourceId: canonicalSourceId,
+                bytes: mergedUpdate.length,
+                nodes: yNodes?.size || 0,
+                edges: yEdges?.size || 0,
+                texts: yText?.size || 0,
+                meta: yMeta?.size || 0,
+              })
+            );
           } catch {}
         }
       }
-      const out = Y.encodeStateAsUpdate(ydoc);
-      if (out && out.byteLength > 0) {
-        mergedUpdate = Buffer.from(out);
-        try {
-          const yNodes = ydoc.getMap<any>("nodes");
-          const yEdges = ydoc.getMap<any>("edges");
-          const yText = ydoc.getMap<any>("node_text");
-          const yMeta = ydoc.getMap<any>("meta");
-          logger.log(
-            JSON.stringify({
-              event: "duplicate_rationale",
-              stage: "snapshot_built",
-              sourceId: canonicalSourceId,
-              bytes: mergedUpdate.length,
-              nodes: yNodes?.size || 0,
-              edges: yEdges?.size || 0,
-              texts: yText?.size || 0,
-              meta: yMeta?.size || 0,
-            })
-          );
-        } catch {}
-      }
-    }
 
-    // Fallback to merging all updates if no snapshot or failed to build
-    if (!mergedUpdate || mergedUpdate.length === 0) {
-      const buf = await getDocSnapshotBuffer(canonicalSourceId);
-      if (buf && (buf as any).length > 0) {
-        mergedUpdate = Buffer.from(buf);
-        try {
-          logger.log(
-            JSON.stringify({
-              event: "duplicate_rationale",
-              stage: "fallback_merged_updates",
-              sourceId: canonicalSourceId,
-              bytes: mergedUpdate.length,
-            })
-          );
-        } catch {}
+      // Fallback to merging all updates if no snapshot or failed to build
+      if (!mergedUpdate || mergedUpdate.length === 0) {
+        const buf = await getDocSnapshotBuffer(canonicalSourceId);
+        if (buf && (buf as any).length > 0) {
+          mergedUpdate = Buffer.from(buf);
+          try {
+            logger.log(
+              JSON.stringify({
+                event: "duplicate_rationale",
+                stage: "fallback_merged_updates",
+                sourceId: canonicalSourceId,
+                bytes: mergedUpdate.length,
+              })
+            );
+          } catch {}
+        }
       }
-    }
     } catch (err) {
       logger.error(
         "[Duplicate Rationale] Failed to build merged snapshot for source %s:",
@@ -682,7 +682,10 @@ export async function duplicateRationale(
           srcText.forEach((t: any, key: string) => {
             try {
               const srcT = t as Y.Text;
-              const content = typeof (srcT as any)?.toString === "function" ? srcT.toString() : "";
+              const content =
+                typeof (srcT as any)?.toString === "function"
+                  ? srcT.toString()
+                  : "";
               const newT = new (Y as any).Text();
               if (content && typeof newT.insert === "function") {
                 newT.insert(0, content);
