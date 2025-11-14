@@ -299,19 +299,32 @@ export const useGraphNodeHandlers = ({
   );
 
   const handleNodeDrag = React.useCallback(
-    createHandleNodeDrag({
-      graph,
-      rf,
-      viewport,
-      altCloneMapRef,
-      setSnapResult,
-      dragStateRef,
-    }),
-    [graph, altCloneMapRef, rf, viewport.zoom, setSnapResult]
+    (e: any, node: any) => {
+      return createHandleNodeDrag({
+        graph,
+        rf,
+        viewport,
+        altCloneMapRef,
+        setSnapResult,
+        dragStateRef,
+      })(e, node);
+    },
+    [graph, rf, viewport, altCloneMapRef, setSnapResult, dragStateRef]
   );
 
   const handleNodeDragStop = React.useCallback(
-    createHandleNodeDragStop({
+    (e: any, node: any) => {
+      return createHandleNodeDragStop({
+        graph,
+        rf,
+        viewport,
+        altCloneMapRef,
+        dragStateRef,
+        setSnapResult,
+        onNodeDragStop,
+      })(e, node);
+    },
+    [
       graph,
       rf,
       viewport,
@@ -319,8 +332,7 @@ export const useGraphNodeHandlers = ({
       dragStateRef,
       setSnapResult,
       onNodeDragStop,
-    }),
-    [graph, onNodeDragStop, altCloneMapRef, rf, viewport.zoom, setSnapResult]
+    ]
   );
 
   return {
