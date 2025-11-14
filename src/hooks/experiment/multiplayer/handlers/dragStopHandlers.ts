@@ -167,6 +167,16 @@ export function createHandleNodeDragStop({
               cleanup();
             });
           });
+        } else {
+          // Fallback: multi-select without initialGroupBounds. We cannot compute a group snap,
+          // but we must still ensure cleanup happens and suppress the final unsnapped RF update.
+          dragStateRef.current.finalizingSnap = true;
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              dragStateRef.current.finalizingSnap = false;
+              cleanup();
+            });
+          });
         }
 
         // Defer cleanup to the requestAnimationFrame chain above
