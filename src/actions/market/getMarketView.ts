@@ -16,7 +16,7 @@ export type MarketView = {
   updatedAt: string;
 };
 
-async function computeMarketView(
+export async function computeMarketView(
   canonicalId: string,
   userId?: string
 ): Promise<MarketView> {

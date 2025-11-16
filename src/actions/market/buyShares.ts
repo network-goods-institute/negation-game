@@ -73,7 +73,7 @@ export async function buyShares(
       if (isKnownNameEarly || isKnownEdgeEarly) {
         await ensureSecurityInDoc(canonicalId, normalized);
       }
-    } catch {    }
+    } catch {}
 
     if (!totals.has(normalized)) {
       for (let i = 0; i < 3 && !totals.has(normalized); i++) {
@@ -214,6 +214,13 @@ export async function buyShares(
       }
     }
 
+    let pricesBeforeFixed: Record<string, bigint> = {};
+    try {
+      const pf = (mm as any).getPricesFixed?.();
+      if (pf && typeof pf === "object")
+        pricesBeforeFixed = pf as Record<string, bigint>;
+    } catch {}
+
     const cost = mm.buyShares(normalized, delta);
     let priceAfterFixed: bigint | undefined;
     let priceAfter: number | undefined;
@@ -261,6 +268,27 @@ export async function buyShares(
         ? { priceAfterScaled: priceAfterFixed.toString() }
         : {}),
     });
+    try {
+      const after = (mm as any).getPricesFixed?.() as
+        | Record<string, bigint>
+        | undefined;
+      if (after && typeof after === "object") {
+        const diffs = Object.keys(after)
+          .filter((sec) => sec !== normalized)
+          .filter((sec) => (pricesBeforeFixed[sec] ?? null) !== after[sec]);
+        if (diffs.length > 0) {
+          const syntheticRows = diffs.map((sec) => ({
+            docId: canonicalId,
+            userId,
+            securityId: sec,
+            deltaScaled: "0",
+            costScaled: "0",
+            priceAfterScaled: String(after[sec] ?? 0n),
+          }));
+          await tx.insert(marketTradesTable).values(syntheticRows as any);
+        }
+      }
+    } catch {}
     try {
       logger.info?.("[market] buyShares", {
         docId: canonicalId,

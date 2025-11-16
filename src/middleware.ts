@@ -68,11 +68,42 @@ async function handleAuth(req: NextRequest): Promise<NextResponse> {
       const claims = await client.verifyAuthToken(token);
       response.headers.set(USER_HEADER, JSON.stringify(claims));
     } catch (error: any) {
-      if (error.name !== "JWTExpired") {
+      const isExpired =
+        error?.name === "JWTExpired" || error?.code === "ERR_JWT_EXPIRED";
+
+      if (isExpired) {
+        try {
+          const client = await getPrivyClient();
+          const rawAuth =
+            req.headers.get("authorization") ||
+            req.headers.get("x-privy-token");
+          const bearer =
+            rawAuth && rawAuth.toLowerCase().startsWith("bearer ")
+              ? rawAuth.slice(7).trim()
+              : rawAuth || null;
+
+          if (bearer) {
+            const claims = await client.verifyAuthToken(bearer);
+            response.headers.set(USER_HEADER, JSON.stringify(claims));
+            response.cookies.set("privy-token", bearer, {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "strict",
+              path: "/",
+              maxAge: 24 * 60 * 60,
+            });
+            return response;
+          }
+        } catch {}
+
+        logger.warn(
+          "Privy token expired in middleware; awaiting client refresh"
+        );
+      } else {
         logger.error("Error verifying Privy auth token:", error);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        response.cookies.delete("privy-token");
       }
-      // eslint-disable-next-line drizzle/enforce-delete-with-where
-      response.cookies.delete("privy-token");
     }
   }
 

@@ -9,6 +9,7 @@ import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { LockIndicator } from './common/LockIndicator';
 import { ContextMenu } from './common/ContextMenu';
+import { useContextMenuHandler } from './common/useContextMenuHandler';
 
 interface StatementNodeProps {
   id: string;
@@ -87,6 +88,14 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  const handleContextMenu = useContextMenuHandler({
+    isEditing,
+    onOpenMenu: (pos) => {
+      setMenuPos({ x: pos.x, y: pos.y });
+      setMenuOpen(true);
+    },
+  });
+
   return (
     <>
       <NodeShell
@@ -116,12 +125,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             onMouseLeave();
             handleMouseLeave();
           },
-          onContextMenu: (e: React.MouseEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setMenuPos({ x: e.clientX, y: e.clientY });
-            setMenuOpen(true);
-          },
+          onContextMenu: handleContextMenu,
         }}
         wrapperRef={wrapperRef}
         wrapperClassName={`px-5 pt-3 pb-3 rounded-xl ${hidden ? 'bg-blue-100 text-blue-700' : 'bg-blue-50 text-blue-900'} ${isActive ? 'border-0' : 'border-2'} ${cursorClass} min-w-[240px] max-w-[360px] relative z-10 origin-center transition-transform duration-400 ease-out ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}

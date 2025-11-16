@@ -243,7 +243,7 @@ describe('URL updates when slug changes via peers', () => {
     yMap.set('slug', 'peer-slug');
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalled();
+      expect(window.history.replaceState).toHaveBeenCalled();
       const last = spy.mock.calls.at(-1) as any[];
       expect(last?.[2]).toContain('peer-slug');
     });

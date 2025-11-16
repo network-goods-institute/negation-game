@@ -1,8 +1,10 @@
 import { db } from "@/services/db";
 import { marketTradesTable } from "@/db/tables/marketTradesTable";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, lt } from "drizzle-orm";
 import { resolveSlugToId } from "@/utils/slugResolver";
 import { fromFixed } from "@/lib/carroll";
+import { buildStructureFromDoc } from "@/actions/market/buildStructureFromDoc";
+import { createMarketMaker, defaultB } from "@/lib/carroll/market";
 
 export type PricePoint = {
   timestamp: string;
@@ -14,7 +16,8 @@ export type PricePoint = {
 export async function getPriceHistory(
   docId: string,
   securityId: string,
-  limit: number = 50
+  limit: number = 50,
+  includeBaseline: boolean = false
 ): Promise<PricePoint[]> {
   const canonicalId = await resolveSlugToId(docId);
 
@@ -63,7 +66,7 @@ export async function getPriceHistory(
       .limit(Math.min(limit, 200));
   }
 
-  return trades
+  const points = trades
     .map((trade) => {
       let priceNum: number = 0;
       try {
@@ -90,4 +93,45 @@ export async function getPriceHistory(
       };
     })
     .reverse();
+
+  if (includeBaseline && points.length > 0) {
+    try {
+      const oldest = points[0];
+      const cutoff = new Date(oldest.timestamp);
+      const cutoffMs = cutoff.getTime() - 1;
+      const cutoffDate = new Date(cutoffMs);
+      const { structure, securities } = await buildStructureFromDoc(canonicalId);
+      const totalsRows = await db
+        .select({
+          securityId: marketTradesTable.securityId,
+          deltaScaled: marketTradesTable.deltaScaled,
+          createdAt: marketTradesTable.createdAt,
+        })
+        .from(marketTradesTable)
+        .where(and(eq(marketTradesTable.docId, canonicalId), lt(marketTradesTable.createdAt, cutoffDate)));
+      const totals = new Map<string, bigint>();
+      for (const sec of securities) totals.set(sec, 0n);
+      for (const r of totalsRows) {
+        const id = normalize(r.securityId);
+        if (!new Set(securities).has(id)) continue;
+        try {
+          totals.set(id, (totals.get(id) || 0n) + BigInt(r.deltaScaled || "0"));
+        } catch {}
+      }
+      const mm = createMarketMaker(structure, defaultB as any, securities);
+      for (const sec of securities) mm.setShares(sec, totals.get(sec) || 0n);
+      const baselinePrices = mm.getPrices();
+      const base = Number(baselinePrices?.[normalizedSecurityId] || 0);
+      if (Number.isFinite(base) && base > 0) {
+        points.unshift({
+          timestamp: cutoffDate.toISOString(),
+          price: base,
+          deltaScaled: "0",
+          costScaled: "0",
+        });
+      }
+    } catch {}
+  }
+
+  return points;
 }
