@@ -40,6 +40,7 @@ import { useMarket } from '@/hooks/market/useMarket';
 import { syncMarketDataToYDoc } from '@/utils/market/marketYDocSync';
 import { buildMarketViewPayload, isMarketEnabled } from '@/utils/market/marketUtils';
 import { logger } from '@/lib/logger';
+import { MarketPanel } from './market/MarketPanel';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -104,6 +105,10 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   const lastAddRef = useRef<Record<string, number>>({});
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
+  const [marketPanelNodeId, setMarketPanelNodeId] = useState<string | null>(null);
+  const [marketPanelEdgeId, setMarketPanelEdgeId] = useState<string | null>(null);
+  const [shareParamsApplied, setShareParamsApplied] = useState(false);
+  const [isMarketPanelExpanded, setIsMarketPanelExpanded] = useState(false);
   const [overlayActiveEdgeId, setOverlayActiveEdgeId] = useState<string | null>(null);
   const [forceBlurNodes, setForceBlurNodes] = useState(0);
   const centerOnceIdsRef = useRef<Set<string>>(new Set());
@@ -128,7 +133,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   const { pairHeights, setPairNodeHeight, commitGroupLayout: commitGroupLayoutBase } = usePairHeights();
   const initialGraph = useInitialGraph();
 
-  const {
+   const {
     nodes,
     edges,
     setNodes,
@@ -152,8 +157,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     redo,
     stopCapturing,
     canUndo,
-    canRedo,
-  } = useYjsMultiplayer({
+     canRedo,
+   } = useYjsMultiplayer({
     roomName,
     initialNodes: initialGraph?.nodes || [],
     initialEdges: initialGraph?.edges || [],
@@ -171,6 +176,9 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   const market = useMarket(resolvedId || '');
   const livePostInFlightRef = React.useRef(false);
   const lastLivePostRef = React.useRef(0);
+  // (Reverted) No Yjs-driven refresh; rely on explicit refresh + polling to avoid loops
+
+  // Write market view snapshot to Yjs when local query updates
   useEffect(() => {
     if (!marketEnabled) return;
     if (!ydoc || !yMetaMap) return;
@@ -189,7 +197,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         logger.info('[market/ui] wrote snapshot to yMetaMap', { docId: resolvedId, prices: pCount, holdings: hCount, totals: tCount, updatedAt: marketData.updatedAt });
       } catch { }
     } catch { }
-  }, [marketEnabled, market.view.data?.prices, market.view.data?.userHoldings, market.view.data?.totals, market.view.data?.updatedAt, ydoc, yMetaMap, resolvedId]);
+  }, [marketEnabled, market.view.data, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -226,7 +234,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         }
       } catch { }
     })();
-  }, [marketEnabled, market.view.data?.prices, nodes, edges, ydoc, yMetaMap, resolvedId]);
+  }, [marketEnabled, market.view.data, nodes, edges, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -280,7 +288,27 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
 
   useEffect(() => {
     if (!marketEnabled) return;
-    const handler = () => { try { market.view.refetch?.(); } catch { } };
+    const handler = async () => {
+      try {
+        const currentId = String(resolvedId || routeId || '');
+        if (currentId && ydoc && yMetaMap) {
+          const res = await fetch(`/api/market/${encodeURIComponent(currentId)}/view?bypassCache=1`, { cache: 'no-store' }).catch(() => null as any);
+          if (res && res.ok) {
+            const view = await res.json().catch(() => null);
+            if (view) {
+              const marketData = {
+                prices: view?.prices || {},
+                holdings: {},
+                totals: view?.totals || {},
+                updatedAt: view?.updatedAt || new Date().toISOString(),
+              };
+              syncMarketDataToYDoc(ydoc, yMetaMap, marketData, currentId, ORIGIN.RUNTIME, 'refresh');
+            }
+          }
+        }
+      } catch { }
+      try { market.view.refetch?.(); } catch { }
+    };
     const optimistic = (e: any) => {
       if (!ydoc || !yMetaMap) return;
       try {
@@ -409,6 +437,99 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       return additions.length ? [...current, ...additions] : current;
     });
   }, [connectMode, edges, getEdgeMidpoint, setNodes, canWrite]);
+
+  // Handle URL params for auto-selecting nodes/edges and opening market panel
+  useEffect(() => {
+    if (shareParamsApplied) return;
+    if (typeof window === 'undefined') return;
+    // Wait until the realtime graph is actually connected and has content
+    if (!isConnected) return;
+    if (!Array.isArray(nodes) || (!nodes.length && !edges.length)) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const nodeParam = urlParams.get('node');
+    const edgeParam = urlParams.get('edge');
+
+    if (nodeParam) {
+      // Select this node in the graph and open its market panel
+      setMarketPanelNodeId(nodeParam);
+      setMarketPanelEdgeId(null);
+      setSelectedEdgeId(null);
+      setNodes((nds: any[]) =>
+        nds.map((n: any) =>
+          n.id === nodeParam ? { ...n, selected: true } : { ...n, selected: false }
+        )
+      );
+    } else if (edgeParam) {
+      // Select this edge in the graph and open its market panel
+      setMarketPanelEdgeId(edgeParam);
+      setMarketPanelNodeId(null);
+      setSelectedEdgeId(edgeParam);
+      setNodes((nds: any[]) =>
+        nds.map((n: any) => (n.selected ? { ...n, selected: false } : n))
+      );
+    }
+
+    // Consume the URL parameters so they don't linger once applied
+    if (nodeParam || edgeParam) {
+      try {
+        const cleaned = new URLSearchParams(urlParams.toString());
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        cleaned.delete('node');
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        cleaned.delete('edge');
+        const search = cleaned.toString();
+        const newUrl = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
+        window.history.replaceState(null, '', newUrl);
+      } catch {
+        // ignore history errors
+      }
+    }
+
+    setShareParamsApplied(true);
+  }, [shareParamsApplied, isConnected, nodes, edges, setNodes, setSelectedEdgeId, setMarketPanelNodeId, setMarketPanelEdgeId]);
+
+  // Track node selection changes to open market panel
+  useEffect(() => {
+    if (!nodes || nodes.length === 0) return;
+    const selectedNode = nodes.find((n: any) => n.selected);
+    if (selectedNode && isMarketEnabled()) {
+      // Only show panel for point and objection nodes
+      const nodeType = (selectedNode as any).type;
+      if (nodeType === 'point' || nodeType === 'objection') {
+        setMarketPanelNodeId(selectedNode.id);
+        setMarketPanelEdgeId(null);
+      } else {
+        setMarketPanelNodeId(null);
+      }
+    } else if (!selectedNode) {
+      // Only clear if there's no edge selected either
+      if (!selectedEdgeId) {
+        setMarketPanelNodeId(null);
+      }
+    }
+  }, [nodes, selectedEdgeId]);
+
+  // Track edge selection changes to open market panel
+  useEffect(() => {
+    if (selectedEdgeId && isMarketEnabled()) {
+      // Only open market panel for support, negation, and objection edges
+      const selectedEdge = edges.find((e: any) => e.id === selectedEdgeId);
+      const edgeType = selectedEdge?.type;
+      if (edgeType === 'support' || edgeType === 'negation' || edgeType === 'objection') {
+        setMarketPanelEdgeId(selectedEdgeId);
+        setMarketPanelNodeId(null);
+      } else {
+        setMarketPanelEdgeId(null);
+      }
+    } else if (!selectedEdgeId) {
+      // Only clear if there's no node selected either
+      const hasSelectedNode = nodes && nodes.some((n: any) => n.selected);
+      if (!hasSelectedNode) {
+        setMarketPanelEdgeId(null);
+      }
+    }
+  }, [selectedEdgeId, nodes, edges]);
 
   const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite: canEdit, broadcastCursor: true });
   const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite: canEdit, broadcastLocks: true });
@@ -877,6 +998,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                 blurAllNodes={forceBlurNodes}
                 forceSave={forceSave}
                 yMetaMap={yMetaMap as any}
+                isMarketPanelVisible={!!(marketPanelNodeId || marketPanelEdgeId)}
                 onFlowMouseMove={(x, y) => {
                   if (!connectAnchorRef.current) return;
                   setConnectCursor({ x, y });
@@ -914,28 +1036,30 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                   }, 50);
                 }}
               />
-              <ToolsBar
-                connectMode={connectMode}
-                setConnectMode={setConnectMode as any}
-                setConnectAnchorId={setConnectAnchorId}
-                canUndo={!!canUndo}
-                canRedo={!!canRedo}
-                undo={undo}
-                redo={redo}
-                connectAnchorId={connectAnchorId}
-                readOnly={!canEdit}
-                grabMode={grabMode}
-                setGrabMode={setGrabMode}
-                selectMode={effectiveSelectMode}
-                mindchangeMode={mindchangeSelectMode}
-                onMindchangeDone={() => {
-                  setMindchangeSelectMode(false);
-                  setConnectMode(false);
-                  setConnectAnchorId(null);
-                }}
-                mindchangeNextDir={mindchangeNextDir}
-                mindchangeEdgeType={(mindchangeEdgeId || connectAnchorId) ? edges.find((e: any) => e.id === (mindchangeEdgeId || connectAnchorId))?.type : undefined}
-              />
+              {!isMarketPanelExpanded && (
+                <ToolsBar
+                  connectMode={connectMode}
+                  setConnectMode={setConnectMode as any}
+                  setConnectAnchorId={setConnectAnchorId}
+                  canUndo={!!canUndo}
+                  canRedo={!!canRedo}
+                  undo={undo}
+                  redo={redo}
+                  connectAnchorId={connectAnchorId}
+                  readOnly={!canEdit}
+                  grabMode={grabMode}
+                  setGrabMode={setGrabMode}
+                  selectMode={effectiveSelectMode}
+                  mindchangeMode={mindchangeSelectMode}
+                  onMindchangeDone={() => {
+                    setMindchangeSelectMode(false);
+                    setConnectMode(false);
+                    setConnectAnchorId(null);
+                  }}
+                  mindchangeNextDir={mindchangeNextDir}
+                  mindchangeEdgeType={(mindchangeEdgeId || connectAnchorId) ? edges.find((e: any) => e.id === (mindchangeEdgeId || connectAnchorId))?.type : undefined}
+                />
+              )}
             </div>
             <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} documentId={resolvedId || ''} centerQueueVersion={centerQueueVersion} consumeCenterQueue={consumeCenterQueue} connectMode={connectMode} />
           </GraphProvider>
@@ -960,7 +1084,28 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             }}
           />
         )}
+
+        {/* Market Panel */}
+        {isMarketEnabled() && (marketPanelNodeId || marketPanelEdgeId) && (
+          <MarketPanel
+            selectedNodeId={marketPanelNodeId}
+            selectedEdgeId={marketPanelEdgeId}
+            docId={resolvedId}
+            onClose={() => {
+              // Mirror canvas onPaneClick behavior: clear edge + node selection immediately
+              try { setSelectedEdgeId(null); } catch { }
+              try { setHoveredEdgeId(null); } catch { }
+              try { clearNodeSelection(); } catch { }
+
+              setMarketPanelNodeId(null);
+              setMarketPanelEdgeId(null);
+              setIsMarketPanelExpanded(false);
+            }}
+            onExpanded={setIsMarketPanelExpanded}
+          />
+        )}
       </ReactFlowProvider>
+
       <UndoHintOverlay
         position={undoHintPosition}
         onDismiss={() => setUndoHintPosition(null)}

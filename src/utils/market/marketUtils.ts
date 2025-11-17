@@ -147,10 +147,15 @@ export function buildMarketViewPayload(nodes: any[], edges: any[]): {
     nodes: (nodes || [])
       .filter((n) => String(n?.type || '') !== 'edge_anchor')
       .map((n) => String(n.id)),
-    edges: (edges || []).map((e) => ({
-      id: String(e.id),
-      source: String(e?.source || '').replace(/^anchor:/, ''),
-      target: String(e?.target || '').replace(/^anchor:/, ''),
-    })),
+    edges: (edges || [])
+      .filter((e) => {
+        const edgeType = String(e?.type || '').toLowerCase();
+        return edgeType === 'support' || edgeType === 'negation' || edgeType === 'objection';
+      })
+      .map((e) => ({
+        id: String(e.id),
+        source: String(e?.source || '').replace(/^anchor:/, ''),
+        target: String(e?.target || '').replace(/^anchor:/, ''),
+      })),
   };
 }

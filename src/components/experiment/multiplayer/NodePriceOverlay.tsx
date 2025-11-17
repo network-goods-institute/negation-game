@@ -28,8 +28,8 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
       {nodes.map((n) => {
-          // Exclude statement nodes entirely from price overlays
-          if ((n as any)?.type === 'statement') return null;
+          // Exclude statement and comment nodes entirely from price overlays
+          if ((n as any)?.type === 'statement' || (n as any)?.type === 'comment') return null;
           const p = prices[n.id];
           if (typeof p !== "number") return null;
           const { width: w, height: h, centerX, centerY } = getNodeDimensionsAndCenter(n);

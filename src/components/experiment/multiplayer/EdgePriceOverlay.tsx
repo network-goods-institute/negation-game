@@ -93,25 +93,6 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           const isNegation = t === 'negation';
           const isObjection = t === 'objection';
           if (!isSupport && !isNegation && !isObjection) return null;
-
-          // For objection edges that may not carry their own market price,
-          // fall back to the base edge (via anchor node's parentEdgeId).
-          if (!Number.isFinite(price) && isObjection) {
-            try {
-              const obj = rf.getEdge(String(e.id)) as any;
-              const anchorId = String(obj?.target || '');
-              if (anchorId && anchorId.startsWith('anchor:')) {
-                const anchor = rf.getNode(anchorId) as any;
-                const baseId = String(anchor?.data?.parentEdgeId || '');
-                if (baseId) {
-                  const base = rf.getEdge(baseId) as any;
-                  const p2 = Number(base?.data?.market?.price);
-                  if (Number.isFinite(p2)) price = p2;
-                }
-              }
-            } catch { }
-          }
-
           if (!Number.isFinite(price)) return null;
           if (e.selected || overlayActiveId === e.id || hoveredEdgeId === e.id) return null;
 
@@ -147,14 +128,8 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
             try {
               const cfg = (EDGE_CONFIGURATIONS as any)[t] || undefined;
               if (cfg?.visual?.useBezier) {
-                let sourcePosition = Position.Right;
-                let targetPosition = Position.Left;
-                if (t === 'objection') {
-                  const objectionY = sy;
-                  const anchorY = ty;
-                  sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
-                  targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
-                }
+                const sourcePosition = Position.Right;
+                const targetPosition = Position.Left;
                 const curvature = cfg?.visual?.curvature ?? 0.35;
                 const [, bx, by] = getBezierPath({
                   sourceX: trimmed.fromX,

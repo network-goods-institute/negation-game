@@ -1,9 +1,7 @@
 import React from 'react';
 import { EdgeLabelRenderer, useStore, useReactFlow } from '@xyflow/react';
 import { createPortal } from 'react-dom';
-import { MarketContextMenu } from './MarketContextMenu';
-import { InlineBuyControls } from '../market/InlineBuyControls';
-import { InlinePriceHistory } from '../market/InlinePriceHistory';
+import { ContextMenu } from './ContextMenu';
 import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
@@ -11,6 +9,7 @@ import { MindchangeEditor } from './MindchangeEditor';
 import { MindchangeIndicators } from './MindchangeIndicators';
 import { breakdownCache } from './MindchangeBreakdown';
 import { isMindchangeEnabledClient } from '@/utils/featureFlags';
+import { InlinePriceHistory } from '../market/InlinePriceHistory';
 
 const EDGE_ANCHOR_SIZE = 36;
 const PERSISTENCE_PADDING = 14;
@@ -102,9 +101,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [anchorScreenPos, setAnchorScreenPos] = React.useState<{ x: number; y: number } | null>(null);
 
   const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const [buyOpen, setBuyOpen] = React.useState(false);
-  const [buyPos, setBuyPos] = React.useState<{ x: number; y: number } | null>(null);
-  const buyContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [hoverBuy, setHoverBuy] = React.useState(false);
   const docId = React.useMemo(() => {
     try { return window.location.pathname.split('/').pop() || ''; } catch { return ''; }
@@ -326,39 +322,23 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     const lockForMindchange = Boolean((graph as any)?.mindchangeMode) &&
       (((graph as any)?.mindchangeEdgeId as string | null) === edgeId || Boolean(editDir));
     if (suppress) { setOverlayOpen(false); return; }
-    if (buyOpen) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (lockForMindchange) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (selected) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (isHovered) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (anchorHover) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (!isNearOverlay) setOverlayOpen(false);
-  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, editDir, suppress, setOverlayActive, buyOpen]);
-
-  React.useEffect(() => {
-    if (!buyOpen) return;
-    const handler = (e: MouseEvent) => {
-      const t = e.target as Node | null;
-      const inHud = !!portalContainerRef.current && portalContainerRef.current.contains(t as Node);
-      const inBuy = !!buyContainerRef.current && buyContainerRef.current.contains(t as Node);
-      if (inHud || inBuy) return;
-      setBuyOpen(false);
-      setOverlayOpen(false);
-      try { if (overlayActiveId === edgeId) setOverlayActive?.(null); } catch { }
-    };
-    window.addEventListener('pointerdown', handler, { capture: true } as any);
-    return () => window.removeEventListener('pointerdown', handler, { capture: true } as any);
-  }, [buyOpen, overlayActiveId, edgeId, setOverlayActive]);
+  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, editDir, suppress, setOverlayActive]);
 
   // Prevent browser page zoom (Ctrl/⌘ + wheel) while interacting with the overlay/buy UI
   React.useEffect(() => {
     const onWheel = (e: WheelEvent) => {
-      if ((overlayOpen || buyOpen || isNearOverlay || anchorHover) && (e.ctrlKey || (e as any).metaKey)) {
+      if ((overlayOpen || isNearOverlay || anchorHover) && (e.ctrlKey || (e as any).metaKey)) {
         try { e.preventDefault(); } catch { }
       }
     };
     window.addEventListener('wheel', onWheel, { capture: true, passive: false } as any);
     return () => window.removeEventListener('wheel', onWheel as any, { capture: true } as any);
-  }, [overlayOpen, buyOpen, isNearOverlay, anchorHover]);
+  }, [overlayOpen, isNearOverlay, anchorHover]);
 
   // Do not auto-close editor based on global mindchangeMode; editor can be opened directly
 
@@ -526,15 +506,16 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     );
                   })()}
 
-                  {/* Buy circle (inline, left of Mitigate) */}
+                  {/* Buy circle – hover shows price history, click opens full market panel */}
                   {(() => {
-                    const priceNum = Number(marketPrice as number);
-                    if (!Number.isFinite(priceNum)) return null;
+                    const rawPrice = Number(marketPrice as number);
+                    const priceNum = Number.isFinite(rawPrice) ? rawPrice : 0.5;
                     const size = 24;
                     const t = (edgeType || '').toLowerCase();
                     const isSupport = t === 'support';
                     const isNegation = t === 'negation';
                     const isObjection = t === 'objection';
+                    if (!(isSupport || isNegation || isObjection)) return null;
                     const color = isSupport ? '#10b981' : (isNegation ? '#ef4444' : '#f59e0b');
                     const fill = () => {
                       const p = Math.max(0, Math.min(1, priceNum));
@@ -570,10 +551,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
-                            const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
-                            setBuyPos({ x: sx, y: sy });
-                            setBuyOpen(true);
+                            try { (graph as any)?.clearNodeSelection?.(); } catch {}
+                            try { (graph as any)?.setSelectedEdge?.(edgeId); } catch {}
                           }}
                           className="h-7 w-7 rounded-full bg-white border border-stone-200 shadow-none transition flex items-center justify-center hover:shadow-sm hover:border-stone-300 cursor-pointer"
                         >
@@ -600,6 +579,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                               variant={isObjection ? 'objection' : 'default'}
                               className="w-full"
                               compact={true}
+                              hideHeader={true}
                             />
                           </div>
                         )}
@@ -688,32 +668,18 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
             </div>
           </div>
 
-          {buyOpen && buyPos && portalTarget && createPortal(
-            <div
-              ref={buyContainerRef}
-              className="fixed z-[9998]"
-              style={{ left: buyPos.x, top: buyPos.y, transform: 'translate(-50%, 8px)', pointerEvents: 'auto' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <InlineBuyControls
-                entityId={edgeId}
-                price={Number(marketPrice as number)}
-                initialOpen
-                onDismiss={() => setBuyOpen(false)}
-                variant={(edgeType === 'objection') ? 'objection' : 'default'}
-              />
-            </div>,
-            portalTarget
-          )}
-
-          <MarketContextMenu
+          <ContextMenu
             open={menuOpen}
             x={menuPos.x}
             y={menuPos.y}
             onClose={() => setMenuOpen(false)}
-            kind="edge"
-            entityId={edgeId}
-            onDelete={() => { try { (graph as any)?.deleteNode?.(edgeId); } catch { } }}
+            items={[
+              {
+                label: 'Delete Edge',
+                onClick: () => { try { (graph as any)?.deleteNode?.(edgeId); } catch { } },
+                danger: true,
+              },
+            ]}
           />
         </div>,
         portalTarget

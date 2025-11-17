@@ -7,7 +7,7 @@ export async function POST(
 ) {
   try {
     const body = await req.json();
-    const { securityId, limit } = body;
+    const { securityId, limit, includeBaseline } = body;
 
     if (!securityId || typeof securityId !== "string") {
       return NextResponse.json({ error: "securityId required" }, { status: 400 });
@@ -15,7 +15,7 @@ export async function POST(
 
     const raw = ctx?.params;
     const { docId } = raw && typeof raw.then === "function" ? await raw : (raw as { docId: string });
-    const history = await getPriceHistory(docId, securityId, limit);
+    const history = await getPriceHistory(docId, securityId, limit, Boolean(includeBaseline));
     return NextResponse.json(history);
   } catch (error) {
     return NextResponse.json(

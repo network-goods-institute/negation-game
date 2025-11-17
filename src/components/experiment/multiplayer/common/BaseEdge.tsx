@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { EdgeProps, getBezierPath, getStraightPath, Position, useStore, Edge } from '@xyflow/react';
 import { EdgeOverlay } from './EdgeOverlay';
-import { MarketContextMenu } from './MarketContextMenu';
-import { normalizeSecurityId } from '@/utils/market/marketUtils';
+import { ContextMenu } from './ContextMenu';
 import { EdgeMidpointControl } from './EdgeMidpointControl';
 import { EdgeInteractionOverlay } from './EdgeInteractionOverlay';
 import { EdgeMaskDefs } from './EdgeMaskDefs';
@@ -329,7 +328,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       }
       return;
     }
-    if (marketEnabled && hasMarketPrice) {
+    if (marketEnabled && hasMarketPrice && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) {
       setClickPos({ x: e.clientX, y: e.clientY });
       setQuickBuyOpen(true);
       setSelectedEdge?.(props.id as string);
@@ -506,10 +505,10 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           selected={selected}
           edgeId={props.id as string}
           edgeType={props.edgeType}
-          marketPrice={Number(((props as any).data?.market?.price) ?? NaN)}
-          marketMine={Number(((props as any).data?.market?.mine) ?? NaN)}
-          marketTotal={Number(((props as any).data?.market?.total) ?? NaN)}
-          marketInfluence={Number(((props as any).data?.market?.influence) ?? NaN)}
+          marketPrice={(props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection') ? Number(((props as any).data?.market?.price) ?? NaN) : NaN}
+          marketMine={(props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection') ? Number(((props as any).data?.market?.mine) ?? NaN) : NaN}
+          marketTotal={(props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection') ? Number(((props as any).data?.market?.total) ?? NaN) : NaN}
+          marketInfluence={(props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection') ? Number(((props as any).data?.market?.influence) ?? NaN) : NaN}
           srcX={sourceX ?? 0}
           srcY={sourceY ?? 0}
           tgtX={targetX ?? 0}
@@ -537,14 +536,18 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
       {/* Edge-level quick buy and side panel removed; edge buy handled inline via EdgeOverlay */}
 
-      <MarketContextMenu
+      <ContextMenu
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
         onClose={() => setMenuOpen(false)}
-        kind="edge"
-        entityId={(props.id as string)}
-        onDelete={() => deleteNode?.(props.id as string)}
+        items={[
+          {
+            label: 'Delete Edge',
+            onClick: () => deleteNode?.(props.id as string),
+            danger: true,
+          },
+        ]}
       />
     </>
   );

@@ -78,6 +78,14 @@ export const useGraphKeyboardHandlers = ({
       }
       if (key === "escape") {
         try {
+          if ((window as any).__marketPanelVisible === true) {
+            try { window.dispatchEvent(new Event('market:panelClose')); } catch {}
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+        } catch {}
+        try {
           graph?.cancelMindchangeSelection?.();
         } catch {}
         try {
