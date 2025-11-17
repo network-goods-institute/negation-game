@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useReactFlow } from '@xyflow/react';
 import { PriceHeader } from './PriceHeader';
@@ -12,6 +12,7 @@ import { normalizeSecurityId, dispatchMarketRefresh } from '@/utils/market/marke
 import { useBuyAmountPreview } from '@/hooks/market/useBuyAmountPreview';
 import { buyAmount } from '@/utils/market/marketContextMenu';
 import { toast } from 'sonner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Props = {
   selectedNodeId: string | null;
@@ -19,10 +20,23 @@ type Props = {
   docId: string | null;
   onClose: () => void;
   onExpanded?: (expanded: boolean) => void;
+  updateNodeContent?: (nodeId: string, content: string) => void;
+  canEdit?: boolean;
+  selectedNodeContent?: string | null;
 };
 
-export const MarketPanel: React.FC<Props> = ({ selectedNodeId, selectedEdgeId, docId, onClose, onExpanded }) => {
+export const MarketPanel: React.FC<Props> = ({
+  selectedNodeId,
+  selectedEdgeId,
+  docId,
+  onClose,
+  onExpanded,
+  updateNodeContent,
+  canEdit,
+  selectedNodeContent,
+}) => {
   const rf = useReactFlow();
+  const headerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState<number>(50);
   const [submitting, setSubmitting] = useState(false);
@@ -49,12 +63,13 @@ export const MarketPanel: React.FC<Props> = ({ selectedNodeId, selectedEdgeId, d
   const entityId = selectedNodeId || selectedEdgeId;
   const entityType = selectedNodeId ? 'node' : selectedEdgeId ? 'edge' : null;
 
-  // Get entity data
+  // Get entity data using React Flow API (for existence + market payloads)
   const entity = useMemo(() => {
     if (!entityId) return null;
     if (entityType === 'node') {
       return rf.getNode(entityId);
-    } else if (entityType === 'edge') {
+    }
+    if (entityType === 'edge') {
       return rf.getEdge(entityId);
     }
     return null;
@@ -83,6 +98,37 @@ export const MarketPanel: React.FC<Props> = ({ selectedNodeId, selectedEdgeId, d
     }
     return cachedTitle;
   }, [entity, entityType, rf, cachedTitle]);
+
+  const nodeContent = useMemo(() => {
+    if (entityType === 'node' && entity) {
+      return String((entity as any).data?.content || '');
+    }
+    if (entityType === 'node' && !entity && cachedEntity && (cachedEntity as any)?.id === entityId) {
+      return String((cachedEntity as any)?.data?.content || '');
+    }
+    return '';
+  }, [entityType, entity, cachedEntity, entityId]);
+
+  const panelNodeContent = useMemo(() => {
+    if (entityType !== 'node') return nodeContent;
+    if (typeof selectedNodeContent === 'string') return selectedNodeContent;
+    return nodeContent;
+  }, [entityType, nodeContent, selectedNodeContent]);
+
+  const headerTitle = useMemo(() => {
+    if (entityType === 'node') {
+      return panelNodeContent && panelNodeContent.length > 0 ? panelNodeContent : 'Untitled';
+    }
+    return title;
+  }, [entityType, panelNodeContent, title]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const el = headerTextareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [panelNodeContent, expanded]);
 
   // Cache entity data for closing animation
   useEffect(() => {
@@ -143,6 +189,11 @@ export const MarketPanel: React.FC<Props> = ({ selectedNodeId, selectedEdgeId, d
     if (!expanded) return;
     setIsInitialMount(false);
     setExpanded(false);
+  }, [expanded]);
+
+  const handlePanelWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (!expanded) return;
+    e.stopPropagation();
   }, [expanded]);
 
   const normEntityId = useMemo(() => (entityId ? normalizeSecurityId(entityId) : null), [entityId]);
@@ -216,8 +267,7 @@ export const MarketPanel: React.FC<Props> = ({ selectedNodeId, selectedEdgeId, d
 
   // Use hybrid approach - instant width change, smooth transform animation
   const getPanelClasses = () => {
-    // Very high z-index; actual stacking is controlled by portal (body-level)
-    const baseClasses = 'fixed z-[2000] bg-gradient-to-br from-white to-stone-50/30 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-stone-200/60 overflow-hidden backdrop-blur-xl market-panel-base';
+    const baseClasses = 'fixed z-[2000] bg-gradient-to-br from-white to-stone-50/30 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-stone-200/60 overflow-hidden backdrop-blur-xl market-panel-base flex flex-col max-h-[calc(100vh-96px)]';
     
     let classes = baseClasses;
     
@@ -310,12 +360,20 @@ export const MarketPanel: React.FC<Props> = ({ selectedNodeId, selectedEdgeId, d
         .market-panel-base.expanded {
           transform: translate(calc(50vw - 300px), 50vh) translateY(-50%);
         }
+        .market-panel-scroll {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .market-panel-scroll::-webkit-scrollbar {
+          display: none;
+        }
       `}</style>
 
       {/* Panel */}
       <div
         className={getPanelClasses()}
         style={getAnimationStyle()}
+        onWheel={handlePanelWheel}
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-stone-200/60 bg-white/60 backdrop-blur-sm">
@@ -324,12 +382,44 @@ export const MarketPanel: React.FC<Props> = ({ selectedNodeId, selectedEdgeId, d
               <h2 className="text-xs font-medium text-stone-500 uppercase tracking-wider mb-0.5">
                 Market
               </h2>
-              <div 
-                className="text-sm font-semibold text-stone-900 line-clamp-1 leading-tight"
-                style={isSwitching ? { animation: 'contentSwitchIn 250ms ease-out' } : {}}
-              >
-                {title}
-              </div>
+              {!expanded ? (
+                <Tooltip delayDuration={150}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className="text-sm font-semibold text-stone-900 line-clamp-1 leading-tight"
+                      style={isSwitching ? { animation: 'contentSwitchIn 250ms ease-out' } : {}}
+                    >
+                      {headerTitle}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-sm break-words z-[2100]">
+                    <div className="text-xs font-medium text-stone-900 whitespace-pre-wrap">
+                      {headerTitle}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                entityType === 'node' && displayEntityId && updateNodeContent && canEdit ? (
+                  <textarea
+                    ref={headerTextareaRef}
+                    value={panelNodeContent}
+                    onChange={(e) => {
+                      if (!displayEntityId) return;
+                      updateNodeContent(displayEntityId, e.target.value);
+                    }}
+                    rows={3}
+                    className="w-full text-sm font-semibold text-stone-900 leading-tight whitespace-pre-wrap bg-transparent border border-transparent px-0 py-0 resize-none overflow-hidden focus:outline-none focus:ring-0 focus:border-transparent"
+                    style={isSwitching ? { animation: 'contentSwitchIn 250ms ease-out' } : {}}
+                  />
+                ) : (
+                  <div
+                    className="text-sm font-semibold text-stone-900 leading-tight whitespace-pre-wrap"
+                    style={isSwitching ? { animation: 'contentSwitchIn 250ms ease-out' } : {}}
+                  >
+                    {headerTitle}
+                  </div>
+                )
+              )}
             </div>
             <ActionButtons
               expanded={expanded}
@@ -343,9 +433,10 @@ export const MarketPanel: React.FC<Props> = ({ selectedNodeId, selectedEdgeId, d
         </div>
 
         {/* Content */}
-        <div 
-          className="p-4 space-y-4"
+        <div
+          className="p-4 space-y-4 flex-1 overflow-y-auto market-panel-scroll"
           style={isSwitching ? { animation: 'contentSwitchIn 250ms ease-out' } : {}}
+          onWheel={handlePanelWheel}
         >
           {/* Price */}
           {displayEntityId && (

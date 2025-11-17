@@ -837,6 +837,20 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     }
   });
 
+  const selectedMarketNodeContent = useMemo(() => {
+    if (!marketPanelNodeId) return null;
+    try {
+      const node = nodes.find((n: any) => n.id === marketPanelNodeId);
+      if (!node) return null;
+      const content = (node as any)?.data?.content;
+      if (typeof content === 'string') return content;
+      if (content === undefined || content === null) return '';
+      return String(content);
+    } catch {
+      return null;
+    }
+  }, [marketPanelNodeId, nodes]);
+
   return (
     <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
       <MultiplayerHeader
@@ -1091,6 +1105,9 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             selectedNodeId={marketPanelNodeId}
             selectedEdgeId={marketPanelEdgeId}
             docId={resolvedId}
+            updateNodeContent={updateNodeContent}
+            canEdit={canEdit}
+            selectedNodeContent={selectedMarketNodeContent}
             onClose={() => {
               // Mirror canvas onPaneClick behavior: clear edge + node selection immediately
               try { setSelectedEdgeId(null); } catch { }

@@ -42,11 +42,17 @@ export const useGraphWheelHandler = ({
       // Only handle if pointer is over the canvas area (including portaled HUDs)
       if (!withinCanvasBounds(event.clientX, event.clientY)) return;
 
-      // Skip when interacting with editable controls
       const topEl = document.elementFromPoint(
         event.clientX,
         event.clientY
       ) as HTMLElement | null;
+
+      // Skip when pointer is over the market side panel
+      if (topEl && topEl.closest(".market-panel-base")) {
+        return;
+      }
+
+      // Skip when interacting with editable controls
       if (isEditable(topEl)) return;
 
       // Prevent page scroll; pan viewport instead
