@@ -41,6 +41,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const { zoom } = useViewport();
   const state = useAtomValue(marketOverlayStateAtom);
   const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const graphCtx = useGraphActions() as any;
 
   const {
     updateNodeContent,
@@ -180,7 +181,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       return false;
     }
   });
-  const graphCtx = useGraphActions() as any;
   const mindchangeSelectable = useMemo(() => {
     try {
       if (!graphCtx?.mindchangeMode || !graphCtx?.mindchangeEdgeId || graphCtx?.mindchangeNextDir) return false;
@@ -256,8 +256,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
     const ringMindchange = mindchangeSelectable ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative origin-center group transition-transform duration-400 ease-out ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable]);
+    const dragClass = isEditing ? 'nodrag' : '';
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative origin-center group transition-transform duration-400 ease-out ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${dragClass} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable, isEditing]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
@@ -311,15 +312,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           return;
         }
       }
-      if (contentRef.current && contentRef.current.contains(e.target as Node)) {
-        onClick(e);
-        return;
-      }
-      const target = e.target as HTMLElement | null;
-      if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
-        return;
-      }
-      if (isEditing) return;
       if (locked) {
         e.stopPropagation();
         toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
@@ -364,7 +356,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         wrapperClassName={wrapperClassName}
         wrapperStyle={{
           ...innerScaleStyle,
-          opacity: hidden ? undefined : (overlayActive && !selected && !hovered ? 0 : favorOpacity),
+          opacity: hidden
+            ? undefined
+            : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
         }}
         wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}

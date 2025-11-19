@@ -257,15 +257,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     return;
                 }
             }
-            if (contentRef.current && contentRef.current.contains(e.target as Node)) {
-                onClick(e);
-                return;
-            }
-            const target = e.target as HTMLElement | null;
-            if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
-                return;
-            }
-            if (isEditing) return;
             if (locked) {
                 e.stopPropagation();
                 toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
@@ -334,11 +325,13 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 containerRef={containerRef}
                 containerClassName="relative inline-block group"
                 wrapperRef={wrapperRef}
-                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] inline-flex flex-col relative z-10 transition-transform duration-400 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
+                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] inline-flex flex-col relative z-10 transition-transform duration-400 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''} ${isEditing ? 'nodrag' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
                 wrapperStyle={{
                     ...innerScaleStyle,
-                    opacity: hidden ? undefined : (overlayActive && !selected && !hovered ? 0 : favorOpacity),
+                    opacity: hidden
+                        ? undefined
+                        : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
                 } as any}
                 wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-400 ease-out z-0`}
