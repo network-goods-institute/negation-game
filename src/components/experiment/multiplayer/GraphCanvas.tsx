@@ -257,12 +257,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const target = event.target as HTMLElement | null;
     if (!target) return;
 
-    if (target.closest('.react-flow__node') || target.closest('.react-flow__edge')) {
-      return;
-    }
+    const isPane = target.closest('.react-flow__pane');
+    const isEdge = target.closest('.react-flow__edge');
 
-    if (target.closest('.react-flow__pane')) {
-      // Use the snapped target from the component level hook
+    if (isPane || isEdge) {
       if (componentSnappedTarget && componentSnappedTarget.kind) {
         if (componentSnappedTarget.kind === 'node') {
           (graph as any)?.completeConnectToNode?.(componentSnappedTarget.id);
