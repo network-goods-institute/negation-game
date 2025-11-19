@@ -579,7 +579,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                               variant={isObjection ? 'objection' : 'default'}
                               className="w-full"
                               compact={true}
-                              hideHeader={true}
                             />
                           </div>
                         )}

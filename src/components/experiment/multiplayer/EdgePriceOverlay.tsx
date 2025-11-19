@@ -41,6 +41,7 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   const [isZooming, setIsZooming] = React.useState(false);
   const prevZoomRef = React.useRef(zoom);
   const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [shouldAnimateEdges, setShouldAnimateEdges] = React.useState(false);
 
   React.useEffect(() => {
     if (Math.abs(zoom - prevZoomRef.current) > 0.001) {
@@ -61,17 +62,27 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   }, [zoom]);
 
   React.useEffect(() => {
-    if (!show) return;
+    if (!show) {
+      setShouldAnimateEdges(false);
+      return;
+    }
+    // Trigger animation when overlay first shows
+    setShouldAnimateEdges(true);
+    const timeout = setTimeout(() => setShouldAnimateEdges(false), 650);
+
     let raf = 0;
     const loop = () => {
       setTick((t) => (t + 1) % 1000000);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+    };
   }, [show]);
 
-  if (!show || !Array.isArray(edges) || edges.length === 0 || isZooming) return null;
+  if (!show || !Array.isArray(edges) || edges.length === 0) return null;
 
   // Compute size in flow coordinates (divide by zoom to convert from screen pixels)
   const baseScreenSize = sizePx;
@@ -81,6 +92,7 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   const viewportEl = typeof document !== 'undefined' ? (document.querySelector('.react-flow__viewport') as HTMLElement | null) : null;
   const viewportRect = viewportEl ? viewportEl.getBoundingClientRect() : null;
   if (!viewportEl) return null;
+
 
   // Mount inside viewport so nodes layer above naturally
   return createPortal(
@@ -93,7 +105,8 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           const isNegation = t === 'negation';
           const isObjection = t === 'objection';
           if (!isSupport && !isNegation && !isObjection) return null;
-          if (!Number.isFinite(price)) return null;
+          // Default to 0.5 (50%) if no price available yet
+          const priceValue = Number.isFinite(price) ? price : 0.5;
           if (e.selected || overlayActiveId === e.id || hoveredEdgeId === e.id) return null;
 
           // Try to use actual edge label position from DOM
@@ -157,61 +170,119 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
             labelY = ly;
           }
 
-          const p = Math.max(0, Math.min(1, price));
-          const size = flowSize;
-          const color = isSupport ? '#10b981' : (isNegation ? '#ef4444' : '#f59e0b');
-
-          const fillRect = () => {
-            if (isObjection) {
-              const h = Math.round(size * p);
-              const y = size - h;
-              return (
-                <g clipPath={`url(#edge-clip-${e.id})`}>
-                  <g transform={`rotate(-45 ${size / 2} ${size / 2})`}>
-                    <rect x={0} y={y} width={size} height={h} fill={color} />
-                  </g>
-                </g>
-              );
-            }
-            const fillHeight = Math.round(size * p);
-            const rectY = isSupport ? (size - fillHeight) : 0;
-            const rectH = fillHeight;
-            return (
-              <g clipPath={`url(#edge-clip-${e.id})`}>
-                <rect x={0} y={rectY} width={size} height={rectH} fill={color} />
-              </g>
-            );
-          };
+          const p = Math.max(0, Math.min(1, priceValue));
 
           if (labelX == null || labelY == null || !Number.isFinite(labelX) || !Number.isFinite(labelY)) {
             return null;
           }
 
+          // Hide overlay when edge is selected or hovered
+          const isEdgeHovered = overlayActiveId === e.id || hoveredEdgeId === e.id;
+          if (isEdgeHovered) return null;
+
+          const percentage = p * 100;
+          const baseSize = 60;
+          const maxSize = 160;
+          const size = baseSize + (p * (maxSize - baseSize));
+
+          // Determine color based on edge type and selection
+          // Default colors by type
+          let color = isSupport ? '#10b981' : (isNegation ? '#ef4444' : '#f59e0b'); // green, red, amber
+
+          // If a node is selected and this edge connects to it, use friend/enemy colors
+          const allNodes = rf.getNodes();
+          const selectedNode = allNodes.find(n => (n as any)?.selected);
+          if (selectedNode) {
+            const edgeConnectsToSelected = e.source === selectedNode.id || e.target === selectedNode.id;
+            if (edgeConnectsToSelected) {
+              // Override with friend/enemy colors
+              if (isSupport) {
+                color = '#10b981'; // green - friend
+              } else if (isNegation) {
+                color = '#ef4444'; // red - enemy
+              } else if (isObjection) {
+                // Objection color determined by what it objects to
+                color = '#f59e0b'; // amber - keep default for now
+              }
+            }
+          }
+
+          // Edges are triangles with direction based on type
+          const triangleSize = size;
+          const height = triangleSize * Math.sqrt(3) / 2;
+          const fontSize = Math.max(10, triangleSize / 5);
+
+          // Triangle rotation based on edge type
+          // Support: 0deg (pointing up ▲)
+          // Negation: 180deg (pointing down ▼)
+          // Objection: diamond/hourglass ◆
+          const rotation = isSupport ? 0 : (isNegation ? 180 : 0);
+
           return (
             <div
               key={`e-zoom-${e.id}`}
               className="absolute"
-              style={{ left: labelX as number, top: labelY as number, transform: 'translate(-50%, -50%)', zIndex: 0 }}
+              style={{
+                left: labelX as number,
+                top: labelY as number,
+                transform: 'translate(-50%, -50%)',
+                transition: 'transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                animation: shouldAnimateEdges ? 'favorGrow 600ms cubic-bezier(0.34, 1.56, 0.64, 1)' : undefined,
+                zIndex: 0
+              }}
             >
-              <svg width={size} height={size} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.08)) drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
-                <defs>
-                  <clipPath id={`edge-clip-${e.id}`}>
-                    <circle cx={size / 2} cy={size / 2} r={(size / 2) - 6} />
-                  </clipPath>
-                </defs>
-                {/* Outer white frame - prominent border */}
-                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 0.5} fill="white" stroke="white" strokeWidth={6} />
-                {/* Inner circle background */}
-                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 6} fill="#ffffff" stroke="#e5e7eb" strokeWidth={0.5} />
-                {fillRect()}
-                <circle cx={size / 2} cy={size / 2} r={(size / 2) - 6} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={0.5} />
+              <svg
+                width={triangleSize}
+                height={isObjection ? triangleSize : height}
+                className="overflow-visible"
+                style={{
+                  filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.2))',
+                  transform: isObjection ? undefined : `rotate(${rotation}deg)`,
+                  transformOrigin: 'center center'
+                }}
+              >
+                {isObjection ? (
+                  // Diamond shape (rotated square)
+                  <polygon
+                    points={`${triangleSize/2},0 ${triangleSize},${triangleSize/2} ${triangleSize/2},${triangleSize} 0,${triangleSize/2}`}
+                    fill={color}
+                    stroke="rgba(255,255,255,0.4)"
+                    strokeWidth={3}
+                  />
+                ) : (
+                  <polygon
+                    points={`${triangleSize/2},0 ${triangleSize},${height} 0,${height}`}
+                    fill={color}
+                    stroke="rgba(255,255,255,0.4)"
+                    strokeWidth={3}
+                  />
+                )}
               </svg>
+              <div
+                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white font-bold pointer-events-none select-none"
+                style={{
+                  fontSize: `${fontSize}px`,
+                  textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                }}
+              >
+                {Math.round(percentage)}%
+              </div>
             </div>
           );
         } catch {
           return null;
         }
       })}
+      <style jsx>{`
+        @keyframes favorGrow {
+          from {
+            transform: translate(-50%, -50%) scale(0);
+          }
+          to {
+            transform: translate(-50%, -50%) scale(1);
+          }
+        }
+      `}</style>
     </div>,
     viewportEl
   );

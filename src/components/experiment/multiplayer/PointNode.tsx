@@ -15,6 +15,9 @@ import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { LockIndicator } from './common/LockIndicator';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
 import { ContextMenu } from './common/ContextMenu';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { useViewport } from '@xyflow/react';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -35,6 +38,10 @@ interface PointNodeProps {
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
   const rf = useReactFlow();
+  const { zoom } = useViewport();
+  const state = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+
   const {
     updateNodeContent,
     updateNodeHidden,
@@ -55,6 +62,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
+
+  let side = computeSide(state);
+  if (state === 'AUTO_TEXT' || state === 'AUTO_PRICE') {
+    side = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+  }
+  const overlayActive = side === 'PRICE';
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -351,7 +364,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         wrapperClassName={wrapperClassName}
         wrapperStyle={{
           ...innerScaleStyle,
-          opacity: hidden ? undefined : favorOpacity,
+          opacity: hidden ? undefined : (overlayActive && !selected && !hovered ? 0 : favorOpacity),
         }}
         wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}

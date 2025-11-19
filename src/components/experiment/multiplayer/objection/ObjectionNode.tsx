@@ -10,6 +10,9 @@ import { useNodeChrome } from '../common/useNodeChrome';
 import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 import { useForceHidePills } from '../common/useForceHidePills';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { useViewport } from '@xyflow/react';
 import { FavorSelector } from '../common/FavorSelector';
 import { LockIndicator } from '../common/LockIndicator';
 import { useNodeExtrasVisibility } from '../common/useNodeExtrasVisibility';
@@ -50,6 +53,15 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const hidden = (data as any)?.hidden === true;
 
     const rf = useReactFlow();
+    const { zoom } = useViewport();
+    const state = useAtomValue(marketOverlayStateAtom);
+    const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+
+    let side = computeSide(state);
+    if (state === 'AUTO_TEXT' || state === 'AUTO_PRICE') {
+        side = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+    }
+    const overlayActive = side === 'PRICE';
 
     const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
         id,
@@ -326,7 +338,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
                 wrapperStyle={{
                     ...innerScaleStyle,
-                    opacity: hidden ? undefined : favorOpacity,
+                    opacity: hidden ? undefined : (overlayActive && !selected && !hovered ? 0 : favorOpacity),
                 } as any}
                 wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-400 ease-out z-0`}
