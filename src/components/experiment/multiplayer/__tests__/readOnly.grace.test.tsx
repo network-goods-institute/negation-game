@@ -1,30 +1,26 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MultiplayerBoardContent } from '@/components/experiment/multiplayer/MultiplayerBoardContent';
 
 jest.mock('@xyflow/react', () => ({
   ReactFlowProvider: ({ children }: any) => <>{children}</>,
 }));
 
-let lastGraphCanvasProps: any = null;
 jest.mock('@/components/experiment/multiplayer/GraphCanvas', () => ({
-  GraphCanvas: (props: any) => { lastGraphCanvasProps = props; return null; },
+  GraphCanvas: () => null,
 }));
 
 jest.mock('@/components/experiment/multiplayer/ToolsBar', () => ({
   ToolsBar: () => null,
 }));
 
+let lastHeaderProps: any = null;
 jest.mock('@/components/experiment/multiplayer/MultiplayerHeader', () => ({
-  MultiplayerHeader: () => null,
+  MultiplayerHeader: (props: any) => { lastHeaderProps = props; return <div />; },
 }));
 
 jest.mock('@/components/experiment/multiplayer/UndoHintOverlay', () => ({
   UndoHintOverlay: () => null,
-}));
-
-jest.mock('@/components/experiment/multiplayer/TypeSelectorDropdown', () => ({
-  TypeSelectorDropdown: () => null,
 }));
 
 jest.mock('@/components/experiment/multiplayer/GraphUpdater', () => ({
@@ -39,43 +35,13 @@ jest.mock('@/hooks/experiment/multiplayer/useInitialGraph', () => ({
   useInitialGraph: () => ({ nodes: [], edges: [] }),
 }));
 
-jest.mock('@/hooks/experiment/multiplayer/useYjsMultiplayer', () => ({
-  useYjsMultiplayer: () => ({
-    nodes: [],
-    edges: [],
-    setNodes: jest.fn(),
-    setEdges: jest.fn(),
-    provider: null,
-    ydoc: null,
-    yNodesMap: null,
-    yEdgesMap: null,
-    yTextMap: null,
-    yMetaMap: null,
-    syncYMapFromArray: jest.fn(),
-    connectionError: null,
-    isConnected: true,
-    connectionState: 'connected',
-    hasSyncedOnce: true,
-    isReady: true,
-    isSaving: false,
-    forceSave: jest.fn(),
-    interruptSave: jest.fn(),
-    nextSaveTime: null,
-    resyncNow: jest.fn(),
-    undo: jest.fn(),
-    redo: jest.fn(),
-    canUndo: false,
-    canRedo: false,
-  }),
-}));
-
 jest.mock('@/hooks/experiment/multiplayer/useWriteAccess', () => ({
   useWriteAccess: () => ({ canWrite: true }),
 }));
 
 jest.mock('@/hooks/experiment/multiplayer/useConnectionMode', () => ({
   useConnectionMode: () => ({
-    connectMode: true,
+    connectMode: false,
     setConnectMode: jest.fn(),
     connectAnchorId: null,
     setConnectAnchorId: jest.fn(),
@@ -137,10 +103,49 @@ jest.mock('@/hooks/experiment/multiplayer/useKeyboardShortcuts', () => ({
   useKeyboardShortcuts: () => {},
 }));
 
-describe('effective selectMode under connect mode', () => {
-  it('disables selection when connectMode is true', () => {
+describe('read-only grace on brief disconnects', () => {
+  beforeEach(() => {
+    lastHeaderProps = null;
+  });
+
+  it('keeps header connected and board editable during grace when isConnected=false but connectedWithGrace=true', () => {
+    jest.doMock('@/hooks/experiment/multiplayer/useYjsMultiplayer', () => ({
+      useYjsMultiplayer: () => ({
+        nodes: [],
+        edges: [],
+        setNodes: jest.fn(),
+        setEdges: jest.fn(),
+        provider: null,
+        ydoc: null,
+        yNodesMap: null,
+        yEdgesMap: null,
+        yTextMap: null,
+        yMetaMap: null,
+        syncYMapFromArray: jest.fn(),
+        connectionError: null,
+        isConnected: false,
+        connectedWithGrace: true,
+        connectionState: 'connecting',
+        hasSyncedOnce: true,
+        isReady: true,
+        isSaving: false,
+        forceSave: jest.fn(),
+        interruptSave: jest.fn(),
+        nextSaveTime: null,
+        resyncNow: jest.fn(),
+        restartProviderWithNewToken: jest.fn(),
+        undo: jest.fn(),
+        redo: jest.fn(),
+        stopCapturing: jest.fn(),
+        canUndo: false,
+        canRedo: false,
+      }),
+    }));
+    // Re-import after mocking
+    const { MultiplayerBoardContent: Component } = require('@/components/experiment/multiplayer/MultiplayerBoardContent');
+
     render(
-      <MultiplayerBoardContent
+      <Component
         authenticated={true}
         userId="u1"
         username="alice"
@@ -162,7 +167,12 @@ describe('effective selectMode under connect mode', () => {
       />
     );
 
-    expect(lastGraphCanvasProps).toBeTruthy();
-    expect(lastGraphCanvasProps.selectMode).toBe(false);
+    expect(lastHeaderProps).toBeTruthy();
+    // Header should be told it's connected during grace
+    expect(lastHeaderProps.isConnected).toBe(true);
+    // And not in proxyMode (editable)
+    expect(lastHeaderProps.proxyMode).toBe(false);
   });
 });
+
+

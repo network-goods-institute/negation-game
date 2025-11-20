@@ -22,8 +22,8 @@ describe('MultiplayerHeader status messaging', () => {
         <MultiplayerHeader {...baseProps} />
       </TooltipProvider>
     );
-    expect(screen.queryByText(/Connecting to server/i)).toBeNull();
-    expect(screen.queryByText(/Connection failed/i)).toBeNull();
+    expect(screen.queryByText(/collaboration server/i)).toBeNull();
+    expect(screen.queryByText(/Unable to connect/i)).toBeNull();
   });
 
   it('shows connecting message when connectionState=connecting', () => {
@@ -32,7 +32,7 @@ describe('MultiplayerHeader status messaging', () => {
         <MultiplayerHeader {...baseProps} isConnected={false} connectionState="connecting" />
       </TooltipProvider>
     );
-    expect(screen.getByText(/Connecting to server/i)).toBeInTheDocument();
+    expect(screen.getByText(/Connecting to collaboration server/i)).toBeInTheDocument();
   });
 
   it('shows failure message when connectionState=failed and no explicit error', () => {
@@ -41,24 +41,24 @@ describe('MultiplayerHeader status messaging', () => {
         <MultiplayerHeader {...baseProps} isConnected={false} connectionState="failed" />
       </TooltipProvider>
     );
-    expect(screen.getByText(/Connection failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Unable to connect/i)).toBeInTheDocument();
   });
 
-  it('shows explicit connectionError over state text', () => {
+  it('shows user-friendly error message for generic errors', () => {
     render(
       <TooltipProvider>
         <MultiplayerHeader
           {...baseProps}
           isConnected={false}
           connectionState="failed"
-          connectionError="Auth error"
+          connectionError="Some random error"
         />
       </TooltipProvider>
     );
-    expect(screen.getByText(/Auth error/i)).toBeInTheDocument();
+    expect(screen.getByText(/Connection issue/i)).toBeInTheDocument();
   });
 
-  it('shows Not Connected with Retry when disconnected', () => {
+  it('shows disconnected status with Retry when disconnected', () => {
     render(
       <TooltipProvider>
         <MultiplayerHeader
@@ -68,7 +68,7 @@ describe('MultiplayerHeader status messaging', () => {
         />
       </TooltipProvider>
     );
-    expect(screen.getAllByText(/Not Connected/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Connecting to collaboration server/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Retry/i).length).toBeGreaterThan(0);
   });
 });

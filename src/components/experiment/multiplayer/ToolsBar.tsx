@@ -118,8 +118,8 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
           </div>
           <span className="text-sm text-stone-700">
             {connectAnchorId
-              ? 'Select the target point (or click a relation line to add a mitigation)'
-              : 'Click a point to start (or click a relation line to add a mitigation)'}
+              ? 'Click target point or connecting line for mitigation'
+              : 'Click on a point or a connecting line to start connection'}
           </span>
           <div className="h-5 w-px bg-stone-200 mx-2" />
           <button
@@ -157,7 +157,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
 
           {/* Connect (line) */}
           <ToolbarButton
-            label={readOnly ? "Read-only" : "Connect"}
+            label={readOnly ? "Read-only (Log in to make changes)" : "Connect"}
             shortcut={readOnly ? undefined : "A"}
             disabled={!!readOnly}
             active={!!connectMode}

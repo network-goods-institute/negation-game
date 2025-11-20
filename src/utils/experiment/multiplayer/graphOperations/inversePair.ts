@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 
 import { generateInversePoint } from "@/actions/ai/generateInversePoint";
 
@@ -23,7 +24,7 @@ export const createInversePair = (
       return;
     }
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
 

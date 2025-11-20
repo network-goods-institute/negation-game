@@ -16,6 +16,8 @@ interface UseYjsProviderConnectionProps {
   seededOnceRef: React.MutableRefObject<boolean>;
   didResyncOnConnectRef: React.MutableRefObject<boolean>;
   hydrationStatusRef: React.MutableRefObject<HydrationStatus>;
+  // Invoked when the provider emits its first 'sync' event in this session
+  onFirstSync?: () => void;
   initialNodes: Node[];
   initialEdges: Edge[];
   forceSaveRef: React.MutableRefObject<(() => Promise<void>) | null>;
@@ -45,6 +47,7 @@ export const useYjsProviderConnection = ({
   seededOnceRef,
   didResyncOnConnectRef,
   hydrationStatusRef,
+  onFirstSync,
   initialNodes,
   initialEdges,
   forceSaveRef,
@@ -213,6 +216,10 @@ export const useYjsProviderConnection = ({
           seededOnce: seededOnceRef.current,
         });
 
+        try {
+          onFirstSync?.();
+        } catch {}
+
         if (suppressNextResyncRef.current) {
           didResyncOnConnectRef.current = true;
           suppressNextResyncRef.current = false;
@@ -297,6 +304,7 @@ export const useYjsProviderConnection = ({
     [
       canSeed,
       didResyncOnConnectRef,
+      onFirstSync,
       onResyncFromServer,
       seedDocument,
       seededOnceRef,

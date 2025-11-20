@@ -1,3 +1,4 @@
+export {};
 jest.mock("@/actions/users/getUserId", () => ({
   getUserId: jest.fn(async () => "u1"),
 }));

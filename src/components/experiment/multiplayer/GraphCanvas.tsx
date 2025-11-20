@@ -147,6 +147,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     }
   }, [edges, graph, yMetaMap, rf]);
 
+  const nodesForRender = React.useMemo(() => {
+    try {
+      if (canWrite) return nodes;
+      // Force-disable dragging for all nodes when read-only
+      return (nodes as any[]).map((n) => ({ ...n, draggable: false }));
+    } catch {
+      return nodes;
+    }
+  }, [nodes, canWrite]);
+
   // Custom hooks for managing complex logic
   useGraphKeyboardHandlers({ graph, copiedNodeIdRef });
   useGraphWheelHandler({ containerRef });
@@ -411,7 +421,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
         return (
           <ReactFlow
-            nodes={nodes}
+            nodes={nodesForRender}
             edges={edgesForRender}
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
@@ -451,7 +461,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             zoomOnDoubleClick={false}
             minZoom={0.1}
             maxZoom={10}
-            nodesDraggable={!connectMode && !grabMode && !mindchangeMode}
+            nodesDraggable={Boolean(canWrite) && !connectMode && !grabMode && !mindchangeMode}
             nodesConnectable={!grabMode}
             elementsSelectable={selectMode}
             nodesFocusable={selectMode}
