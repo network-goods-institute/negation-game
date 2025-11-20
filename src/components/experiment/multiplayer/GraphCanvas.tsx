@@ -16,6 +16,7 @@ import { useGraphWheelHandler } from '@/hooks/experiment/multiplayer/useGraphWhe
 import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNodeHandlers';
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
 import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
+import { SnapLines } from './SnapLines';
 
 type YProvider = WebsocketProvider | null;
 
@@ -173,6 +174,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     handleNodeDragStart: handleNodeDragStartInternal,
     handleNodeDrag,
     handleNodeDragStop: handleNodeDragStopInternal,
+    snapResult,
+    finalizingSnap,
+    draggingActive,
   } = useGraphNodeHandlers({
     graph,
     grabMode,
@@ -365,8 +369,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
-            } else if (c?.type === 'position' && (connectMode || mindchangeMode)) {
-              // Ignore any incidental position changes while connecting or in mindchange mode
+            } else if (c?.type === 'position' && (connectMode || mindchangeMode || finalizingSnap || (draggingActive && c?.dragging === false))) {
+              // Ignore incidental position changes while connecting, mindchange mode, during snap finalization,
+              // and the final unsnapped ReactFlow update at drag end (c.dragging === false) while we manage snapping
               continue;
             } else if (c?.type === 'position' && c?.id && altCloneMapRef.current.has(String(c.id))) {
               const mapping = altCloneMapRef.current.get(String(c.id));
@@ -507,6 +512,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       })(), edgesLayer)}
       {/* Global arrow markers for mindchange edges */}
       {edgesLayer && createPortal(<EdgeArrowMarkers />, edgesLayer)}
+      {/* Snap lines for node dragging */}
+      <SnapLines
+        snappedX={snapResult?.snappedX ?? false}
+        snappedY={snapResult?.snappedY ?? false}
+        snapX={snapResult?.snapLineX ?? null}
+        snapY={snapResult?.snapLineY ?? null}
+        edgesLayer={edgesLayer}
+      />
       <CursorOverlay cursors={cursors} />
       <OffscreenNeighborPreviews blurAllNodes={blurAllNodes} />
       {!grabMode && !perfMode && (
