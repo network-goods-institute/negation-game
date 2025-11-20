@@ -396,10 +396,11 @@ export const useEditableNode = ({
 
   const onInput = (e: React.FormEvent<HTMLDivElement>) => {
     draftRef.current = (e.target as HTMLDivElement).innerText;
-    if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
-    updateTimerRef.current = window.setTimeout(() => {
-      updateNodeContent(id, draftRef.current);
-    }, 120);
+    if (updateTimerRef.current) {
+      clearTimeout(updateTimerRef.current);
+      updateTimerRef.current = null;
+    }
+    updateNodeContent(id, draftRef.current);
     if (wrapperRef.current && contentRef.current) {
       wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
 
