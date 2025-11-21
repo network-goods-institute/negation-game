@@ -1,12 +1,10 @@
-import React, { useRef, useState } from 'react';
-import { Position } from '@xyflow/react';
+import React, { useRef, useMemo } from 'react';
+import { Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
 import { usePerformanceMode } from './PerformanceContext';
 import { useNodeChrome } from './common/useNodeChrome';
-import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { LockIndicator } from './common/LockIndicator';
@@ -31,12 +29,22 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     grabMode,
   } = useGraphActions() as any;
   const { perfMode } = usePerformanceMode();
+  const rf = useReactFlow();
 
   const content = data?.statement || '';
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = (data as any)?.hidden === true;
+
+  const selectedNodes = useMemo(() => {
+    try {
+      return rf.getNodes().filter((n: any) => n?.selected && n.type === 'statement');
+    } catch { return []; }
+  }, [rf]);
+
+  const isMultiSelected = selectedNodes.length > 1;
+  const selectedNodeIds = useMemo(() => selectedNodes.map((n: any) => n.id), [selectedNodes]);
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -83,16 +91,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   });
 
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const handleContextMenu = useContextMenuHandler({
-    isEditing,
-    onOpenMenu: (pos) => {
-      setMenuPos(pos);
-      setMenuOpen(true);
-    },
-  });
 
   return (
     <>
@@ -151,7 +149,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             }
             onClick(e);
           },
-          onContextMenu: handleContextMenu,
           onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
             // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
             e.stopPropagation();
@@ -192,7 +189,11 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           <NodeActionPill
             label="Add Option"
             visible={shouldShowPill}
-            onClick={() => { if (isConnectMode) return; addPointBelow(id); forceHidePills(); }}
+            onClick={() => {
+              if (isConnectMode) return;
+              addPointBelow(isMultiSelected ? selectedNodeIds : id);
+              forceHidePills();
+            }}
             colorClass="bg-blue-600"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -200,15 +201,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           />
         )}
       </NodeShell>
-      <ContextMenu
-        open={menuOpen}
-        x={menuPos.x}
-        y={menuPos.y}
-        onClose={() => setMenuOpen(false)}
-        items={[
-          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-        ]}
-      />
     </>
   );
 };

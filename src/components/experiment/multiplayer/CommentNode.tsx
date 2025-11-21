@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Position } from '@xyflow/react';
+import { Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { ContextMenu } from './common/ContextMenu';
 import { NodeActionPill } from './common/NodeActionPill';
 import { toast } from 'sonner';
 import { useNodeChrome } from './common/useNodeChrome';
 import { NodeShell } from './common/NodeShell';
-import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { LockIndicator } from './common/LockIndicator';
 import { useForceHidePills } from './common/useForceHidePills';
 import { usePerformanceMode } from './PerformanceContext';
@@ -47,6 +45,16 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
   const { perfMode } = usePerformanceMode();
+  const rf = useReactFlow();
+
+  const selectedNodes = useMemo(() => {
+    try {
+      return rf.getNodes().filter((n: any) => n?.selected && n.type === 'comment');
+    } catch { return []; }
+  }, [rf]);
+
+  const isMultiSelected = selectedNodes.length > 1;
+  const selectedNodeIds = useMemo(() => selectedNodes.map((n: any) => n.id), [selectedNodes]);
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -96,28 +104,19 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     onHoverLeave: onHoverLeave,
   });
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const handleContextMenu = useContextMenuHandler({
-    isEditing,
-    onOpenMenu: (pos) => {
-      setMenuPos(pos);
-      setMenuOpen(true);
-    },
-  });
 
   const handleReply = () => {
     if (isConnectMode || locked) return;
 
-    const result = addPointBelow?.(id);
+    // Pass array of IDs if multi-selected, otherwise single ID
+    const result = addPointBelow?.(isMultiSelected ? selectedNodeIds : id);
+
     if (!result) return;
 
     const newNodeId = typeof result === 'string' ? result : result.nodeId;
     if (newNodeId && updateNodeType) {
       updateNodeType(newNodeId, 'comment');
     }
-
     startEditingNode?.(newNodeId);
   };
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -179,7 +178,6 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
       }
       onClick(e);
     },
-    onContextMenu: handleContextMenu,
     'data-selected': selected,
   } as React.HTMLAttributes<HTMLDivElement>;
 
@@ -261,15 +259,6 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
           />
         )}
       </NodeShell>
-      <ContextMenu
-        open={menuOpen}
-        x={menuPos.x}
-        y={menuPos.y}
-        onClose={() => setMenuOpen(false)}
-        items={[
-          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-        ]}
-      />
     </>
   );
 };

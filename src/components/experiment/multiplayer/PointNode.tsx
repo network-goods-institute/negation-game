@@ -103,17 +103,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     onPillMouseLeave: pill.handleMouseLeave,
     onHoverLeave: onHoverLeave,
   });
-
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const handleContextMenu = useContextMenuHandler({
-    isEditing,
-    onOpenMenu: (pos) => {
-      setMenuPos(pos);
-      setMenuOpen(true);
-    },
-  });
   const [sliverHovered, setSliverHovered] = useState(false);
   const [sliverAnimating, setSliverAnimating] = useState(false);
   const [sliverFading, setSliverFading] = useState(false);
@@ -174,6 +163,15 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       return String(mcEdge.source) === id || String(mcEdge.target) === id;
     } catch { return false; }
   }, [graphCtx?.mindchangeMode, graphCtx?.mindchangeEdgeId, graphCtx?.mindchangeNextDir, rf, id]);
+
+  const selectedNodes = useMemo(() => {
+    try {
+      return rf.getNodes().filter((n: any) => n?.selected && (n.type === 'point' || n.type === 'objection'));
+    } catch { return []; }
+  }, [rf]);
+
+  const isMultiSelected = selectedNodes.length > 1;
+  const selectedNodeIds = useMemo(() => selectedNodes.map((n: any) => n.id), [selectedNodes]);
 
   const handleInverseSliverClick = () => {
     let calculatedDistance = 400;
@@ -311,7 +309,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       }
       onClick(e);
     },
-    onContextMenu: handleContextMenu,
     'data-selected': selected,
   } as React.HTMLAttributes<HTMLDivElement>;
 
@@ -399,7 +396,11 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             <NodeActionPill
               label="Add Point"
               visible={isEditing ? true : (shouldShowPill && extras.showExtras)}
-              onClick={() => { if (isConnectMode) return; addPointBelow?.(id); forceHidePills(); }}
+              onClick={() => {
+                if (isConnectMode) return;
+                addPointBelow?.(isMultiSelected ? selectedNodeIds : id);
+                forceHidePills();
+              }}
               colorClass="bg-stone-900"
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
@@ -408,15 +409,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           </div>
         )}
       </NodeShell>
-      <ContextMenu
-        open={menuOpen}
-        x={menuPos.x}
-        y={menuPos.y}
-        onClose={() => setMenuOpen(false)}
-        items={[
-          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-        ]}
-      />
     </>
   );
 };

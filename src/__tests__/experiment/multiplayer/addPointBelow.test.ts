@@ -1,20 +1,30 @@
-import { createAddPointBelow } from '@/utils/experiment/multiplayer/graphOperations';
-import * as Y from 'yjs';
+import { createAddPointBelow } from "@/utils/experiment/multiplayer/graphOperations";
+import * as Y from "yjs";
 
-jest.mock('sonner', () => ({ toast: { warning: jest.fn(), success: jest.fn(), info: jest.fn(), error: jest.fn() } }));
+jest.mock("sonner", () => ({
+  toast: {
+    warning: jest.fn(),
+    success: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
-describe('createAddPointBelow', () => {
+describe("createAddPointBelow", () => {
   const buildEnv = (parent: { id: string; type: string }) => {
     const doc = new Y.Doc();
-    const yNodesMap = doc.getMap<any>('nodes');
-    const yEdgesMap = doc.getMap<any>('edges');
-    const yTextMap = doc.getMap<Y.Text>('node_text');
+    const yNodesMap = doc.getMap<any>("nodes");
+    const yEdgesMap = doc.getMap<any>("edges");
+    const yTextMap = doc.getMap<Y.Text>("node_text");
     let nodes = [
       {
         id: parent.id,
         type: parent.type,
         position: { x: 0, y: 0 },
-        data: parent.type === 'statement' ? { statement: 'Parent question' } : { content: 'Parent point', favor: 5 },
+        data:
+          parent.type === "statement"
+            ? { statement: "Parent question" }
+            : { content: "Parent point", favor: 5 },
       },
     ];
     let edges: any[] = [];
@@ -33,11 +43,20 @@ describe('createAddPointBelow', () => {
       return edges;
     };
 
-    return { doc, yNodesMap, yEdgesMap, yTextMap, setNodes, setEdges, getNodes: () => nodes, getEdges: () => edges };
+    return {
+      doc,
+      yNodesMap,
+      yEdgesMap,
+      yTextMap,
+      setNodes,
+      setEdges,
+      getNodes: () => nodes,
+      getEdges: () => edges,
+    };
   };
 
-  it('uses preferred support edge for point parents', () => {
-    const env = buildEnv({ id: 'parent', type: 'point' });
+  it("uses preferred support edge for point parents", () => {
+    const env = buildEnv({ id: "parent", type: "point" });
     const onEdgeCreated = jest.fn();
     const addPointBelow = createAddPointBelow(
       env.getNodes(),
@@ -54,20 +73,29 @@ describe('createAddPointBelow', () => {
       undefined,
       undefined,
       {
-        getPreferredEdgeType: () => 'support',
+        getPreferredEdgeType: () => "support",
         onEdgeCreated,
       }
     );
 
-    const result = addPointBelow('parent');
+    const result = addPointBelow("parent");
 
-    expect(result?.edgeType).toBe('support');
-    expect(env.getEdges()[0].type).toBe('support');
-    expect(onEdgeCreated).toHaveBeenCalledWith(expect.objectContaining({ edgeType: 'support' }));
+    expect(result).toBeDefined();
+    expect(!Array.isArray(result)).toBe(true);
+    const singleResult = result as {
+      nodeId: string;
+      edgeId: string;
+      edgeType: string;
+    };
+    expect(singleResult.edgeType).toBe("support");
+    expect(env.getEdges()[0].type).toBe("support");
+    expect(onEdgeCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ edgeType: "support" })
+    );
   });
 
-  it('uses preferred negation edge for point parents', () => {
-    const env = buildEnv({ id: 'parent', type: 'point' });
+  it("uses preferred negation edge for point parents", () => {
+    const env = buildEnv({ id: "parent", type: "point" });
     const addPointBelow = createAddPointBelow(
       env.getNodes(),
       env.yNodesMap,
@@ -83,18 +111,25 @@ describe('createAddPointBelow', () => {
       undefined,
       undefined,
       {
-        getPreferredEdgeType: () => 'negation',
+        getPreferredEdgeType: () => "negation",
       }
     );
 
-    const result = addPointBelow('parent');
+    const result = addPointBelow("parent");
 
-    expect(result?.edgeType).toBe('negation');
-    expect(env.getEdges()[0].type).toBe('negation');
+    expect(result).toBeDefined();
+    expect(!Array.isArray(result)).toBe(true);
+    const singleResult = result as {
+      nodeId: string;
+      edgeId: string;
+      edgeType: string;
+    };
+    expect(singleResult.edgeType).toBe("negation");
+    expect(env.getEdges()[0].type).toBe("negation");
   });
 
-  it('falls back to option edges for statement parents', () => {
-    const env = buildEnv({ id: 'parent', type: 'statement' });
+  it("falls back to option edges for statement parents", () => {
+    const env = buildEnv({ id: "parent", type: "statement" });
     const addPointBelow = createAddPointBelow(
       env.getNodes(),
       env.yNodesMap,
@@ -110,13 +145,20 @@ describe('createAddPointBelow', () => {
       undefined,
       undefined,
       {
-        getPreferredEdgeType: () => 'negation',
+        getPreferredEdgeType: () => "negation",
       }
     );
 
-    const result = addPointBelow('parent');
+    const result = addPointBelow("parent");
 
-    expect(result?.edgeType).toBe('option');
-    expect(env.getEdges()[0].type).toBe('option');
+    expect(result).toBeDefined();
+    expect(!Array.isArray(result)).toBe(true);
+    const singleResult = result as {
+      nodeId: string;
+      edgeId: string;
+      edgeType: string;
+    };
+    expect(singleResult.edgeType).toBe("option");
+    expect(env.getEdges()[0].type).toBe("option");
   });
 });

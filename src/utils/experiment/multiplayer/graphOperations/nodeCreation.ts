@@ -273,58 +273,126 @@ export const createAddPointBelow = (
   getViewportOffset?: () => { x: number; y: number },
   options?: CreateAddPointBelowOptions
 ) => {
-  return (parentNodeId: string) => {
-    if (isLockedForMe?.(parentNodeId)) {
-      const owner = getLockOwner?.(parentNodeId);
-      toast.warning(`Locked by ${owner?.name || "another user"}`);
+  return (parentNodeId: string | string[]) => {
+    const parentNodeIds = Array.isArray(parentNodeId)
+      ? parentNodeId
+      : [parentNodeId];
+
+    const lockedParents = parentNodeIds.filter((id) => isLockedForMe?.(id));
+    if (lockedParents.length > 0) {
+      const owner = getLockOwner?.(lockedParents[0]);
+      toast.warning(
+        `${lockedParents.length > 1 ? "Some nodes are" : "Node is"} locked by ${owner?.name || "another user"}`
+      );
       return;
     }
+
     if (!canWrite) {
       showReadOnlyToast();
       return;
     }
+
     const now = Date.now();
-    const last = lastAddRef.current[parentNodeId] || 0;
+
+    const parents = parentNodeIds
+      .map((id) => nodes.find((n: any) => n.id === id))
+      .filter(Boolean);
+
+    if (parents.length === 0) return;
+
+    const firstParentId = parentNodeIds[0];
+    const last = lastAddRef.current[firstParentId] || 0;
     if (now - last < 500) return;
-    lastAddRef.current[parentNodeId] = now;
-    const parent = nodes.find((n: any) => n.id === parentNodeId);
-    if (!parent) return;
+    lastAddRef.current[firstParentId] = now;
+
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
-    const parentType = parent.type;
-    const preferred = options?.getPreferredEdgeType?.({ parent });
-    const edgeType = chooseEdgeType("point", parentType, preferred);
+    const firstParent = parents[0];
+    let newPos;
+    if (parents.length > 1) {
+      const positions = parents.map((p: any) => ({
+        x: p.position.x,
+        y: p.position.y,
+      }));
+      const centerX =
+        positions.reduce((sum, pos) => sum + pos.x, 0) / positions.length;
+      const centerY =
+        positions.reduce((sum, pos) => sum + pos.y, 0) / positions.length;
+      newPos = { x: centerX, y: centerY };
+    } else {
+      newPos = calculateNodePositionBelow(
+        firstParent,
+        nodes,
+        getViewportOffset
+      );
+    }
 
-    const newPos = calculateNodePositionBelow(parent, nodes, getViewportOffset);
-    const defaultContent =
-      parentType === "statement" || parentType === "title"
-        ? "New Option"
-        : edgeType === "support"
-          ? "New Support"
-          : edgeType === "negation"
-            ? "New Negation"
-            : "New Point";
+    // Determine content based on parent types
+    const parentTypes = new Set(parents.map((p: any) => p.type));
+    const firstParentType = firstParent.type;
+    let defaultContent = "New Point";
 
+    // Only use type-specific labels when ALL parents are the same type
+    // Mixed types always default to "New Point" to avoid confusion
+    if (parentTypes.size === 1) {
+      // All same type - use appropriate label
+      if (firstParentType === "statement" || firstParentType === "title") {
+        defaultContent = "New Option";
+      } else if (firstParentType === "comment") {
+        defaultContent = "New Comment";
+      } else {
+        // For point/objection parents, determine label based on edge type
+        const preferred = options?.getPreferredEdgeType?.({
+          parent: firstParent,
+        });
+        const edgeType = chooseEdgeType("point", firstParentType, preferred);
+        if (edgeType === "support") {
+          defaultContent = "New Support";
+        } else if (edgeType === "negation") {
+          defaultContent = "New Negation";
+        }
+        // If no specific edge type, stays "New Point" (default)
+      }
+    }
+    // If mixed types (parentTypes.size > 1), defaultContent stays "New Point"
+
+    // Create the new node
     const newNode: any = {
       id: newId,
       type: "point",
       position: {
         x: newPos.x,
-        y: newPos.y + (parentType === "comment" ? -10 : 32),
+        y: newPos.y + (firstParentType === "comment" ? -10 : 32),
       },
       data: { content: defaultContent, favor: 5, createdAt: Date.now() },
       selected: true,
     };
-    const newEdge: any = {
-      id: generateEdgeId(),
-      type: edgeType,
-      source: newId,
-      target: parentNodeId,
-      sourceHandle: `${newId}-source-handle`,
-      targetHandle: `${parentNodeId}-incoming-handle`,
-      data: {},
-    };
-    // Clear all existing selections and add new node/edge
+
+    // Create edges to ALL parents
+    const newEdges: any[] = [];
+    const results: Array<{ nodeId: string; edgeId: string; edgeType: string }> =
+      [];
+
+    for (const parent of parents) {
+      const parentType = (parent as any).type;
+      const preferred = options?.getPreferredEdgeType?.({ parent });
+      const edgeType = chooseEdgeType("point", parentType, preferred);
+
+      const newEdge: any = {
+        id: generateEdgeId(),
+        type: edgeType,
+        source: newId,
+        target: (parent as any).id,
+        sourceHandle: `${newId}-source-handle`,
+        targetHandle: `${(parent as any).id}-incoming-handle`,
+        data: {},
+      };
+
+      newEdges.push(newEdge);
+      results.push({ nodeId: newId, edgeId: newEdge.id, edgeType });
+    }
+
+    // Clear all existing selections and add the new node/edges
     options?.onNodeCreated?.();
     setNodes((curr) => [
       ...curr.map((n) => ({ ...n, selected: false })),
@@ -333,14 +401,16 @@ export const createAddPointBelow = (
     // Clear any edge selection so text selection in new node works properly
     setEdges((eds) => [
       ...eds.map((e) => ({ ...e, selected: false })),
-      newEdge,
+      ...newEdges,
     ]);
+
+    // Notify about added node
     options?.onNodeAdded?.(newId);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         yNodesMap.set(newId, newNode);
-        yEdgesMap.set(newEdge.id, newEdge);
+        newEdges.forEach((edge) => yEdgesMap.set(edge.id, edge));
         if (yTextMap && !yTextMap.get(newId)) {
           const t = new Y.Text();
           t.insert(0, defaultContent);
@@ -349,8 +419,10 @@ export const createAddPointBelow = (
       }, localOrigin);
     }
 
-    const result = { nodeId: newId, edgeId: newEdge.id, edgeType };
-    options?.onEdgeCreated?.(result);
-    return result;
+    // Trigger edge created callback for each edge
+    results.forEach((result) => options?.onEdgeCreated?.(result));
+
+    // Return single result (the one node with multiple edges)
+    return results[0];
   };
 };

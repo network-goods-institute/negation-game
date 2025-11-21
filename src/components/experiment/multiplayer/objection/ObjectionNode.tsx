@@ -1,13 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Position, useStore, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 
-import { ContextMenu } from '../common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
 import { usePerformanceMode } from '../PerformanceContext';
 import { useNodeChrome } from '../common/useNodeChrome';
-import { useContextMenuHandler } from '../common/useContextMenuHandler';
 import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 import { useForceHidePills } from '../common/useForceHidePills';
@@ -49,6 +47,15 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const hidden = (data as any)?.hidden === true;
 
     const rf = useReactFlow();
+
+    const selectedNodes = useMemo(() => {
+        try {
+            return rf.getNodes().filter((n: any) => n?.selected && (n.type === 'point' || n.type === 'objection'));
+        } catch { return []; }
+    }, [rf]);
+
+    const isMultiSelected = selectedNodes.length > 1;
+    const selectedNodeIds = useMemo(() => selectedNodes.map((n: any) => n.id), [selectedNodes]);
 
     const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
         id,
@@ -136,16 +143,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         }
     }, [value, contentRef, wrapperRef]);
 
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-    const handleContextMenu = useContextMenuHandler({
-        isEditing,
-        onOpenMenu: (pos) => {
-            setMenuPos(pos);
-            setMenuOpen(true);
-        },
-    });
     const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 5));
 
     const favorOpacity = useFavorOpacity({
@@ -239,7 +236,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             }
             onClick(e);
         },
-        onContextMenu: handleContextMenu,
         onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
             // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
             e.stopPropagation();
@@ -340,7 +336,11 @@ items-center justify-center pointer-events-none select-none">
                         <NodeActionPill
                             label="Add Point"
                             visible={isEditing ? true : (shouldShowPill && extras.showExtras)}
-                            onClick={() => { if (isConnectMode) return; addPointBelow?.(id); forceHidePills(); }}
+                            onClick={() => {
+                                if (isConnectMode) return;
+                                addPointBelow?.(isMultiSelected ? selectedNodeIds : id);
+                                forceHidePills();
+                            }}
                             colorClass="bg-stone-900"
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
@@ -349,15 +349,6 @@ items-center justify-center pointer-events-none select-none">
                     </div>
                 )}
             </NodeShell>
-            <ContextMenu
-                open={menuOpen}
-                x={menuPos.x}
-                y={menuPos.y}
-                onClose={() => setMenuOpen(false)}
-                items={[
-                    { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-                ]}
-            />
         </>
     );
 };
