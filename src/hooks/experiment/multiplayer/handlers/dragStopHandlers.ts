@@ -168,15 +168,53 @@ export function createHandleNodeDragStop({
             });
           });
         } else {
-          // Fallback: multi-select without initialGroupBounds. We cannot compute a group snap,
-          // but we must still ensure cleanup happens and suppress the final unsnapped RF update.
+          // Fallback: handle ctrl-pressed bypass or multi-select without group bounds
           dragStateRef.current.finalizingSnap = true;
-          requestAnimationFrame(() => {
+
+          if (!ctrlPressed && isMultiSelect) {
+            // Multi-select without ctrl: update all selected nodes
+            const leaderInitial = dragStateRef.current.initialPositionsById[
+              dragStateRef.current.nodeId || ""
+            ] || {
+              x: node.position?.x ?? 0,
+              y: node.position?.y ?? 0,
+            };
+            const dx = (node.position?.x ?? 0) - leaderInitial.x;
+            const dy = (node.position?.y ?? 0) - leaderInitial.y;
+
+            const positionsById = dragStateRef.current.selectedNodeIds.reduce<
+              Record<string, { x: number; y: number }>
+            >((acc, id) => {
+              const init = dragStateRef.current.initialPositionsById[id] || {
+                x: 0,
+                y: 0,
+              };
+              acc[id] = { x: init.x + dx, y: init.y + dy };
+              return acc;
+            }, {});
+
+            const ids = Object.keys(positionsById);
             requestAnimationFrame(() => {
-              dragStateRef.current.finalizingSnap = false;
-              cleanup();
+              requestAnimationFrame(() => {
+                for (const id of ids) {
+                  const p = positionsById[id];
+                  graph.updateNodePosition?.(id, p.x, p.y);
+                }
+                requestAnimationFrame(() => {
+                  dragStateRef.current.finalizingSnap = false;
+                  cleanup();
+                });
+              });
             });
-          });
+          } else {
+            // Ctrl pressed or single node: just clean up
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                dragStateRef.current.finalizingSnap = false;
+                cleanup();
+              });
+            });
+          }
         }
 
         // Defer cleanup to the requestAnimationFrame chain above

@@ -181,12 +181,34 @@ export function createHandleNodeDrag({
           });
         }
       } else {
+        // Fallback: handle ctrl-pressed bypass or multi-select without group bounds
         dragStateRef.current.rafId = requestAnimationFrame(() => {
-          graph.updateNodePosition?.(
-            node.id,
-            node.position?.x ?? 0,
-            node.position?.y ?? 0
-          );
+          if (!ctrlPressed && isMultiSelect && dragStateRef.current.selectedNodeIds.length > 0) {
+            // Multi-select fallback without ctrl: update all selected nodes based on the leader's movement
+            const leaderInitial = dragStateRef.current.initialPositionsById[
+              dragStateRef.current.nodeId || ""
+            ] || {
+              x: node.position?.x ?? 0,
+              y: node.position?.y ?? 0,
+            };
+            const dx = (node.position?.x ?? 0) - leaderInitial.x;
+            const dy = (node.position?.y ?? 0) - leaderInitial.y;
+
+            for (const id of dragStateRef.current.selectedNodeIds) {
+              const init = dragStateRef.current.initialPositionsById[id] || {
+                x: 0,
+                y: 0,
+              };
+              graph.updateNodePosition?.(id, init.x + dx, init.y + dy);
+            }
+          } else {
+            // Ctrl pressed or single node: only update the dragged node
+            graph.updateNodePosition?.(
+              node.id,
+              node.position?.x ?? 0,
+              node.position?.y ?? 0
+            );
+          }
           setSnapResult(null);
         });
       }

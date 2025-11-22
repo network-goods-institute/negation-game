@@ -370,8 +370,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
             } else if (c?.type === 'position' && (connectMode || mindchangeMode || finalizingSnap || (draggingActive && c?.dragging === false))) {
-              // Ignore incidental position changes while connecting, mindchange mode, during snap finalization,
-              // and the final unsnapped ReactFlow update at drag end (c.dragging === false) while we manage snapping
+              // Block position updates during special modes, but allow dragging state to clear
+              if (c?.dragging === false && (finalizingSnap || draggingActive)) {
+                // Pass through a change that only updates the dragging flag, not position
+                passthrough.push({ id: c.id, type: 'position', dragging: false });
+              }
+              // Otherwise ignore the position change entirely
               continue;
             } else if (c?.type === 'position' && c?.id && altCloneMapRef.current.has(String(c.id))) {
               const mapping = altCloneMapRef.current.get(String(c.id));
