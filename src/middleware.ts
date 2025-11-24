@@ -101,7 +101,9 @@ function handleSubdomain(
       url.searchParams.forEach((value, key) => {
         dest.searchParams.set(key, value);
       });
-      return NextResponse.rewrite(dest);
+      const response = NextResponse.rewrite(dest);
+      response.headers.set(SPACE_HEADER, "global");
+      return response;
     }
     const boardMatch = path.match(/^\/board\/([^/]+)\/?$/);
     if (boardMatch) {
@@ -113,9 +115,13 @@ function handleSubdomain(
       url.searchParams.forEach((value, key) => {
         dest.searchParams.set(key, value);
       });
-      return NextResponse.rewrite(dest);
+      const response = NextResponse.rewrite(dest);
+      response.headers.set(SPACE_HEADER, "global");
+      return response;
     }
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set(SPACE_HEADER, "global");
+    return response;
   }
 
   // Handle play subdomain - shows the old landing page and app behavior
@@ -133,7 +139,13 @@ function handleSubdomain(
       });
       return NextResponse.redirect(newUrl, 307);
     }
-    return NextResponse.next();
+    const response = NextResponse.next();
+    // Extract space from pathname if available
+    const space = getSpaceFromPathname(pathname);
+    if (space) {
+      response.headers.set(SPACE_HEADER, space);
+    }
+    return response;
   }
 
   // Handle scroll subdomain - redirects to scroll space
@@ -211,7 +223,13 @@ function handleSubdomain(
     return response;
   }
 
-  return NextResponse.next();
+  // Unknown subdomain - extract space from pathname if available
+  const unknownSubdomainResponse = NextResponse.next();
+  const spaceFromPath = getSpaceFromPathname(url.pathname);
+  if (spaceFromPath) {
+    unknownSubdomainResponse.headers.set(SPACE_HEADER, spaceFromPath);
+  }
+  return unknownSubdomainResponse;
 }
 
 export default async function middleware(req: NextRequest) {
@@ -374,6 +392,8 @@ export default async function middleware(req: NextRequest) {
     authResponse.headers.forEach((value, key) => {
       rewriteResponse.headers.set(key, value);
     });
+    // Board routes use global space
+    rewriteResponse.headers.set(SPACE_HEADER, "global");
     return rewriteResponse;
   }
 
@@ -387,6 +407,8 @@ export default async function middleware(req: NextRequest) {
     authResponse.headers.forEach((value, key) => {
       rewriteResponse.headers.set(key, value);
     });
+    // Root path uses global space
+    rewriteResponse.headers.set(SPACE_HEADER, "global");
     return rewriteResponse;
   }
 
@@ -408,8 +430,9 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(newUrl, 307);
   }
 
-  // Redirect /s/* paths to play.negationgame.com on root domain
-  if (pathname.startsWith("/s/")) {
+  // Redirect /s/* paths to play.negationgame.com on root domain (but not in dev)
+  const isLocalhost = hostNoPort === 'localhost' || hostNoPort === '127.0.0.1' || hostNoPort.startsWith('localhost:') || hostNoPort.startsWith('127.0.0.1:');
+  if (pathname.startsWith("/s/") && !isLocalhost) {
     const redirectUrl = new URL(
       `https://play.negationgame.com${pathname}`,
       req.url
@@ -423,12 +446,21 @@ export default async function middleware(req: NextRequest) {
   // Allow only specific paths on root domain
   // Everything else redirects to play.negationgame.com
   const allowedRootPaths = ["/experiment"];
+  if (isLocalhost) {
+    // Allow /s/ paths in development
+    allowedRootPaths.push("/s/");
+  }
   const isAllowedOnRoot = allowedRootPaths.some((prefix) =>
     pathname.startsWith(prefix)
   );
 
   if (isAllowedOnRoot) {
     authResponse.headers.set("X-Robots-Tag", "noindex, nofollow");
+    // Set SPACE_HEADER if the path includes a space segment
+    const space = getSpaceFromPathname(pathname);
+    if (space) {
+      authResponse.headers.set(SPACE_HEADER, space);
+    }
     return authResponse;
   }
 
