@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import { useNodeChrome } from './common/useNodeChrome';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { LockIndicator } from './common/LockIndicator';
+import { useSelectionPayload } from './common/useSelectionPayload';
 
 interface StatementNodeProps {
   id: string;
@@ -18,10 +19,9 @@ interface StatementNodeProps {
 export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected }) => {
   const {
     updateNodeContent,
-    updateNodeHidden,
+    updateNodePosition,
     addPointBelow,
     isConnectingFromNodeId,
-    deleteNode,
     startEditingNode,
     stopEditingNode,
     isLockedForMe,
@@ -37,14 +37,13 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = (data as any)?.hidden === true;
 
-  const selectedNodes = useMemo(() => {
+  const getSelectedStatements = useCallback(() => {
     try {
-      return rf.getNodes().filter((n: any) => n?.selected && n.type === 'statement');
-    } catch { return []; }
+      return rf.getNodes().filter((n: any) => n?.selected && n.type !== 'edge_anchor');
+    } catch {
+      return [];
+    }
   }, [rf]);
-
-  const isMultiSelected = selectedNodes.length > 1;
-  const selectedNodeIds = useMemo(() => selectedNodes.map((n: any) => n.id), [selectedNodes]);
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -80,7 +79,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     isConnectMode,
   } = editable;
 
-  const { hovered, onMouseEnter, onMouseLeave } = hover;
+  const { onMouseEnter, onMouseLeave } = hover;
   const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 
   const forceHidePills = useForceHidePills({
@@ -89,6 +88,84 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     onPillMouseLeave: handleMouseLeave,
     onHoverLeave: onMouseLeave,
   });
+
+  const buildSelectionPayload = useSelectionPayload(id, getSelectedStatements);
+  const capturedSelectionRef = useRef<string[] | null>(null);
+  const pillHandledRef = useRef(false);
+
+  const computeCenterPosition = useCallback(
+    (
+      selection: string[],
+      positionsById: Record<string, { x: number; y: number }>,
+      nodes: any[]
+    ) => {
+      const ids = selection.length > 0 ? selection : [id];
+      const positions = ids
+        .map((nid) => positionsById[nid])
+        .filter((p): p is { x: number; y: number } => Boolean(p));
+
+      if (positions.length > 0) {
+        const centerX = positions.reduce((sum, pos) => sum + (pos.x ?? 0), 0) / positions.length;
+        const centerY = positions.reduce((sum, pos) => sum + (pos.y ?? 0), 0) / positions.length;
+        return { centerX, centerY };
+      }
+
+      if (nodes.length > 0) {
+        const centerX = nodes.reduce((sum: number, n: any) => sum + (n.position?.x ?? 0), 0) / nodes.length;
+        const centerY = nodes.reduce((sum: number, n: any) => sum + (n.position?.y ?? 0), 0) / nodes.length;
+        return { centerX, centerY };
+      }
+
+      const fallback = rf.getNode(ids[0]);
+      return {
+        centerX: fallback?.position?.x ?? 0,
+        centerY: fallback?.position?.y ?? 0,
+      };
+    },
+    [id, rf]
+  );
+
+  const handlePillMouseDown = useCallback(() => {
+    if (isConnectMode) return;
+    const payload = buildSelectionPayload();
+    const { ids: selection, positionsById, nodes: current } = payload;
+    capturedSelectionRef.current = selection;
+    pillHandledRef.current = true;
+    const result = addPointBelow?.({ ids: selection, positionsById });
+    if (result && updateNodePosition) {
+      const { centerX, centerY } = computeCenterPosition(selection, positionsById, current);
+      const newNodeId = typeof result === 'string' ? result : result.nodeId;
+      if (newNodeId) {
+        updateNodePosition(newNodeId, centerX, centerY + 32);
+      }
+    }
+    capturedSelectionRef.current = null;
+    forceHidePills();
+  }, [isConnectMode, buildSelectionPayload, addPointBelow, updateNodePosition, computeCenterPosition, forceHidePills]);
+
+  const handlePillClick = useCallback(() => {
+    if (isConnectMode) return;
+    if (pillHandledRef.current) {
+      pillHandledRef.current = false;
+      return;
+    }
+    const payload = buildSelectionPayload();
+    const selection = (capturedSelectionRef.current && capturedSelectionRef.current.length > 0)
+      ? capturedSelectionRef.current
+      : payload.ids;
+    const positionsById = payload.positionsById;
+    const current = payload.nodes;
+    const result = addPointBelow?.({ ids: selection, positionsById });
+    if (result && updateNodePosition) {
+      const { centerX, centerY } = computeCenterPosition(selection, positionsById, current);
+      const newNodeId = typeof result === 'string' ? result : result.nodeId;
+      if (newNodeId) {
+        updateNodePosition(newNodeId, centerX, centerY + 32);
+      }
+    }
+    capturedSelectionRef.current = null;
+    forceHidePills();
+  }, [isConnectMode, buildSelectionPayload, addPointBelow, updateNodePosition, computeCenterPosition, forceHidePills]);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -189,11 +266,8 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           <NodeActionPill
             label="Add Option"
             visible={shouldShowPill}
-            onClick={() => {
-              if (isConnectMode) return;
-              addPointBelow(isMultiSelected ? selectedNodeIds : id);
-              forceHidePills();
-            }}
+            onMouseDown={handlePillMouseDown}
+            onClick={handlePillClick}
             colorClass="bg-blue-600"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}

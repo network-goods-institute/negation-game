@@ -238,8 +238,16 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         const measured = (node as any).measured;
         if (!measured?.width || !measured?.height) continue;
 
-        const parentEdge = edges.find((e: any) => e.source === nodeId);
-        if (!parentEdge) continue;
+        // Check if node has multiple parents - if so, skip auto-centering
+        // (multi-parent positioning is already calculated correctly in addPointBelow)
+        const parentEdges = edges.filter((e: any) => e.source === nodeId);
+        if (parentEdges.length === 0) continue;
+        if (parentEdges.length > 1) {
+          processedIds.push(nodeId);
+          continue;
+        }
+
+        const parentEdge = parentEdges[0];
 
         const parentNode = nodes.find((n) => n.id === parentEdge.target);
         if (!parentNode) continue;

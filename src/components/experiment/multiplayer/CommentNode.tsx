@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { NodeActionPill } from './common/NodeActionPill';
@@ -8,6 +8,7 @@ import { NodeShell } from './common/NodeShell';
 import { LockIndicator } from './common/LockIndicator';
 import { useForceHidePills } from './common/useForceHidePills';
 import { usePerformanceMode } from './PerformanceContext';
+import { useSelectionPayload } from './common/useSelectionPayload';
 
 interface CommentNodeProps {
   data: {
@@ -28,17 +29,15 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   const {
     updateNodeContent,
     isConnectingFromNodeId,
-    deleteNode,
     startEditingNode,
     stopEditingNode,
     isLockedForMe,
     getLockOwner,
     setPairNodeHeight,
     addPointBelow,
-    addNodeAtPosition,
     grabMode,
-    setEdges,
     updateNodeType,
+    updateNodePosition,
   } = useGraphActions() as any;
 
   const locked = isLockedForMe?.(id) || false;
@@ -47,14 +46,13 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   const { perfMode } = usePerformanceMode();
   const rf = useReactFlow();
 
-  const selectedNodes = useMemo(() => {
+  const getSelectedComments = useCallback(() => {
     try {
-      return rf.getNodes().filter((n: any) => n?.selected && n.type === 'comment');
-    } catch { return []; }
+      return rf.getNodes().filter((n: any) => n?.selected && n.type !== 'edge_anchor');
+    } catch {
+      return [];
+    }
   }, [rf]);
-
-  const isMultiSelected = selectedNodes.length > 1;
-  const selectedNodeIds = useMemo(() => selectedNodes.map((n: any) => n.id), [selectedNodes]);
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -104,21 +102,98 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     onHoverLeave: onHoverLeave,
   });
 
+  // Capture selection on mousedown to avoid ReactFlow deselecting during click
+  const capturedSelectionRef = useRef<string[] | null>(null);
+  const pillHandledRef = useRef(false);
+  const buildSelectionPayload = useSelectionPayload(id, getSelectedComments);
 
-  const handleReply = () => {
+  const computeCenterPosition = useCallback(
+    (
+      selection: string[],
+      positionsById: Record<string, { x: number; y: number }>,
+      nodes: any[]
+    ) => {
+      const ids = selection.length > 0 ? selection : [id];
+      const positions = ids
+        .map((nid) => positionsById[nid])
+        .filter((p): p is { x: number; y: number } => Boolean(p));
+
+      if (positions.length > 0) {
+        const centerX = positions.reduce((sum, pos) => sum + (pos.x ?? 0), 0) / positions.length;
+        const centerY = positions.reduce((sum, pos) => sum + (pos.y ?? 0), 0) / positions.length;
+        return { centerX, centerY };
+      }
+
+      if (nodes.length > 0) {
+        const centerX = nodes.reduce((sum: number, n: any) => sum + (n.position?.x ?? 0), 0) / nodes.length;
+        const centerY = nodes.reduce((sum: number, n: any) => sum + (n.position?.y ?? 0), 0) / nodes.length;
+        return { centerX, centerY };
+      }
+
+      const fallback = rf.getNode(ids[0]);
+      return {
+        centerX: fallback?.position?.x ?? 0,
+        centerY: fallback?.position?.y ?? 0,
+      };
+    },
+    [id, rf]
+  );
+
+  const positionNewComment = useCallback(
+    (
+      result: { nodeId?: string } | string | undefined,
+      selection: string[],
+      positionsById: Record<string, { x: number; y: number }>,
+      nodes: any[]
+    ) => {
+      if (!result) return;
+      const newNodeId = typeof result === 'string' ? result : result?.nodeId;
+      if (!newNodeId) return;
+      const { centerX, centerY } = computeCenterPosition(selection, positionsById, nodes);
+      if (updateNodePosition) {
+        updateNodePosition(newNodeId, centerX, centerY - 10);
+      }
+      if (updateNodeType) {
+        updateNodeType(newNodeId, 'comment');
+      }
+      startEditingNode?.(newNodeId);
+    },
+    [computeCenterPosition, updateNodePosition, updateNodeType, startEditingNode]
+  );
+
+  const handlePillMouseDown = useCallback(() => {
+    if (isConnectMode) return;
+    const payload = buildSelectionPayload();
+    const { ids: selection, positionsById, nodes: current } = payload;
+    capturedSelectionRef.current = selection;
+    pillHandledRef.current = true;
+    const result = addPointBelow?.({ ids: selection, positionsById });
+    positionNewComment(result, selection, positionsById, current);
+    capturedSelectionRef.current = null;
+    forceHidePills();
+  }, [isConnectMode, buildSelectionPayload, addPointBelow, positionNewComment, forceHidePills]);
+
+
+  const handleReply = useCallback(() => {
     if (isConnectMode || locked) return;
 
-    // Pass array of IDs if multi-selected, otherwise single ID
-    const result = addPointBelow?.(isMultiSelected ? selectedNodeIds : id);
-
-    if (!result) return;
-
-    const newNodeId = typeof result === 'string' ? result : result.nodeId;
-    if (newNodeId && updateNodeType) {
-      updateNodeType(newNodeId, 'comment');
+    if (pillHandledRef.current) {
+      pillHandledRef.current = false;
+      return;
     }
-    startEditingNode?.(newNodeId);
-  };
+
+    const payload = buildSelectionPayload();
+    const selection = (capturedSelectionRef.current && capturedSelectionRef.current.length > 0)
+      ? capturedSelectionRef.current
+      : payload.ids;
+    const positionsById = payload.positionsById;
+    const current = payload.nodes;
+    const result = addPointBelow?.({ ids: selection, positionsById });
+
+    capturedSelectionRef.current = null;
+
+    positionNewComment(result, selection, positionsById, current);
+  }, [isConnectMode, locked, buildSelectionPayload, addPointBelow, positionNewComment]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const isInContainer = Boolean(parentId);
@@ -251,7 +326,8 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
           <NodeActionPill
             label="Reply"
             visible={shouldShowPill}
-            onClick={() => { if (isConnectMode) return; handleReply(); forceHidePills(); }}
+            onMouseDown={handlePillMouseDown}
+            onClick={() => { if (isConnectMode) return; handleReply(); forceHidePills(); capturedSelectionRef.current = null; }}
             colorClass="bg-stone-900"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}

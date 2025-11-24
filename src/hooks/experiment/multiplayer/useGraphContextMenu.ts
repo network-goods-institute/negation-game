@@ -16,6 +16,45 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
     string | null
   >(null);
 
+  const buildPositionsById = React.useCallback(
+    (ids: string[]) => {
+      return ids.reduce<Record<string, { x: number; y: number; width: number; height: number }>>(
+        (acc, nid) => {
+          const node = rf.getNode(nid) as any;
+          const x = Number.isFinite(node?.position?.x) ? node.position.x : 0;
+          const y = Number.isFinite(node?.position?.y) ? node.position.y : 0;
+
+          let width =
+            Number(node?.width ?? node?.measured?.width ?? node?.style?.width ?? 0) ||
+            0;
+          let height =
+            Number(node?.height ?? node?.measured?.height ?? node?.style?.height ?? 0) ||
+            0;
+
+          if ((!width || !height) && typeof document !== "undefined") {
+            try {
+              const selector = `.react-flow__node[data-id="${nid}"]`;
+              const el = document.querySelector(selector) as HTMLElement | null;
+              if (el) {
+                const rect = el.getBoundingClientRect();
+                if (!width) width = Math.ceil(rect.width);
+                if (!height) height = Math.ceil(rect.height);
+              }
+            } catch {}
+          }
+
+          if (!width) width = 240;
+          if (!height) height = 80;
+
+          acc[nid] = { x, y, width, height };
+          return acc;
+        },
+        {}
+      );
+    },
+    [rf]
+  );
+
   const handleMultiSelectContextMenu = React.useCallback(
     (e: React.MouseEvent) => {
       // Check if we're clicking on a node
@@ -101,6 +140,10 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
 
   const handleAddPointToSelected = React.useCallback(() => {
     const sel = rf.getNodes().filter((n) => (n as any).selected);
+    const contextNode = contextMenuNodeId ? rf.getNode(contextMenuNodeId) : null;
+    const contextType = (contextNode as any)?.type;
+    const wantsComment = contextType === "comment";
+
     const eligibleNodes = sel.filter((n) => {
       const type = (n as any).type;
       return (
@@ -113,10 +156,19 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
 
     if (eligibleNodes.length > 0) {
       const nodeIds = eligibleNodes.map((n) => n.id);
-      graph.addPointBelow?.(nodeIds);
+      const positionsById = buildPositionsById(nodeIds);
+      const result = graph.addPointBelow?.({ ids: nodeIds, positionsById });
+      if (wantsComment && result) {
+        const newNodeId =
+          typeof result === "string" ? result : (result as any)?.nodeId;
+        if (newNodeId) {
+          graph.updateNodeType?.(newNodeId, "comment");
+          graph.startEditingNode?.(newNodeId);
+        }
+      }
     }
     setMultiSelectMenuOpen(false);
-  }, [rf, graph]);
+  }, [rf, graph, buildPositionsById, contextMenuNodeId]);
 
   const getAddPointLabel = React.useCallback(() => {
     // Use the right-clicked node to determine the label immediately

@@ -161,4 +161,82 @@ describe("createAddPointBelow", () => {
     expect(singleResult.edgeType).toBe("option");
     expect(env.getEdges()[0].type).toBe("option");
   });
+
+  it("positions new node at center when multiple parents are provided", () => {
+    const doc = new Y.Doc();
+    const yNodesMap = doc.getMap<any>("nodes");
+    const yEdgesMap = doc.getMap<any>("edges");
+    const yTextMap = doc.getMap<Y.Text>("node_text");
+
+    const nodes = [
+      {
+        id: "parent1",
+        type: "point",
+        position: { x: 0, y: 0 },
+        measured: { width: 200, height: 100 },
+        data: { content: "Parent 1", favor: 5 },
+      },
+      {
+        id: "parent2",
+        type: "point",
+        position: { x: 100, y: 200 },
+        measured: { width: 200, height: 100 },
+        data: { content: "Parent 2", favor: 5 },
+      },
+    ];
+
+    let updatedNodes = [...nodes];
+    let updatedEdges: any[] = [];
+
+    const setNodes = (updater: (curr: any[]) => any[]) => {
+      updatedNodes = updater(updatedNodes);
+      return updatedNodes;
+    };
+
+    const setEdges = (updater: (curr: any[]) => any[]) => {
+      updatedEdges = updater(updatedEdges);
+      return updatedEdges;
+    };
+
+    doc.transact(() => {
+      nodes.forEach((node) => yNodesMap.set(node.id, node as any));
+    });
+
+    const addPointBelow = createAddPointBelow(
+      nodes,
+      yNodesMap,
+      yEdgesMap,
+      yTextMap,
+      doc,
+      true,
+      {},
+      { current: {} },
+      setNodes,
+      setEdges,
+      undefined,
+      undefined,
+      undefined,
+      {
+        getPreferredEdgeType: () => "support",
+      }
+    );
+
+    addPointBelow(["parent1", "parent2"]);
+
+    // Find the newly created node (should be the last one added)
+    const newNode = updatedNodes[updatedNodes.length - 1];
+
+    // Expected center position:
+    // centerX = (0+200/2 + 100+200/2) / 2 = (100 + 200) / 2 = 150
+    // newX = 150 - 200/2 = 50
+    // lowestBottomEdge = max(0+100, 200+100) = 300
+    // newY = 300 + 32 = 332
+    expect(newNode.position.x).toBe(50);
+    expect(newNode.position.y).toBe(332);
+
+    // Should create edges to both parents
+    expect(updatedEdges.length).toBe(2);
+    expect(updatedEdges[0].target).toBe("parent1");
+    expect(updatedEdges[1].target).toBe("parent2");
+  });
 });

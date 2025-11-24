@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import { Position, useStore, useReactFlow } from '@xyflow/react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react';
+import { Position, useReactFlow, useStore } from '@xyflow/react';
 import { useGraphActions } from '../GraphContext';
 
 import { toast } from 'sonner';
@@ -12,6 +12,8 @@ import { useForceHidePills } from '../common/useForceHidePills';
 import { FavorSelector } from '../common/FavorSelector';
 import { LockIndicator } from '../common/LockIndicator';
 import { useNodeExtrasVisibility } from '../common/useNodeExtrasVisibility';
+import { useSelectionPayload } from '../common/useSelectionPayload';
+import { usePillHandlers } from '../common/usePillHandlers';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -30,10 +32,8 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const graph = useGraphActions() as any;
     const {
         updateNodeContent,
-        updateNodeHidden,
         updateNodeFavor,
         addPointBelow,
-        deleteNode,
         startEditingNode,
         stopEditingNode,
         isLockedForMe,
@@ -48,14 +48,13 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     const rf = useReactFlow();
 
-    const selectedNodes = useMemo(() => {
+    const getSelectedObjectionish = useCallback(() => {
         try {
             return rf.getNodes().filter((n: any) => n?.selected && (n.type === 'point' || n.type === 'objection'));
-        } catch { return []; }
+        } catch {
+            return [];
+        }
     }, [rf]);
-
-    const isMultiSelected = selectedNodes.length > 1;
-    const selectedNodeIds = useMemo(() => selectedNodes.map((n: any) => n.id), [selectedNodes]);
 
     const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
         id,
@@ -133,6 +132,14 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         onPillMouseLeave: handleMouseLeave,
         onHoverLeave: onMouseLeave,
     });
+
+    const buildSelectionPayload = useSelectionPayload(id, getSelectedObjectionish);
+    const { handlePillMouseDown, handlePillClick } = usePillHandlers(
+        isConnectMode,
+        buildSelectionPayload,
+        addPointBelow,
+        forceHidePills
+    );
 
     const containerRef = useRef<HTMLDivElement | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -336,11 +343,8 @@ items-center justify-center pointer-events-none select-none">
                         <NodeActionPill
                             label="Add Point"
                             visible={isEditing ? true : (shouldShowPill && extras.showExtras)}
-                            onClick={() => {
-                                if (isConnectMode) return;
-                                addPointBelow?.(isMultiSelected ? selectedNodeIds : id);
-                                forceHidePills();
-                            }}
+                            onMouseDown={handlePillMouseDown}
+                            onClick={handlePillClick}
                             colorClass="bg-stone-900"
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
