@@ -19,7 +19,6 @@ interface StatementNodeProps {
 export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected }) => {
   const {
     updateNodeContent,
-    updateNodePosition,
     addPointBelow,
     isConnectingFromNodeId,
     startEditingNode,
@@ -93,55 +92,16 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
   const capturedSelectionRef = useRef<string[] | null>(null);
   const pillHandledRef = useRef(false);
 
-  const computeCenterPosition = useCallback(
-    (
-      selection: string[],
-      positionsById: Record<string, { x: number; y: number }>,
-      nodes: any[]
-    ) => {
-      const ids = selection.length > 0 ? selection : [id];
-      const positions = ids
-        .map((nid) => positionsById[nid])
-        .filter((p): p is { x: number; y: number } => Boolean(p));
-
-      if (positions.length > 0) {
-        const centerX = positions.reduce((sum, pos) => sum + (pos.x ?? 0), 0) / positions.length;
-        const centerY = positions.reduce((sum, pos) => sum + (pos.y ?? 0), 0) / positions.length;
-        return { centerX, centerY };
-      }
-
-      if (nodes.length > 0) {
-        const centerX = nodes.reduce((sum: number, n: any) => sum + (n.position?.x ?? 0), 0) / nodes.length;
-        const centerY = nodes.reduce((sum: number, n: any) => sum + (n.position?.y ?? 0), 0) / nodes.length;
-        return { centerX, centerY };
-      }
-
-      const fallback = rf.getNode(ids[0]);
-      return {
-        centerX: fallback?.position?.x ?? 0,
-        centerY: fallback?.position?.y ?? 0,
-      };
-    },
-    [id, rf]
-  );
-
   const handlePillMouseDown = useCallback(() => {
     if (isConnectMode) return;
     const payload = buildSelectionPayload();
-    const { ids: selection, positionsById, nodes: current } = payload;
+    const { ids: selection, positionsById } = payload;
     capturedSelectionRef.current = selection;
     pillHandledRef.current = true;
-    const result = addPointBelow?.({ ids: selection, positionsById });
-    if (result && updateNodePosition) {
-      const { centerX, centerY } = computeCenterPosition(selection, positionsById, current);
-      const newNodeId = typeof result === 'string' ? result : result.nodeId;
-      if (newNodeId) {
-        updateNodePosition(newNodeId, centerX, centerY + 32);
-      }
-    }
+    addPointBelow?.({ ids: selection, positionsById });
     capturedSelectionRef.current = null;
     forceHidePills();
-  }, [isConnectMode, buildSelectionPayload, addPointBelow, updateNodePosition, computeCenterPosition, forceHidePills]);
+  }, [isConnectMode, buildSelectionPayload, addPointBelow, forceHidePills]);
 
   const handlePillClick = useCallback(() => {
     if (isConnectMode) return;
@@ -154,18 +114,10 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
       ? capturedSelectionRef.current
       : payload.ids;
     const positionsById = payload.positionsById;
-    const current = payload.nodes;
-    const result = addPointBelow?.({ ids: selection, positionsById });
-    if (result && updateNodePosition) {
-      const { centerX, centerY } = computeCenterPosition(selection, positionsById, current);
-      const newNodeId = typeof result === 'string' ? result : result.nodeId;
-      if (newNodeId) {
-        updateNodePosition(newNodeId, centerX, centerY + 32);
-      }
-    }
+    addPointBelow?.({ ids: selection, positionsById });
     capturedSelectionRef.current = null;
     forceHidePills();
-  }, [isConnectMode, buildSelectionPayload, addPointBelow, updateNodePosition, computeCenterPosition, forceHidePills]);
+  }, [isConnectMode, buildSelectionPayload, addPointBelow, forceHidePills]);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
 

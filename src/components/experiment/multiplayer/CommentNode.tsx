@@ -37,7 +37,6 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     addPointBelow,
     grabMode,
     updateNodeType,
-    updateNodePosition,
   } = useGraphActions() as any;
 
   const locked = isLockedForMe?.(id) || false;
@@ -107,68 +106,30 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   const pillHandledRef = useRef(false);
   const buildSelectionPayload = useSelectionPayload(id, getSelectedComments);
 
-  const computeCenterPosition = useCallback(
-    (
-      selection: string[],
-      positionsById: Record<string, { x: number; y: number }>,
-      nodes: any[]
-    ) => {
-      const ids = selection.length > 0 ? selection : [id];
-      const positions = ids
-        .map((nid) => positionsById[nid])
-        .filter((p): p is { x: number; y: number } => Boolean(p));
-
-      if (positions.length > 0) {
-        const centerX = positions.reduce((sum, pos) => sum + (pos.x ?? 0), 0) / positions.length;
-        const centerY = positions.reduce((sum, pos) => sum + (pos.y ?? 0), 0) / positions.length;
-        return { centerX, centerY };
-      }
-
-      if (nodes.length > 0) {
-        const centerX = nodes.reduce((sum: number, n: any) => sum + (n.position?.x ?? 0), 0) / nodes.length;
-        const centerY = nodes.reduce((sum: number, n: any) => sum + (n.position?.y ?? 0), 0) / nodes.length;
-        return { centerX, centerY };
-      }
-
-      const fallback = rf.getNode(ids[0]);
-      return {
-        centerX: fallback?.position?.x ?? 0,
-        centerY: fallback?.position?.y ?? 0,
-      };
-    },
-    [id, rf]
-  );
-
   const positionNewComment = useCallback(
     (
       result: { nodeId?: string } | string | undefined,
-      selection: string[],
-      positionsById: Record<string, { x: number; y: number }>,
-      nodes: any[]
+      selection: string[]
     ) => {
       if (!result) return;
       const newNodeId = typeof result === 'string' ? result : result?.nodeId;
       if (!newNodeId) return;
-      const { centerX, centerY } = computeCenterPosition(selection, positionsById, nodes);
-      if (updateNodePosition) {
-        updateNodePosition(newNodeId, centerX, centerY - 10);
-      }
       if (updateNodeType) {
         updateNodeType(newNodeId, 'comment');
       }
       startEditingNode?.(newNodeId);
     },
-    [computeCenterPosition, updateNodePosition, updateNodeType, startEditingNode]
+    [updateNodeType, startEditingNode]
   );
 
   const handlePillMouseDown = useCallback(() => {
     if (isConnectMode) return;
     const payload = buildSelectionPayload();
-    const { ids: selection, positionsById, nodes: current } = payload;
+    const { ids: selection, positionsById } = payload;
     capturedSelectionRef.current = selection;
     pillHandledRef.current = true;
     const result = addPointBelow?.({ ids: selection, positionsById });
-    positionNewComment(result, selection, positionsById, current);
+    positionNewComment(result, selection);
     capturedSelectionRef.current = null;
     forceHidePills();
   }, [isConnectMode, buildSelectionPayload, addPointBelow, positionNewComment, forceHidePills]);
@@ -187,12 +148,11 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
       ? capturedSelectionRef.current
       : payload.ids;
     const positionsById = payload.positionsById;
-    const current = payload.nodes;
     const result = addPointBelow?.({ ids: selection, positionsById });
 
     capturedSelectionRef.current = null;
 
-    positionNewComment(result, selection, positionsById, current);
+    positionNewComment(result, selection);
   }, [isConnectMode, locked, buildSelectionPayload, addPointBelow, positionNewComment]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
