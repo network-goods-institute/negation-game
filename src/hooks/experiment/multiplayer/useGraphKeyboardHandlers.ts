@@ -27,11 +27,30 @@ export const useGraphKeyboardHandlers = ({
       };
       if (isEditable(target) || isEditable(active)) return;
 
-      const selection = window.getSelection?.();
-      if (selection && !selection.isCollapsed) return;
-
       const isDeleteKey = key === "delete" || key === "backspace";
       if (isDeleteKey) {
+        const selection = window.getSelection?.();
+        if (selection && !selection.isCollapsed) {
+          const anchorNode = selection.anchorNode;
+          const focusNode = selection.focusNode;
+          const isInContentEditable = (node: Node | null): boolean => {
+            if (!node) return false;
+            let current: Node | null = node;
+            while (current) {
+              if (current instanceof HTMLElement && current.isContentEditable) {
+                return true;
+              }
+              current = current.parentNode;
+            }
+            return false;
+          };
+          if (
+            isInContentEditable(anchorNode) ||
+            isInContentEditable(focusNode)
+          ) {
+            return;
+          }
+        }
         // Block deletions while any node is in edit mode
         if (graph?.isAnyNodeEditing) {
           e.preventDefault();

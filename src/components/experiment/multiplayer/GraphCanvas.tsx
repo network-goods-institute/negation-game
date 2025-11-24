@@ -17,6 +17,7 @@ import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNod
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
 import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
 import { SnapLines } from './SnapLines';
+import { Plus, Trash2 } from 'lucide-react';
 
 type YProvider = WebsocketProvider | null;
 
@@ -166,6 +167,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     multiSelectMenuPos,
     handleMultiSelectContextMenu,
     handleDeleteSelectedNodes,
+    handleAddPointToSelected,
+    getAddPointLabel,
     setMultiSelectMenuOpen,
   } = useGraphContextMenu({ graph });
 
@@ -543,7 +546,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         onClose={() => setMultiSelectMenuOpen(false)}
         items={[
           {
-            label: 'Delete selected',
+            label: getAddPointLabel(),
+            icon: <Plus className="w-5 h-5" />,
+            onClick: handleAddPointToSelected,
+          },
+          {
+            label: 'Delete',
+            icon: <Trash2 className="w-5 h-5" />,
             danger: true,
             onClick: handleDeleteSelectedNodes,
           },

@@ -1,15 +1,14 @@
-import React, { useRef, useState } from 'react';
-import { Position } from '@xyflow/react';
+import React, { useCallback, useRef } from 'react';
+import { Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { ContextMenu } from './common/ContextMenu';
 import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
 import { usePerformanceMode } from './PerformanceContext';
 import { useNodeChrome } from './common/useNodeChrome';
-import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { LockIndicator } from './common/LockIndicator';
+import { useSelectionPayload } from './common/useSelectionPayload';
 
 interface StatementNodeProps {
   id: string;
@@ -20,10 +19,8 @@ interface StatementNodeProps {
 export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected }) => {
   const {
     updateNodeContent,
-    updateNodeHidden,
     addPointBelow,
     isConnectingFromNodeId,
-    deleteNode,
     startEditingNode,
     stopEditingNode,
     isLockedForMe,
@@ -31,12 +28,21 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     grabMode,
   } = useGraphActions() as any;
   const { perfMode } = usePerformanceMode();
+  const rf = useReactFlow();
 
   const content = data?.statement || '';
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = (data as any)?.hidden === true;
+
+  const getSelectedStatements = useCallback(() => {
+    try {
+      return rf.getNodes().filter((n: any) => n?.selected && n.type !== 'edge_anchor');
+    } catch {
+      return [];
+    }
+  }, [rf]);
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -72,7 +78,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     isConnectMode,
   } = editable;
 
-  const { hovered, onMouseEnter, onMouseLeave } = hover;
+  const { onMouseEnter, onMouseLeave } = hover;
   const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 
   const forceHidePills = useForceHidePills({
@@ -82,17 +88,38 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
     onHoverLeave: onMouseLeave,
   });
 
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const buildSelectionPayload = useSelectionPayload(id, getSelectedStatements);
+  const capturedSelectionRef = useRef<string[] | null>(null);
+  const pillHandledRef = useRef(false);
 
-  const handleContextMenu = useContextMenuHandler({
-    isEditing,
-    onOpenMenu: (pos) => {
-      setMenuPos(pos);
-      setMenuOpen(true);
-    },
-  });
+  const handlePillMouseDown = useCallback(() => {
+    if (isConnectMode) return;
+    const payload = buildSelectionPayload();
+    const { ids: selection, positionsById } = payload;
+    capturedSelectionRef.current = selection;
+    pillHandledRef.current = true;
+    addPointBelow?.({ ids: selection, positionsById });
+    capturedSelectionRef.current = null;
+    forceHidePills();
+  }, [isConnectMode, buildSelectionPayload, addPointBelow, forceHidePills]);
+
+  const handlePillClick = useCallback(() => {
+    if (isConnectMode) return;
+    if (pillHandledRef.current) {
+      pillHandledRef.current = false;
+      return;
+    }
+    const payload = buildSelectionPayload();
+    const selection = (capturedSelectionRef.current && capturedSelectionRef.current.length > 0)
+      ? capturedSelectionRef.current
+      : payload.ids;
+    const positionsById = payload.positionsById;
+    addPointBelow?.({ ids: selection, positionsById });
+    capturedSelectionRef.current = null;
+    forceHidePills();
+  }, [isConnectMode, buildSelectionPayload, addPointBelow, forceHidePills]);
+
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   return (
     <>
@@ -151,7 +178,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
             }
             onClick(e);
           },
-          onContextMenu: handleContextMenu,
           onDoubleClick: (e: React.MouseEvent<HTMLDivElement>) => {
             // Prevent double-click from bubbling up to canvas (which would spawn new nodes)
             e.stopPropagation();
@@ -192,7 +218,8 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           <NodeActionPill
             label="Add Option"
             visible={shouldShowPill}
-            onClick={() => { if (isConnectMode) return; addPointBelow(id); forceHidePills(); }}
+            onMouseDown={handlePillMouseDown}
+            onClick={handlePillClick}
             colorClass="bg-blue-600"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -200,15 +227,6 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           />
         )}
       </NodeShell>
-      <ContextMenu
-        open={menuOpen}
-        x={menuPos.x}
-        y={menuPos.y}
-        onClose={() => setMenuOpen(false)}
-        items={[
-          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-        ]}
-      />
     </>
   );
 };

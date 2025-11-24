@@ -1,15 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Position } from '@xyflow/react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Position, useReactFlow } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
-import { ContextMenu } from './common/ContextMenu';
 import { NodeActionPill } from './common/NodeActionPill';
 import { toast } from 'sonner';
 import { useNodeChrome } from './common/useNodeChrome';
 import { NodeShell } from './common/NodeShell';
-import { useContextMenuHandler } from './common/useContextMenuHandler';
 import { LockIndicator } from './common/LockIndicator';
 import { useForceHidePills } from './common/useForceHidePills';
 import { usePerformanceMode } from './PerformanceContext';
+import { useSelectionPayload } from './common/useSelectionPayload';
 
 interface CommentNodeProps {
   data: {
@@ -30,16 +29,13 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   const {
     updateNodeContent,
     isConnectingFromNodeId,
-    deleteNode,
     startEditingNode,
     stopEditingNode,
     isLockedForMe,
     getLockOwner,
     setPairNodeHeight,
     addPointBelow,
-    addNodeAtPosition,
     grabMode,
-    setEdges,
     updateNodeType,
   } = useGraphActions() as any;
 
@@ -47,6 +43,15 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
   const { perfMode } = usePerformanceMode();
+  const rf = useReactFlow();
+
+  const getSelectedComments = useCallback(() => {
+    try {
+      return rf.getNodes().filter((n: any) => n?.selected && n.type !== 'edge_anchor');
+    } catch {
+      return [];
+    }
+  }, [rf]);
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -96,30 +101,59 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
     onHoverLeave: onHoverLeave,
   });
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Capture selection on mousedown to avoid ReactFlow deselecting during click
+  const capturedSelectionRef = useRef<string[] | null>(null);
+  const pillHandledRef = useRef(false);
+  const buildSelectionPayload = useSelectionPayload(id, getSelectedComments);
 
-  const handleContextMenu = useContextMenuHandler({
-    isEditing,
-    onOpenMenu: (pos) => {
-      setMenuPos(pos);
-      setMenuOpen(true);
+  const positionNewComment = useCallback(
+    (
+      result: { nodeId?: string } | string | undefined,
+      selection: string[]
+    ) => {
+      if (!result) return;
+      const newNodeId = typeof result === 'string' ? result : result?.nodeId;
+      if (!newNodeId) return;
+      if (updateNodeType) {
+        updateNodeType(newNodeId, 'comment');
+      }
+      startEditingNode?.(newNodeId);
     },
-  });
+    [updateNodeType, startEditingNode]
+  );
 
-  const handleReply = () => {
+  const handlePillMouseDown = useCallback(() => {
+    if (isConnectMode) return;
+    const payload = buildSelectionPayload();
+    const { ids: selection, positionsById } = payload;
+    capturedSelectionRef.current = selection;
+    pillHandledRef.current = true;
+    const result = addPointBelow?.({ ids: selection, positionsById });
+    positionNewComment(result, selection);
+    capturedSelectionRef.current = null;
+    forceHidePills();
+  }, [isConnectMode, buildSelectionPayload, addPointBelow, positionNewComment, forceHidePills]);
+
+
+  const handleReply = useCallback(() => {
     if (isConnectMode || locked) return;
 
-    const result = addPointBelow?.(id);
-    if (!result) return;
-
-    const newNodeId = typeof result === 'string' ? result : result.nodeId;
-    if (newNodeId && updateNodeType) {
-      updateNodeType(newNodeId, 'comment');
+    if (pillHandledRef.current) {
+      pillHandledRef.current = false;
+      return;
     }
 
-    startEditingNode?.(newNodeId);
-  };
+    const payload = buildSelectionPayload();
+    const selection = (capturedSelectionRef.current && capturedSelectionRef.current.length > 0)
+      ? capturedSelectionRef.current
+      : payload.ids;
+    const positionsById = payload.positionsById;
+    const result = addPointBelow?.({ ids: selection, positionsById });
+
+    capturedSelectionRef.current = null;
+
+    positionNewComment(result, selection);
+  }, [isConnectMode, locked, buildSelectionPayload, addPointBelow, positionNewComment]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const isInContainer = Boolean(parentId);
@@ -179,7 +213,6 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
       }
       onClick(e);
     },
-    onContextMenu: handleContextMenu,
     'data-selected': selected,
   } as React.HTMLAttributes<HTMLDivElement>;
 
@@ -253,7 +286,8 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
           <NodeActionPill
             label="Reply"
             visible={shouldShowPill}
-            onClick={() => { if (isConnectMode) return; handleReply(); forceHidePills(); }}
+            onMouseDown={handlePillMouseDown}
+            onClick={() => { if (isConnectMode) return; handleReply(); forceHidePills(); capturedSelectionRef.current = null; }}
             colorClass="bg-stone-900"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -261,15 +295,6 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
           />
         )}
       </NodeShell>
-      <ContextMenu
-        open={menuOpen}
-        x={menuPos.x}
-        y={menuPos.y}
-        onClose={() => setMenuOpen(false)}
-        items={[
-          { label: 'Delete node', danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || 'another user'}`); } else { deleteNode(id); } } },
-        ]}
-      />
     </>
   );
 };

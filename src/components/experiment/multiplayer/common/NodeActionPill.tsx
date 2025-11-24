@@ -4,6 +4,7 @@ interface NodeActionPillProps {
   label: string;
   visible: boolean;
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onMouseDown?: () => void;
   colorClass?: string; // e.g., 'bg-blue-700'
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -16,6 +17,7 @@ export const NodeActionPill: React.FC<NodeActionPillProps> = ({
   label,
   visible,
   onClick,
+  onMouseDown,
   colorClass = 'bg-stone-900',
   onMouseEnter,
   onMouseLeave,
@@ -48,7 +50,11 @@ export const NodeActionPill: React.FC<NodeActionPillProps> = ({
     >
       <button
         type="button"
-        onMouseDown={(e) => { e.stopPropagation(); }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onMouseDown?.();
+        }}
         onClick={(e) => {
           e.stopPropagation();
           onClick(e);
