@@ -7,11 +7,28 @@ import { NextRequest, NextResponse } from "next/server";import { logger } from "
 // Special subdomains that shouldn't redirect to a space
 const BLACKLISTED_SUBDOMAINS = new Set(["www", "api", "admin"]);
 
-const SPACE_REWRITE_EXCLUSION_PREFIXES = ["/profile"] as const;
+const SPACE_REWRITE_EXCLUSION_PREFIXES = [
+  "/profile",
+  "/privacy",
+  "/tos",
+  "/settings",
+  "/notifications",
+  "/admin",
+  "/delta",
+] as const;
 
 function isSpaceRewriteExcluded(pathname: string): boolean {
   return SPACE_REWRITE_EXCLUSION_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+// Pages that should redirect to canonical URLs
+const CANONICAL_REDIRECT_PATHS = ["/privacy", "/tos"] as const;
+
+function shouldRedirectToCanonical(pathname: string): boolean {
+  return CANONICAL_REDIRECT_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 }
 
@@ -127,6 +144,16 @@ function handleSubdomain(
   // Handle play subdomain - shows the old landing page and app behavior
   if (subdomain === "play") {
     const pathname = url.pathname;
+
+    // Redirect privacy/tos to canonical URL
+    if (shouldRedirectToCanonical(pathname)) {
+      const redirectUrl = new URL(`https://negationgame.com${pathname}`, req.url);
+      url.searchParams.forEach((value, key) => {
+        redirectUrl.searchParams.set(key, value);
+      });
+      return NextResponse.redirect(redirectUrl, 307);
+    }
+
     const parts = pathname.split("/");
     const hasViewpointSegment = parts.some((seg) => seg === "viewpoint");
     if (hasViewpointSegment) {
@@ -160,6 +187,15 @@ function handleSubdomain(
         pathParts.splice(0, 2); // Remove "s" and the space name
         targetPath = pathParts.length > 0 ? `/${pathParts.join("/")}` : "";
       }
+    }
+
+    // Redirect privacy/tos to canonical URL
+    if (shouldRedirectToCanonical(targetPath)) {
+      const redirectUrl = new URL(`https://negationgame.com${targetPath}`, req.url);
+      url.searchParams.forEach((value, key) => {
+        redirectUrl.searchParams.set(key, value);
+      });
+      return NextResponse.redirect(redirectUrl, 307);
     }
 
     if (isSpaceRewriteExcluded(targetPath)) {
@@ -205,6 +241,15 @@ function handleSubdomain(
         pathParts.splice(0, 2);
         targetPath = pathParts.length > 0 ? `/${pathParts.join("/")}` : "";
       }
+    }
+
+    // Redirect privacy/tos to canonical URL
+    if (shouldRedirectToCanonical(targetPath)) {
+      const redirectUrl = new URL(`https://negationgame.com${targetPath}`, req.url);
+      url.searchParams.forEach((value, key) => {
+        redirectUrl.searchParams.set(key, value);
+      });
+      return NextResponse.redirect(redirectUrl, 307);
     }
 
     if (isSpaceRewriteExcluded(targetPath)) {
@@ -445,7 +490,11 @@ export default async function middleware(req: NextRequest) {
 
   // Allow only specific paths on root domain
   // Everything else redirects to play.negationgame.com
-  const allowedRootPaths = ["/experiment"];
+  const allowedRootPaths = [
+    "/experiment",
+    "/privacy",
+    "/tos",
+  ];
   if (isLocalhost) {
     // Allow /s/ paths in development
     allowedRootPaths.push("/s/");
