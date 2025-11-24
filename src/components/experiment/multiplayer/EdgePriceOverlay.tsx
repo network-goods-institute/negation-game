@@ -85,7 +85,8 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   if (!show || !Array.isArray(edges) || edges.length === 0) return null;
 
   // Compute size in flow coordinates (divide by zoom to convert from screen pixels)
-  const baseScreenSize = sizePx;
+  const nominalScreenSize = Math.max(1, sizePx);
+  const baseScreenSize = nominalScreenSize;
   const minScreenSize = 12;
   const flowSize = Math.max(minScreenSize / zoom, baseScreenSize / zoom);
 
@@ -105,8 +106,23 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           const isNegation = t === 'negation';
           const isObjection = t === 'objection';
           if (!isSupport && !isNegation && !isObjection) return null;
-          // Default to 0.5 (50%) if no price available yet
-          const priceValue = Number.isFinite(price) ? price : 0.5;
+          if (!Number.isFinite(price) && isObjection) {
+            try {
+              const obj = rf.getEdge(String(e.id)) as any;
+              const anchorId = String(obj?.target || '');
+              if (anchorId.startsWith('anchor:')) {
+                const anchor = rf.getNode(anchorId) as any;
+                const baseId = String(anchor?.data?.parentEdgeId || '');
+                if (baseId) {
+                  const base = rf.getEdge(baseId) as any;
+                  const parentPrice = Number(base?.data?.market?.price);
+                  if (Number.isFinite(parentPrice)) price = parentPrice;
+                }
+              }
+            } catch {}
+          }
+          if (!Number.isFinite(price)) return null;
+          const priceValue = price;
           if (e.selected || overlayActiveId === e.id || hoveredEdgeId === e.id) return null;
 
           // Try to use actual edge label position from DOM
@@ -181,8 +197,8 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           if (isEdgeHovered) return null;
 
           const percentage = p * 100;
-          const baseSize = 60;
-          const maxSize = 160;
+          const baseSize = flowSize * (60 / baseScreenSize);
+          const maxSize = flowSize * (160 / baseScreenSize);
           const size = baseSize + (p * (maxSize - baseSize));
 
           // Determine color based on edge type and selection
@@ -213,9 +229,9 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           const fontSize = Math.max(10, triangleSize / 5);
 
           // Triangle rotation based on edge type
-          // Support: 0deg (pointing up ▲)
-          // Negation: 180deg (pointing down ▼)
-          // Objection: diamond/hourglass ◆
+          // Support: 0deg (pointing up)
+          // Negation: 180deg (pointing down)
+          // Objection: diamond/hourglass ?
           const rotation = isSupport ? 0 : (isNegation ? 180 : 0);
 
           return (
