@@ -9,10 +9,12 @@ import { PositionInfo } from './PositionInfo';
 import { TradeControls } from './TradeControls';
 import { BuySellButtons } from './BuySellButtons';
 import { normalizeSecurityId, dispatchMarketRefresh } from '@/utils/market/marketUtils';
+import { addMarketPanelCloseListener } from '@/utils/market/marketEvents';
 import { useBuyAmountPreview } from '@/hooks/market/useBuyAmountPreview';
 import { buyAmount } from '@/utils/market/marketContextMenu';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { logger } from '@/lib/logger';
 
 type Props = {
   selectedNodeId: string | null;
@@ -37,6 +39,8 @@ export const MarketPanel: React.FC<Props> = ({
 }) => {
   const rf = useReactFlow();
   const headerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const panelContainerRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [amount, setAmount] = useState<number>(50);
   const [submitting, setSubmitting] = useState(false);
@@ -144,6 +148,22 @@ export const MarketPanel: React.FC<Props> = ({
     onExpanded?.(expanded);
   }, [expanded, onExpanded]);
 
+  useEffect(() => {
+    if (!entityId) return undefined;
+    previousFocusRef.current = (document.activeElement as HTMLElement | null) || null;
+    const focusTarget = headerTextareaRef.current || panelContainerRef.current;
+    if (focusTarget && typeof focusTarget.focus === 'function') {
+      focusTarget.focus();
+    }
+    return () => {
+      const prev = previousFocusRef.current;
+      if (prev && typeof prev.focus === 'function') {
+        prev.focus();
+      }
+      previousFocusRef.current = null;
+    };
+  }, [entityId]);
+
   // Detect entity switching and trigger animation
   useEffect(() => {
     const currentEntityId = selectedNodeId || selectedEdgeId;
@@ -207,11 +227,10 @@ export const MarketPanel: React.FC<Props> = ({
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    const handleExternalClose = () => { handleClose(); };
-    window.addEventListener('market:panelClose', handleExternalClose as any);
+    const unsubscribe = addMarketPanelCloseListener(() => { handleClose(); });
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('market:panelClose', handleExternalClose as any);
+      unsubscribe();
     };
   }, [handleClose]);
 
@@ -251,7 +270,11 @@ export const MarketPanel: React.FC<Props> = ({
       if (docId) {
         await fetch(`/api/market/${encodeURIComponent(docId)}/view?bypassCache=1`, { cache: 'no-store' }).catch(() => null);
       }
-    } catch {}
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        logger.error('[market/ui] panel refresh failed', { error });
+      }
+    }
     try { dispatchMarketRefresh(); } catch {}
     finally {
       const elapsed = Date.now() - start;
@@ -371,9 +394,13 @@ export const MarketPanel: React.FC<Props> = ({
 
       {/* Panel */}
       <div
+        ref={panelContainerRef}
         className={getPanelClasses()}
         style={getAnimationStyle()}
         onWheel={handlePanelWheel}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-stone-200/60 bg-white/60 backdrop-blur-sm">

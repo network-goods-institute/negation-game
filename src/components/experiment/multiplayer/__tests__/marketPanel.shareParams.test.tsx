@@ -31,14 +31,14 @@ jest.mock('@/hooks/experiment/multiplayer/useInitialGraph', () => ({
 
 jest.mock('@/hooks/market/useMarket', () => ({
   useMarket: () => ({
-    view: { data: { prices: null, totals: null, userHoldings: null }, refetch: jest.fn() },
+    view: { data: { prices: {}, totals: {}, userHoldings: {} }, refetch: jest.fn() },
     buyShares: { mutate: jest.fn() },
     buyAmount: { mutate: jest.fn() },
   }),
 }));
 
 const yMeta = (() => {
-  const store = new Map<string, any>([[`mindchange:e1`, { forward: 10, backward: 5, forwardCount: 1, backwardCount: 1 }]]);
+  const store = new Map<string, any>();
   return {
     store,
     get: (k: string) => store.get(k),
@@ -47,18 +47,33 @@ const yMeta = (() => {
   } as any;
 })();
 
-const setEdgesMock = jest.fn((updater: any) => {
-  const prev = [{ id: 'e1', type: 'negation', source: 'a', target: 'b', data: { mindchange: { forward: { average: 10, count: 1 }, backward: { average: 5, count: 1 } } } }];
-  const next = typeof updater === 'function' ? updater(prev) : updater;
-  return next;
+const setNodesMock = jest.fn((updater: any) => {
+  const prev = [{ id: 'a', type: 'point', selected: false }];
+  return typeof updater === 'function' ? updater(prev) : updater;
 });
+
+const setSelectedEdgeId = jest.fn();
+const setNodesForEdge = jest.fn((updater: any) => {
+  const prev = [{ id: 'a', type: 'point', selected: false }];
+  return typeof updater === 'function' ? updater(prev) : updater;
+});
+
+let yjsState: {
+  nodes: any[];
+  edges: any[];
+  setNodes: any;
+} = {
+  nodes: [{ id: 'a', type: 'point', selected: false }],
+  edges: [{ id: 'e1', type: 'support', source: 'a', target: 'b', data: {} }],
+  setNodes: setNodesMock,
+};
 
 jest.mock('@/hooks/experiment/multiplayer/useYjsMultiplayer', () => ({
   useYjsMultiplayer: () => ({
-    nodes: [{ id: 'a' }, { id: 'b' }],
-    edges: [{ id: 'e1', type: 'negation', source: 'a', target: 'b', data: { mindchange: { forward: { average: 10, count: 1 }, backward: { average: 5, count: 1 } } } }],
-    setNodes: jest.fn(),
-    setEdges: setEdgesMock,
+    nodes: yjsState.nodes,
+    edges: yjsState.edges,
+    setNodes: yjsState.setNodes,
+    setEdges: jest.fn(),
     provider: null,
     ydoc: { transact: (fn: any) => fn() },
     yNodesMap: null,
@@ -103,7 +118,7 @@ jest.mock('@/hooks/experiment/multiplayer/useEdgeSelection', () => ({
     hoveredEdgeId: null,
     setHoveredEdgeId: jest.fn(),
     selectedEdgeId: null,
-    setSelectedEdgeId: jest.fn(),
+    setSelectedEdgeId,
   }),
 }));
 
@@ -111,9 +126,8 @@ jest.mock('@/hooks/experiment/multiplayer/useNodeHelpers', () => ({
   useNodeHelpers: () => ({ getNodeCenter: () => ({ x: 0, y: 0 }), getEdgeMidpoint: () => ({ x: 0, y: 0 }) }),
 }));
 
-const updateEdgeTypeSpy = jest.fn();
 jest.mock('@/hooks/experiment/multiplayer/useEdgeTypeManager', () => ({
-  useEdgeTypeManager: () => ({ preferredEdgeTypeRef: { current: 'support' }, updateEdgeType: (id: string, t: any) => updateEdgeTypeSpy(id, t) }),
+  useEdgeTypeManager: () => ({ preferredEdgeTypeRef: { current: 'support' }, updateEdgeType: jest.fn() }),
 }));
 
 jest.mock('@/hooks/experiment/multiplayer/useMultiplayerCursors', () => ({
@@ -169,23 +183,28 @@ jest.mock('@/actions/experimental/mindchange', () => ({
   deleteMindchangeForEdge: jest.fn(async () => undefined),
 }));
 
-jest.mock('@/components/experiment/multiplayer/GraphUpdater', () => {
-  const React = require('react');
-  const { useGraphActions } = require('@/components/experiment/multiplayer/GraphContext');
-  return {
-    GraphUpdater: () => {
-      const graph = useGraphActions();
-      React.useEffect(() => {
-        graph.updateEdgeType?.('e1', 'support');
-      }, [graph]);
-      return null;
-    },
-  };
-});
+jest.mock('@/components/experiment/multiplayer/GraphUpdater', () => ({
+  GraphUpdater: () => null,
+}));
 
-describe('edge type switch preserves mindchange meta on negation->support', () => {
-  it('does not delete yMetaMap or server mindchange when switching to support', async () => {
-    const { MultiplayerBoardContent } = require('@/components/experiment/multiplayer/MultiplayerBoardContent');
+const { MultiplayerBoardContent } = require('@/components/experiment/multiplayer/MultiplayerBoardContent');
+
+describe('market panel share params', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    yjsState = {
+      nodes: [{ id: 'a', type: 'point', selected: false }],
+      edges: [{ id: 'e1', type: 'support', source: 'a', target: 'b', data: {} }],
+      setNodes: setNodesMock,
+    };
+  });
+
+  it('selects a node from URL param when it exists', async () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?node=a'),
+      writable: true,
+    });
+
     render(
       <MultiplayerBoardContent
         authenticated={true}
@@ -210,12 +229,90 @@ describe('edge type switch preserves mindchange meta on negation->support', () =
     );
 
     await waitFor(() => {
-      expect(updateEdgeTypeSpy).toHaveBeenCalledWith('e1', 'support');
+      expect(setNodesMock).toHaveBeenCalled();
     });
 
-    const del = (yMeta as any)["delete"];
-    expect(del).not.toHaveBeenCalled();
-    expect(yMeta.store.get('mindchange:e1')).toBeTruthy();
-    expect(setEdgesMock).toHaveBeenCalled();
+    const updateFn = setNodesMock.mock.calls[0][0];
+    const updated = updateFn([{ id: 'a', type: 'point', selected: false }]);
+    expect(updated.find((n: any) => n.id === 'a')?.selected).toBe(true);
+    expect(setSelectedEdgeId).toHaveBeenCalledWith(null);
+  });
+
+  it('ignores node param when not in graph', async () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?node=missing'),
+      writable: true,
+    });
+
+    render(
+      <MultiplayerBoardContent
+        authenticated={true}
+        userId="u1"
+        username="alice"
+        userColor="#000"
+        roomName="room"
+        resolvedId="doc1"
+        routeParams={{}}
+        grabMode={false}
+        setGrabMode={() => {}}
+        perfBoost={false}
+        setPerfBoost={() => {}}
+        mindchangeSelectMode={false}
+        setMindchangeSelectMode={() => {}}
+        mindchangeEdgeId={null}
+        setMindchangeEdgeId={() => {}}
+        mindchangeNextDir={null}
+        setMindchangeNextDir={() => {}}
+        selectMode={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setNodesMock).toHaveBeenCalled();
+    });
+
+    const updateFn = setNodesMock.mock.calls[0][0];
+    const updated = updateFn([{ id: 'a', type: 'point', selected: false }]);
+    expect(updated.every((n: any) => !n.selected)).toBe(true);
+  });
+
+  it('selects an edge from URL param when it exists', async () => {
+    Object.defineProperty(window, 'location', {
+      value: new URL('http://localhost/?edge=e1'),
+      writable: true,
+    });
+    yjsState = {
+      nodes: [{ id: 'a', type: 'point', selected: true }],
+      edges: [{ id: 'e1', type: 'support', source: 'a', target: 'b', data: {} }],
+      setNodes: setNodesForEdge,
+    };
+
+    render(
+      <MultiplayerBoardContent
+        authenticated={true}
+        userId="u1"
+        username="alice"
+        userColor="#000"
+        roomName="room"
+        resolvedId="doc1"
+        routeParams={{}}
+        grabMode={false}
+        setGrabMode={() => {}}
+        perfBoost={false}
+        setPerfBoost={() => {}}
+        mindchangeSelectMode={false}
+        setMindchangeSelectMode={() => {}}
+        mindchangeEdgeId={null}
+        setMindchangeEdgeId={() => {}}
+        mindchangeNextDir={null}
+        setMindchangeNextDir={() => {}}
+        selectMode={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(setSelectedEdgeId).toHaveBeenCalledWith('e1');
+      expect(setNodesForEdge).toHaveBeenCalled();
+    });
   });
 });

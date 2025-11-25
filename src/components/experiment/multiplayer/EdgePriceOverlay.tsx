@@ -8,13 +8,14 @@ import { EDGE_CONFIGURATIONS, EdgeType } from './common/EdgeConfiguration';
 import { useAtomValue } from 'jotai';
 import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
 
+type EdgeMarket = { price?: number | string; mine?: number | string; total?: number | string } | undefined;
 interface EdgeLike {
   id: string;
   source: string;
   target: string;
   type?: string;
   selected?: boolean;
-  data?: { market?: { price?: number | string } };
+  data?: { market?: EdgeMarket } | undefined;
 }
 
 interface Props {
@@ -22,6 +23,12 @@ interface Props {
   zoomThreshold?: number; // show when zoom <= threshold
   sizePx?: number; // nominal circle diameter in px at threshold zoom
 }
+
+const SUPPORT_COLOR = '#10b981';
+const NEGATION_COLOR = '#ef4444';
+const OBJECTION_COLOR = '#f59e0b';
+const BASE_SIZE_PX = 60;
+const MAX_SIZE_PX = 160;
 
 export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, sizePx = 24 }) => {
   const rf = useReactFlow();
@@ -42,6 +49,8 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   const prevZoomRef = React.useRef(zoom);
   const zoomTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const [shouldAnimateEdges, setShouldAnimateEdges] = React.useState(false);
+  const rafRef = React.useRef<number | null>(null);
+  const animateTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   React.useEffect(() => {
     if (Math.abs(zoom - prevZoomRef.current) > 0.001) {
@@ -64,21 +73,34 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   React.useEffect(() => {
     if (!show) {
       setShouldAnimateEdges(false);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (animateTimeoutRef.current) {
+        clearTimeout(animateTimeoutRef.current);
+        animateTimeoutRef.current = null;
+      }
       return;
     }
     // Trigger animation when overlay first shows
     setShouldAnimateEdges(true);
-    const timeout = setTimeout(() => setShouldAnimateEdges(false), 650);
+    animateTimeoutRef.current = setTimeout(() => setShouldAnimateEdges(false), 650);
 
-    let raf = 0;
     const loop = () => {
       setTick((t) => (t + 1) % 1000000);
-      raf = requestAnimationFrame(loop);
+      rafRef.current = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+    rafRef.current = requestAnimationFrame(loop);
     return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(timeout);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (animateTimeoutRef.current) {
+        clearTimeout(animateTimeoutRef.current);
+        animateTimeoutRef.current = null;
+      }
     };
   }, [show]);
 
@@ -97,10 +119,11 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
 
   // Mount inside viewport so nodes layer above naturally
   return createPortal(
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }} aria-hidden="true">
       {edges.map((e) => {
         try {
-          let price = Number((e as any)?.data?.market?.price);
+          const marketData: EdgeMarket | undefined = (e?.data as any)?.market;
+          let price = Number(marketData?.price);
           const t = (e.type || '').toLowerCase() as EdgeType | string;
           const isSupport = t === 'support';
           const isNegation = t === 'negation';
@@ -108,14 +131,15 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           if (!isSupport && !isNegation && !isObjection) return null;
           if (!Number.isFinite(price) && isObjection) {
             try {
-              const obj = rf.getEdge(String(e.id)) as any;
+              const obj = rf.getEdge(String(e.id)) as EdgeLike | null;
               const anchorId = String(obj?.target || '');
               if (anchorId.startsWith('anchor:')) {
                 const anchor = rf.getNode(anchorId) as any;
                 const baseId = String(anchor?.data?.parentEdgeId || '');
                 if (baseId) {
-                  const base = rf.getEdge(baseId) as any;
-                  const parentPrice = Number(base?.data?.market?.price);
+                  const base = rf.getEdge(baseId) as EdgeLike | null;
+                  const baseMarket = (base?.data as { market?: EdgeMarket } | undefined)?.market;
+                  const parentPrice = Number(baseMarket?.price);
                   if (Number.isFinite(parentPrice)) price = parentPrice;
                 }
               }
@@ -197,13 +221,13 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           if (isEdgeHovered) return null;
 
           const percentage = p * 100;
-          const baseSize = flowSize * (60 / baseScreenSize);
-          const maxSize = flowSize * (160 / baseScreenSize);
+          const baseSize = flowSize * (BASE_SIZE_PX / baseScreenSize);
+          const maxSize = flowSize * (MAX_SIZE_PX / baseScreenSize);
           const size = baseSize + (p * (maxSize - baseSize));
 
           // Determine color based on edge type and selection
           // Default colors by type
-          let color = isSupport ? '#10b981' : (isNegation ? '#ef4444' : '#f59e0b'); // green, red, amber
+          let color = isSupport ? SUPPORT_COLOR : (isNegation ? NEGATION_COLOR : OBJECTION_COLOR);
 
           // If a node is selected and this edge connects to it, use friend/enemy colors
           const allNodes = rf.getNodes();
@@ -213,12 +237,11 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
             if (edgeConnectsToSelected) {
               // Override with friend/enemy colors
               if (isSupport) {
-                color = '#10b981'; // green - friend
+                color = SUPPORT_COLOR;
               } else if (isNegation) {
-                color = '#ef4444'; // red - enemy
+                color = NEGATION_COLOR;
               } else if (isObjection) {
-                // Objection color determined by what it objects to
-                color = '#f59e0b'; // amber - keep default for now
+                color = OBJECTION_COLOR;
               }
             }
           }

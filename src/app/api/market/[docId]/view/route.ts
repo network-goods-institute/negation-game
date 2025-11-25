@@ -23,6 +23,9 @@ export async function GET(_req: Request, ctx: any) {
     bypass = q === "1" || q === "true";
   } catch {}
   const userId = await getUserIdOrAnonymous();
+  if (!userId) {
+    bypass = false;
+  }
   try {
     const view = bypass
       ? await computeMarketView(await resolveSlugToId(docId), userId || undefined)

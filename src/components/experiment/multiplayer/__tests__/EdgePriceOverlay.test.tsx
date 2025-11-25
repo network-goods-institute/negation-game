@@ -138,4 +138,13 @@ describe("EdgePriceOverlay", () => {
     expect(screen.getAllByText("37%")).toHaveLength(2);
     expect(screen.queryByText("50%")).toBeNull();
   });
+
+  it("does not render overlay when price is missing and no fallback is available", () => {
+    attachAnchor("edge-missing");
+    const edge = { id: "edge-missing", source: "a", target: "b", type: "support", data: { market: { price: undefined } } };
+    mockGetNodes.mockReturnValue([]);
+    mockGetEdge.mockReturnValue(edge as any);
+    render(<EdgePriceOverlay edges={[edge as any]} />);
+    expect(document.querySelector("svg")).toBeNull();
+  });
 });

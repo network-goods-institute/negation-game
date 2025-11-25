@@ -20,8 +20,8 @@ import { MiniHoverStats } from './MiniHoverStats';
 import { NodePriceOverlay } from './NodePriceOverlay';
 import { EdgePriceOverlay } from './EdgePriceOverlay';
 import { enrichWithMarketData, getDocIdFromURL } from '@/utils/market/marketUtils';
+import { dispatchMarketPanelClose } from '@/utils/market/marketEvents';
 import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
-import { logger } from '@/lib/logger';
 
 type YProvider = WebsocketProvider | null;
 
@@ -60,6 +60,8 @@ interface GraphCanvasProps {
   yMetaMap?: any;
   isMarketPanelVisible?: boolean;
 }
+
+type MarketNode = Node<{ market?: { price?: number; mine?: number; total?: number } }>;
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   nodes,
@@ -168,30 +170,43 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     }
   }, [edges, graph, rf, userHoldingsLite.data, yMetaMap]);
 
-  const nodesForRender = React.useMemo(() => {
+  const nodesForRender = React.useMemo<MarketNode[]>(() => {
     try {
       const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
       const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
       const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
       const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals));
-      return enriched as any;
+      return enriched as MarketNode[];
     } catch {
-      return nodes as any;
+      return nodes as MarketNode[];
     }
   }, [nodes, userHoldingsLite.data, yMetaMap]);
 
   const nodePriceMap = React.useMemo(() => {
     const out: Record<string, number> = {};
     try {
-      for (const n of nodesForRender as any[]) {
-        const price = Number((n as any)?.data?.market?.price ?? NaN);
-        if (Number.isFinite(price)) {
-          out[String((n as any).id)] = price;
+      const metaPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
+      const priceSource = metaPrices && Object.keys(metaPrices).length ? metaPrices : null;
+      const candidates = priceSource ? Object.entries(priceSource) : [];
+      if (candidates.length) {
+        const allowedIds = new Set(nodesForRender.map((n) => String(n.id)));
+        for (const [id, price] of candidates) {
+          const pNum = Number(price);
+          if (Number.isFinite(pNum) && allowedIds.has(id)) {
+            out[id] = pNum;
+          }
+        }
+      } else {
+        for (const n of nodesForRender as any[]) {
+          const price = Number((n as any)?.data?.market?.price ?? NaN);
+          if (Number.isFinite(price)) {
+            out[String((n as any).id)] = price;
+          }
         }
       }
-    } catch {}
+    } catch { }
     return out;
-  }, [nodesForRender]);
+  }, [nodesForRender, yMetaMap]);
 
 
   // Custom hooks for managing complex logic
@@ -242,10 +257,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     return () => window.removeEventListener('mousemove', handler);
   }, [connectMode, mindchangeMode, connectAnchorId, onFlowMouseMove, rf]);
 
-  React.useEffect(() => {
-    try { (window as any).__marketPanelVisible = !!isMarketPanelVisible; } catch { }
-    return () => { try { delete (window as any).__marketPanelVisible; } catch { } };
-  }, [isMarketPanelVisible]);
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!(connectMode && !mindchangeMode) || !connectAnchorId || !onFlowMouseMove) return;
     const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -315,7 +326,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const isLabel = !!target.closest('.react-flow__edge-labels');
       const isOverlay = isLabel || isMinimap || isControl;
       if (isPane && !isNode && !isEdge && !isOverlay) {
-        try { window.dispatchEvent(new Event('market:panelClose')); } catch { }
+        dispatchMarketPanelClose();
         // Allow panning gestures to begin (hand tool or middle mouse)
         if (!grabMode && e.button !== 1) {
           e.preventDefault();
@@ -379,7 +390,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const isOverlay = isLabel || isMinimap || isControl;
     // If market panel is visible and user clicks the bare pane, close the panel via fade first
     if (isMarketPanelVisible && !connectMode && isPane && !isNode && !isEdge && !isOverlay) {
-      try { window.dispatchEvent(new Event('market:panelClose')); } catch { }
+      dispatchMarketPanelClose();
       // Do not swallow the event if the user is panning (hand tool) or using middle mouse
       if (!grabMode && e.button !== 1) {
         e.preventDefault();
@@ -513,7 +524,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
               }
               // If market panel is visible, request panel to close with animation
               if (isMarketPanelVisible) {
-                try { window.dispatchEvent(new Event('market:panelClose')); } catch { }
+                dispatchMarketPanelClose();
                 return;
               }
               // Clear edge selection and hover immediately, but delay node deselection to avoid race after selection changes
