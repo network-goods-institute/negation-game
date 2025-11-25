@@ -125,8 +125,8 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
         // Exclude statement, comment, and edge_anchor nodes entirely from price overlays
         if ((n as any)?.type === 'statement' || (n as any)?.type === 'comment' || (n as any)?.type === 'edge_anchor') return null;
         const p = prices[n.id];
-        // Default to 0.5 (50%) if no price available yet
-        const priceValue = typeof p === "number" ? p : 0.5;
+        if (typeof p !== 'number' || Number.isNaN(p)) return null;
+        const priceValue = p;
         const { width: w, height: h, centerX, centerY } = getNodeDimensionsAndCenter(n);
         // Hide overlay when node is selected (so we can see the actual node)
         if ((n as any)?.selected) return null;
