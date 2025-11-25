@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getMarketView, computeMarketView } from "@/actions/market/getMarketView";
+import {
+  getMarketView,
+  computeMarketView,
+} from "@/actions/market/getMarketView";
 import { getMarketViewFromStructure } from "@/actions/market/getMarketViewFromStructure";
 import { resolveSlugToId } from "@/utils/slugResolver";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
@@ -19,16 +22,30 @@ export async function GET(_req: Request, ctx: any) {
   let bypass = false;
   try {
     const url = new URL(_req.url);
-    const q = url.searchParams.get("bypassCache") || url.searchParams.get("bypass");
+    const q =
+      url.searchParams.get("bypassCache") || url.searchParams.get("bypass");
     bypass = q === "1" || q === "true";
   } catch {}
   const userId = await getUserIdOrAnonymous();
   if (!userId) {
     bypass = false;
+  } else {
+    try {
+      const role = (process as any)?.env?.MARKET_BYPASS_ROLE;
+      if (role && role !== "user") {
+        // placeholder for role check; default deny unless explicitly allowed
+        bypass = false;
+      }
+    } catch {
+      bypass = false;
+    }
   }
   try {
     const view = bypass
-      ? await computeMarketView(await resolveSlugToId(docId), userId || undefined)
+      ? await computeMarketView(
+          await resolveSlugToId(docId),
+          userId || undefined
+        )
       : await getMarketView(docId, userId || undefined);
     return NextResponse.json(view, { status: 200 });
   } catch (e) {

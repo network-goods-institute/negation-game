@@ -313,32 +313,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     }
   }, [grabMode]);
 
-  React.useEffect(() => {
-    const onPointerDownCapture = (e: PointerEvent) => {
-      if (!isMarketPanelVisible || connectMode) return;
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const isPane = !!target.closest('.react-flow__pane');
-      const isNode = !!target.closest('.react-flow__node');
-      const isEdge = !!target.closest('.react-flow__edge');
-      const isControl = !!target.closest('.react-flow__controls');
-      const isMinimap = !!target.closest('.react-flow__minimap');
-      const isLabel = !!target.closest('.react-flow__edge-labels');
-      const isOverlay = isLabel || isMinimap || isControl;
-      if (isPane && !isNode && !isEdge && !isOverlay) {
-        dispatchMarketPanelClose();
-        // Allow panning gestures to begin (hand tool or middle mouse)
-        if (!grabMode && e.button !== 1) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDownCapture, true);
-    return () => document.removeEventListener('pointerdown', onPointerDownCapture, true);
-  }, [isMarketPanelVisible, connectMode, grabMode]);
-
-
   const onCanvasDoubleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
 

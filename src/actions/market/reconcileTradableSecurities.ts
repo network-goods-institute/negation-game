@@ -61,8 +61,10 @@ async function computeReconciledMarket(
     if (!e || !e.id) continue;
     const from = e.source;
     const to = e.target;
-    const fromOk = nodeIds.has(from) || edgeIds.has(from);
-    const toOk = nodeIds.has(to) || edgeIds.has(to);
+    const allowEdgeTarget =
+      (e.type || '').toLowerCase() === "objection" && edgeIds.has(to);
+    const fromOk = nodeIds.has(from);
+    const toOk = nodeIds.has(to) || allowEdgeTarget;
     if (!fromOk || !toOk) continue;
     if (seenEdgeNames.has(e.id)) continue;
     if (e.id === from || e.id === to) continue;

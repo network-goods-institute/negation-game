@@ -41,6 +41,7 @@ import { syncMarketDataToYDoc } from '@/utils/market/marketYDocSync';
 import { buildMarketViewPayload, isMarketEnabled } from '@/utils/market/marketUtils';
 import { logger } from '@/lib/logger';
 import { MarketPanel } from './market/MarketPanel';
+import { MarketErrorBoundary } from './market/MarketErrorBoundary';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -1181,23 +1182,25 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
 
         {/* Market Panel */}
         {isMarketEnabled() && (marketPanelNodeId || marketPanelEdgeId) && (
-          <MarketPanel
-            selectedNodeId={marketPanelNodeId}
-            selectedEdgeId={marketPanelEdgeId}
-            docId={resolvedId}
-            updateNodeContent={updateNodeContent}
-            canEdit={canEdit}
-            selectedNodeContent={selectedMarketNodeContent}
-            onClose={() => {
-              // Mirror canvas onPaneClick behavior: clear edge + node selection immediately
-              try { setSelectedEdgeId(null); } catch (error) { logDevError('[market/ui] clear selected edge failed', error); }
-              try { setHoveredEdgeId(null); } catch (error) { logDevError('[market/ui] clear hovered edge failed', error); }
-              try { clearNodeSelection(); } catch (error) { logDevError('[market/ui] clear node selection failed', error); }
+          <MarketErrorBoundary>
+            <MarketPanel
+              selectedNodeId={marketPanelNodeId}
+              selectedEdgeId={marketPanelEdgeId}
+              docId={resolvedId}
+              updateNodeContent={updateNodeContent}
+              canEdit={canEdit}
+              selectedNodeContent={selectedMarketNodeContent}
+              onClose={() => {
+                // Mirror canvas onPaneClick behavior: clear edge + node selection immediately
+                try { setSelectedEdgeId(null); } catch (error) { logDevError('[market/ui] clear selected edge failed', error); }
+                try { setHoveredEdgeId(null); } catch (error) { logDevError('[market/ui] clear hovered edge failed', error); }
+                try { clearNodeSelection(); } catch (error) { logDevError('[market/ui] clear node selection failed', error); }
 
-              resetMarketPanel();
-            }}
-            onExpanded={setMarketPanelExpanded}
-          />
+                resetMarketPanel();
+              }}
+              onExpanded={setMarketPanelExpanded}
+            />
+          </MarketErrorBoundary>
         )}
       </ReactFlowProvider>
 

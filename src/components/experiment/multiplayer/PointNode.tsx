@@ -326,7 +326,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const onContextMenuNode = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isEditing) return;
+    const target = e.target as HTMLElement | null;
+    const isEditingTarget = isEditing || (contentRef.current && contentRef.current.contains(target as Node));
+    if (isEditingTarget) return; // allow native menu for spellcheck/inputs
     e.preventDefault();
     e.stopPropagation();
     setMenuPos({ x: e.clientX, y: e.clientY });

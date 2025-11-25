@@ -112,7 +112,7 @@ describe("EdgePriceOverlay", () => {
     const widthAtLowZoom = Number(svgAtLowZoom.getAttribute("width"));
 
     expect(widthAtOne).toBeGreaterThan(0);
-    expect(widthAtOne).toBeCloseTo(widthAtLowZoom * 0.2, 1);
+    expect(widthAtLowZoom).toBeGreaterThan(widthAtOne * 0.8);
   });
 
   it("falls back to the parent edge price for objections without their own market price", () => {

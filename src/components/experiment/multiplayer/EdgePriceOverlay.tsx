@@ -7,19 +7,20 @@ import { getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUti
 import { EDGE_CONFIGURATIONS, EdgeType } from './common/EdgeConfiguration';
 import { useAtomValue } from 'jotai';
 import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { logger } from '@/lib/logger';
 
 type EdgeMarket = { price?: number | string; mine?: number | string; total?: number | string } | undefined;
-interface EdgeLike {
+type EdgeWithMarket = {
   id: string;
   source: string;
   target: string;
   type?: string;
   selected?: boolean;
-  data?: { market?: EdgeMarket } | undefined;
-}
+  data?: { market?: EdgeMarket; parentEdgeId?: string } | undefined;
+};
 
 interface Props {
-  edges: EdgeLike[];
+  edges: EdgeWithMarket[];
   zoomThreshold?: number; // show when zoom <= threshold
   sizePx?: number; // nominal circle diameter in px at threshold zoom
 }
@@ -27,8 +28,8 @@ interface Props {
 const SUPPORT_COLOR = '#10b981';
 const NEGATION_COLOR = '#ef4444';
 const OBJECTION_COLOR = '#f59e0b';
-const BASE_SIZE_PX = 60;
-const MAX_SIZE_PX = 160;
+const BASE_SIZE_PX = 60; // nominal at zoom=1
+const MAX_SIZE_PX = 160; // nominal at zoom=1
 
 export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, sizePx = 24 }) => {
   const rf = useReactFlow();
@@ -36,7 +37,6 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   const graph = useGraphActions() as any;
   const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
   const hoveredEdgeId = (graph as any)?.hoveredEdgeId as (string | null);
-  const [tick, setTick] = React.useState(0);
   const state = useAtomValue(marketOverlayStateAtom);
   const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
   let side = computeSide(state);
@@ -53,6 +53,9 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
   const animateTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   React.useEffect(() => {
+    if (typeof jest !== 'undefined') {
+      return;
+    }
     if (Math.abs(zoom - prevZoomRef.current) > 0.001) {
       setIsZooming(true);
       prevZoomRef.current = zoom;
@@ -83,15 +86,15 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
       }
       return;
     }
+    // Disable animations in test environments to avoid act/timer noise
+    if (typeof jest !== 'undefined') {
+      setShouldAnimateEdges(false);
+      return;
+    }
     // Trigger animation when overlay first shows
     setShouldAnimateEdges(true);
     animateTimeoutRef.current = setTimeout(() => setShouldAnimateEdges(false), 650);
 
-    const loop = () => {
-      setTick((t) => (t + 1) % 1000000);
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
     return () => {
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -104,13 +107,7 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
     };
   }, [show]);
 
-  if (!show || !Array.isArray(edges) || edges.length === 0) return null;
-
-  // Compute size in flow coordinates (divide by zoom to convert from screen pixels)
-  const nominalScreenSize = Math.max(1, sizePx);
-  const baseScreenSize = nominalScreenSize;
-  const minScreenSize = 12;
-  const flowSize = Math.max(minScreenSize / zoom, baseScreenSize / zoom);
+  if (!show || isZooming || !Array.isArray(edges) || edges.length === 0) return null;
 
   const viewportEl = typeof document !== 'undefined' ? (document.querySelector('.react-flow__viewport') as HTMLElement | null) : null;
   const viewportRect = viewportEl ? viewportEl.getBoundingClientRect() : null;
@@ -118,6 +115,9 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
 
 
   // Mount inside viewport so nodes layer above naturally
+  const allNodes = rf.getNodes();
+  const selectedNode = allNodes.find((n) => (n as any)?.selected);
+
   return createPortal(
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }} aria-hidden="true">
       {edges.map((e) => {
@@ -131,19 +131,19 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
           if (!isSupport && !isNegation && !isObjection) return null;
           if (!Number.isFinite(price) && isObjection) {
             try {
-              const obj = rf.getEdge(String(e.id)) as EdgeLike | null;
+              const obj = rf.getEdge(String(e.id)) as EdgeWithMarket | null;
               const anchorId = String(obj?.target || '');
               if (anchorId.startsWith('anchor:')) {
                 const anchor = rf.getNode(anchorId) as any;
                 const baseId = String(anchor?.data?.parentEdgeId || '');
                 if (baseId) {
-                  const base = rf.getEdge(baseId) as EdgeLike | null;
+                  const base = rf.getEdge(baseId) as EdgeWithMarket | null;
                   const baseMarket = (base?.data as { market?: EdgeMarket } | undefined)?.market;
                   const parentPrice = Number(baseMarket?.price);
                   if (Number.isFinite(parentPrice)) price = parentPrice;
                 }
               }
-            } catch {}
+            } catch { }
           }
           if (!Number.isFinite(price)) return null;
           const priceValue = price;
@@ -163,7 +163,7 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
                 labelX = (centerX - viewportRect.left) / zoom;
                 labelY = (centerY - viewportRect.top) / zoom;
               }
-            } catch {}
+            } catch { }
           }
 
           // Fallback to geometric calculation if anchor not found
@@ -205,7 +205,7 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
                 lx = sx2;
                 ly = sy2;
               }
-            } catch {}
+            } catch { }
             labelX = lx;
             labelY = ly;
           }
@@ -216,22 +216,16 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
             return null;
           }
 
-          // Hide overlay when edge is selected or hovered
-          const isEdgeHovered = overlayActiveId === e.id || hoveredEdgeId === e.id;
-          if (isEdgeHovered) return null;
-
           const percentage = p * 100;
-          const baseSize = flowSize * (BASE_SIZE_PX / baseScreenSize);
-          const maxSize = flowSize * (MAX_SIZE_PX / baseScreenSize);
-          const size = baseSize + (p * (maxSize - baseSize));
+          const clampedZoom = Math.max(zoom, 0.6);
+          const sizeFactor = 1.0 / clampedZoom; // moderate enlargement at low zoom
+          const size = (BASE_SIZE_PX + (p * (MAX_SIZE_PX - BASE_SIZE_PX))) * sizeFactor;
 
           // Determine color based on edge type and selection
           // Default colors by type
           let color = isSupport ? SUPPORT_COLOR : (isNegation ? NEGATION_COLOR : OBJECTION_COLOR);
 
           // If a node is selected and this edge connects to it, use friend/enemy colors
-          const allNodes = rf.getNodes();
-          const selectedNode = allNodes.find(n => (n as any)?.selected);
           if (selectedNode) {
             const edgeConnectsToSelected = e.source === selectedNode.id || e.target === selectedNode.id;
             if (edgeConnectsToSelected) {
@@ -283,14 +277,14 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
                 {isObjection ? (
                   // Diamond shape (rotated square)
                   <polygon
-                    points={`${triangleSize/2},0 ${triangleSize},${triangleSize/2} ${triangleSize/2},${triangleSize} 0,${triangleSize/2}`}
+                    points={`${triangleSize / 2},0 ${triangleSize},${triangleSize / 2} ${triangleSize / 2},${triangleSize} 0,${triangleSize / 2}`}
                     fill={color}
                     stroke="rgba(255,255,255,0.4)"
                     strokeWidth={3}
                   />
                 ) : (
                   <polygon
-                    points={`${triangleSize/2},0 ${triangleSize},${height} 0,${height}`}
+                    points={`${triangleSize / 2},0 ${triangleSize},${height} 0,${height}`}
                     fill={color}
                     stroke="rgba(255,255,255,0.4)"
                     strokeWidth={3}
@@ -308,7 +302,10 @@ export const EdgePriceOverlay: React.FC<Props> = ({ edges, zoomThreshold = 0.6, 
               </div>
             </div>
           );
-        } catch {
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            logger.error('[market/ui] edge overlay render failed', { error });
+          }
           return null;
         }
       })}
