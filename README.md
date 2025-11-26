@@ -102,19 +102,120 @@ Negation Game is not intended to be run locally. It is a hosted service.
 
 However, if you would like to attempt to run it locally, you can do so by following these steps:
 
-1. Clone the repository
-2. Install dependencies `pnpm i`
-3. Run the development server using `pnpm dev`
+> **Warning**: These instructions may be incomplete or outdated. If you encounter issues or notice any inaccuracies, please open a PR with corrections.
 
-The repository makes several assumptions about the environment it's running in.
+### Prerequisites
 
-- It assumes that you are using postgre, [privy](https://docs.privy.io/authentication/overview) for authentication, as well as Gemini and OpenAI for AI features.
+Before you begin, ensure you have the following installed:
 
-### Running the Yjs websocket server
+- **Node.js** (v20 or higher recommended)
+- **pnpm** (v9.15.4 or higher) - Install with: `npm install -g pnpm`
+- **PostgreSQL** database (or use a hosted service like Supabase (recommended))
 
-The Negation Game uses Yjs for collaborative editing. The Yjs websocket server is hosted on Fly.io.
+### 1. Clone the repository
 
-`cd yjs-ws && ALLOWED_ORIGINS=http://localhost:3001 VERBOSE=1 node server.js` is for local development.
+```bash
+git clone https://github.com/network-goods-institute/negation-game.git
+cd negation-game
+```
+
+### 2. Install dependencies
+
+```bash
+pnpm install
+```
+
+### 3. Set up environment variables
+
+Create a `.env.local` file in the root directory with the following variables:
+
+```bash
+# Required: Database
+POSTGRES_URL="postgresql://user:password@host:port/database"
+
+# Required: Authentication (Privy)
+NEXT_PUBLIC_PRIVY_APP_ID="your-privy-app-id"
+PRIVY_APP_SECRET="your-privy-app-secret"
+
+# Required: AI Features
+OPENAI_API_KEY="your-openai-api-key"
+GOOGLE_GENERATIVE_AI_API_KEY="your-google-ai-api-key"
+
+# Required: Yjs WebSocket for collaborative editing
+NEXT_PUBLIC_YJS_WS_URL="ws://localhost:8080"
+YJS_AUTH_SECRET="generate-a-random-secret-key"
+
+# Optional: Feature Flags (what i recommend)
+NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED=true
+NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED=false
+NEXT_PUBLIC_MULTIPLAYER_INVERSE_PAIR_ENABLED=false
+NEXT_PUBLIC_FEATURE_NOTIFICATIONS_ENABLED=false
+ENABLE_MINDCHANGE=false
+NEXT_PUBLIC_ENABLE_MINDCHANGE=false
+
+# Optional: Development
+ESLINT_USE_FLAT_CONFIG=false
+```
+
+**Getting the required credentials:**
+
+- **PostgreSQL**: Set up a PostgreSQL database locally or use a hosted service like [Supabase](https://supabase.com)
+- **Privy**: Sign up at [Privy.io](https://privy.io) and create an app to get your credentials
+- **OpenAI**: Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+- **Google AI**: Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+### 4. Set up the database
+
+Run database migrations using Drizzle:
+
+```bash
+pnpm drizzle-kit generate
+pnpm drizzle-kit migrate
+```
+
+### 5. Set up the Yjs WebSocket server
+
+The Negation Game Multiplayer Experiment uses Yjs for collaborative editing. You need to run a separate WebSocket server:
+
+```bash
+# In a new terminal window
+cd yjs-ws
+pnpm install
+pnpm dev
+```
+
+This will start the Yjs WebSocket server on `ws://localhost:8080`.
+
+### 6. Run the development server
+
+```bash
+# In your main terminal (in the root directory)
+pnpm dev
+```
+
+The application will be available at `http://localhost:3001`.
+
+### Additional Commands
+
+- **Type checking**: `pnpm compile`
+- **Linting**: `pnpm lint`
+- **Testing**: `pnpm test`
+- **Build for production**: `pnpm build`
+- **Smoke test**: `pnpm smoke-test`
+
+### Troubleshooting
+
+- If you encounter database connection issues, verify your `POSTGRES_URL` is correct and the database is running
+- If collaborative editing doesn't work, ensure the Yjs WebSocket server is running on port 8080
+- For authentication issues, double-check your Privy credentials
+- Make sure both the main app (port 3001) and Yjs server (port 8080) are running simultaneously
+
+### Development Notes
+
+- The main Next.js app runs on port **3001** (not the default 3000)
+- The Yjs WebSocket server runs on port **8080**
+- Database schema changes should be made in `src/db/schema.ts`, then generate migrations with `drizzle-kit`
+- Never edit migration files directly unless explicitly needed
 
 
 
