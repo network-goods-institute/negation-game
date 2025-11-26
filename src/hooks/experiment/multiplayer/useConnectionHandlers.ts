@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 import { Node, Edge } from "@xyflow/react";
 import { buildConnectionEdge } from "@/utils/experiment/multiplayer/connectUtils";
 import { generateEdgeId } from "@/utils/experiment/multiplayer/graphSync";
@@ -128,7 +129,7 @@ export const useConnectionHandlers = ({
     (nodeId: string) => {
       if (!(connectMode || mindchangeSelectMode)) return;
       if (!canWrite && !mindchangeSelectMode) {
-        toast.warning("Read-only mode: Changes won't be saved");
+        showReadOnlyToast();
         return;
       }
       const anchorId = connectAnchorId || connectAnchorRef.current;

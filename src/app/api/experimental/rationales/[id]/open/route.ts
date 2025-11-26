@@ -4,7 +4,8 @@ import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, eq } from "drizzle-orm";
-import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";import { logger } from "@/lib/logger";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
+import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,10 +31,6 @@ export async function POST(_req: Request, ctx: any) {
   const canonicalId = await resolveSlugToId(id);
 
   try {
-    await db
-      .insert(mpDocsTable)
-      .values({ id: canonicalId, ownerId: userId, title: "Untitled" })
-      .onConflictDoNothing();
     const row = (
       await db
         .select()
@@ -41,6 +38,9 @@ export async function POST(_req: Request, ctx: any) {
         .where(eq(mpDocsTable.id, canonicalId))
         .limit(1)
     )[0] as any;
+    if (!row) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     if (row && !row.ownerId) {
       await db
         .update(mpDocsTable)

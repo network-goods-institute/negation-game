@@ -44,6 +44,7 @@ type GraphActions = {
     getLockOwner?: (nodeId: string) => { name: string; color: string; kind: 'edit' | 'drag' } | null;
     markNodeActive?: (nodeId: string) => void;
     proxyMode?: boolean;
+    mindchangeEnabled?: boolean;
     undo?: () => void;
     redo?: () => void;
     stopCapturing?: () => void;

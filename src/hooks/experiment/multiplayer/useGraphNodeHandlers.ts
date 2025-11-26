@@ -1,6 +1,11 @@
 import React from "react";
-import { useReactFlow } from "@xyflow/react";
-import { toast } from "sonner";import { logger } from "@/lib/logger";
+import { useReactFlow, useViewport } from "@xyflow/react";
+import { toast } from "sonner";
+import { logger } from "@/lib/logger";
+import { calculateGroupBounds } from "@/lib/canvas/snapCalculations";
+import { createHandleNodeDrag } from "./handlers/dragHandlers";
+import { createHandleNodeDragStop } from "./handlers/dragStopHandlers";
+import type { SnapResult } from "./useNodeDragSnapping";
 
 interface UseGraphNodeHandlersProps {
   graph: any;
@@ -24,6 +29,36 @@ export const useGraphNodeHandlers = ({
   altCloneMapRef,
 }: UseGraphNodeHandlersProps) => {
   const rf = useReactFlow();
+  const viewport = useViewport();
+  const dragStateRef = React.useRef<{
+    nodeId: string | null;
+    position: { x: number; y: number } | null;
+    selectedNodeIds: string[];
+    initialPositionsById: Record<string, { x: number; y: number }>;
+    initialSizesById: Record<string, { width: number; height: number }>;
+    initialGroupBounds: {
+      left: number;
+      right: number;
+      top: number;
+      bottom: number;
+      centerX: number;
+      centerY: number;
+      width: number;
+      height: number;
+    } | null;
+    rafId: number | null;
+    finalizingSnap: boolean;
+  }>({
+    nodeId: null,
+    position: null,
+    selectedNodeIds: [],
+    initialGroupBounds: null,
+    initialPositionsById: {},
+    initialSizesById: {},
+    rafId: null,
+    finalizingSnap: false,
+  });
+  const [snapResult, setSnapResult] = React.useState<SnapResult | null>(null);
 
   const handleNodeClick = React.useCallback(
     (e: any, node: any) => {
@@ -113,6 +148,46 @@ export const useGraphNodeHandlers = ({
 
   const handleNodeDragStart = React.useCallback(
     (e: any, node: any) => {
+      dragStateRef.current.nodeId = node.id;
+      dragStateRef.current.position = node.position;
+
+      const allNodes = rf.getNodes();
+      const selectedNodes = allNodes.filter((n: any) => n.selected);
+      dragStateRef.current.selectedNodeIds = selectedNodes.map(
+        (n: any) => n.id
+      );
+      dragStateRef.current.initialPositionsById = selectedNodes.reduce<
+        Record<string, { x: number; y: number }>
+      >((acc, n: any) => {
+        acc[n.id] = { x: n.position?.x ?? 0, y: n.position?.y ?? 0 };
+        return acc;
+      }, {});
+      dragStateRef.current.initialSizesById = selectedNodes.reduce<
+        Record<string, { width: number; height: number }>
+      >((acc, n: any) => {
+        const width =
+          Number(n?.width ?? n?.measured?.width ?? n?.style?.width ?? 0) || 0;
+        const height =
+          Number(n?.height ?? n?.measured?.height ?? n?.style?.height ?? 0) ||
+          0;
+        acc[n.id] = { width: Math.round(width), height: Math.round(height) };
+        return acc;
+      }, {});
+
+      if (selectedNodes.length > 1) {
+        dragStateRef.current.initialGroupBounds = calculateGroupBounds(
+          selectedNodes as any,
+          dragStateRef.current.initialSizesById
+        );
+      } else {
+        dragStateRef.current.initialGroupBounds = null;
+      }
+
+      if (dragStateRef.current.rafId) {
+        cancelAnimationFrame(dragStateRef.current.rafId);
+        dragStateRef.current.rafId = null;
+      }
+      setSnapResult(null);
       onNodeDragStart?.(e, node);
       try {
         // Block dragging a node if any objection connected to an edge with this node as endpoint is being edited
@@ -224,44 +299,40 @@ export const useGraphNodeHandlers = ({
   );
 
   const handleNodeDrag = React.useCallback(
-    (_: any, node: any) => {
-      try {
-        const mapping = altCloneMapRef.current.get(String(node.id));
-        if (mapping) {
-          graph.updateNodePosition?.(
-            mapping.dupId,
-            node.position?.x ?? 0,
-            node.position?.y ?? 0
-          );
-          graph.updateNodePosition?.(
-            node.id,
-            mapping.origin.x,
-            mapping.origin.y
-          );
-        } else {
-          graph.updateNodePosition?.(
-            node.id,
-            node.position?.x ?? 0,
-            node.position?.y ?? 0
-          );
-        }
-      } catch {}
+    (e: any, node: any) => {
+      return createHandleNodeDrag({
+        graph,
+        rf,
+        viewport,
+        altCloneMapRef,
+        setSnapResult,
+        dragStateRef,
+      })(e, node);
     },
-    [graph, altCloneMapRef]
+    [graph, rf, viewport, altCloneMapRef, setSnapResult, dragStateRef]
   );
 
   const handleNodeDragStop = React.useCallback(
     (e: any, node: any) => {
-      onNodeDragStop?.(e, node);
-      graph?.stopCapturing?.();
-      const mapping = altCloneMapRef.current.get(String(node.id));
-      if (mapping) {
-        graph?.unlockNode?.(mapping.dupId);
-        // eslint-disable-next-line drizzle/enforce-delete-with-where
-        altCloneMapRef.current.delete(String(node.id));
-      }
+      return createHandleNodeDragStop({
+        graph,
+        rf,
+        viewport,
+        altCloneMapRef,
+        dragStateRef,
+        setSnapResult,
+        onNodeDragStop,
+      })(e, node);
     },
-    [graph, onNodeDragStop, altCloneMapRef]
+    [
+      graph,
+      rf,
+      viewport,
+      altCloneMapRef,
+      dragStateRef,
+      setSnapResult,
+      onNodeDragStop,
+    ]
   );
 
   return {
@@ -269,5 +340,12 @@ export const useGraphNodeHandlers = ({
     handleNodeDragStart,
     handleNodeDrag,
     handleNodeDragStop,
+    snapResult,
+    get finalizingSnap() {
+      return dragStateRef.current.finalizingSnap;
+    },
+    get draggingActive() {
+      return dragStateRef.current.nodeId !== null;
+    },
   };
 };

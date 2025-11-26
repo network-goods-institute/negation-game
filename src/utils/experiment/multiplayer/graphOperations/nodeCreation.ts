@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 import type { MutableRefObject } from "react";
 
 import {
@@ -39,7 +40,7 @@ export const createAddNodeAtPosition = (
     y: number
   ): string => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return "";
     }
     const idBase =
@@ -120,7 +121,7 @@ export const createAddNegationBelow = (
       return;
     }
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
     const now = Date.now();
@@ -135,7 +136,7 @@ export const createAddNegationBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: { x: newPos.x, y: newPos.y },
+      position: { x: newPos.x, y: newPos.y + 32 },
       data: { content: "New point", favor: 5, createdAt: Date.now() },
       selected: true,
     };
@@ -201,7 +202,7 @@ export const createAddSupportBelow = (
       return;
     }
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
     const now = Date.now();
@@ -216,7 +217,7 @@ export const createAddSupportBelow = (
     const newNode: any = {
       id: newId,
       type: "point",
-      position: { x: newPos.x, y: newPos.y },
+      position: { x: newPos.x, y: newPos.y + 32 },
       data: { content: "New Support", favor: 5, createdAt: Date.now() },
       selected: true,
     };
@@ -272,38 +273,135 @@ export const createAddPointBelow = (
   getViewportOffset?: () => { x: number; y: number },
   options?: CreateAddPointBelowOptions
 ) => {
-  return (parentNodeId: string) => {
-    if (isLockedForMe?.(parentNodeId)) {
-      const owner = getLockOwner?.(parentNodeId);
-      toast.warning(`Locked by ${owner?.name || "another user"}`);
+  return (
+    parentInput:
+      | string
+      | string[]
+      | { ids: string[]; positionsById?: Record<string, { x: number; y: number }> }
+  ) => {
+    const parentNodeIds = Array.isArray(parentInput)
+      ? parentInput
+      : typeof parentInput === "object" && parentInput !== null && "ids" in parentInput
+      ? parentInput.ids
+      : [parentInput as string];
+
+    const positionsOverride =
+      typeof parentInput === "object" && parentInput !== null && "positionsById" in parentInput
+        ? (parentInput as any).positionsById || null
+        : null;
+
+    const lockedParents = parentNodeIds.filter((id) => isLockedForMe?.(id));
+    if (lockedParents.length > 0) {
+      const owner = getLockOwner?.(lockedParents[0]);
+      toast.warning(
+        `${lockedParents.length > 1 ? "Some nodes are" : "Node is"} locked by ${owner?.name || "another user"}`
+      );
       return;
     }
+
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
+
     const now = Date.now();
-    const last = lastAddRef.current[parentNodeId] || 0;
+
+    const parents = parentNodeIds
+      .map((id) => nodes.find((n: any) => n.id === id))
+      .filter(Boolean);
+
+    if (parents.length === 0) return;
+
+    const firstParentId = parentNodeIds[0];
+    const last = lastAddRef.current[firstParentId] || 0;
     if (now - last < 500) return;
-    lastAddRef.current[parentNodeId] = now;
-    const parent = nodes.find((n: any) => n.id === parentNodeId);
-    if (!parent) return;
+    lastAddRef.current[firstParentId] = now;
+
     const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
-    const parentType = parent.type;
-    const preferred = options?.getPreferredEdgeType?.({ parent });
-    const edgeType = chooseEdgeType("point", parentType, preferred);
+    const firstParent = parents[0];
+    let newPos;
+    const hasMultipleParents = parents.length > 1;
+    if (hasMultipleParents) {
+      const positions = parentNodeIds.map((pid) => {
+        const override = positionsOverride?.[pid];
+        const p = parents.find((n: any) => n.id === pid) as any | undefined;
+        const x = override?.x ?? p?.position?.x;
+        const y = override?.y ?? p?.position?.y;
+        const width =
+          override?.width ??
+          p?.width ??
+          p?.measured?.width ??
+          p?.style?.width ??
+          0;
+        const height =
+          override?.height ??
+          p?.height ??
+          p?.measured?.height ??
+          p?.style?.height ??
+          0;
+        return { id: pid, x, y, width, height };
+      });
+      const valid = positions.filter(
+        (p) =>
+          Number.isFinite(p.x) &&
+          Number.isFinite(p.y) &&
+          Number.isFinite(p.width) &&
+          Number.isFinite(p.height)
+      );
+      const centerX =
+        valid.reduce((sum, pos) => sum + (pos.x + pos.width / 2), 0) /
+        (valid.length || positions.length || 1);
+      // Find the lowest parent (max Y + height) instead of averaging
+      const lowestBottomEdge =
+        valid.length > 0
+          ? Math.max(...valid.map((pos) => pos.y + pos.height))
+          : 0;
+      const avgWidth =
+        valid.reduce((sum, pos) => sum + pos.width, 0) /
+        (valid.length || positions.length || 1);
+      const newWidthEstimate = avgWidth || 200;
+      const newX = centerX - newWidthEstimate / 2;
+      const newY = lowestBottomEdge + 32;
+      newPos = { x: newX, y: newY };
+    } else {
+      newPos = calculateNodePositionBelow(
+        firstParent,
+        nodes,
+        getViewportOffset
+      );
+    }
 
-    const newPos = calculateNodePositionBelow(parent, nodes, getViewportOffset);
-    const defaultContent =
-      parentType === "statement" || parentType === "title"
-        ? "New Option"
-        : edgeType === "support"
-          ? "New Support"
-          : edgeType === "negation"
-            ? "New Negation"
-            : "New Point";
+    // Determine content based on parent types
+    const parentTypes = new Set(parents.map((p: any) => p.type));
+    const firstParentType = firstParent.type;
+    let defaultContent = "New Point";
 
+    // Only use type-specific labels when ALL parents are the same type
+    // Mixed types always default to "New Point" to avoid confusion
+    if (parentTypes.size === 1) {
+      // All same type - use appropriate label
+      if (firstParentType === "statement" || firstParentType === "title") {
+        defaultContent = "New Option";
+      } else if (firstParentType === "comment") {
+        defaultContent = "New Comment";
+      } else {
+        // For point/objection parents, determine label based on edge type
+        const preferred = options?.getPreferredEdgeType?.({
+          parent: firstParent,
+        });
+        const edgeType = chooseEdgeType("point", firstParentType, preferred);
+        if (edgeType === "support") {
+          defaultContent = "New Support";
+        } else if (edgeType === "negation") {
+          defaultContent = "New Negation";
+        }
+        // If no specific edge type, stays "New Point" (default)
+      }
+    }
+    // If mixed types (parentTypes.size > 1), defaultContent stays "New Point"
+
+    // Create the new node
     const newNode: any = {
       id: newId,
       type: "point",
@@ -314,16 +412,32 @@ export const createAddPointBelow = (
       data: { content: defaultContent, favor: 5, createdAt: Date.now() },
       selected: true,
     };
-    const newEdge: any = {
-      id: generateEdgeId(),
-      type: edgeType,
-      source: newId,
-      target: parentNodeId,
-      sourceHandle: `${newId}-source-handle`,
-      targetHandle: `${parentNodeId}-incoming-handle`,
-      data: {},
-    };
-    // Clear all existing selections and add new node/edge
+
+    // Create edges to ALL parents
+    const newEdges: any[] = [];
+    const results: Array<{ nodeId: string; edgeId: string; edgeType: string }> =
+      [];
+
+    for (const parent of parents) {
+      const parentType = (parent as any).type;
+      const preferred = options?.getPreferredEdgeType?.({ parent });
+      const edgeType = chooseEdgeType("point", parentType, preferred);
+
+      const newEdge: any = {
+        id: generateEdgeId(),
+        type: edgeType,
+        source: newId,
+        target: (parent as any).id,
+        sourceHandle: `${newId}-source-handle`,
+        targetHandle: `${(parent as any).id}-incoming-handle`,
+        data: {},
+      };
+
+      newEdges.push(newEdge);
+      results.push({ nodeId: newId, edgeId: newEdge.id, edgeType });
+    }
+
+    // Clear all existing selections and add the new node/edges
     options?.onNodeCreated?.();
     setNodes((curr) => [
       ...curr.map((n) => ({ ...n, selected: false })),
@@ -332,14 +446,16 @@ export const createAddPointBelow = (
     // Clear any edge selection so text selection in new node works properly
     setEdges((eds) => [
       ...eds.map((e) => ({ ...e, selected: false })),
-      newEdge,
+      ...newEdges,
     ]);
+
+    // Notify about added node
     options?.onNodeAdded?.(newId);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
         yNodesMap.set(newId, newNode);
-        yEdgesMap.set(newEdge.id, newEdge);
+        newEdges.forEach((edge) => yEdgesMap.set(edge.id, edge));
         if (yTextMap && !yTextMap.get(newId)) {
           const t = new Y.Text();
           t.insert(0, defaultContent);
@@ -348,8 +464,10 @@ export const createAddPointBelow = (
       }, localOrigin);
     }
 
-    const result = { nodeId: newId, edgeId: newEdge.id, edgeType };
-    options?.onEdgeCreated?.(result);
-    return result;
+    // Trigger edge created callback for each edge
+    results.forEach((result) => options?.onEdgeCreated?.(result));
+
+    // Return single result (the one node with multiple edges)
+    return results[0];
   };
 };

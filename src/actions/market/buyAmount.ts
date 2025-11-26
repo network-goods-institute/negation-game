@@ -12,6 +12,8 @@ import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { logger } from "@/lib/logger";
 import { ensureSecurityInDoc } from "@/actions/market/ensureSecurityInDoc";
+import { buildSecurities } from "@/lib/carroll/structure";
+import { createStructureWithSupports } from "./structureUtils";
 
 export async function buyAmount(
   docId: string,
@@ -188,15 +190,14 @@ export async function buyAmount(
             }
           } catch {}
         }
-        const { createStructure: mk, buildSecurities: mkSecs } = await import(
-          "@/lib/carroll/structure"
-        );
-        const augStructure = mk(
+        const augStructure = createStructureWithSupports(
           Array.from(augNodes),
           triples,
           supportTriples
         );
-        const augSecurities = mkSecs(augStructure, { includeNegations: "all" });
+        const augSecurities = buildSecurities(augStructure, {
+          includeNegations: "all",
+        });
         const augTotals = new Map<string, bigint>();
         for (const sec of augSecurities)
           augTotals.set(sec, totals.get(sec) || 0n);
@@ -212,11 +213,10 @@ export async function buyAmount(
         for (const sec of securities)
           mm.setShares(sec, totals.get(sec) || 0n);
       } else {
-        const { createStructure: mk, buildSecurities: mkSecs } = await import(
-          "@/lib/carroll/structure"
-        );
-        const augStructure = mk([normalized], []);
-        const augSecurities = mkSecs(augStructure, { includeNegations: "all" });
+        const augStructure = createStructureWithSupports([normalized], []);
+        const augSecurities = buildSecurities(augStructure, {
+          includeNegations: "all",
+        });
         const augTotals = new Map<string, bigint>();
         for (const sec of augSecurities) augTotals.set(sec, 0n);
         augTotals.set(normalized, 0n);

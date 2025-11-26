@@ -108,7 +108,7 @@ However, if you would like to attempt to run it locally, you can do so by follow
 
 The repository makes several assumptions about the environment it's running in.
 
-- It assumes that you are using postgre, privy for authentication, as well as Gemini and OpenAI for AI features.
+- It assumes that you are using postgre, [privy](https://docs.privy.io/authentication/overview) for authentication, as well as Gemini and OpenAI for AI features.
 
 ### Running the Yjs websocket server
 

@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 
 export const createDeleteNode = (
   nodes: any[],
@@ -27,7 +28,7 @@ export const createDeleteNode = (
 
   return (nodeId: string) => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
 

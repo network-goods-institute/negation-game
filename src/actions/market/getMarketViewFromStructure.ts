@@ -1,11 +1,12 @@
 "use server";
-import { createStructure, buildSecurities } from "@/lib/carroll/structure";
+import { buildSecurities } from "@/lib/carroll/structure";
 import { createMarketMaker, defaultB } from "@/lib/carroll/market";
 import { db } from "@/services/db";
 import { marketHoldingsTable } from "@/db/tables/marketHoldingsTable";
 import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { resolveSlugToId } from "@/utils/slugResolver";
+import { createStructureWithSupports } from "./structureUtils";
 
 export type MarketView = {
   prices: Record<string, number>;
@@ -55,7 +56,7 @@ export async function getMarketViewFromStructure(docId: string, userId: string |
       negationTriples.push([e.id, e.src, e.tgt]);
     }
   }
-  const structure = createStructure(nodeIds, negationTriples, supportTriples);
+  const structure = createStructureWithSupports(nodeIds, negationTriples, supportTriples);
   const securities = buildSecurities(structure, { includeNegations: "all" });
 
   // Load totals from DB for canonical doc id

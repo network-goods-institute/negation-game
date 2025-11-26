@@ -247,7 +247,7 @@ describe("Multiplayer board detail auth gating", () => {
     })) as any;
   });
 
-  it("renders login prompt when unauthenticated", async () => {
+  it("does not render login prompt when unauthenticated (read-only view allowed)", async () => {
     render(
       <QueryClientProvider>
         <MultiplayerBoardDetailPage />
@@ -255,7 +255,7 @@ describe("Multiplayer board detail auth gating", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Login Required/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Login Required/i)).not.toBeInTheDocument();
     });
   });
 });

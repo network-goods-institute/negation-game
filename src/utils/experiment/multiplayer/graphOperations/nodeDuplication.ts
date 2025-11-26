@@ -1,5 +1,6 @@
 import * as Y from "yjs";
 import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 import { generateEdgeId } from "../graphSync";
 
 type NodesUpdater = (updater: (nodes: any[]) => any[]) => void;
@@ -31,7 +32,7 @@ export const createDuplicateNodeWithConnections = (
       return null;
     }
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return null;
     }
 

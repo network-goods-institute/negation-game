@@ -6,8 +6,9 @@ import { reconcileTradableSecurities } from "@/actions/market/reconcileTradableS
 import { createMarketMaker, defaultB } from "@/lib/carroll/market";
 import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { createStructure, buildSecurities } from "@/lib/carroll/structure";
+import { buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
+import { createStructureWithSupports } from "./structureUtils";
 
 export type MarketView = {
   prices: Record<string, number>;
@@ -79,7 +80,7 @@ export async function computeMarketView(
       }
     }
     try {
-      const s = createStructure(Array.from(nodes), triples, []);
+      const s = createStructureWithSupports(Array.from(nodes), triples, []);
       const secs = buildSecurities(s, { includeNegations: "all" });
       mmStruct = s;
       mmSecs = secs;
@@ -90,7 +91,7 @@ export async function computeMarketView(
             docId: canonicalId,
             nodes: s.nodes.length,
             edges: s.edges.length,
-            supportEdges: s.supportEdges.length,
+            supportEdges: (s as any).supportEdges?.length ?? 0,
             secs: mmSecs.length,
           })
         );

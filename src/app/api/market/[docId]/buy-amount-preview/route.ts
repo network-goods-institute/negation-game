@@ -9,6 +9,8 @@ import { eq, sql } from "drizzle-orm";
 import { resolveSlugToId } from "@/utils/slugResolver";
 import { logger } from "@/lib/logger";
 import { fromFixed } from "@/lib/carroll/fixed";
+import { buildSecurities } from "@/lib/carroll/structure";
+import { createStructureWithSupports } from "@/actions/market/structureUtils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,9 +126,12 @@ export async function POST(req: Request, ctx: any) {
         nodeSet.add(baseId);
       }
 
-      const { createStructure: mk, buildSecurities: mkSecs } = require("@/lib/carroll/structure");
-      structure = mk(Array.from(nodeSet), edgeTriples, supportTriples);
-      securities = mkSecs(structure, { includeNegations: "all" });
+      structure = createStructureWithSupports(
+        Array.from(nodeSet),
+        edgeTriples,
+        supportTriples
+      );
+      securities = buildSecurities(structure, { includeNegations: "all" });
       ({ totals, userTotals } = rebuildMaps());
     };
 

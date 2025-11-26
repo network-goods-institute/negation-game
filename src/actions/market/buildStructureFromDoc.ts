@@ -1,14 +1,15 @@
 "use server";
 import * as Y from "yjs";
 import { getDocSnapshotBuffer } from "@/services/yjsCompaction";
-import { createStructure, buildSecurities } from "@/lib/carroll/structure";
+import { buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
+import { createStructureWithSupports } from "./structureUtils";
 
 type RFNode = { id: string; type?: string };
 type RFEdge = { id: string; source: string; target: string; type?: string };
 
 export type BuiltMarket = {
-  structure: ReturnType<typeof createStructure>;
+  structure: ReturnType<typeof createStructureWithSupports>;
   securities: string[];
 };
 
@@ -50,7 +51,7 @@ export async function buildStructureFromDoc(docId: string): Promise<BuiltMarket>
       negationEdges.push([e.id, from, to]);
     }
   }
-  const structure = createStructure(nodes, negationEdges, supportEdges);
+  const structure = createStructureWithSupports(nodes, negationEdges, supportEdges);
   const negationAllow: string[] = Array.from(yEdges.values())
     .filter((e) => e?.type === "negation" || e?.type === "objection")
     .map((e) => e.id);

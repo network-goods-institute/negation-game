@@ -27,7 +27,6 @@ import { SpaceSearchInput } from "@/components/search/SpaceSearchInput";
 import { useSpaceSearch } from "@/components/contexts/SpaceSearchContext";
 import { createPortal } from "react-dom";
 import { useTheme } from "next-themes";
-import Link from "next/link";
 
 export const HeaderActions = () => {
     const { openDialog: openOnboardingDialog } = useOnboarding();
@@ -54,10 +53,13 @@ export const HeaderActions = () => {
     }, []);
 
     const handleAiClick = () => {
-        if (pathname === `${basePath}/chat`) return;
+        if (!basePath || pathname === `${basePath}/chat`) return;
         setIsAiLoading(true);
         router.push(`${basePath}/chat`);
     };
+
+    // AI Assistant is only available in space contexts
+    const isAiDisabled = !basePath || pathname === `${basePath}/chat`;
 
     return (
         <>
@@ -81,7 +83,7 @@ export const HeaderActions = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={handleAiClick}
-                                disabled={pathname === `${basePath}/chat`}
+                                disabled={isAiDisabled}
                             >
                                 {isAiLoading ? (
                                     <Loader className="h-4 w-4" />
@@ -125,7 +127,7 @@ export const HeaderActions = () => {
                         </Tooltip>
                         <DropdownMenuContent align="end">
                             {/* AI Assistant in dropdown as fallback */}
-                            <DropdownMenuItem onClick={handleAiClick} disabled={pathname === `${basePath}/chat`}>
+                            <DropdownMenuItem onClick={handleAiClick} disabled={isAiDisabled}>
                                 {isAiLoading ? (
                                     <Loader className="mr-2 h-4 w-4" />
                                 ) : (
@@ -169,16 +171,16 @@ export const HeaderActions = () => {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
-                                <Link href="/privacy">
+                                <a href="https://negationgame.com/privacy">
                                     <FileText className="mr-2 h-4 w-4" />
                                     <span>Privacy Policy</span>
-                                </Link>
+                                </a>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                                <Link href="/tos">
+                                <a href="https://negationgame.com/tos">
                                     <FileText className="mr-2 h-4 w-4" />
                                     <span>Terms of Service</span>
-                                </Link>
+                                </a>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
@@ -205,7 +207,7 @@ export const HeaderActions = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {/* AI Assistant for mobile */}
-                            <DropdownMenuItem onClick={handleAiClick} disabled={pathname === `${basePath}/chat`}>
+                            <DropdownMenuItem onClick={handleAiClick} disabled={isAiDisabled}>
                                 {isAiLoading ? (
                                     <Loader className="mr-2 h-4 w-4" />
                                 ) : (
@@ -251,16 +253,16 @@ export const HeaderActions = () => {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>
-                                <Link href="/privacy">
+                                <a href="https://negationgame.com/privacy">
                                     <FileText className="mr-2 h-4 w-4" />
                                     <span>Privacy Policy</span>
-                                </Link>
+                                </a>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                                <Link href="/tos">
+                                <a href="https://negationgame.com/tos">
                                     <FileText className="mr-2 h-4 w-4" />
                                     <span>Terms of Service</span>
-                                </Link>
+                                </a>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem asChild>

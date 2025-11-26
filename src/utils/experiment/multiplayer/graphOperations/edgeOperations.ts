@@ -1,5 +1,5 @@
 import * as Y from "yjs";
-import { toast } from "sonner";
+import { showReadOnlyToast } from "@/utils/readonlyToast";
 import { ORIGIN } from "@/hooks/experiment/multiplayer/yjs/origins";
 
 import { generateEdgeId } from "../graphSync";
@@ -21,7 +21,7 @@ export const createAddObjectionForEdge = (
 ) => {
   return (edgeId: string, overrideMidX?: number, overrideMidY?: number) => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
 
@@ -111,7 +111,7 @@ export const createUpdateEdgeType = (
 ) => {
   return (edgeId: string, newType: "negation" | "support") => {
     if (!canWrite) {
-      toast.warning("Read-only mode: Changes won't be saved");
+      showReadOnlyToast();
       return;
     }
 
