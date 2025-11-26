@@ -16,12 +16,12 @@ import { useGraphWheelHandler } from '@/hooks/experiment/multiplayer/useGraphWhe
 import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNodeHandlers';
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
 import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
-import { NodePriceOverlay } from './NodePriceOverlay';
 import { MiniHoverStats } from './MiniHoverStats';
+import { NodePriceOverlay } from './NodePriceOverlay';
 import { EdgePriceOverlay } from './EdgePriceOverlay';
 import { enrichWithMarketData, getDocIdFromURL } from '@/utils/market/marketUtils';
+import { dispatchMarketPanelClose } from '@/utils/market/marketEvents';
 import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
-import { logger } from '@/lib/logger';
 
 type YProvider = WebsocketProvider | null;
 
@@ -58,7 +58,10 @@ interface GraphCanvasProps {
   blurAllNodes?: number;
   forceSave?: () => Promise<void> | void;
   yMetaMap?: any;
+  isMarketPanelVisible?: boolean;
 }
+
+type MarketNode = Node<{ market?: { price?: number; mine?: number; total?: number } }>;
 
 export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   nodes,
@@ -93,6 +96,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   blurAllNodes = 0,
   forceSave,
   yMetaMap,
+  isMarketPanelVisible = false,
 }) => {
   const rf = useReactFlow();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -166,17 +170,43 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     }
   }, [edges, graph, rf, userHoldingsLite.data, yMetaMap]);
 
-  const nodesForRender = React.useMemo(() => {
+  const nodesForRender = React.useMemo<MarketNode[]>(() => {
     try {
       const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
       const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
       const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
       const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals));
-      return enriched as any;
+      return enriched as MarketNode[];
     } catch {
-      return nodes as any;
+      return nodes as MarketNode[];
     }
   }, [nodes, userHoldingsLite.data, yMetaMap]);
+
+  const nodePriceMap = React.useMemo(() => {
+    const out: Record<string, number> = {};
+    try {
+      const metaPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
+      const priceSource = metaPrices && Object.keys(metaPrices).length ? metaPrices : null;
+      const candidates = priceSource ? Object.entries(priceSource) : [];
+      if (candidates.length) {
+        const allowedIds = new Set(nodesForRender.map((n) => String(n.id)));
+        for (const [id, price] of candidates) {
+          const pNum = Number(price);
+          if (Number.isFinite(pNum) && allowedIds.has(id)) {
+            out[id] = pNum;
+          }
+        }
+      } else {
+        for (const n of nodesForRender as any[]) {
+          const price = Number((n as any)?.data?.market?.price ?? NaN);
+          if (Number.isFinite(price)) {
+            out[String((n as any).id)] = price;
+          }
+        }
+      }
+    } catch { }
+    return out;
+  }, [nodesForRender, yMetaMap]);
 
 
   // Custom hooks for managing complex logic
@@ -226,6 +256,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     window.addEventListener('mousemove', handler);
     return () => window.removeEventListener('mousemove', handler);
   }, [connectMode, mindchangeMode, connectAnchorId, onFlowMouseMove, rf]);
+
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!(connectMode && !mindchangeMode) || !connectAnchorId || !onFlowMouseMove) return;
     const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -237,12 +268,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const target = event.target as HTMLElement | null;
     if (!target) return;
 
-    if (target.closest('.react-flow__node') || target.closest('.react-flow__edge')) {
-      return;
-    }
+    const isPane = target.closest('.react-flow__pane');
+    const isEdge = target.closest('.react-flow__edge');
 
-    if (target.closest('.react-flow__pane')) {
-      // Use the snapped target from the component level hook
+    if (isPane || isEdge) {
       if (componentSnappedTarget && componentSnappedTarget.kind) {
         if (componentSnappedTarget.kind === 'node') {
           (graph as any)?.completeConnectToNode?.(componentSnappedTarget.id);
@@ -283,7 +312,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = 'none';
     }
   }, [grabMode]);
-
 
   const onCanvasDoubleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -334,6 +362,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const isLabel = !!target.closest('.react-flow__edge-labels');
     const isPane = !!target.closest('.react-flow__pane');
     const isOverlay = isLabel || isMinimap || isControl;
+    // If market panel is visible and user clicks the bare pane, close the panel via fade first
+    if (isMarketPanelVisible && !connectMode && isPane && !isNode && !isEdge && !isOverlay) {
+      dispatchMarketPanelClose();
+      // Do not swallow the event if the user is panning (hand tool) or using middle mouse
+      if (!grabMode && e.button !== 1) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
     // Do not clear selection on mousedown; only clear text selection
     if (!isNode && !isEdge && (isPane || isOverlay)) {
       try { window.getSelection()?.removeAllRanges(); } catch { }
@@ -349,6 +387,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       ref={containerRef}
       className="w-full h-full relative"
       onContextMenu={handleMultiSelectContextMenu}
+      onMouseDownCapture={handleBackgroundMouseDownCapture}
       onPointerDown={(e) => {
         try {
           if (e.button === 1 && e.pointerType === 'mouse') {
@@ -373,7 +412,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           }
         } catch { }
       }}
-      onMouseDownCapture={handleBackgroundMouseDownCapture}
       onMouseMove={onCanvasMouseMove}
       onMouseLeave={() => graph.setHoveredNodeId?.(null)}
       onMouseUp={handleMouseUp}
@@ -382,9 +420,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     >
       {process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true' && Array.isArray(nodesForRender) && (
         <>
-      <NodePriceOverlay nodes={nodesForRender as any} prices={(yMetaMap as any)?.get?.('market:prices') ?? null} />
-      <EdgePriceOverlay edges={edgesForRender as any} />
           <MiniHoverStats docId={docId} />
+          <NodePriceOverlay nodes={nodesForRender as any} prices={nodePriceMap} />
+          <EdgePriceOverlay edges={edgesForRender as any} />
         </>
       )}
       {(() => {
@@ -456,6 +494,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
               // In connect mode, route to background mouse up handler
               if (connectMode) {
                 onBackgroundMouseUp?.();
+                return;
+              }
+              // If market panel is visible, request panel to close with animation
+              if (isMarketPanelVisible) {
+                dispatchMarketPanelClose();
                 return;
               }
               // Clear edge selection and hover immediately, but delay node deselection to avoid race after selection changes
@@ -538,7 +581,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       {/* Global arrow markers for mindchange edges */}
       {edgesLayer && createPortal(<EdgeArrowMarkers />, edgesLayer)}
       <CursorOverlay cursors={cursors} />
-      <OffscreenNeighborPreviews blurAllNodes={blurAllNodes} />
+      <OffscreenNeighborPreviews blurAllNodes={blurAllNodes} isMarketPanelVisible={isMarketPanelVisible} />
       {!grabMode && !perfMode && (
         <CursorReporter
           provider={provider}

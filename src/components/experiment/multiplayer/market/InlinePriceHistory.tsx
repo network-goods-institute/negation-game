@@ -21,6 +21,7 @@ type Props = {
   className?: string;
   variant?: 'default' | 'objection';
   compact?: boolean; // When true, removes padding and background (for embedding in other containers)
+  hideHeader?: boolean;
 };
 
 /**
@@ -33,7 +34,8 @@ export const InlinePriceHistory: React.FC<Props> = ({
   currentPrice,
   className = '',
   variant = 'default',
-  compact = false
+  compact = false,
+  hideHeader = false
 }) => {
   const [history, setHistory] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +78,7 @@ export const InlinePriceHistory: React.FC<Props> = ({
           {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ securityId: normalizeSecurityId(entityId), limit: 50 }),
+            body: JSON.stringify({ securityId: normalizeSecurityId(entityId), limit: 50, includeBaseline: true }),
           }
         );
         if (!res.ok) {
@@ -359,7 +361,11 @@ export const InlinePriceHistory: React.FC<Props> = ({
     <div className={`w-full min-w-0 overflow-hidden ${className}`}>
       <div ref={boxRef} className="w-full min-w-0 select-none overflow-hidden" style={{ pointerEvents: 'auto' }}>
         <div className={`w-full min-w-0 box-border overflow-hidden rounded-md subpixel-antialiased font-sans ${compact ? '' : 'px-2 py-1.5'} ${compact ? '' : (variant === 'objection' ? 'bg-amber-50 border border-amber-200' : 'bg-white')}`}>
-          <div className={`w-full min-w-0 overflow-hidden text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-600'}`}>{(currentPrice * 100).toFixed(1)}% chance</div>
+          {!hideHeader && (
+            <div className={`w-full min-w-0 overflow-hidden text-[14px] font-semibold ${compact ? 'mb-0.5' : 'mb-1'} ${variant === 'objection' ? 'text-amber-700' : 'text-emerald-600'}`}>
+              {(currentPrice * 100).toFixed(1)}% chance
+            </div>
+          )}
           <div className="relative">
             <svg
               ref={svgRef}

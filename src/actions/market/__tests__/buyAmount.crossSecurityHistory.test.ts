@@ -24,6 +24,10 @@ jest.mock("@/lib/carroll/market", () => ({
       mmState.after = true;
       return { shares: 2n, cost: 5n };
     },
+    buyShares: () => {
+      mmState.after = true;
+      return 5n;
+    },
     getPricesFixed: () =>
       mmState.after
         ? { "p-a": 700000000000000000n, "p-b": 300000000000000000n }

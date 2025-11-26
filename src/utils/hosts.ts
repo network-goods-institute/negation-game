@@ -33,6 +33,7 @@ export const isProductionRequest = (
     h === "negation-game-git-mindchange-network-goods-institute.vercel.app" ||
     h ===
       "negation-game-git-carroll-mechan-def371-network-goods-institute.vercel.app" ||
+    h === "negation-game-git-market-panell-network-goods-institute.vercel.app" ||
     // Treat market.negationgame.com as non-production (allow anon)
     h === "market.negationgame.com"
   )

@@ -40,6 +40,8 @@ import { useMarket } from '@/hooks/market/useMarket';
 import { syncMarketDataToYDoc } from '@/utils/market/marketYDocSync';
 import { buildMarketViewPayload, isMarketEnabled } from '@/utils/market/marketUtils';
 import { logger } from '@/lib/logger';
+import { MarketPanel } from './market/MarketPanel';
+import { MarketErrorBoundary } from './market/MarketErrorBoundary';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -63,6 +65,24 @@ interface MultiplayerBoardContentProps {
   setMindchangeNextDir: (value: 'forward' | 'backward' | null) => void;
   selectMode: boolean;
 }
+
+type MarketPanelState = {
+  nodeId: string | null;
+  edgeId: string | null;
+  isExpanded: boolean;
+  shareParamsApplied: boolean;
+};
+
+const logDevError = (message: string, error: unknown) => {
+  if (process.env.NODE_ENV === 'development') {
+    const payload = error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : { error };
+    logger.error(message, payload);
+  }
+};
+
+const isAbortError = (error: unknown) => {
+  return error instanceof DOMException && error.name === 'AbortError';
+};
 
 export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = ({
   authenticated,
@@ -104,10 +124,46 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   const lastAddRef = useRef<Record<string, number>>({});
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
+  const [marketPanelState, setMarketPanelState] = useState<MarketPanelState>({
+    nodeId: null,
+    edgeId: null,
+    isExpanded: false,
+    shareParamsApplied: false,
+  });
+  const setMarketPanelSelection = useCallback((nodeId: string | null, edgeId: string | null) => {
+    setMarketPanelState((prev) => {
+      if (prev.nodeId === nodeId && prev.edgeId === edgeId) return prev;
+      return { ...prev, nodeId, edgeId };
+    });
+  }, []);
+  const setMarketPanelExpanded = useCallback((isExpanded: boolean) => {
+    setMarketPanelState((prev) => {
+      if (prev.isExpanded === isExpanded) return prev;
+      return { ...prev, isExpanded };
+    });
+  }, []);
+  const markShareParamsApplied = useCallback(() => {
+    setMarketPanelState((prev) => {
+      if (prev.shareParamsApplied) return prev;
+      return { ...prev, shareParamsApplied: true };
+    });
+  }, []);
+  const resetMarketPanel = useCallback(() => {
+    setMarketPanelState((prev) => {
+      if (!prev.nodeId && !prev.edgeId && !prev.isExpanded) return prev;
+      return { ...prev, nodeId: null, edgeId: null, isExpanded: false };
+    });
+  }, []);
   const [overlayActiveEdgeId, setOverlayActiveEdgeId] = useState<string | null>(null);
   const [forceBlurNodes, setForceBlurNodes] = useState(0);
   const centerOnceIdsRef = useRef<Set<string>>(new Set());
   const [centerQueueVersion, setCenterQueueVersion] = useState(0);
+  const {
+    nodeId: marketPanelNodeId,
+    edgeId: marketPanelEdgeId,
+    isExpanded: isMarketPanelExpanded,
+    shareParamsApplied,
+  } = marketPanelState;
 
   const markNodeCenterOnce = useCallback((id: string) => {
     if (!id) return;
@@ -128,7 +184,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   const { pairHeights, setPairNodeHeight, commitGroupLayout: commitGroupLayoutBase } = usePairHeights();
   const initialGraph = useInitialGraph();
 
-  const {
+   const {
     nodes,
     edges,
     setNodes,
@@ -152,8 +208,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     redo,
     stopCapturing,
     canUndo,
-    canRedo,
-  } = useYjsMultiplayer({
+     canRedo,
+   } = useYjsMultiplayer({
     roomName,
     initialNodes: initialGraph?.nodes || [],
     initialEdges: initialGraph?.edges || [],
@@ -171,6 +227,9 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   const market = useMarket(resolvedId || '');
   const livePostInFlightRef = React.useRef(false);
   const lastLivePostRef = React.useRef(0);
+  // (Reverted) No Yjs-driven refresh; rely on explicit refresh + polling to avoid loops
+
+  // Write market view snapshot to Yjs when local query updates
   useEffect(() => {
     if (!marketEnabled) return;
     if (!ydoc || !yMetaMap) return;
@@ -187,9 +246,13 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         const hCount = Object.keys(marketData.holdings).length;
         const tCount = Object.keys(marketData.totals).length;
         logger.info('[market/ui] wrote snapshot to yMetaMap', { docId: resolvedId, prices: pCount, holdings: hCount, totals: tCount, updatedAt: marketData.updatedAt });
-      } catch { }
-    } catch { }
-  }, [marketEnabled, market.view.data?.prices, market.view.data?.userHoldings, market.view.data?.totals, market.view.data?.updatedAt, ydoc, yMetaMap, resolvedId]);
+      } catch (error) {
+        logDevError('[market/ui] snapshot log failed', error);
+      }
+    } catch (error) {
+      logDevError('[market/ui] snapshot sync failed', error);
+    }
+  }, [marketEnabled, market.view.data, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -200,7 +263,9 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     try {
       const existing = (yMetaMap as any).get?.('market:prices') || null;
       if (existing && Object.keys(existing).length > 0) return;
-    } catch { }
+    } catch (error) {
+      logDevError('[market/ui] read yMetaMap prices failed', error);
+    }
     if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
     if (nodes.length === 0 && edges.length === 0) return;
     (async () => {
@@ -224,9 +289,12 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME);
           }
         }
-      } catch { }
+      } catch (error) {
+        if (isAbortError(error)) return;
+        logDevError('[market/ui] initial market fetch failed', error);
+      }
     })();
-  }, [marketEnabled, market.view.data?.prices, nodes, edges, ydoc, yMetaMap, resolvedId]);
+  }, [marketEnabled, market.view.data, nodes, edges, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -267,20 +335,45 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
           syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME, 'live');
         }
         lastLivePostRef.current = Date.now();
-      } catch { }
+      } catch (error) {
+        if (isAbortError(error)) return;
+        logDevError('[market/ui] live market post failed', error);
+      }
       finally {
         livePostInFlightRef.current = false;
       }
     }, 400);
     return () => {
-      try { ctrl.abort(); } catch { }
+      try { ctrl.abort(); } catch (error) { logDevError('[market/ui] abort live post failed', error); }
       window.clearTimeout(timer);
     };
   }, [marketEnabled, resolvedId, nodes, edges, ydoc, yMetaMap, grabMode, connectMode]);
 
   useEffect(() => {
     if (!marketEnabled) return;
-    const handler = () => { try { market.view.refetch?.(); } catch { } };
+    const handler = async () => {
+      try {
+        const currentId = String(resolvedId || routeId || '');
+        if (currentId && ydoc && yMetaMap) {
+          const res = await fetch(`/api/market/${encodeURIComponent(currentId)}/view?bypassCache=1`, { cache: 'no-store' }).catch(() => null as any);
+          if (res && res.ok) {
+            const view = await res.json().catch(() => null);
+            if (view) {
+              const marketData = {
+                prices: view?.prices || {},
+                holdings: {},
+                totals: view?.totals || {},
+                updatedAt: view?.updatedAt || new Date().toISOString(),
+              };
+              syncMarketDataToYDoc(ydoc, yMetaMap, marketData, currentId, ORIGIN.RUNTIME, 'refresh');
+            }
+          }
+        }
+      } catch (error) {
+        if (isAbortError(error)) return;
+        logDevError('[market/ui] refresh failed', error);
+      }
+    };
     const optimistic = (e: any) => {
       if (!ydoc || !yMetaMap) return;
       try {
@@ -300,13 +393,17 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         const holdings = { ...existingHoldings, [sec]: (currH + delta).toString() };
         const totals = { ...existingTotals, [sec]: (currT + delta).toString() };
         syncMarketDataToYDoc(ydoc, yMetaMap, { holdings, totals, updatedAt: new Date().toISOString() }, resolvedId || '', ORIGIN.RUNTIME, 'optimistic');
-      } catch { }
+      } catch (error) {
+        logDevError('[market/ui] optimistic trade failed', error);
+      }
     };
-    try { window.addEventListener('market:refresh', handler); } catch { }
-    try { window.addEventListener('market:optimisticTrade', optimistic as any); } catch { }
-    try { console.info('[market/ui] listening for market:refresh'); } catch { }
-    return () => { try { window.removeEventListener('market:refresh', handler); } catch { } try { window.removeEventListener('market:optimisticTrade', optimistic as any); } catch { } };
-  }, [marketEnabled, market.view, ydoc, yMetaMap, resolvedId, routeId]);
+    try { window.addEventListener('market:refresh', handler); } catch (error) { logDevError('[market/ui] add refresh listener failed', error); }
+    try { window.addEventListener('market:optimisticTrade', optimistic as any); } catch (error) { logDevError('[market/ui] add optimistic listener failed', error); }
+    return () => {
+      try { window.removeEventListener('market:refresh', handler); } catch (error) { logDevError('[market/ui] remove refresh listener failed', error); }
+      try { window.removeEventListener('market:optimisticTrade', optimistic as any); } catch (error) { logDevError('[market/ui] remove optimistic listener failed', error); }
+    };
+  }, [marketEnabled, ydoc, yMetaMap, resolvedId, routeId]);
 
   useEffect(() => {
     if (!isMindchangeEnabledClient()) return;
@@ -327,14 +424,16 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             }
           }
         }, ORIGIN.RUNTIME);
-      } catch { }
+      } catch (error) {
+        logDevError('[mindchange/ui] preload averages failed', error);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedId, ydoc, yMetaMap, edges]);
 
   useEffect(() => {
     if (!resolvedId || !authenticated) return;
-    recordOpen(resolvedId).catch(() => { });
+    recordOpen(resolvedId).catch((error) => { logDevError('[market/ui] recordOpen failed', error); });
   }, [resolvedId, authenticated]);
 
   useEffect(() => {
@@ -353,12 +452,14 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             window.history.replaceState(null, '', path);
           }
         }
-      } catch { }
+      } catch (error) {
+        logDevError('[graph/ui] handleMetaChange failed', error);
+      }
     };
     (yMetaMap as any).observe?.(handleMetaChange as any);
-    try { handleMetaChange(); } catch { }
+    try { handleMetaChange(); } catch (error) { logDevError('[graph/ui] initial meta sync failed', error); }
     return () => {
-      try { (yMetaMap as any).unobserve?.(handleMetaChange as any); } catch { }
+      try { (yMetaMap as any).unobserve?.(handleMetaChange as any); } catch (error) { logDevError('[graph/ui] unobserve meta failed', error); }
     };
   }, [yMetaMap, resolvedId, routeParams?.id]);
 
@@ -410,6 +511,96 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     });
   }, [connectMode, edges, getEdgeMidpoint, setNodes, canWrite]);
 
+  // Handle URL params for auto-selecting nodes/edges and opening market panel
+  useEffect(() => {
+    if (shareParamsApplied) return;
+    if (typeof window === 'undefined') return;
+    // Wait until the realtime graph is actually connected and has content
+    if (!isConnected) return;
+    if (!Array.isArray(nodes) || (!nodes.length && !edges.length)) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const nodeParam = urlParams.get('node');
+    const edgeParam = urlParams.get('edge');
+
+    const hasNode = nodeParam && nodes.some((n: any) => n.id === nodeParam);
+    const hasEdge = edgeParam && edges.some((e: any) => e.id === edgeParam);
+
+    if (hasNode) {
+      setMarketPanelSelection(nodeParam!, null);
+      setSelectedEdgeId(null);
+      setNodes((nds: any[]) =>
+        nds.map((n: any) =>
+          n.id === nodeParam ? { ...n, selected: true } : { ...n, selected: false }
+        )
+      );
+    } else if (hasEdge) {
+      setMarketPanelSelection(null, edgeParam!);
+      setSelectedEdgeId(edgeParam!);
+      setNodes((nds: any[]) =>
+        nds.map((n: any) => (n.selected ? { ...n, selected: false } : n))
+      );
+    }
+
+    // Consume the URL parameters so they don't linger once applied
+    if (nodeParam || edgeParam) {
+      try {
+        const cleaned = new URLSearchParams(urlParams.toString());
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        cleaned.delete('node');
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        cleaned.delete('edge');
+        const search = cleaned.toString();
+        const newUrl = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
+        window.history.replaceState(null, '', newUrl);
+      } catch {
+        // ignore history errors
+      }
+    }
+
+    markShareParamsApplied();
+  }, [shareParamsApplied, isConnected, nodes, edges, setNodes, setSelectedEdgeId, setMarketPanelSelection, markShareParamsApplied]);
+
+  // Track node selection changes to open market panel
+  useEffect(() => {
+    if (!nodes || nodes.length === 0) return;
+    const selectedNode = nodes.find((n: any) => n.selected);
+    if (selectedNode && isMarketEnabled()) {
+      // Only show panel for point and objection nodes
+      const nodeType = (selectedNode as any).type;
+      if (nodeType === 'point' || nodeType === 'objection') {
+        setMarketPanelSelection(selectedNode.id, null);
+      } else {
+        setMarketPanelSelection(null, null);
+      }
+    } else if (!selectedNode) {
+      // Only clear if there's no edge selected either
+      if (!selectedEdgeId) {
+        setMarketPanelSelection(null, null);
+      }
+    }
+  }, [nodes, selectedEdgeId, setMarketPanelSelection]);
+
+  // Track edge selection changes to open market panel
+  useEffect(() => {
+    if (selectedEdgeId && isMarketEnabled()) {
+      // Only open market panel for support, negation, and objection edges
+      const selectedEdge = edges.find((e: any) => e.id === selectedEdgeId);
+      const edgeType = selectedEdge?.type;
+      if (edgeType === 'support' || edgeType === 'negation' || edgeType === 'objection') {
+        setMarketPanelSelection(null, selectedEdgeId);
+      } else {
+        setMarketPanelSelection(null, null);
+      }
+    } else if (!selectedEdgeId) {
+      // Only clear if there's no node selected either
+      const hasSelectedNode = nodes && nodes.some((n: any) => n.selected);
+      if (!hasSelectedNode) {
+        setMarketPanelSelection(null, null);
+      }
+    }
+  }, [selectedEdgeId, nodes, edges, setMarketPanelSelection]);
+
   const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite: canEdit, broadcastCursor: true });
   const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite: canEdit, broadcastLocks: true });
 
@@ -450,7 +641,9 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       if (newType === 'support') {
         try {
           setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e, data: { ...(e.data || {}), mindchange: undefined } } : e));
-        } catch { }
+        } catch (error) {
+          logDevError('[mindchange/ui] clear mindchange on support failed', error);
+        }
       } else if (newType === 'negation') {
         if (!isMindchangeEnabledClient()) {
           setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e } : e));
@@ -471,9 +664,13 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
           } else {
             setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e } : e));
           }
-        } catch { }
+        } catch (error) {
+          logDevError('[mindchange/ui] update edge type failed', error);
+        }
       }
-    } catch { }
+    } catch (error) {
+      logDevError('[mindchange/ui] edge type effect failed', error);
+    }
   }, [edges, updateEdgeType, resolvedId, setEdges, yMetaMap, ydoc]);
 
   const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
@@ -502,13 +699,13 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
 
   const startEditingNodeCtx = React.useCallback((nodeId: string) => {
     setEditingSet((prev) => { const ns = new Set(prev); ns.add(nodeId); return ns; });
-    try { startEditing(nodeId); } catch { }
+    try { startEditing(nodeId); } catch (error) { logDevError('[graph/ui] startEditing failed', error); }
   }, [startEditing]);
 
   const stopEditingNodeCtx = React.useCallback((nodeId: string) => {
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     setEditingSet((prev) => { const ns = new Set(prev); ns.delete(nodeId); return ns; });
-    try { stopEditing(nodeId); } catch { }
+    try { stopEditing(nodeId); } catch (error) { logDevError('[graph/ui] stopEditing failed', error); }
   }, [stopEditing]);
 
   const isAnyNodeEditing = editingSet.size > 0;
@@ -716,6 +913,20 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     }
   });
 
+  const selectedMarketNodeContent = useMemo(() => {
+    if (!marketPanelNodeId) return null;
+    try {
+      const node = nodes.find((n: any) => n.id === marketPanelNodeId);
+      if (!node) return null;
+      const content = (node as any)?.data?.content;
+      if (typeof content === 'string') return content;
+      if (content === undefined || content === null) return '';
+      return String(content);
+    } catch {
+      return null;
+    }
+  }, [marketPanelNodeId, nodes]);
+
   return (
     <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
       <MultiplayerHeader
@@ -749,7 +960,9 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                 (yMetaMap as any).set?.('slug', slug);
               }, ORIGIN.RUNTIME);
             }
-          } catch { }
+          } catch (error) {
+            logDevError('[graph/ui] update slug failed', error);
+          }
         }}
       />
 
@@ -830,7 +1043,9 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
               try {
                 const et = (edges.find((e: any) => e.id === edgeId)?.type) as string | undefined;
                 if (et !== 'negation' && et !== 'objection') return;
-              } catch { }
+              } catch (error) {
+                logDevError('[mindchange/ui] beginMindchangeOnEdge failed', error);
+              }
               setMindchangeSelectMode(true);
               setMindchangeEdgeId(edgeId);
               setMindchangeNextDir(null);
@@ -877,6 +1092,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                 blurAllNodes={forceBlurNodes}
                 forceSave={forceSave}
                 yMetaMap={yMetaMap as any}
+                isMarketPanelVisible={!!(marketPanelNodeId || marketPanelEdgeId)}
                 onFlowMouseMove={(x, y) => {
                   if (!connectAnchorRef.current) return;
                   setConnectCursor({ x, y });
@@ -914,28 +1130,30 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                   }, 50);
                 }}
               />
-              <ToolsBar
-                connectMode={connectMode}
-                setConnectMode={setConnectMode as any}
-                setConnectAnchorId={setConnectAnchorId}
-                canUndo={!!canUndo}
-                canRedo={!!canRedo}
-                undo={undo}
-                redo={redo}
-                connectAnchorId={connectAnchorId}
-                readOnly={!canEdit}
-                grabMode={grabMode}
-                setGrabMode={setGrabMode}
-                selectMode={effectiveSelectMode}
-                mindchangeMode={mindchangeSelectMode}
-                onMindchangeDone={() => {
-                  setMindchangeSelectMode(false);
-                  setConnectMode(false);
-                  setConnectAnchorId(null);
-                }}
-                mindchangeNextDir={mindchangeNextDir}
-                mindchangeEdgeType={(mindchangeEdgeId || connectAnchorId) ? edges.find((e: any) => e.id === (mindchangeEdgeId || connectAnchorId))?.type : undefined}
-              />
+              {!isMarketPanelExpanded && (
+                <ToolsBar
+                  connectMode={connectMode}
+                  setConnectMode={setConnectMode as any}
+                  setConnectAnchorId={setConnectAnchorId}
+                  canUndo={!!canUndo}
+                  canRedo={!!canRedo}
+                  undo={undo}
+                  redo={redo}
+                  connectAnchorId={connectAnchorId}
+                  readOnly={!canEdit}
+                  grabMode={grabMode}
+                  setGrabMode={setGrabMode}
+                  selectMode={effectiveSelectMode}
+                  mindchangeMode={mindchangeSelectMode}
+                  onMindchangeDone={() => {
+                    setMindchangeSelectMode(false);
+                    setConnectMode(false);
+                    setConnectAnchorId(null);
+                  }}
+                  mindchangeNextDir={mindchangeNextDir}
+                  mindchangeEdgeType={(mindchangeEdgeId || connectAnchorId) ? edges.find((e: any) => e.id === (mindchangeEdgeId || connectAnchorId))?.type : undefined}
+                />
+              )}
             </div>
             <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} documentId={resolvedId || ''} centerQueueVersion={centerQueueVersion} consumeCenterQueue={consumeCenterQueue} connectMode={connectMode} />
           </GraphProvider>
@@ -948,19 +1166,43 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             y={newNodeWithDropdown.y}
             currentType="point"
             onClose={() => {
-              try { clearNodeSelection(); } catch { }
-              try { blurNodesImmediately(); } catch { }
-              try { setConnectMode(false); } catch { }
-              try { setConnectAnchorId(null); } catch { }
+              try { clearNodeSelection(); } catch (error) { logDevError('[graph/ui] clear selection failed', error); }
+              try { blurNodesImmediately(); } catch (error) { logDevError('[graph/ui] blur nodes failed', error); }
+              try { setConnectMode(false); } catch (error) { logDevError('[graph/ui] setConnectMode(false) failed', error); }
+              try { setConnectAnchorId(null); } catch (error) { logDevError('[graph/ui] setConnectAnchorId(null) failed', error); }
               setNewNodeWithDropdown(null);
             }}
             onSelect={(type) => {
               updateNodeType(newNodeWithDropdown.id, type);
-              try { startEditingNodeCtx(newNodeWithDropdown.id); } catch { }
+              try { startEditingNodeCtx(newNodeWithDropdown.id); } catch (error) { logDevError('[graph/ui] startEditing from type selector failed', error); }
             }}
           />
         )}
+
+        {/* Market Panel */}
+        {isMarketEnabled() && (marketPanelNodeId || marketPanelEdgeId) && (
+          <MarketErrorBoundary>
+            <MarketPanel
+              selectedNodeId={marketPanelNodeId}
+              selectedEdgeId={marketPanelEdgeId}
+              docId={resolvedId}
+              updateNodeContent={updateNodeContent}
+              canEdit={canEdit}
+              selectedNodeContent={selectedMarketNodeContent}
+              onClose={() => {
+                // Mirror canvas onPaneClick behavior: clear edge + node selection immediately
+                try { setSelectedEdgeId(null); } catch (error) { logDevError('[market/ui] clear selected edge failed', error); }
+                try { setHoveredEdgeId(null); } catch (error) { logDevError('[market/ui] clear hovered edge failed', error); }
+                try { clearNodeSelection(); } catch (error) { logDevError('[market/ui] clear node selection failed', error); }
+
+                resetMarketPanel();
+              }}
+              onExpanded={setMarketPanelExpanded}
+            />
+          </MarketErrorBoundary>
+        )}
       </ReactFlowProvider>
+
       <UndoHintOverlay
         position={undoHintPosition}
         onDismiss={() => setUndoHintPosition(null)}

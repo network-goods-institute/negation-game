@@ -10,6 +10,7 @@ jest.mock('@xyflow/react', () => {
       getEdges: jest.fn(() => ([{ id: 'edge-1', type: 'objection', source: 'n1', target: 'anchor:n2', data: { market: { price: 0.5, mine: 0, total: 0 } } }])),
       getNodes: jest.fn(() => [])
     })),
+    useViewport: jest.fn(() => ({ x: 0, y: 0, zoom: 1.0 })),
     Position: { Top: 'top', Bottom: 'bottom' },
   };
 });

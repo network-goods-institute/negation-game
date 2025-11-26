@@ -19,6 +19,7 @@ jest.mock("@/lib/carroll/market", () => ({
   createMarketMaker: () => ({
     setShares: () => {},
     buyAmount: () => ({ shares: 2n, cost: 5n }),
+    buyShares: () => 5n,
     getPrices: () => ({ "p-a": 0.6 }),
   }),
   defaultB: 1n,

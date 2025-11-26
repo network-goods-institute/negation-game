@@ -161,6 +161,9 @@ export async function buyAmount(
           e.from,
           e.to,
         ]) as [string, string, string][];
+        const supportTriples = ((structure as any).supportEdges || []).map(
+          (e: any) => [e.name, e.from, e.to] as [string, string, string]
+        );
         let augNodes = new Set<string>([
           ...(structure.nodes as any as string[]),
         ]);
@@ -188,17 +191,26 @@ export async function buyAmount(
         const { createStructure: mk, buildSecurities: mkSecs } = await import(
           "@/lib/carroll/structure"
         );
-        const augStructure = mk(Array.from(augNodes), triples);
+        const augStructure = mk(
+          Array.from(augNodes),
+          triples,
+          supportTriples
+        );
         const augSecurities = mkSecs(augStructure, { includeNegations: "all" });
         const augTotals = new Map<string, bigint>();
         for (const sec of augSecurities)
           augTotals.set(sec, totals.get(sec) || 0n);
         augTotals.set(normalized, augTotals.get(normalized) || 0n);
-        mm = createMarketMaker(augStructure, defaultB as any, augSecurities, {
+        structure = augStructure;
+        securities = augSecurities;
+        secSet = new Set(augSecurities);
+        totals.clear();
+        for (const [k, v] of augTotals) totals.set(k, v);
+        mm = createMarketMaker(structure, defaultB as any, securities, {
           enumerationCap: 1 << 19,
         });
-        for (const sec of augSecurities)
-          mm.setShares(sec, augTotals.get(sec) || 0n);
+        for (const sec of securities)
+          mm.setShares(sec, totals.get(sec) || 0n);
       } else {
         const { createStructure: mk, buildSecurities: mkSecs } = await import(
           "@/lib/carroll/structure"
@@ -208,29 +220,18 @@ export async function buyAmount(
         const augTotals = new Map<string, bigint>();
         for (const sec of augSecurities) augTotals.set(sec, 0n);
         augTotals.set(normalized, 0n);
-        mm = createMarketMaker(augStructure, defaultB as any, augSecurities, {
+        structure = augStructure;
+        securities = augSecurities;
+        secSet = new Set(augSecurities);
+        totals.clear();
+        for (const [k, v] of augTotals) totals.set(k, v);
+        mm = createMarketMaker(structure, defaultB as any, securities, {
           enumerationCap: 1 << 19,
         });
-        for (const sec of augSecurities)
-          mm.setShares(sec, augTotals.get(sec) || 0n);
+        for (const sec of securities)
+          mm.setShares(sec, totals.get(sec) || 0n);
       }
     }
-
-    let pricesBeforeFixed: Record<string, bigint> = {};
-    try {
-      const pf = (mm as any).getPricesFixed?.();
-      if (pf && typeof pf === "object")
-        pricesBeforeFixed = pf as Record<string, bigint>;
-    } catch {}
-
-    const { shares, cost } = mm.buyAmount(normalized, spend);
-    let priceAfterFixed: bigint | undefined;
-    let priceAfter: number | undefined;
-    try {
-      const pf = (mm as any).getPricesFixed?.();
-      priceAfterFixed = pf?.[normalized];
-      priceAfter = mm.getPrices()?.[normalized];
-    } catch {}
 
     const existing = await tx
       .select({
@@ -245,8 +246,45 @@ export async function buyAmount(
           eq(marketHoldingsTable.securityId, normalized)
         )
       );
-    const newAmount =
-      (existing[0] ? BigInt(existing[0].amountScaled) : 0n) + shares;
+    const currentHolding = existing[0] ? BigInt(existing[0].amountScaled) : 0n;
+
+    const computeMaker = () => {
+      const maker = createMarketMaker(
+        structure,
+        defaultB as any,
+        securities,
+        {
+          enumerationCap: 1 << 19,
+        }
+      );
+      for (const sec of securities) maker.setShares(sec, totals.get(sec) || 0n);
+      return maker;
+    };
+
+    let pricesBeforeFixed: Record<string, bigint> = {};
+    try {
+      const pf = (mm as any).getPricesFixed?.();
+      if (pf && typeof pf === "object")
+        pricesBeforeFixed = pf as Record<string, bigint>;
+    } catch {}
+
+    const previewMaker = computeMaker();
+    const preview = previewMaker.buyAmount(normalized, spend);
+    let shares = preview.shares;
+    if (spend < 0n && shares < 0n && -shares > currentHolding) {
+      shares = -currentHolding;
+    }
+
+    const cost = mm.buyShares(normalized, shares);
+    let priceAfterFixed: bigint | undefined;
+    let priceAfter: number | undefined;
+    try {
+      const pf = (mm as any).getPricesFixed?.();
+      priceAfterFixed = pf?.[normalized];
+      priceAfter = mm.getPrices()?.[normalized];
+    } catch {}
+
+    const newAmount = currentHolding + shares;
     if (existing[0]) {
       await tx
         .update(marketHoldingsTable)

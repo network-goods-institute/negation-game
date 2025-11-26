@@ -307,8 +307,8 @@ describe('marketUtils', () => {
       ];
 
       const edges = [
-        { id: 'edge-1', source: 'node-1', target: 'node-2' },
-        { id: 'edge-2', source: 'anchor:node-1', target: 'anchor:node-2' },
+        { id: 'edge-1', type: 'support', source: 'node-1', target: 'node-2' },
+        { id: 'edge-2', type: 'negation', source: 'anchor:node-1', target: 'anchor:node-2' },
       ];
 
       const result = buildMarketViewPayload(nodes, edges);
@@ -334,7 +334,7 @@ describe('marketUtils', () => {
 
     it('should remove anchor: prefix from edge endpoints', () => {
       const edges = [
-        { id: 'edge-1', source: 'anchor:src', target: 'anchor:tgt' },
+        { id: 'edge-1', type: 'objection', source: 'anchor:src', target: 'anchor:tgt' },
       ];
 
       const result = buildMarketViewPayload([], edges);
@@ -355,6 +355,25 @@ describe('marketUtils', () => {
 
       expect(result.nodes).toEqual([]);
       expect(result.edges).toEqual([]);
+    });
+
+    it('should only include support, negation, and objection edges', () => {
+      const edges = [
+        { id: 'edge-1', type: 'support', source: 'a', target: 'b' },
+        { id: 'edge-2', type: 'negation', source: 'c', target: 'd' },
+        { id: 'edge-3', type: 'objection', source: 'e', target: 'f' },
+        { id: 'edge-4', type: 'comment', source: 'g', target: 'h' },
+        { id: 'edge-5', type: 'option', source: 'i', target: 'j' },
+      ];
+
+      const result = buildMarketViewPayload([], edges);
+
+      expect(result.edges).toEqual([
+        { id: 'edge-1', source: 'a', target: 'b' },
+        { id: 'edge-2', source: 'c', target: 'd' },
+        { id: 'edge-3', source: 'e', target: 'f' },
+      ]);
+      expect(result.edges).toHaveLength(3);
     });
   });
 });

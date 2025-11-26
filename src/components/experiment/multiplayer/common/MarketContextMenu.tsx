@@ -14,9 +14,10 @@ type Props = {
   onDelete?: () => void;
   nodeRect?: DOMRect;
   nodeEl?: HTMLElement;
+  edgeType?: string;
 };
 
-export const MarketContextMenu: React.FC<Props> = ({ open, x, y, onClose, kind, entityId, onDelete, nodeRect, nodeEl }) => {
+export const MarketContextMenu: React.FC<Props> = ({ open, x, y, onClose, kind, entityId, onDelete, nodeRect, nodeEl, edgeType }) => {
   const root = typeof document !== 'undefined' ? document.body : null;
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
@@ -82,6 +83,7 @@ export const MarketContextMenu: React.FC<Props> = ({ open, x, y, onClose, kind, 
   };
 
   const marketEnabled = process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
+  const showMarket = marketEnabled && (kind === 'node' || edgeType === 'support' || edgeType === 'negation');
 
   const menu = (
     <div
@@ -90,7 +92,7 @@ export const MarketContextMenu: React.FC<Props> = ({ open, x, y, onClose, kind, 
       onClick={(e) => e.stopPropagation()}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
     >
-      {marketEnabled ? (
+      {showMarket ? (
         <div className="bg-white border border-gray-200 shadow-lg rounded-md w-auto min-w-[240px] max-w-[280px] pointer-events-auto overflow-hidden">
           <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between bg-gray-50">
             <div className="flex items-center gap-1.5">

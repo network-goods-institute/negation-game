@@ -286,6 +286,20 @@ export const MiniHoverStats: React.FC<Props> = ({ docId }) => {
     if (hoveredNodeId) {
       const n = rf.getNode(hoveredNodeId) as any;
       if (n?.selected) return null;
+      // Only show for point and objection nodes
+      const nodeType = (n?.type || '').toLowerCase();
+      if (nodeType === 'statement' || nodeType === 'comment' || nodeType === 'edge_anchor') {
+        return null;
+      }
+    }
+    if (hoveredEdgeId || overlayEdgeId) {
+      const targetEdgeId = (hoveredEdgeId || overlayEdgeId) as string;
+      const e = rf.getEdges().find((ee: any) => String(ee.id) === String(targetEdgeId)) as any;
+      // Only show for support, negation, and objection edges
+      const edgeType = (e?.type || '').toLowerCase();
+      if (edgeType !== 'support' && edgeType !== 'negation' && edgeType !== 'objection') {
+        return null;
+      }
     }
   } catch { }
   if (!pos || pct == null) return null;

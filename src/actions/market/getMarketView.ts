@@ -79,7 +79,7 @@ export async function computeMarketView(
       }
     }
     try {
-      const s = createStructure(Array.from(nodes), triples);
+      const s = createStructure(Array.from(nodes), triples, []);
       const secs = buildSecurities(s, { includeNegations: "all" });
       mmStruct = s;
       mmSecs = secs;
@@ -90,6 +90,7 @@ export async function computeMarketView(
             docId: canonicalId,
             nodes: s.nodes.length,
             edges: s.edges.length,
+            supportEdges: s.supportEdges.length,
             secs: mmSecs.length,
           })
         );

@@ -10,25 +10,14 @@ import { useNodeChrome } from '../common/useNodeChrome';
 import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 import { useForceHidePills } from '../common/useForceHidePills';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { useViewport } from '@xyflow/react';
 import { FavorSelector } from '../common/FavorSelector';
 import { LockIndicator } from '../common/LockIndicator';
 import { useNodeExtrasVisibility } from '../common/useNodeExtrasVisibility';
 import { useMarketData } from '@/hooks/market/useMarketData';
-import { useInlineMarketDisplay } from '../common/NodeWithMarket';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
-// Lazy-load heavy market UI for objections as well
-const InlineMarketDisplayLazy = dynamic(
-  () => import('../common/NodeWithMarket').then(m => m.InlineMarketDisplay),
-  { ssr: false, loading: () => null }
-);
-const InlineBuyControlsLazy = dynamic(
-  () => import('../market/InlineBuyControls').then(m => m.InlineBuyControls),
-  { ssr: false, loading: () => null }
-);
-const InlineMarketPendingLazy = dynamic(
-  () => import('../common/NodeWithMarket').then(m => m.InlineMarketPending),
-  { ssr: false, loading: () => null }
-);
 import { ContextMenu } from '../common/ContextMenu';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
@@ -64,6 +53,15 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const hidden = (data as any)?.hidden === true;
 
     const rf = useReactFlow();
+    const { zoom } = useViewport();
+    const state = useAtomValue(marketOverlayStateAtom);
+    const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+
+    let side = computeSide(state);
+    if (state === 'AUTO_TEXT' || state === 'AUTO_PRICE') {
+        side = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+    }
+    const overlayActive = side === 'PRICE';
 
     const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
         id,
@@ -175,13 +173,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
 
     // Use the objection edge's market data for price display
     const objectionEdgeData = (objectionEdge as any)?.data || {};
-    const { showInlineMarket } = useInlineMarketDisplay({
-        id: objectionEdgeId,
-        data: objectionEdgeData,
-        selected: !!selected,
-        hidden,
-        showPrice: false,
-    });
 
     useEffect(() => {
         if (wrapperRef.current && contentRef.current) {
@@ -266,15 +257,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     return;
                 }
             }
-            if (contentRef.current && contentRef.current.contains(e.target as Node)) {
-                onClick(e);
-                return;
-            }
-            const target = e.target as HTMLElement | null;
-            if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
-                return;
-            }
-            if (isEditing) return;
             if (locked) {
                 e.stopPropagation();
                 toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
@@ -304,7 +286,9 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const [menuOpen, setMenuOpen] = React.useState(false);
     const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
     const onContextMenuNode = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (isEditing) return;
+        const target = e.target as HTMLElement | null;
+        const isEditingTarget = isEditing || (contentRef.current && contentRef.current.contains(target as Node));
+        if (isEditingTarget) return; // allow native menu for spellcheck/inputs
         e.preventDefault();
         e.stopPropagation();
         setMenuPos({ x: e.clientX, y: e.clientY });
@@ -343,39 +327,18 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 containerRef={containerRef}
                 containerClassName="relative inline-block group"
                 wrapperRef={wrapperRef}
-                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] inline-flex flex-col relative z-10 transition-transform duration-400 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
+                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] inline-flex flex-col relative z-10 transition-transform duration-400 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''} ${isEditing ? 'nodrag' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
                 wrapperStyle={{
                     ...innerScaleStyle,
-                    opacity: hidden ? undefined : favorOpacity,
-                    marginTop: (!isEditing && !isNodeDragging && showInlineMarket) ? '-96px' : undefined,
+                    opacity: hidden
+                        ? undefined
+                        : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
                 } as any}
                 wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-400 ease-out z-0`}
             >
                 <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
-                {!isEditing && !isNodeDragging && objectionEdge && objectionEdgeId && (
-                    <InlineMarketDisplayLazy
-                        id={objectionEdgeId}
-                        data={objectionEdgeData as any}
-                        selected={!!selected}
-                        hidden={hidden}
-                        showPrice={false}
-                        offsetLeft="-left-4"
-                        variant="objection"
-                    />
-                )}
-                {objectionEdge && objectionEdgeId && (
-                  <InlineMarketPendingLazy
-                    id={objectionEdgeId}
-                    selected={!!selected}
-                    hidden={hidden}
-                    showPrice={false}
-                    hasPrice={Boolean((objectionEdge as any)?.data?.market && Number.isFinite(Number((objectionEdge as any).data.market.price)))}
-                    offsetLeft="-left-4"
-                    variant="objection"
-                  />
-                )}
                 <div
                     ref={contentRef}
                     contentEditable={isEditing && !locked && !hidden}
@@ -392,27 +355,9 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     onBlur={onBlur}
                     onKeyDown={onKeyDown}
                     className={`text-sm ${pointLike ? 'text-gray-900' : 'text-amber-900'} leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
-                    style={{ marginTop: (!isEditing && !isNodeDragging && showInlineMarket) ? '96px' : undefined }}
                 >
                     {value || (pointLike ? 'New point' : 'New mitigation')}
                 </div>
-                {selected && marketEnabled && !hidden && objectionEdge && objectionEdgeId && !isEditing && (() => {
-                    if (isNodeDragging) return null;
-                    const mkt = (objectionEdge as any)?.data?.market || {};
-                    const edgePrice = Number(mkt.price);
-                    const edgeMine = Number.isFinite(Number(mkt.mine)) ? Number(mkt.mine) : undefined;
-                    const edgeTotal = Number.isFinite(Number(mkt.total)) ? Number(mkt.total) : undefined;
-                    return (
-                        <InlineBuyControlsLazy
-                            entityId={objectionEdgeId}
-                            price={Number.isFinite(edgePrice) ? edgePrice : 0}
-                            initialMine={edgeMine}
-                            initialTotal={edgeTotal}
-                            variant="objection"
-                            showPriceHistory={false}
-                        />
-                    );
-                })()}
                 {hidden && (
                     <div className="absolute inset-0 flex
 items-center justify-center pointer-events-none select-none">

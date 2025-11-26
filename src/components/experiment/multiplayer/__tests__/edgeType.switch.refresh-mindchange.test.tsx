@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react';
-import { MultiplayerBoardContent } from '@/components/experiment/multiplayer/MultiplayerBoardContent';
 
 jest.mock('@xyflow/react', () => ({
   ReactFlowProvider: ({ children }: any) => <>{children}</>,
@@ -190,14 +189,14 @@ jest.mock('@/components/experiment/multiplayer/GraphUpdater', () => {
 
 describe('edge type switch refreshes mindchange circles', () => {
   const OLD_ENV = process.env as any;
-  beforeEach(() => {
-    jest.resetModules();
+  beforeAll(() => {
     (process as any).env = { ...OLD_ENV, NEXT_PUBLIC_ENABLE_MINDCHANGE: 'true' };
   });
   afterAll(() => {
     (process as any).env = OLD_ENV;
   });
   it('fetches averages and updates yMetaMap on support->negation', async () => {
+    const { MultiplayerBoardContent } = require('@/components/experiment/multiplayer/MultiplayerBoardContent');
     render(
       <MultiplayerBoardContent
         authenticated={true}

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { Position, useReactFlow, useViewport, useStore } from '@xyflow/react';
+import { Position, useReactFlow, useStore } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { toast } from 'sonner';
 import { X as XIcon } from 'lucide-react';
@@ -14,25 +13,11 @@ import { useForceHidePills } from './common/useForceHidePills';
 import { FavorSelector } from './common/FavorSelector';
 import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { LockIndicator } from './common/LockIndicator';
-import { useMarketData } from '@/hooks/market/useMarketData';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
-import { MarketPriceZoomOverlay } from './market/MarketPriceOverlays';
 import { ContextMenu } from './common/ContextMenu';
-import { useInlineMarketDisplay } from './common/NodeWithMarket';
-
-// Lazy-load heavy market UI: price history graph and buy controls
-const InlineMarketDisplayLazy = dynamic(
-  () => import('./common/NodeWithMarket').then(m => m.InlineMarketDisplay),
-  { ssr: false, loading: () => null }
-);
-const InlineBuyControlsLazy = dynamic(
-  () => import('./market/InlineBuyControls').then(m => m.InlineBuyControls),
-  { ssr: false, loading: () => null }
-);
-const InlineMarketPendingLazy = dynamic(
-  () => import('./common/NodeWithMarket').then(m => m.InlineMarketPending),
-  { ssr: false, loading: () => null }
-);
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { useViewport } from '@xyflow/react';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -53,6 +38,11 @@ interface PointNodeProps {
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
   const rf = useReactFlow();
+  const { zoom } = useViewport();
+  const state = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const graphCtx = useGraphActions() as any;
+
   const {
     updateNodeContent,
     updateNodeHidden,
@@ -73,6 +63,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
+
+  let side = computeSide(state);
+  if (state === 'AUTO_TEXT' || state === 'AUTO_PRICE') {
+    side = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+  }
+  const overlayActive = side === 'PRICE';
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -171,11 +167,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     return () => { try { ro.disconnect(); } catch { } };
   }, [parentId, id, setPairNodeHeight, wrapperRef]);
 
-  const { zoom } = useViewport();
   const marketEnabled = isMarketEnabled();
-  const { globalMarketOverlays } = useGraphActions() as any;
-  const { price: priceValue, mine: mineValue, total: totalValue, hasPrice } = useMarketData(data);
-  const showPrice = Boolean(marketEnabled && hasPrice && zoom <= 0.9 && !globalMarketOverlays);
   const isNodeDragging = useStore((s: any) => {
     try {
       const fromInternals = s?.nodeInternals?.get?.(id);
@@ -189,14 +181,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       return false;
     }
   });
-  const { showInlineMarket } = useInlineMarketDisplay({
-    id,
-    data,
-    selected: !!selected,
-    hidden,
-    showPrice,
-  });
-  const graphCtx = useGraphActions() as any;
   const mindchangeSelectable = useMemo(() => {
     try {
       if (!graphCtx?.mindchangeMode || !graphCtx?.mindchangeEdgeId || graphCtx?.mindchangeNextDir) return false;
@@ -272,8 +256,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
     const ringMindchange = mindchangeSelectable ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative origin-center group transition-transform duration-400 ease-out ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable]);
+    const dragClass = isEditing ? 'nodrag' : '';
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative origin-center group transition-transform duration-400 ease-out ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${dragClass} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable, isEditing]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
@@ -327,15 +312,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           return;
         }
       }
-      if (contentRef.current && contentRef.current.contains(e.target as Node)) {
-        onClick(e);
-        return;
-      }
-      const target = e.target as HTMLElement | null;
-      if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
-        return;
-      }
-      if (isEditing) return;
       if (locked) {
         e.stopPropagation();
         toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
@@ -350,7 +326,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const onContextMenuNode = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isEditing) return;
+    const target = e.target as HTMLElement | null;
+    const isEditingTarget = isEditing || (contentRef.current && contentRef.current.contains(target as Node));
+    if (isEditingTarget) return; // allow native menu for spellcheck/inputs
     e.preventDefault();
     e.stopPropagation();
     setMenuPos({ x: e.clientX, y: e.clientY });
@@ -380,8 +358,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         wrapperClassName={wrapperClassName}
         wrapperStyle={{
           ...innerScaleStyle,
-          opacity: hidden ? undefined : favorOpacity,
-          marginTop: (!isEditing && !isNodeDragging && showInlineMarket) ? '-96px' : undefined,
+          opacity: hidden
+            ? undefined
+            : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
         }}
         wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
@@ -402,25 +381,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         {isConnectingFromNodeId === id && (
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
         )}
-        {showPrice && <MarketPriceZoomOverlay price={priceValue} mine={mineValue} />}
-        {!isEditing && !isNodeDragging && (
-          <InlineMarketDisplayLazy
-            id={id}
-            data={data}
-            selected={!!selected}
-            hidden={hidden}
-            showPrice={showPrice}
-            offsetLeft="-left-4"
-          />
-        )}
-        <InlineMarketPendingLazy
-          id={id}
-          selected={!!selected}
-          hidden={hidden}
-          showPrice={showPrice}
-          hasPrice={hasPrice}
-          offsetLeft="-left-4"
-        />
         <div
           ref={contentRef}
           contentEditable={isEditing && !locked && !hidden && !isConnectMode}
@@ -436,14 +396,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={onKeyDown}
-          className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden || (showPrice && !isEditing) ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
-          style={{ marginTop: (!isEditing && !isNodeDragging && showInlineMarket) ? '96px' : undefined }}
+          className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
         >
           {value || 'New point'}
         </div>
-        {selected && marketEnabled && hasPrice && !hidden && !isEditing && !isNodeDragging && (
-          <InlineBuyControlsLazy entityId={id} price={priceValue} initialMine={mineValue} initialTotal={totalValue} showPriceHistory={false} />
-        )}
         {hidden && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
             <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>

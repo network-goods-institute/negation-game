@@ -16,7 +16,7 @@ describe('NodePriceOverlay', () => {
     const nodes = [{ id: 'n1', position: { x: 0, y: 0 }, width: 100, height: 50 } as any];
     const prices = { n1: 0.5 } as Record<string, number>;
     render(<div style={{ position: 'relative', width: 400, height: 300 }}><NodePriceOverlay nodes={nodes as any} prices={prices} /></div>);
-    expect(screen.getByText(/50\.0% chance/)).toBeTruthy();
+    expect(screen.getByText(/50%/)).toBeTruthy();
   });
 });
 
