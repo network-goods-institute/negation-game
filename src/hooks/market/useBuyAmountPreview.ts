@@ -1,19 +1,25 @@
 "use client";
 import React from "react";
 import { scaleToShares } from "@/utils/market/marketUtils";
+import { logger } from "@/lib/logger";
 
 export function useBuyAmountPreview(docId: string | null | undefined, securityId: string | null | undefined, amount: number) {
   const [shares, setShares] = React.useState<number | null>(null);
+  const [cost, setCost] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!docId || !securityId || !Number.isFinite(amount)) {
       setShares(null);
+      setCost(null);
       setLoading(false);
       setError(null);
       return;
     }
+    setShares(null);
+    setCost(null);
+    setError(null);
     let aborted = false;
     const ctrl = new AbortController();
     const t = window.setTimeout(async () => {
@@ -28,15 +34,20 @@ export function useBuyAmountPreview(docId: string | null | undefined, securityId
         });
         if (!res.ok) throw new Error(String(res.status));
         const json = await res.json();
+        logger.info("[buyAmountPreview] response", { securityId, amount, spendScaled, json });
         const s = scaleToShares(String(json?.shares || "0"));
+        const c = scaleToShares(String(json?.cost || "0"));
+        logger.info("[buyAmountPreview] scaled", { shares: s, cost: c });
         if (!aborted) {
           setShares(Number.isFinite(s) ? s : 0);
+          setCost(Number.isFinite(c) ? c : null);
           setError(null);
         }
       } catch (e: any) {
         if (!aborted) {
           setError(String(e?.message || e));
           setShares(null);
+          setCost(null);
         }
       } finally {
         if (!aborted) setLoading(false);
@@ -49,6 +60,5 @@ export function useBuyAmountPreview(docId: string | null | undefined, securityId
     };
   }, [docId, securityId, amount]);
 
-  return { shares, loading, error };
+  return { shares, cost, loading, error };
 }
-

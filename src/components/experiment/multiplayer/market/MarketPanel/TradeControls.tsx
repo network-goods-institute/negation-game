@@ -5,14 +5,16 @@ type Props = {
   amount: number;
   setAmount: (amount: number) => void;
   mine: number;
+  price: number;
   disabled: boolean;
 };
 
-export const TradeControls: React.FC<Props> = ({ amount, setAmount, mine, disabled }) => {
+export const TradeControls: React.FC<Props> = ({ amount, setAmount, mine, price, disabled }) => {
   const MIN_AMT = 1;
-  const MAX_AMT = 1000;
-  const maxNegative = -mine;
+  const SLIDER_MAX = 10000;
   const userHasShares = mine > 0;
+  const maxSellValue = Math.max(1, Math.floor(mine * price));
+  const sellRange = Math.max(maxSellValue, MIN_AMT * 2);
 
   const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
@@ -20,44 +22,60 @@ export const TradeControls: React.FC<Props> = ({ amount, setAmount, mine, disabl
   const amountToSlider = useCallback(
     (amt: number) => {
       if (userHasShares) {
-        // Bipolar slider: [-100, 100] left=sell, right=buy
-        const clampedAmt = clamp(amt, maxNegative, MAX_AMT);
-        const mag = Math.abs(clampedAmt);
-        if (mag < MIN_AMT) return 0;
-        const maxMag = clampedAmt < 0 ? Math.abs(maxNegative) : MAX_AMT;
-        const t = Math.log(mag / MIN_AMT) / Math.log(maxMag / MIN_AMT);
-        return Math.round((clampedAmt < 0 ? -1 : 1) * t * 100);
+        // Bipolar slider: [-100, 100] left=sell (capped at holdings value), right=buy
+        const sellMax = maxSellValue;
+        const buyMax = SLIDER_MAX;
+        if (amt < 0) {
+          const clampedAmt = clamp(amt, -sellMax, 0);
+          const mag = Math.abs(clampedAmt);
+          if (mag < MIN_AMT) return 0;
+          const t = Math.log(mag / MIN_AMT) / Math.log(sellRange / MIN_AMT);
+          return Math.round(-t * 100);
+        } else {
+          const clampedAmt = clamp(amt, 0, buyMax);
+          if (clampedAmt < MIN_AMT) return 0;
+          const t = Math.log(clampedAmt / MIN_AMT) / Math.log(buyMax / MIN_AMT);
+          return Math.round(t * 100);
+        }
       } else {
         // Unipolar slider: [0, 100]
-        const clampedAmt = clamp(amt, 0, MAX_AMT);
+        const clampedAmt = clamp(amt, 0, SLIDER_MAX);
         if (clampedAmt < MIN_AMT) return 0;
-        const t = Math.log(clampedAmt / MIN_AMT) / Math.log(MAX_AMT / MIN_AMT);
+        const t = Math.log(clampedAmt / MIN_AMT) / Math.log(SLIDER_MAX / MIN_AMT);
         return Math.round(t * 100);
       }
     },
-    [userHasShares, maxNegative]
+    [userHasShares, maxSellValue, sellRange]
   );
 
   // Convert slider value to amount
   const sliderToAmount = useCallback(
     (val: number) => {
       if (userHasShares) {
-        // Bipolar
-        const sign = val < 0 ? -1 : val > 0 ? 1 : 0;
-        const t = Math.abs(val) / 100;
-        if (sign === 0) return 0;
-        const maxMag = sign < 0 ? Math.abs(maxNegative) : MAX_AMT;
-        const nextMag = MIN_AMT * Math.exp(Math.log(maxMag / MIN_AMT) * t);
-        return Math.round(sign * nextMag);
+        // Bipolar - sell side capped at holdings value
+        const sellMax = maxSellValue;
+        const buyMax = SLIDER_MAX;
+        if (val < 0) {
+          const t = Math.abs(val) / 100;
+          if (t === 0) return 0;
+          const nextMag = MIN_AMT * Math.exp(Math.log(sellRange / MIN_AMT) * t);
+          const capped = Math.min(Math.round(nextMag), sellMax);
+          return -capped;
+        } else if (val > 0) {
+          const t = val / 100;
+          const nextMag = MIN_AMT * Math.exp(Math.log(buyMax / MIN_AMT) * t);
+          return Math.round(nextMag);
+        }
+        return 0;
       } else {
         // Unipolar
         const t = val / 100;
         if (val === 0) return 0;
-        const nextMag = MIN_AMT * Math.exp(Math.log(MAX_AMT / MIN_AMT) * t);
+        const nextMag = MIN_AMT * Math.exp(Math.log(SLIDER_MAX / MIN_AMT) * t);
         return Math.round(nextMag);
       }
     },
-    [userHasShares, maxNegative]
+    [userHasShares, maxSellValue, sellRange]
   );
 
   const sliderValue = useMemo(() => amountToSlider(amount), [amount, amountToSlider]);
@@ -68,13 +86,13 @@ export const TradeControls: React.FC<Props> = ({ amount, setAmount, mine, disabl
 
   const handleInputChange = (val: number) => {
     if (!Number.isFinite(val)) return;
-    const min = userHasShares ? maxNegative : 0;
-    setAmount(clamp(val, min, MAX_AMT));
+    const minVal = userHasShares ? -maxSellValue : 0;
+    setAmount(clamp(val, minVal, SLIDER_MAX));
   };
 
   const incrementAmount = (delta: number) => {
-    const min = userHasShares ? maxNegative : 0;
-    setAmount(clamp(amount + delta, min, MAX_AMT));
+    const minVal = userHasShares ? -maxSellValue : 0;
+    setAmount(clamp(amount + delta, minVal, SLIDER_MAX));
   };
 
   return (
@@ -106,14 +124,14 @@ export const TradeControls: React.FC<Props> = ({ amount, setAmount, mine, disabl
             <>
               <button
                 onClick={() => incrementAmount(-50)}
-                disabled={disabled || amount <= maxNegative}
+                disabled={disabled}
                 className="px-2.5 py-1 text-xs font-semibold bg-white border border-stone-200 hover:border-stone-300 hover:bg-stone-50 text-stone-700 rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 −$50
               </button>
               <button
                 onClick={() => incrementAmount(-10)}
-                disabled={disabled || amount <= maxNegative}
+                disabled={disabled}
                 className="px-2.5 py-1 text-xs font-semibold bg-white border border-stone-200 hover:border-stone-300 hover:bg-stone-50 text-stone-700 rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 −$10
@@ -122,27 +140,18 @@ export const TradeControls: React.FC<Props> = ({ amount, setAmount, mine, disabl
           )}
           <button
             onClick={() => incrementAmount(10)}
-            disabled={disabled || amount >= MAX_AMT}
+            disabled={disabled}
             className="px-2.5 py-1 text-xs font-semibold bg-white border border-stone-200 hover:border-stone-300 hover:bg-stone-50 text-stone-700 rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             +$10
           </button>
           <button
             onClick={() => incrementAmount(50)}
-            disabled={disabled || amount >= MAX_AMT}
+            disabled={disabled}
             className="px-2.5 py-1 text-xs font-semibold bg-white border border-stone-200 hover:border-stone-300 hover:bg-stone-50 text-stone-700 rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             +$50
           </button>
-          {userHasShares && (
-            <button
-              onClick={() => setAmount(-mine)}
-              disabled={disabled}
-              className="px-2.5 py-1 text-xs font-semibold bg-rose-50 border border-rose-200 hover:border-rose-300 hover:bg-rose-100 text-rose-700 rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed ml-auto"
-            >
-              Sell All
-            </button>
-          )}
         </div>
       </div>
 
@@ -161,8 +170,8 @@ export const TradeControls: React.FC<Props> = ({ amount, setAmount, mine, disabl
               ? sliderValue < 0
                 ? `linear-gradient(to right, #e5e7eb 0%, #e5e7eb ${50 + (sliderValue / 2)}%, #ef4444 ${50 + (sliderValue / 2)}%, #ef4444 50%, #e5e7eb 50%, #e5e7eb 100%)`
                 : sliderValue > 0
-                ? `linear-gradient(to right, #e5e7eb 0%, #e5e7eb 50%, #10b981 50%, #10b981 ${50 + (sliderValue / 2)}%, #e5e7eb ${50 + (sliderValue / 2)}%, #e5e7eb 100%)`
-                : `linear-gradient(to right, #e5e7eb 0%, #e5e7eb 100%)`
+                  ? `linear-gradient(to right, #e5e7eb 0%, #e5e7eb 50%, #10b981 50%, #10b981 ${50 + (sliderValue / 2)}%, #e5e7eb ${50 + (sliderValue / 2)}%, #e5e7eb 100%)`
+                  : `linear-gradient(to right, #e5e7eb 0%, #e5e7eb 100%)`
               : `linear-gradient(to right, #10b981 0%, #10b981 ${sliderValue}%, #e5e7eb ${sliderValue}%, #e5e7eb 100%)`,
           }}
         />

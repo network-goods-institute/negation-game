@@ -16,7 +16,7 @@ export type MarketView = {
 
 export type StructureOverride = {
   nodes: string[];
-  edges: Array<{ id: string; source: string; target: string }>;
+  edges: Array<{ id: string; source: string; target: string; type?: string }>;
 };
 
 export async function getMarketViewFromStructure(docId: string, userId: string | undefined, override: StructureOverride): Promise<MarketView> {
@@ -29,29 +29,33 @@ export async function getMarketViewFromStructure(docId: string, userId: string |
         .filter((s) => !s.startsWith("anchor:"))
     )
   );
-  // Normalize edges, dedupe by id, and only keep edges whose endpoints exist
-  const normalizedEdges: Array<{ id: string; src: string; tgt: string }> = [];
+  const normalizedEdges: Array<{ id: string; src: string; tgt: string; type?: string }> = [];
   const seenEdgeNames = new Set<string>();
   for (const e of override?.edges || []) {
     if (!e || !e.id) continue;
-    if (seenEdgeNames.has(e.id)) continue; // drop duplicates
+    if (seenEdgeNames.has(e.id)) continue;
     const src = (e.source || "").startsWith("anchor:") ? e.source.slice("anchor:".length) : e.source;
     const tgt = (e.target || "").startsWith("anchor:") ? e.target.slice("anchor:".length) : e.target;
     if (!src || !tgt) continue;
-    if (e.id === src || e.id === tgt) continue; // invalid self-reference
-    normalizedEdges.push({ id: e.id, src, tgt });
+    if (e.id === src || e.id === tgt) continue;
+    normalizedEdges.push({ id: e.id, src, tgt, type: e.type });
     seenEdgeNames.add(e.id);
   }
   const nodeSet = new Set(nodeIds);
   const edgeNameSet = new Set(normalizedEdges.map((e) => e.id));
-  const triples: Array<[string, string, string]> = [];
+  const negationTriples: Array<[string, string, string]> = [];
+  const supportTriples: Array<[string, string, string]> = [];
   for (const e of normalizedEdges) {
     const fromOk = nodeSet.has(e.src) || edgeNameSet.has(e.src);
     const toOk = nodeSet.has(e.tgt) || edgeNameSet.has(e.tgt);
     if (!fromOk || !toOk) continue;
-    triples.push([e.id, e.src, e.tgt]);
+    if (e.type === "support") {
+      supportTriples.push([e.id, e.src, e.tgt]);
+    } else {
+      negationTriples.push([e.id, e.src, e.tgt]);
+    }
   }
-  const structure = createStructure(nodeIds, triples);
+  const structure = createStructure(nodeIds, negationTriples, supportTriples);
   const securities = buildSecurities(structure, { includeNegations: "all" });
 
   // Load totals from DB for canonical doc id

@@ -35,7 +35,8 @@ export async function buildStructureFromDoc(docId: string): Promise<BuiltMarket>
     return s.startsWith('anchor:') ? s.slice('anchor:'.length) : s;
   };
   const nodes = Array.from(nodeIdSet);
-  const edges: Array<[string, string, string]> = [];
+  const negationEdges: Array<[string, string, string]> = [];
+  const supportEdges: Array<[string, string, string]> = [];
   for (const e of allEdges) {
     if (!e || !e.id) continue;
     const from = normalizeEndpoint(e.source);
@@ -43,9 +44,13 @@ export async function buildStructureFromDoc(docId: string): Promise<BuiltMarket>
     const fromOk = nodeIdSet.has(from) || edgeIdSet.has(from);
     const toOk = nodeIdSet.has(to) || edgeIdSet.has(to);
     if (!fromOk || !toOk) continue;
-    edges.push([e.id, from, to]);
+    if (e.type === "support") {
+      supportEdges.push([e.id, from, to]);
+    } else {
+      negationEdges.push([e.id, from, to]);
+    }
   }
-  const structure = createStructure(nodes, edges);
+  const structure = createStructure(nodes, negationEdges, supportEdges);
   const negationAllow: string[] = Array.from(yEdges.values())
     .filter((e) => e?.type === "negation" || e?.type === "objection")
     .map((e) => e.id);

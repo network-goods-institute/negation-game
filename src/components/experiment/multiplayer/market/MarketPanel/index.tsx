@@ -491,6 +491,7 @@ export const MarketPanel: React.FC<Props> = ({
             amount={amount}
             setAmount={setAmount}
             mine={mine}
+            price={price}
             disabled={submitting}
           />
 
@@ -502,6 +503,7 @@ export const MarketPanel: React.FC<Props> = ({
             onTrade={handleTrade}
             disabled={submitting}
             estimatedShares={preview.shares ?? null}
+            estimatedCost={preview.cost ?? null}
             loadingShares={preview.loading}
           />
         </div>

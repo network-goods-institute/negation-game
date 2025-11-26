@@ -399,12 +399,11 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     };
     try { window.addEventListener('market:refresh', handler); } catch (error) { logDevError('[market/ui] add refresh listener failed', error); }
     try { window.addEventListener('market:optimisticTrade', optimistic as any); } catch (error) { logDevError('[market/ui] add optimistic listener failed', error); }
-    logger.info('[market/ui] listening for market:refresh');
     return () => {
       try { window.removeEventListener('market:refresh', handler); } catch (error) { logDevError('[market/ui] remove refresh listener failed', error); }
       try { window.removeEventListener('market:optimisticTrade', optimistic as any); } catch (error) { logDevError('[market/ui] remove optimistic listener failed', error); }
     };
-  }, [marketEnabled, market.view, ydoc, yMetaMap, resolvedId, routeId]);
+  }, [marketEnabled, ydoc, yMetaMap, resolvedId, routeId]);
 
   useEffect(() => {
     if (!isMindchangeEnabledClient()) return;

@@ -24,6 +24,10 @@ jest.mock("@/lib/carroll/market", () => ({
       mmState.after = true;
       return { shares: 2n, cost: 5n };
     },
+    buyShares: () => {
+      mmState.after = true;
+      return 5n;
+    },
     getPricesFixed: () => {
       if (!mmState.after) {
         const base: Record<string, bigint> = { "p-a": 600000000000000000n };

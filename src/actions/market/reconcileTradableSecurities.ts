@@ -34,53 +34,47 @@ async function computeReconciledMarket(
     return s.startsWith("anchor:") ? s.slice("anchor:".length) : s;
   };
 
-  const rawNodeSet = new Set<string>();
+  const nodeIds = new Set<string>();
   for (const n of yNodes.values()) {
     const id = normalize(n?.id);
-    if (id) rawNodeSet.add(id);
+    if (id) nodeIds.add(id);
   }
-  const edgesList: Array<{
-    id: string;
-    source: string;
-    target: string;
-    type?: string;
-  }> = [];
-  for (const e of yEdges.values()) {
-    if (!e || !e.id) continue;
-    const src = normalize(e.source);
-    const tgt = normalize(e.target);
-    edgesList.push({ id: e.id, source: src, target: tgt, type: e.type });
-  }
-
-  const nodeIds = new Set<string>(rawNodeSet);
-  const edgeIds = new Set<string>(edgesList.map((e) => e.id));
-  // Dedupe edges by id and drop invalid/self-referential edges
-  const triples: Array<[string, string, string]> = [];
+  const edgeEntries = Array.from(yEdges.values());
+  const edgeIds = new Set<string>(
+    edgeEntries.map((e) => e?.id).filter((id): id is string => Boolean(id))
+  );
+  const negationTriples: Array<[string, string, string]> = [];
+  const supportTriples: Array<[string, string, string]> = [];
   const seenEdgeNames = new Set<string>();
-  for (const e of edgesList) {
+  for (const e of edgeEntries) {
     if (!e || !e.id) continue;
-    const from = e.source;
-    const to = e.target;
-    const allowEdgeTarget =
-      (e.type || '').toLowerCase() === "objection" && edgeIds.has(to);
-    const fromOk = nodeIds.has(from);
-    const toOk = nodeIds.has(to) || allowEdgeTarget;
+    const from = normalize(e.source);
+    const to = normalize(e.target);
+    const fromOk = nodeIds.has(from) || edgeIds.has(from);
+    const toOk = nodeIds.has(to) || edgeIds.has(to);
     if (!fromOk || !toOk) continue;
     if (seenEdgeNames.has(e.id)) continue;
     if (e.id === from || e.id === to) continue;
-    triples.push([e.id, from, to]);
+    if ((e.type || "").toLowerCase() === "support") {
+      supportTriples.push([e.id, from, to]);
+    } else {
+      negationTriples.push([e.id, from, to]);
+    }
     seenEdgeNames.add(e.id);
   }
 
-  const structure = createStructure(Array.from(nodeIds), triples);
-  const mintedEdgeIds = new Set(triples.map(([id]) => id));
-  const negationAllow = edgesList
-    .filter(
-      (e) =>
-        mintedEdgeIds.has(e.id) &&
-        (e?.type === "negation" || e?.type === "objection")
-    )
-    .map((e) => e.id);
+  const structure = createStructure(
+    Array.from(nodeIds),
+    negationTriples,
+    supportTriples
+  );
+  const mintedEdgeIds = new Set(
+    [...negationTriples, ...supportTriples].map(([id]) => id)
+  );
+  const negationAllow = edgeEntries
+    .filter((e) => e && mintedEdgeIds.has(e.id))
+    .filter((e) => e.type === "negation" || e.type === "objection")
+    .map((e) => e!.id);
   const securities = buildSecurities(structure, {
     includeNegations: negationAllow,
   });
