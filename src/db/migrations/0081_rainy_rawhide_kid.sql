@@ -1,4 +1,4 @@
-DROP VIEW "public"."current_point_favor";--> statement-breakpoint
+DROP VIEW IF EXISTS "public"."current_point_favor";--> statement-breakpoint
 CREATE VIEW "public"."current_point_favor" AS (
   SELECT p."id",
     COALESCE((

@@ -49,7 +49,6 @@ Each space has its own feed of Points, Negations, and Rationales, allowing commu
 - **Slashing**: Fulfill your Restake commitment by acknowledging the negation changed your mind. Slashing costs no additional Cred, removes the favor bonus, and you earn Cred based on the conditions you committed to.
 - **Doubting**: Bet against a Restaker's likelihood of Slashing. Doubting costs Cred to place; if the Restaker does not Slash when expected, you win your Doubt and earn Cred, redeemable via the "Collect Earnings" button. If they Slash, you lose your Doubted Cred.
 
-
 ## How to Use the Negation Game
 
 ### Getting Started
@@ -100,7 +99,7 @@ By participating in the Negation Game, you're joining a community dedicated to b
 
 Negation Game is not intended to be run locally. It is a hosted service.
 
-However, if you would like to attempt to run it locally, you can do so by following these steps:
+However, if you would like to attempt to run it locally or do local development, you can do so by following these steps:
 
 > **Warning**: These instructions may be incomplete or outdated. If you encounter issues or notice any inaccuracies, please open a PR with corrections.
 
@@ -119,7 +118,7 @@ git clone https://github.com/network-goods-institute/negation-game.git
 cd negation-game
 ```
 
-### 2. Install dependencies
+### 2. Install dependencies and other setup
 
 ```bash
 pnpm install
@@ -130,7 +129,7 @@ pnpm install
 Create a `.env.local` file in the root directory with the following variables:
 
 ```bash
-# Required: Database
+# Required: Database (we use drizzle, so use the drizzle orm connection string from suapbase to make this easier)
 POSTGRES_URL="postgresql://user:password@host:port/database"
 
 # Required: Authentication (Privy)
@@ -166,9 +165,15 @@ ESLINT_USE_FLAT_CONFIG=false
 
 ### 4. Set up the database
 
-Run database migrations using Drizzle:
+Enable PGVector extension in your database:
 
-> **Notice**: We have received reports of migrations possibly being faulty, if you believe this is the case and can fix it please open a PR.
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+(or project dasboard -> database -> extensions -> vector) if you run into permissions issues.
+
+Run database migrations using Drizzle:
 
 ```bash
 pnpm drizzle-kit generate
@@ -218,8 +223,6 @@ The application will be available at `http://localhost:3001`.
 - The Yjs WebSocket server runs on port **8080**
 - Database schema changes should be made in `src/db/schema.ts`, then generate migrations with `drizzle-kit`
 - Never edit migration files directly unless explicitly needed
-
-
 
 ## Contributing
 
