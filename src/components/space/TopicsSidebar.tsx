@@ -14,6 +14,7 @@ import { Plus, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface TopicsSidebarProps {
     space: string;
@@ -316,7 +317,7 @@ export const TopicsSidebar = memo(({
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setNewTopicDialogOpen(false)} disabled={isSubmittingTopic}>Cancel</Button>
-                        <Button onClick={handleDialogAddTopic} disabled={!newTopicName.trim() || isSubmittingTopic}>Add Topic</Button>
+                        <Button onClick={() => toast.error("You’re not allowed to create topics in the global space.")} disabled={!newTopicName.trim() || isSubmittingTopic}>Add Topic</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
