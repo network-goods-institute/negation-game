@@ -168,6 +168,8 @@ ESLINT_USE_FLAT_CONFIG=false
 
 Run database migrations using Drizzle:
 
+> **Notice**: We have received reports of migrations possibly being faulty, if you believe this is the case and can fix it please open a PR.
+
 ```bash
 pnpm drizzle-kit generate
 pnpm drizzle-kit migrate
@@ -221,7 +223,7 @@ The application will be available at `http://localhost:3001`.
 
 ## Contributing
 
-We welcome contributions to the Negation Game! We have a rough roadmap for the project [here](https://github.com/orgs/network-goods-institute/projects/1/views/1).
+We welcome contributions to the Negation Game! We have two roadmaps for the project [here](https://github.com/orgs/network-goods-institute/projects/1/views/1) and [here](https://github.com/orgs/network-goods-institute/projects/3).
 
 Feel free to open an issue or a PR! Negation Game is being actively developed, so there are plenty of opportunities to contribute.
 
