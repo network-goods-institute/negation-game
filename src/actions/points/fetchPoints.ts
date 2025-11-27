@@ -55,7 +55,7 @@ export const fetchPointsWithSpace = async (
     ? await db.execute(
         sql`
     WITH command_points AS (
-      SELECT 
+      SELECT
         p.*,
         COALESCE(SUM(e.cred), 0) as total_cred,
         COALESCE(
@@ -73,13 +73,13 @@ export const fetchPointsWithSpace = async (
         ) as negations_cred
       FROM points p
       LEFT JOIN endorsements e ON p.id = e.point_id
-      WHERE p.is_command = true 
+      WHERE p.is_command = true
       AND p.space = ${space}
       AND p.content LIKE ${`/pin %`}
       AND p.is_active = true
       GROUP BY p.id
     )
-    SELECT 
+    SELECT
       cp.*,
       CASE
         WHEN total_cred = 0 THEN 0
@@ -102,7 +102,7 @@ export const fetchPointsWithSpace = async (
       favor: sql<number>`COALESCE((
         SELECT "favor"
         FROM "current_point_favor" cpf
-        WHERE cpf."id" = "point_with_details_view"."id"
+        WHERE cpf."point_id" = "point_with_details_view"."id"
       ), 0)`.mapWith(Number),
       isPinned: ENABLE_PINNED_PRIORITY
         ? sql<boolean>`${pointsWithDetailsView.pointId} = ${pinnedPointId || 0}`.mapWith(
@@ -111,8 +111,8 @@ export const fetchPointsWithSpace = async (
         : sql<boolean>`false`.mapWith(Boolean),
       isCommand: pointsWithDetailsView.isCommand,
       pinnedByCommandId: ENABLE_PINNED_PRIORITY
-        ? sql<number | null>`CASE 
-            WHEN ${pointsWithDetailsView.pointId} = ${pinnedPointId || 0} 
+        ? sql<number | null>`CASE
+            WHEN ${pointsWithDetailsView.pointId} = ${pinnedPointId || 0}
             THEN ${highestFavorCommand?.id || null}
             ELSE NULL
           END`.mapWith((val) => val)
@@ -149,7 +149,7 @@ export const fetchPointsWithSpace = async (
             restake: {
               id: effectiveRestakesView.pointId,
               amount: sql<number>`
-                CASE 
+                CASE
                   WHEN ${effectiveRestakesView.slashedAmount} >= ${effectiveRestakesView.amount} THEN 0
                   ELSE ${effectiveRestakesView.amount}
                 END

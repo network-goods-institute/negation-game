@@ -92,7 +92,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
       favor: sql<number>`COALESCE((
         SELECT "favor"
         FROM "current_point_favor" cpf
-        WHERE cpf."id" = "point_with_details_view"."id"
+        WHERE cpf."point_id" = "point_with_details_view"."id"
       ), 0)`.mapWith(Number),
       viewerCred: sql<number>`
         COALESCE((
@@ -121,7 +121,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           (SELECT SUM(CASE WHEN ${viewerId ? sql`er1.user_id = ${viewerId}` : sql`FALSE`} THEN er1.amount ELSE 0 END)
            FROM ${effectiveRestakesView} AS er1
            WHERE er1.point_id = ${pointsWithDetailsView.pointId}
-           AND er1.slashed_amount < er1.amount), 
+           AND er1.slashed_amount < er1.amount),
           0
         )
       `.mapWith(Number),
@@ -129,7 +129,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
         COALESCE(
           (SELECT SUM(CASE WHEN ${viewerId ? sql`er1.user_id = ${viewerId}` : sql`FALSE`} THEN er1.slashed_amount ELSE 0 END)
            FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}),
           0
         )
       `.mapWith(Number),
@@ -137,13 +137,13 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
         COALESCE(
           (SELECT SUM(CASE WHEN ${viewerId ? sql`er1.user_id = ${viewerId}` : sql`FALSE`} THEN er1.doubted_amount ELSE 0 END)
            FROM ${effectiveRestakesView} AS er1
-           WHERE er1.point_id = ${pointsWithDetailsView.pointId}), 
+           WHERE er1.point_id = ${pointsWithDetailsView.pointId}),
           0
         )
       `.mapWith(Number),
       totalRestakeAmount: sql<number>`
         COALESCE((
-          SELECT SUM(CASE 
+          SELECT SUM(CASE
             WHEN er.slashed_amount >= er.amount THEN 0
             ELSE er.amount
           END)
@@ -158,7 +158,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
         COALESCE((
           SELECT p.id
           FROM ${pointsTable} p
-          WHERE p.is_command = true 
+          WHERE p.is_command = true
           AND p.space = ${space}
           AND p.content LIKE '/pin %'
           AND p.is_active = true
@@ -214,7 +214,7 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
     ? await db.execute(
         sql`
     WITH RECURSIVE command_points AS (
-      SELECT 
+      SELECT
         p.*,
         COALESCE(SUM(e.cred), 0) as total_cred,
         COALESCE(
@@ -260,29 +260,29 @@ export const fetchFeedPage = async (olderThan?: Timestamp) => {
           JOIN restakes r ON r.id = s.restake_id
           WHERE r.point_id = p.id
         ), 0) as total_slashes,
-        CASE 
-          WHEN ARRAY_LENGTH(regexp_split_to_array(content, '\\s+'), 1) >= 2 
+        CASE
+          WHEN ARRAY_LENGTH(regexp_split_to_array(content, '\\s+'), 1) >= 2
           THEN (regexp_split_to_array(content, '\\s+'))[2]
           ELSE NULL
         END as target_point_id_encoded
       FROM points p
       LEFT JOIN endorsements e ON p.id = e.point_id
-      WHERE p.is_command = true 
+      WHERE p.is_command = true
       AND p.space = ${space}
       AND p.content LIKE ${`/pin %`}
       AND p.is_active = true
       GROUP BY p.id
     ),
     command_points_with_favor AS (
-      SELECT 
+      SELECT
         cp.*,
         CASE
           WHEN total_cred = 0 THEN 0
           WHEN negations_cred = 0 THEN 100
           ELSE FLOOR(
             100.0 * total_cred / (total_cred + negations_cred)
-          ) + GREATEST(0, 
-            total_restakes - 
+          ) + GREATEST(0,
+            total_restakes -
             GREATEST(
               effective_doubts,
               total_slashes
