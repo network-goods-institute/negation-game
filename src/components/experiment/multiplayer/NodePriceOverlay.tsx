@@ -118,15 +118,29 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
 
   const hasRF = typeof document !== 'undefined' && !!document.querySelector('.react-flow__viewport');
   const show = hasRF ? (side === 'PRICE') : true;
-  if (!prices || !show) return null;
+  if (!show) return null;
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
       {nodes.map((n) => {
         // Exclude statement, comment, and edge_anchor nodes entirely from price overlays
         if ((n as any)?.type === 'statement' || (n as any)?.type === 'comment' || (n as any)?.type === 'edge_anchor') return null;
-        const p = prices[n.id];
-        if (typeof p !== 'number' || Number.isNaN(p)) return null;
-        const priceValue = p;
+
+        // Check market status
+        const marketStatus = (n as any)?.data?.market?.status as 'not-tradeable' | 'pending' | 'active' | undefined;
+
+        // Don't show overlay for non-tradeable nodes
+        if (marketStatus === 'not-tradeable') return null;
+
+        const p = prices?.[n.id];
+        const hasPrice = typeof p === 'number' && !Number.isNaN(p);
+
+        // Show pending indicator if status is pending
+        const isPending = marketStatus === 'pending' && !hasPrice;
+
+        // Skip if no price and not pending
+        if (!hasPrice && !isPending) return null;
+
+        const priceValue = hasPrice ? p : 0.5; // Default size for pending nodes
         const { width: w, height: h, centerX, centerY } = getNodeDimensionsAndCenter(n);
         // Hide overlay when node is selected (so we can see the actual node)
         if ((n as any)?.selected) return null;
@@ -149,6 +163,72 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
 
         // All nodes are circles
         const fontSize = Math.max(10, size / 4);
+
+        // Render pending state differently
+        if (isPending) {
+          return (
+            <div
+              key={`price-pending-${n.id}`}
+              className="absolute"
+              style={{
+                left: sx,
+                top: sy,
+                transform: "translate(-50%, -50%)",
+                transition: 'transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                animation: 'favorGrow 600ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }}
+            >
+              <svg width={size} height={size} style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.15))' }}>
+                {/* Pulsing outer ring */}
+                <circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={(size / 2) - 2}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={3}
+                  strokeDasharray="4 4"
+                  opacity={0.4}
+                  style={{ animation: 'pulse 2s ease-in-out infinite' }}
+                />
+                {/* Inner circle */}
+                <circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={(size / 2) - 8}
+                  fill={color}
+                  opacity={0.2}
+                />
+              </svg>
+              {/* Loading spinner */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                <svg
+                  className="animate-spin"
+                  width={size / 2.5}
+                  height={size / 2.5}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke={color}
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill={color}
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+              </div>
+            </div>
+          );
+        }
+
+        // Render active price state
     return (
       <div
         key={`price-${n.id}`}
@@ -190,6 +270,16 @@ export function NodePriceOverlay({ nodes, prices, zoomThreshold = 0.6 }: Props) 
           }
           to {
             transform: translate(-50%, -50%) scale(1);
+          }
+        }
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 0.4;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.05);
           }
         }
       `}</style>

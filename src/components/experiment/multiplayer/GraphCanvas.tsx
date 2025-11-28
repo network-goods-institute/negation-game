@@ -150,7 +150,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           }
         }
         // Enrich with market data
-        e = enrichWithMarketData(e, marketPrices, marketHoldings, marketTotals);
+        e = enrichWithMarketData(e, marketPrices, marketHoldings, marketTotals, 'edge');
         return e;
       });
       const getNodeRect = (id: string) => {
@@ -177,7 +177,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
       const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
       const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
-      const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals));
+      const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals, 'node'));
       return enriched as MarketNode[];
     } catch {
       return nodes as MarketNode[];
