@@ -13,20 +13,29 @@ jest.mock("@/utils/slugResolver", () => ({
   resolveSlugToId: async (x: string) => x,
 }));
 
-// Initial buildStructureFromDoc returns structure WITHOUT the target security
 let buildCalls = 0;
+const mockBuildResult = () => {
+  buildCalls += 1;
+  return buildCalls >= 2
+    ? {
+        structure: { nodes: ["p-new"], names: ["p-new"], edges: [], supportEdges: [] },
+        securities: ["p-new"],
+      }
+    : {
+        structure: { nodes: ["p-existing"], names: ["p-existing"], edges: [], supportEdges: [] },
+        securities: ["p-existing"],
+      };
+};
+
 jest.mock("@/actions/market/buildStructureFromDoc", () => ({
-  buildStructureFromDoc: jest.fn(async () => {
-    buildCalls += 1;
-    return buildCalls >= 2
-      ? { structure: { names: ["p-new"], edges: [] }, securities: ["p-new"] }
-      : { structure: { names: ["p-existing"], edges: [] }, securities: ["p-existing"] };
-  }),
+  buildStructureFromDoc: jest.fn(async () => mockBuildResult()),
+  buildStructureFromDocUncached: jest.fn(async () => mockBuildResult()),
 }));
 
 const ensureSpy = jest.fn(async (_docId: string, _securityId: string) => {});
 jest.mock("@/actions/market/ensureSecurityInDoc", () => ({
-  ensureSecurityInDoc: (docId: string, securityId: string) => ensureSpy(docId, securityId),
+  ensureSecurityInDoc: (docId: string, securityId: string) =>
+    ensureSpy(docId, securityId),
 }));
 
 jest.mock("@/lib/carroll/market", () => ({
@@ -39,7 +48,6 @@ jest.mock("@/lib/carroll/market", () => ({
   defaultB: 1n,
 }));
 
-// Minimal db mocks
 jest.mock("@/services/db", () => {
   const selectChain: any = {
     from: jest.fn().mockReturnThis(),
@@ -49,7 +57,9 @@ jest.mock("@/services/db", () => {
     execute: jest.fn().mockResolvedValue(undefined),
     select: jest.fn(() => selectChain),
     update: jest.fn(() => ({ set: jest.fn(() => ({ where: jest.fn() })) })),
-    insert: jest.fn(() => ({ values: jest.fn(() => ({ returning: jest.fn(() => []) })) })),
+    insert: jest.fn(() => ({
+      values: jest.fn(() => ({ returning: jest.fn(() => []) })),
+    })),
   } as any;
   return {
     db: {

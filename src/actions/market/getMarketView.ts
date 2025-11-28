@@ -35,22 +35,33 @@ export async function computeMarketView(
       })
     );
   } catch {}
+
   const rows = await db
     .select({
+      userId: marketHoldingsTable.userId,
       securityId: marketHoldingsTable.securityId,
       amountScaled: marketHoldingsTable.amountScaled,
     })
     .from(marketHoldingsTable)
     .where(eq(marketHoldingsTable.docId, canonicalId));
+
   const normalize = (id: string) =>
     id?.startsWith("anchor:") ? id.slice("anchor:".length) : id;
+
   const rawTotals = new Map<string, bigint>();
+  const userHoldingsRaw = new Map<string, string>();
+
   for (const r of rows) {
     const id = normalize(r.securityId);
     if (!id) continue;
     const v = BigInt(r.amountScaled || "0");
     rawTotals.set(id, (rawTotals.get(id) || 0n) + v);
+
+    if (userId && r.userId === userId) {
+      userHoldingsRaw.set(id, r.amountScaled || "0");
+    }
   }
+
   let mmStruct = structure;
   let mmSecs = securities;
   if ((mmStruct.names.length === 0 || mmSecs.length === 0) && rows.length > 0) {
@@ -120,25 +131,12 @@ export async function computeMarketView(
     });
   } catch {}
 
-  const userHoldingsRows = userId
-    ? await db
-        .select({
-          securityId: marketHoldingsTable.securityId,
-          amountScaled: marketHoldingsTable.amountScaled,
-        })
-        .from(marketHoldingsTable)
-        .where(
-          and(
-            eq(marketHoldingsTable.docId, canonicalId),
-            eq(marketHoldingsTable.userId, userId)
-          )
-        )
-    : [];
+  const secSet = new Set(mmSecs);
   const userHoldings: Record<string, string> = {};
-  for (const r of userHoldingsRows) {
-    const id = normalize(r.securityId);
-    if (!new Set(mmSecs).has(id)) continue;
-    userHoldings[id] = r.amountScaled || "0";
+  for (const [id, amount] of userHoldingsRaw) {
+    if (secSet.has(id)) {
+      userHoldings[id] = amount;
+    }
   }
 
   const outTotals: Record<string, string> = {};

@@ -14,19 +14,33 @@ jest.mock("@/utils/slugResolver", () => ({
 }));
 
 let buildCalls = 0;
+const mockBuildResult = () => {
+  buildCalls += 1;
+  return buildCalls >= 2
+    ? {
+        structure: {
+          nodes: ["p-a", "p-b"],
+          names: ["p-a", "p-b", "edge:p-a->p-b"],
+          edges: [{ name: "edge:p-a->p-b", from: "p-a", to: "p-b" }],
+          supportEdges: [],
+        },
+        securities: ["p-a", "p-b", "edge:p-a->p-b"],
+      }
+    : {
+        structure: { nodes: ["p-z"], names: ["p-z"], edges: [], supportEdges: [] },
+        securities: ["p-z"],
+      };
+};
+
 jest.mock("@/actions/market/buildStructureFromDoc", () => ({
-  buildStructureFromDoc: jest.fn(async () => {
-    buildCalls += 1;
-    // First build does not include the edge or its endpoints; second includes after ensureSecurityInDoc
-    return buildCalls >= 2
-      ? { structure: { names: ["p-a", "p-b"], edges: [{ name: "edge:p-a->p-b", from: "p-a", to: "p-b" }] }, securities: ["p-a", "p-b", "edge:p-a->p-b"] }
-      : { structure: { names: ["p-z"], edges: [] }, securities: ["p-z"] };
-  }),
+  buildStructureFromDoc: jest.fn(async () => mockBuildResult()),
+  buildStructureFromDocUncached: jest.fn(async () => mockBuildResult()),
 }));
 
 const ensureSpy = jest.fn(async (_docId: string, _securityId: string) => {});
 jest.mock("@/actions/market/ensureSecurityInDoc", () => ({
-  ensureSecurityInDoc: (docId: string, securityId: string) => ensureSpy(docId, securityId),
+  ensureSecurityInDoc: (docId: string, securityId: string) =>
+    ensureSpy(docId, securityId),
 }));
 
 jest.mock("@/lib/carroll/market", () => ({
@@ -48,7 +62,9 @@ jest.mock("@/services/db", () => {
     execute: jest.fn().mockResolvedValue(undefined),
     select: jest.fn(() => selectChain),
     update: jest.fn(() => ({ set: jest.fn(() => ({ where: jest.fn() })) })),
-    insert: jest.fn(() => ({ values: jest.fn(() => ({ returning: jest.fn(() => []) })) })),
+    insert: jest.fn(() => ({
+      values: jest.fn(() => ({ returning: jest.fn(() => []) })),
+    })),
   } as any;
   return { db: { transaction: async (fn: any) => fn(tx) } };
 });
