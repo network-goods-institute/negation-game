@@ -5,6 +5,7 @@ import {
   filterSnapTargets,
   filterSnapTargetsMulti,
   calculateGroupSnapPositions,
+  calculateGroupBounds,
 } from "@/lib/canvas/snapCalculations";
 import type { SnapResult } from "../useNodeDragSnapping";
 
@@ -79,12 +80,40 @@ export function createHandleNodeDragStop({
     try {
       const isPrimaryNode = node.id === dragStateRef.current.nodeId;
       const ctrlPressed = e?.ctrlKey || e?.nativeEvent?.ctrlKey || false;
+      // Refresh selection snapshot in case selection changed (e.g., marquee select)
+      if (!dragStateRef.current.selectedNodeIds?.length) {
+        const currentSelected = rf.getNodes().filter((n: any) => n.selected);
+        dragStateRef.current.selectedNodeIds = currentSelected.map((n: any) => n.id);
+        dragStateRef.current.initialPositionsById = currentSelected.reduce<
+          Record<string, { x: number; y: number }>
+        >((acc, n: any) => {
+          acc[n.id] = { x: n.position?.x ?? 0, y: n.position?.y ?? 0 };
+          return acc;
+        }, {});
+        dragStateRef.current.initialSizesById = currentSelected.reduce<
+          Record<string, { width: number; height: number }>
+        >((acc, n: any) => {
+          const width =
+            Number(n?.width ?? n?.measured?.width ?? n?.style?.width ?? 0) || 0;
+          const height =
+            Number(n?.height ?? n?.measured?.height ?? n?.style?.height ?? 0) || 0;
+          acc[n.id] = { width: Math.round(width), height: Math.round(height) };
+          return acc;
+        }, {});
+        dragStateRef.current.initialGroupBounds =
+          currentSelected.length > 1
+            ? calculateGroupBounds(
+                currentSelected as any,
+                dragStateRef.current.initialSizesById
+              )
+            : null;
+      }
       const isMultiSelect = dragStateRef.current.selectedNodeIds.length > 1;
 
-      if (isPrimaryNode && !ctrlPressed) {
+      if (isPrimaryNode && isMultiSelect) {
         const allNodes = rf.getNodes();
 
-        if (isMultiSelect && dragStateRef.current.initialGroupBounds) {
+        if (dragStateRef.current.initialGroupBounds) {
           dragStateRef.current.finalizingSnap = true;
           const leaderInitial = dragStateRef.current.initialPositionsById[
             dragStateRef.current.nodeId || ""
@@ -110,11 +139,13 @@ export function createHandleNodeDragStop({
             allNodes,
             dragStateRef.current.selectedNodeIds
           );
-          const { snapX, snapY } = calculateGroupSnapPositions(
-            adjustedGroupBounds,
-            otherNodes as any,
-            viewport.zoom || 1
-          );
+          const { snapX, snapY } = ctrlPressed
+            ? { snapX: null, snapY: null }
+            : calculateGroupSnapPositions(
+                adjustedGroupBounds,
+                otherNodes as any,
+                viewport.zoom || 1
+              );
 
           const offsetX = snapX !== null ? snapX - adjustedGroupBounds.left : 0;
           const offsetY = snapY !== null ? snapY - adjustedGroupBounds.top : 0;
@@ -207,7 +238,7 @@ export function createHandleNodeDragStop({
               });
             });
           } else {
-            // Ctrl pressed or single node: just clean up
+            // Ctrl pressed: just clean up
             requestAnimationFrame(() => {
               requestAnimationFrame(() => {
                 dragStateRef.current.finalizingSnap = false;
@@ -219,6 +250,32 @@ export function createHandleNodeDragStop({
 
         // Defer cleanup to the requestAnimationFrame chain above
         return;
+      } else if (isPrimaryNode && !isMultiSelect && !ctrlPressed) {
+        const allNodes = rf.getNodes();
+
+        dragStateRef.current.finalizingSnap = true;
+        const otherNodes = filterSnapTargets(
+          allNodes,
+          dragStateRef.current.nodeId || node.id
+        );
+        const { snapX, snapY } = calculateSnapPositions(
+          node as any,
+          node.position ?? { x: 0, y: 0 },
+          otherNodes as any,
+          viewport.zoom || 1,
+          dragStateRef.current.initialSizesById
+        );
+
+        const finalX = snapX !== null ? snapX : (node.position?.x ?? 0);
+        const finalY = snapY !== null ? snapY : (node.position?.y ?? 0);
+
+        requestAnimationFrame(() => {
+          graph.updateNodePosition?.(node.id, finalX, finalY);
+          requestAnimationFrame(() => {
+            dragStateRef.current.finalizingSnap = false;
+            cleanup();
+          });
+        });
       }
     } catch {}
 

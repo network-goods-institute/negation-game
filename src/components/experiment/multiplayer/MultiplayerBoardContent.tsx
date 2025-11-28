@@ -332,7 +332,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             if (txt && (/outcome enumeration cap exceeded/i.test(txt) || /too many variables/i.test(txt))) {
               toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
             }
-          } catch {}
+          } catch { }
           return;
         }
         const view = await res.json();
@@ -652,7 +652,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     setMindchangeNextDir,
     setSelectedEdgeId,
   });
-  const setMindchange = mindchangeEnabled ? mindchangeActions.setMindchange : async () => {};
+  const setMindchange = mindchangeEnabled ? mindchangeActions.setMindchange : async () => { };
   const getMindchangeBreakdown = mindchangeEnabled
     ? mindchangeActions.getMindchangeBreakdown
     : async () => ({ forward: [], backward: [] } as any);
@@ -772,7 +772,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   }, [setNodes]);
 
   const refreshMarketNow = useCallback(async () => {
-    try { await forceSave?.(); } catch {}
+    try { await forceSave?.(); } catch { }
     try {
       if (marketEnabled && ydoc && yMetaMap && resolvedId) {
         const payload = buildMarketViewPayload(nodes, edges);
@@ -787,7 +787,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             if (txt && (/outcome enumeration cap exceeded/i.test(txt) || /too many variables/i.test(txt))) {
               toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
             }
-          } catch {}
+          } catch { }
           return;
         }
         const view = await res.json();
@@ -802,7 +802,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           syncMarketDataToYDoc(ydoc as any, yMetaMap as any, marketData, resolvedId || '', ORIGIN.RUNTIME);
         }
       }
-    } catch {}
+    } catch { }
   }, [forceSave, marketEnabled, ydoc, yMetaMap, resolvedId, nodes, edges]);
 
   const {
@@ -1146,11 +1146,11 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                     showReadOnlyToast();
                     return;
                   }
-              const nodeId = addNodeAtPosition('point', flowX, flowY);
+                  const nodeId = addNodeAtPosition('point', flowX, flowY);
 
-              setTimeout(() => {
-                const element = document.querySelector(`[data-id="${nodeId}"]`);
-                if (element) {
+                  setTimeout(() => {
+                    const element = document.querySelector(`[data-id="${nodeId}"]`);
+                    if (element) {
                       const rect = element.getBoundingClientRect();
                       setNewNodeWithDropdown({
                         id: nodeId,

@@ -5,6 +5,7 @@ import {
   filterSnapTargets,
   filterSnapTargetsMulti,
   calculateGroupSnapPositions,
+  calculateGroupBounds,
 } from "@/lib/canvas/snapCalculations";
 import type { SnapResult } from "../useNodeDragSnapping";
 import { logger } from "@/lib/logger";
@@ -63,6 +64,36 @@ export function createHandleNodeDrag({
       }
 
       const ctrlPressed = e?.ctrlKey || e?.nativeEvent?.ctrlKey || false;
+      // Refresh selection snapshot in case selection changed after drag start (e.g., marquee select)
+      if (!dragStateRef.current.selectedNodeIds?.length) {
+        const currentSelected = rf.getNodes().filter((n: any) => n.selected);
+        dragStateRef.current.selectedNodeIds = currentSelected.map((n: any) => n.id);
+        dragStateRef.current.initialPositionsById = currentSelected.reduce<
+          Record<string, { x: number; y: number }>
+        >((acc, n: any) => {
+          acc[n.id] = { x: n.position?.x ?? 0, y: n.position?.y ?? 0 };
+          return acc;
+        }, {});
+        dragStateRef.current.initialSizesById = currentSelected.reduce<
+          Record<string, { width: number; height: number }>
+        >((acc, n: any) => {
+          const width =
+            Number(n?.width ?? n?.measured?.width ?? n?.style?.width ?? 0) || 0;
+          const height =
+            Number(n?.height ?? n?.measured?.height ?? n?.style?.height ?? 0) ||
+            0;
+          acc[n.id] = { width: Math.round(width), height: Math.round(height) };
+          return acc;
+        }, {});
+        dragStateRef.current.initialGroupBounds =
+          currentSelected.length > 1
+            ? calculateGroupBounds(
+                currentSelected as any,
+                dragStateRef.current.initialSizesById
+              )
+            : null;
+      }
+
       const isMultiSelect = dragStateRef.current.selectedNodeIds.length > 1;
       const isPrimaryNode = node.id === dragStateRef.current.nodeId;
 
@@ -88,11 +119,7 @@ export function createHandleNodeDrag({
 
       const allNodes = rf.getNodes();
 
-      if (
-        !ctrlPressed &&
-        isMultiSelect &&
-        dragStateRef.current.initialGroupBounds
-      ) {
+      if (isMultiSelect && dragStateRef.current.initialGroupBounds) {
         const adjustedGroupBounds = {
           left: dragStateRef.current.initialGroupBounds.left + dx,
           right: dragStateRef.current.initialGroupBounds.right + dx,
@@ -109,11 +136,13 @@ export function createHandleNodeDrag({
           dragStateRef.current.selectedNodeIds
         );
         const { snapX, snapY, snapLineX, snapLineY } =
-          calculateGroupSnapPositions(
-            adjustedGroupBounds,
-            otherNodes as any,
-            viewport.zoom || 1
-          );
+          !ctrlPressed
+            ? calculateGroupSnapPositions(
+                adjustedGroupBounds,
+                otherNodes as any,
+                viewport.zoom || 1
+              )
+            : { snapX: null, snapY: null, snapLineX: null, snapLineY: null };
 
         const offsetX = snapX !== null ? snapX - adjustedGroupBounds.left : 0;
         const offsetY = snapY !== null ? snapY - adjustedGroupBounds.top : 0;

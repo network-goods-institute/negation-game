@@ -223,6 +223,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   // Custom hooks for managing complex logic
   useGraphKeyboardHandlers({ graph, copiedNodeIdRef });
   useGraphWheelHandler({ containerRef });
+  const selectionSnapshotRef = React.useRef<string[]>([]);
 
   const {
     multiSelectMenuOpen,
@@ -234,15 +235,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     setMultiSelectMenuOpen,
   } = useGraphContextMenu({ graph });
 
-  const {
-    handleNodeClick: handleNodeClickInternal,
-    handleNodeDragStart: handleNodeDragStartInternal,
-    handleNodeDrag,
-    handleNodeDragStop: handleNodeDragStopInternal,
-    snapResult,
-    finalizingSnap,
-    draggingActive,
-  } = useGraphNodeHandlers({
+  const nodeHandlers = useGraphNodeHandlers({
     graph,
     grabMode,
     selectMode,
@@ -251,6 +244,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     onNodeDragStop,
     altCloneMapRef,
   });
+
+  const {
+    handleNodeClick: handleNodeClickInternal,
+    handleNodeDragStart: handleNodeDragStartInternal,
+    handleNodeDrag,
+    handleNodeDragStop: handleNodeDragStopInternal,
+    snapResult,
+  } = nodeHandlers;
 
   const deselectAllNodes = React.useCallback(() => {
     try {
@@ -378,9 +379,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const isMinimap = !!target.closest('.react-flow__minimap');
     const isLabel = !!target.closest('.react-flow__edge-labels');
     const isPane = !!target.closest('.react-flow__pane');
+    const isSelectionBox = !!target.closest('.react-flow__nodesselection');
     const isOverlay = isLabel || isMinimap || isControl;
     // If market panel is visible and user clicks the bare pane, close the panel via fade first
-    if (isMarketPanelVisible && !connectMode && isPane && !isNode && !isEdge && !isOverlay) {
+    // Don't trigger if clicking on the selection box (used for multi-select drag)
+    if (isMarketPanelVisible && !connectMode && isPane && !isNode && !isEdge && !isOverlay && !isSelectionBox) {
       dispatchMarketPanelClose();
       // Do not swallow the event if the user is panning (hand tool) or using middle mouse
       if (!grabMode && e.button !== 1) {
@@ -390,7 +393,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       }
     }
     // Do not clear selection on mousedown; only clear text selection
-    if (!isNode && !isEdge && (isPane || isOverlay)) {
+    if (!isNode && !isEdge && !isSelectionBox && (isPane || isOverlay)) {
       try { window.getSelection()?.removeAllRanges(); } catch { }
     }
   };
@@ -450,9 +453,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
-            } else if (c?.type === 'position' && (connectMode || mindchangeMode || finalizingSnap || (draggingActive && c?.dragging === false))) {
+            } else if (c?.type === 'position' && (connectMode || mindchangeMode || nodeHandlers.finalizingSnap || (nodeHandlers.draggingActive && c?.dragging === false))) {
               // Block position updates during special modes, but allow dragging state to clear
-              if (c?.dragging === false && (finalizingSnap || draggingActive)) {
+              if (c?.dragging === false && (nodeHandlers.finalizingSnap || nodeHandlers.draggingActive)) {
                 // Pass through a change that only updates the dragging flag, not position
                 passthrough.push({ id: c.id, type: 'position', dragging: false });
               }
@@ -561,7 +564,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onSelectionChange={selectMode ? ({ nodes, edges }) => {
               try {
                 if (Array.isArray(nodes)) {
-                  const anySelected = nodes.some((n: any) => (n as any)?.selected);
+                  selectionSnapshotRef.current = nodes.filter((n: any) => (n as any)?.selected).map((n: any) => n.id);
+                  const anySelected = selectionSnapshotRef.current.length > 0;
                   if (anySelected) lastSelectionChangeRef.current = Date.now();
                 }
                 if (edges && edges.length > 0) {

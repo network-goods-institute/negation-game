@@ -177,7 +177,7 @@ export const MarketPanel: React.FC<Props> = ({
         setIsSwitching(false);
       }, 250);
     }
-    
+
     setPrevEntityId(currentEntityId);
   }, [selectedNodeId, selectedEdgeId, prevEntityId]);
 
@@ -190,7 +190,7 @@ export const MarketPanel: React.FC<Props> = ({
 
   // Track if this is the initial mount for opening animation
   const [isInitialMount, setIsInitialMount] = useState(true);
-  
+
   useEffect(() => {
     // After a short delay, mark as no longer initial mount
     const timer = setTimeout(() => {
@@ -275,7 +275,7 @@ export const MarketPanel: React.FC<Props> = ({
         logger.error('[market/ui] panel refresh failed', { error });
       }
     }
-    try { dispatchMarketRefresh(); } catch {}
+    try { dispatchMarketRefresh(); } catch { }
     finally {
       const elapsed = Date.now() - start;
       const min = 500;
@@ -291,19 +291,19 @@ export const MarketPanel: React.FC<Props> = ({
   // Use hybrid approach - instant width change, smooth transform animation
   const getPanelClasses = () => {
     const baseClasses = 'fixed z-[2000] bg-gradient-to-br from-white to-stone-50/30 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-stone-200/60 overflow-hidden backdrop-blur-xl market-panel-base flex flex-col max-h-[calc(100vh-96px)]';
-    
+
     let classes = baseClasses;
-    
+
     if (isClosing) {
       classes += ' closing';
     }
-    
+
     if (expanded) {
       classes += ' market-panel-expanded-width expanded';
     } else {
       classes += ' market-panel-normal';
     }
-    
+
     return classes;
   };
 

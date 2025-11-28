@@ -514,8 +514,9 @@ describe('useGraphNodeHandlers', () => {
         result.current.handleNodeDrag({ ctrlKey: true }, { id: 'a', type: 'point', position: { x: 5, y: 6 } });
       });
 
-      expect(mockGraph.updateNodePosition).toHaveBeenCalledTimes(1);
+      // Ctrl should disable snapping but still move the whole selection
       expect(mockGraph.updateNodePosition).toHaveBeenCalledWith('a', 5, 6);
+      expect(mockGraph.updateNodePosition).toHaveBeenCalledWith('b', expect.any(Number), expect.any(Number));
     });
   });
 
