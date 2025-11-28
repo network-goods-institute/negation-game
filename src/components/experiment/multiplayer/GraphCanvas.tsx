@@ -381,16 +381,16 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const isPane = !!target.closest('.react-flow__pane');
     const isSelectionBox = !!target.closest('.react-flow__nodesselection');
     const isOverlay = isLabel || isMinimap || isControl;
+    const isPanning = grabMode || e.button === 1;
+
     // If market panel is visible and user clicks the bare pane, close the panel via fade first
     // Don't trigger if clicking on the selection box (used for multi-select drag)
-    if (isMarketPanelVisible && !connectMode && isPane && !isNode && !isEdge && !isOverlay && !isSelectionBox) {
+    // Don't close if user is panning (grabMode) or using middle mouse button
+    if (isMarketPanelVisible && !connectMode && isPane && !isNode && !isEdge && !isOverlay && !isSelectionBox && !isPanning) {
       dispatchMarketPanelClose();
-      // Do not swallow the event if the user is panning (hand tool) or using middle mouse
-      if (!grabMode && e.button !== 1) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      return;
     }
     // Do not clear selection on mousedown; only clear text selection
     if (!isNode && !isEdge && !isSelectionBox && (isPane || isOverlay)) {

@@ -582,45 +582,28 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     markShareParamsApplied();
   }, [shareParamsApplied, isConnected, nodes, edges, setNodes, setSelectedEdgeId, setMarketPanelSelection, markShareParamsApplied]);
 
-  // Track node selection changes to open market panel
+  // Track node selection changes to open/switch market panel (but not close - panel is "sticky")
   useEffect(() => {
     if (!nodes || nodes.length === 0) return;
     const selectedNode = nodes.find((n: any) => n.selected);
     if (selectedNode && isMarketEnabled()) {
-      // Only show panel for point and objection nodes
       const nodeType = (selectedNode as any).type;
       if (nodeType === 'point' || nodeType === 'objection') {
         setMarketPanelSelection(selectedNode.id, null);
-      } else {
-        setMarketPanelSelection(null, null);
-      }
-    } else if (!selectedNode) {
-      // Only clear if there's no edge selected either
-      if (!selectedEdgeId) {
-        setMarketPanelSelection(null, null);
       }
     }
-  }, [nodes, selectedEdgeId, setMarketPanelSelection]);
+  }, [nodes, setMarketPanelSelection]);
 
-  // Track edge selection changes to open market panel
+  // Track edge selection changes to open/switch market panel (but not close - panel is "sticky")
   useEffect(() => {
     if (selectedEdgeId && isMarketEnabled()) {
-      // Only open market panel for support, negation, and objection edges
       const selectedEdge = edges.find((e: any) => e.id === selectedEdgeId);
       const edgeType = selectedEdge?.type;
       if (edgeType === 'support' || edgeType === 'negation' || edgeType === 'objection') {
         setMarketPanelSelection(null, selectedEdgeId);
-      } else {
-        setMarketPanelSelection(null, null);
-      }
-    } else if (!selectedEdgeId) {
-      // Only clear if there's no node selected either
-      const hasSelectedNode = nodes && nodes.some((n: any) => n.selected);
-      if (!hasSelectedNode) {
-        setMarketPanelSelection(null, null);
       }
     }
-  }, [selectedEdgeId, nodes, edges, setMarketPanelSelection]);
+  }, [selectedEdgeId, edges, setMarketPanelSelection]);
 
   const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite: canEdit, broadcastCursor: true });
   const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite: canEdit, broadcastLocks: true });

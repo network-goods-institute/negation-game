@@ -157,10 +157,6 @@ export const MarketPanel: React.FC<Props> = ({
       focusTarget.focus();
     }
     return () => {
-      const prev = previousFocusRef.current;
-      if (prev && typeof prev.focus === 'function') {
-        prev.focus();
-      }
       previousFocusRef.current = null;
     };
   }, [entityId]);
@@ -182,12 +178,12 @@ export const MarketPanel: React.FC<Props> = ({
     setPrevEntityId(currentEntityId);
   }, [selectedNodeId, selectedEdgeId, prevEntityId]);
 
-  // Close when entity is deselected (but not during controlled closing animation)
+
   useEffect(() => {
-    if (!entityId && !isClosing) {
+    if (!entityId && !cachedEntity && !isClosing) {
       handleClose();
     }
-  }, [entityId, isClosing, handleClose]);
+  }, [entityId, cachedEntity, isClosing, handleClose]);
 
   // Track if this is the initial mount for opening animation
   const [isInitialMount, setIsInitialMount] = useState(true);
@@ -220,19 +216,10 @@ export const MarketPanel: React.FC<Props> = ({
   const normEntityId = useMemo(() => (entityId ? normalizeSecurityId(entityId) : null), [entityId]);
   const preview = useBuyAmountPreview(docId, normEntityId, amount);
 
-  // Handle ESC key
+  // Listen for close event (dispatched by useGraphKeyboardHandlers on Escape, or pane click, etc.)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
     const unsubscribe = addMarketPanelCloseListener(() => { handleClose(); });
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      unsubscribe();
-    };
+    return () => { unsubscribe(); };
   }, [handleClose]);
 
   const handleTrade = async (tradeAmount: number) => {

@@ -1,6 +1,7 @@
 import React from "react";
 import { useReactFlow } from "@xyflow/react";
 import { toast } from "sonner";
+import { dispatchMarketPanelClose } from "@/utils/market/marketEvents";
 
 interface UseGraphKeyboardHandlersProps {
   graph: any;
@@ -96,25 +97,12 @@ export const useGraphKeyboardHandlers = ({
         return;
       }
       if (key === "escape") {
-        try {
-          if ((window as any).__marketPanelVisible === true) {
-            try { window.dispatchEvent(new Event('market:panelClose')); } catch {}
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-          }
-        } catch {}
+        dispatchMarketPanelClose();
         try {
           graph?.cancelMindchangeSelection?.();
         } catch {}
         try {
           graph?.cancelConnect?.();
-        } catch {}
-        try {
-          graph?.clearNodeSelection?.();
-        } catch {}
-        try {
-          graph?.setSelectedEdge?.(null);
         } catch {}
         e.preventDefault();
         return;
