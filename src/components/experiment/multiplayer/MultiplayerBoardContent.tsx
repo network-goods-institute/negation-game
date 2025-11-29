@@ -794,7 +794,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     updateNodePosition,
     updateNodeFavor,
     updateEdgeRelevance,
-    deleteNode,
+    deleteNode: deleteNodeBase,
     addPointBelow,
     addObjectionForEdge,
     updateEdgeAnchorPosition,
@@ -847,6 +847,22 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     },
     connectMode,
   });
+
+  const deleteNode = useCallback((nodeId: string) => {
+    if (marketPanelNodeId === nodeId || marketPanelEdgeId === nodeId) {
+      resetMarketPanel();
+    }
+    deleteNodeBase(nodeId);
+  }, [deleteNodeBase, marketPanelNodeId, marketPanelEdgeId, resetMarketPanel]);
+
+  useEffect(() => {
+    if (marketPanelNodeId && !nodes.some((n: any) => n.id === marketPanelNodeId)) {
+      resetMarketPanel();
+    }
+    if (marketPanelEdgeId && !edges.some((e: any) => e.id === marketPanelEdgeId)) {
+      resetMarketPanel();
+    }
+  }, [nodes, edges, marketPanelNodeId, marketPanelEdgeId, resetMarketPanel]);
 
   const { onNodesChange, onEdgesChange, onConnect } = createGraphChangeHandlers(
     setNodes,

@@ -230,6 +230,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     return [(fLabelX + bLabelX) / 2, (fLabelY + bLabelY) / 2];
   }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, sourceX, sourceY, targetX, targetY, sourceNode, targetNode, props]);
 
+  const actualLabelX = (bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number;
+  const actualLabelY = (bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number;
+
   const edgeStyles = useMemo(() => {
     const width = enableMindchange
       ? computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: edgeTypeLocal })
@@ -340,7 +343,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const handleAddObjection = () => {
     graphActions.clearNodeSelection?.();
-    addObjectionForEdge(props.id as string, cx, cy);
+    addObjectionForEdge(props.id as string, actualLabelX, actualLabelY);
     setHoveredEdge(null);
     setSelectedEdge?.(null);
   };
@@ -487,8 +490,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
       {showAffordance && props.edgeType !== 'comment' && (
         <EdgeMidpointControl
-          cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
-          cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
+          cx={actualLabelX}
+          cy={actualLabelY}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
           disabled={grabMode}
@@ -499,8 +502,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
       {!connectMode && !grabMode && props.edgeType !== 'comment' && (
         <EdgeOverlay
-          cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
-          cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
+          cx={actualLabelX}
+          cy={actualLabelY}
           isHovered={isHovered}
           selected={selected}
           edgeId={props.id as string}
