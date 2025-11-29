@@ -230,9 +230,13 @@ function handleSubdomain(
       url.searchParams.forEach((value, key) => {
         dest.searchParams.set(key, value);
       });
-      return NextResponse.rewrite(dest);
+      const response = NextResponse.rewrite(dest);
+      response.headers.set(SPACE_HEADER, "global");
+      return response;
     }
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set(SPACE_HEADER, "global");
+    return response;
   }
 
   // Handle play subdomain - shows the old landing page and app behavior
@@ -241,7 +245,10 @@ function handleSubdomain(
 
     // Redirect privacy/tos to canonical URL
     if (shouldRedirectToCanonical(pathname)) {
-      const redirectUrl = new URL(`https://negationgame.com${pathname}`, req.url);
+      const redirectUrl = new URL(
+        `https://negationgame.com${pathname}`,
+        req.url
+      );
       url.searchParams.forEach((value, key) => {
         redirectUrl.searchParams.set(key, value);
       });
@@ -285,7 +292,10 @@ function handleSubdomain(
 
     // Redirect privacy/tos to canonical URL
     if (shouldRedirectToCanonical(targetPath)) {
-      const redirectUrl = new URL(`https://negationgame.com${targetPath}`, req.url);
+      const redirectUrl = new URL(
+        `https://negationgame.com${targetPath}`,
+        req.url
+      );
       url.searchParams.forEach((value, key) => {
         redirectUrl.searchParams.set(key, value);
       });
@@ -339,7 +349,10 @@ function handleSubdomain(
 
     // Redirect privacy/tos to canonical URL
     if (shouldRedirectToCanonical(targetPath)) {
-      const redirectUrl = new URL(`https://negationgame.com${targetPath}`, req.url);
+      const redirectUrl = new URL(
+        `https://negationgame.com${targetPath}`,
+        req.url
+      );
       url.searchParams.forEach((value, key) => {
         redirectUrl.searchParams.set(key, value);
       });
@@ -570,7 +583,11 @@ export default async function middleware(req: NextRequest) {
   }
 
   // Redirect /s/* paths to play.negationgame.com on root domain (but not in dev)
-  const isLocalhost = hostNoPort === 'localhost' || hostNoPort === '127.0.0.1' || hostNoPort.startsWith('localhost:') || hostNoPort.startsWith('127.0.0.1:');
+  const isLocalhost =
+    hostNoPort === "localhost" ||
+    hostNoPort === "127.0.0.1" ||
+    hostNoPort.startsWith("localhost:") ||
+    hostNoPort.startsWith("127.0.0.1:");
   if (pathname.startsWith("/s/") && !isLocalhost) {
     const redirectUrl = new URL(
       `https://play.negationgame.com${pathname}`,
@@ -584,11 +601,7 @@ export default async function middleware(req: NextRequest) {
 
   // Allow only specific paths on root domain
   // Everything else redirects to play.negationgame.com
-  const allowedRootPaths = [
-    "/experiment",
-    "/privacy",
-    "/tos",
-  ];
+  const allowedRootPaths = ["/experiment", "/privacy", "/tos"];
   if (isLocalhost) {
     // Allow /s/ paths in development
     allowedRootPaths.push("/s/");

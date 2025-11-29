@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE IF NOT EXISTS "embeddings" (
 	"point_id" serial PRIMARY KEY NOT NULL,
 	"embedding" vector(384)

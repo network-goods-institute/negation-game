@@ -36,7 +36,6 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
     textareaClassName,
     parentNodeType,
     placeholder,
-    compact = false, // TODO: remove this
     extraCompact = false,
     guidanceNotes = (
         <>
@@ -148,4 +147,4 @@ export const PreviewPointEditor: FC<PreviewPointEditorProps> = ({
             </div>
         </div>
     );
-}; 
+};

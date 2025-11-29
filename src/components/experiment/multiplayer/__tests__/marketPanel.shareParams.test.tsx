@@ -84,6 +84,8 @@ jest.mock('@/hooks/experiment/multiplayer/useYjsMultiplayer', () => ({
     connectionError: null,
     isConnected: true,
     connectionState: 'connected',
+    hasSyncedOnce: true,
+    isReady: true,
     isSaving: false,
     forceSave: jest.fn(),
     interruptSave: jest.fn(),

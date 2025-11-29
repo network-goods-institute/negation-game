@@ -17,6 +17,7 @@ import { useConsilienceAuthors } from "@/queries/consilience/useConsilienceAutho
 import { useUniqueRationaleAuthors } from "@/hooks/consilience/useUniqueRationaleAuthors";
 import { useTopics } from "@/queries/topics/useTopics";
 import { ConsilienceResults } from "./ConsilienceResults";import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 interface ConsilienceState {
   step: "select" | "generating" | "results";
@@ -317,7 +318,7 @@ export function ConsiliencePageClient() {
         ...prev,
         step: "select",
       }));
-      // TODO: Show error toast or alert
+      toast.error("Failed to generate consilience. Please try again.");
     }
   };
 
