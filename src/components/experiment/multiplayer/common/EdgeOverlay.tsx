@@ -5,10 +5,6 @@ import { ContextMenu } from './ContextMenu';
 import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
-import { MindchangeEditor } from './MindchangeEditor';
-import { MindchangeIndicators } from './MindchangeIndicators';
-import { breakdownCache } from './MindchangeBreakdown';
-import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 import { InlinePriceHistory } from '../market/InlinePriceHistory';
 
 const EDGE_ANCHOR_SIZE = 36;
@@ -38,11 +34,6 @@ export interface EdgeOverlayProps {
   starColor?: string;
   sourceLabel?: string;
   targetLabel?: string;
-  mindchange?: {
-    forward: { average: number; count: number };
-    backward: { average: number; count: number };
-    userValue?: { forward?: number; backward?: number };
-  };
   relevance?: number;
   onUpdateRelevance?: (relevance: number) => void;
   suppress?: boolean;
@@ -66,7 +57,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   onToggleEdgeType,
   onConnectionClick,
   starColor = 'text-stone-600',
-  mindchange,
   relevance,
   onUpdateRelevance,
   suppress = false,
@@ -128,45 +118,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     normalAction();
   }, [connectMode, onConnectionClick, anchorScreenPos?.x, anchorScreenPos?.y, fallbackScreenLeft, fallbackScreenTop]);
 
-  const rawForwardAvg = Math.round(Number((mindchange as any)?.forward?.average ?? 0));
-  const rawBackwardAvg = Math.round(Number((mindchange as any)?.backward?.average ?? 0));
 
-  const getCachedAvg = (dir: 'forward' | 'backward') => {
-    const key = `${edgeId}:${dir}`;
-    const cached = breakdownCache.get(key);
-    if (!cached || !cached.data || cached.data.length === 0) return null;
-    const sum = cached.data.reduce((a, b) => a + (Number(b.value) || 0), 0);
-    return Math.round(sum / cached.data.length);
-  };
-  const displayForwardAvg = rawForwardAvg === 0 ? (getCachedAvg('forward') ?? 0) : rawForwardAvg;
-  const displayBackwardAvg = rawBackwardAvg === 0 ? (getCachedAvg('backward') ?? 0) : rawBackwardAvg;
-
-  const [cacheTick, setCacheTick] = React.useState(0);
-
-  const prefetchBreakdowns = React.useCallback(async () => {
-    if (!isMindchangeEnabledClient()) return;
-    if (!(graph as any)?.getMindchangeBreakdown) return;
-    if (edgeType !== 'negation' && edgeType !== 'objection') return;
-    const now = Date.now();
-    const fKey = `${edgeId}:forward`;
-    const bKey = `${edgeId}:backward`;
-    const isFresh = (k: string) => { const c = breakdownCache.get(k); return !!c && (now - c.ts) < 30000; };
-    const fFresh = isFresh(fKey);
-    const bFresh = isFresh(bKey);
-    if (fFresh && bFresh) return;
-    try {
-      const res = await (graph as any).getMindchangeBreakdown(edgeId);
-      const ts = Date.now();
-      if (!fFresh) breakdownCache.set(fKey, { ts, data: res.forward });
-      if (!bFresh) breakdownCache.set(bKey, { ts, data: res.backward });
-      setCacheTick((t) => t + 1);
-    } catch { }
-  }, [graph, edgeId, edgeType]);
-
-  // Mindchange editor/UI state
-  const [editDir, setEditDir] = React.useState<null | 'forward' | 'backward'>(null);
-  const [value, setValue] = React.useState<number>(Math.abs(rawForwardAvg));
-  const initializedKeyRef = React.useRef<string | null>(null);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isSaving, setIsSaving] = React.useState(false);
@@ -213,23 +165,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
   const showHUD = Boolean(overlayOpen) && !suppress && !grabMode;
 
-  const mcForIndicators = React.useMemo(() => {
-    if (!mindchange) return undefined;
-    const fwdAvg = Number((mindchange as any)?.forward?.average ?? 0);
-    const fwdCnt = Number((mindchange as any)?.forward?.count ?? 0);
-    const bwdAvg = Number((mindchange as any)?.backward?.average ?? 0);
-    const bwdCnt = Number((mindchange as any)?.backward?.count ?? 0);
-    const uv = (mindchange as any)?.userValue;
-    const f = Number(uv?.forward);
-    const b = Number(uv?.backward);
-    type MCShape = NonNullable<React.ComponentProps<typeof MindchangeIndicators>['mindchange']>;
-    const base: MCShape = { forward: { average: fwdAvg, count: fwdCnt }, backward: { average: bwdAvg, count: bwdCnt } };
-    if (Number.isFinite(f) && Number.isFinite(b)) {
-      const withUser: MCShape = { ...base, userValue: { forward: f, backward: b } };
-      return withUser;
-    }
-    return base;
-  }, [mindchange]);
   React.useEffect(() => {
     try {
       if (showHUD) setOverlayActive?.(edgeId);
@@ -249,85 +184,14 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     }
   }, [selected, isHovered, anchorHover, isNearOverlay, suppress, edgeId, setOverlayActive, overlayActiveId]);
 
-  React.useEffect(() => {
-    if (!isMindchangeEnabledClient()) { initializedKeyRef.current = null; return; }
-    if (!editDir) { initializedKeyRef.current = null; return; }
-    const initKey = `${edgeId}:${editDir}`;
-    if (initializedKeyRef.current === initKey) return;
-    try { prefetchBreakdowns(); } catch { }
-    const user = (mindchange as any)?.userValue as { forward?: number; backward?: number } | undefined;
-    let seed: number | undefined;
-    if (user && typeof user[editDir] === 'number' && user[editDir] !== undefined) {
-      // If user has an explicit value (including 0), use it once as the seed
-      seed = Math.abs(Number(user[editDir]));
-    } else {
-      const me = (graph as any)?.currentUserId as (string | undefined);
-      const findMine = (dir: 'forward' | 'backward'): number | null => {
-        try {
-          const key = `${edgeId}:${dir}`;
-          const cached = breakdownCache.get(key);
-          if (!cached || !cached.data || !Array.isArray(cached.data)) return null;
-          const rec = (cached.data as any[]).find((r) => me && r?.userId === me);
-          return rec ? Math.abs(Number(rec.value || 0)) : null;
-        } catch { return null; }
-      };
-      const mine = findMine(editDir);
-      if (mine != null && Number.isFinite(mine) && mine > 0) {
-        seed = mine;
-      } else {
-        const avg = editDir === 'forward' ? Number(displayForwardAvg) : Number(displayBackwardAvg);
-        seed = Math.abs(Number.isFinite(avg) ? avg : 0);
-      }
-    }
-    if (!Number.isFinite(seed)) seed = 100;
-    setValue(Math.max(0, Math.min(100, Math.round(seed as number))));
-    initializedKeyRef.current = initKey;
-  }, [editDir, mindchange, displayForwardAvg, displayBackwardAvg, cacheTick, graph, edgeId, prefetchBreakdowns]);
-
-  const handleSaveMindchange = async () => {
-    if (!graph.setMindchange || !editDir || isSaving) return;
-    setIsSaving(true);
-    try {
-      const v = Math.max(0, Math.min(100, Math.round(value)));
-      const params = editDir === 'forward' ? { forward: v } : { backward: v };
-      await graph.setMindchange(edgeId, params);
-      try {
-        const key = `${edgeId}:${editDir}` as const;
-        breakdownCache.set(key, { ts: 0, data: [] });
-        setCacheTick((t) => t + 1);
-      } catch { }
-      setEditDir(null);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const mindchangeNextDir = (graph as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
-  const mindchangeEdgeId = (graph as any)?.mindchangeEdgeId as (string | null);
-  const setMindchangeNextDirFn = (graph as any)?.setMindchangeNextDir as ((v: 'forward' | 'backward' | null) => void) | undefined;
-  const lastOpenKeyRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    if (!isMindchangeEnabledClient()) return;
-    if (edgeType !== 'negation' && edgeType !== 'objection') return;
-    if (!selected) { lastOpenKeyRef.current = null; return; }
-    if (mindchangeEdgeId !== edgeId || !mindchangeNextDir) return;
-    const key = `${edgeId}:${mindchangeNextDir}`;
-    if (lastOpenKeyRef.current === key) return;
-    lastOpenKeyRef.current = key;
-    setEditDir(mindchangeNextDir);
-    try { setMindchangeNextDirFn?.(null); } catch { }
-  }, [selected, edgeId, edgeType, mindchangeNextDir, mindchangeEdgeId, setMindchangeNextDirFn]);
 
   React.useEffect(() => {
-    const lockForMindchange = Boolean((graph as any)?.mindchangeMode) &&
-      (((graph as any)?.mindchangeEdgeId as string | null) === edgeId || Boolean(editDir));
     if (suppress) { setOverlayOpen(false); return; }
-    if (lockForMindchange) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (selected) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (isHovered) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (anchorHover) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (!isNearOverlay) setOverlayOpen(false);
-  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, editDir, suppress, setOverlayActive]);
+  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, suppress, setOverlayActive]);
 
   // Prevent browser page zoom (Ctrl/⌘ + wheel) while interacting with the overlay/buy UI
   React.useEffect(() => {
@@ -340,7 +204,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     return () => window.removeEventListener('wheel', onWheel as any, { capture: true } as any);
   }, [overlayOpen, isNearOverlay, anchorHover]);
 
-  // Do not auto-close editor based on global mindchangeMode; editor can be opened directly
 
   return (
     <React.Fragment>
@@ -359,7 +222,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
           onMouseEnter={(e) => {
             onMouseEnter();
             setAnchorHover(true);
-            prefetchBreakdowns();
             try {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
               setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
@@ -429,7 +291,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   onMouseEnter={() => setIsNearOverlay(true)}
                   onMouseLeave={() => setIsNearOverlay(false)}
                 >
-                  {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && !editDir && (
+                  {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && (
                     <EdgeTypeToggle
                       edgeType={edgeType}
                       onToggle={onToggleEdgeType}
@@ -440,7 +302,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
                   {(() => {
                     const marketEnabled = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
-                    if (isMindchangeEnabledClient() || marketEnabled) return null;
+                    if (marketEnabled) return null;
                     const rel = Math.max(1, Math.min(5, Math.round(Number(relevance || 0))));
                     if (edgeType === 'support' || edgeType === 'negation') {
                       return (
@@ -488,23 +350,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     return null;
                   })()}
 
-                  {(edgeType === 'negation' || edgeType === 'objection') && !editDir && (() => {
-                    if (!isMindchangeEnabledClient()) return null;
-                    const handleClick = (e: React.MouseEvent) => handleConnectionAwareClick(e, () => {
-                      e.stopPropagation();
-                      try { prefetchBreakdowns(); } catch { }
-                      (graph as any)?.beginMindchangeOnEdge?.(edgeId);
-                    });
-                    return (
-                      <button
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={handleClick}
-                        className="rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-white text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 active:scale-95 transition-all duration-150 border border-gray-200"
-                      >
-                        Mindchange
-                      </button>
-                    );
-                  })()}
 
                   {/* Buy circle – hover shows price history, click opens full market panel */}
                   {(() => {
@@ -586,7 +431,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     );
                   })()}
 
-                  {!editDir && (
+                  {
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={(e) => handleConnectionAwareClick(e, () => {
@@ -601,66 +446,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     >
                       Mitigate
                     </button>
-                  )}
+                  }
 
-                  {editDir && (
-                    // Editor only available when feature enabled
-                    <MindchangeEditor
-                      value={value}
-                      isSaving={isSaving}
-                      edgeType={edgeType}
-                      onValueChange={setValue}
-                      onSave={handleSaveMindchange}
-                      onCancel={() => {
-                        setEditDir(null);
-                        try { (graph as any)?.setSelectedEdge?.(null); } catch { }
-                        (graph as any)?.cancelMindchangeSelection?.();
-                      }}
-                      onClear={(() => {
-                        const me = (graph as any)?.currentUserId as (string | undefined);
-                        const getDirUserVal = (dir: 'forward' | 'backward'): number => {
-                          const local = Number((mindchange as any)?.userValue?.[dir] || 0) || 0;
-                          if (local > 0) return local;
-                          try {
-                            const key = `${edgeId}:${dir}`;
-                            const cached = breakdownCache.get(key);
-                            if (!cached || !cached.data || !Array.isArray(cached.data)) return 0;
-                            const rec = (cached.data as any[]).find((r) => me && r?.userId === me);
-                            return rec ? Number(rec.value || 0) : 0;
-                          } catch { return 0; }
-                        };
-                        const present = editDir ? getDirUserVal(editDir) : 0;
-                        return present > 0 ? async () => {
-                          if (!graph.setMindchange || !editDir || isSaving) return;
-                          setIsSaving(true);
-                          try {
-                            const params = editDir === 'forward' ? { forward: 0 } : { backward: 0 };
-                            await graph.setMindchange(edgeId, params);
-                            try {
-                              const key = `${edgeId}:${editDir}` as const;
-                              breakdownCache.set(key, { ts: 0, data: [] });
-                              setCacheTick((t) => t + 1);
-                            } catch { }
-                            setEditDir(null);
-                            try { (graph as any)?.setSelectedEdge?.(null); } catch { }
-                            (graph as any)?.cancelMindchangeSelection?.();
-                          } finally {
-                            setIsSaving(false);
-                          }
-                        } : undefined;
-                      })()}
-                    />
-                  )}
 
-                  {(edgeType === 'negation' || edgeType === 'objection') && !hoverBuy && (
-                    isMindchangeEnabledClient() ? (
-                      <MindchangeIndicators
-                        edgeId={edgeId}
-                        edgeType={edgeType}
-                        mindchange={mcForIndicators}
-                      />
-                    ) : null
-                  )}
 
                 </div>
               </div>

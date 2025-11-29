@@ -1,7 +1,6 @@
 import React from "react";
 import { useReactFlow, useViewport } from "@xyflow/react";
 import { toast } from "sonner";
-import { logger } from "@/lib/logger";
 import { calculateGroupBounds } from "@/lib/canvas/snapCalculations";
 import { createHandleNodeDrag } from "./handlers/dragHandlers";
 import { createHandleNodeDragStop } from "./handlers/dragStopHandlers";
@@ -68,63 +67,6 @@ export const useGraphNodeHandlers = ({
         return;
       }
 
-      // Mindchange directional pick: if in mindchange mode, only allow valid picks
-      try {
-        if (
-          (graph as any)?.mindchangeMode &&
-          (graph as any)?.mindchangeEdgeId
-        ) {
-          const mcEdgeId = String((graph as any)?.mindchangeEdgeId);
-          const allEdges = rf.getEdges();
-          const mcEdge = allEdges.find((ed: any) => String(ed.id) === mcEdgeId);
-          if (mcEdge) {
-            if ((mcEdge as any).type === "objection") {
-              // Valid pick is the objection node itself (source). Base edge is handled by edge click.
-              const isObjectionNode =
-                String(mcEdge.source) === String(node?.id);
-              if (isObjectionNode) {
-                (graph as any)?.setSelectedEdge?.(mcEdge.id);
-                (graph as any)?.setMindchangeNextDir?.("forward");
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-              }
-              // Block other node clicks while in mindchange mode
-              e.preventDefault();
-              e.stopPropagation();
-              return;
-            } else {
-              // Negation/support/etc.: valid picks are the two endpoints
-              const isSource = String(mcEdge.source) === String(node?.id);
-              const isTarget = String(mcEdge.target) === String(node?.id);
-              if (isSource || isTarget) {
-                const dir = isSource ? "forward" : "backward";
-                try {
-                  logger.log("[Mindchange:Select] node pick", {
-                    baseEdgeId: mcEdge.id,
-                    pickedNodeId: node?.id,
-                    dir,
-                  });
-                } catch {}
-                (graph as any)?.setSelectedEdge?.(mcEdge.id);
-                (graph as any)?.setMindchangeNextDir?.(dir);
-                e.preventDefault();
-                e.stopPropagation();
-                return;
-              }
-              // Block other node clicks while in mindchange mode
-              e.preventDefault();
-              e.stopPropagation();
-              return;
-            }
-          } else {
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-          }
-        }
-      } catch {}
-
       if (e.shiftKey && selectMode) {
         e.preventDefault();
         e.stopPropagation();
@@ -143,7 +85,7 @@ export const useGraphNodeHandlers = ({
 
       onNodeClick?.(e, node);
     },
-    [grabMode, selectMode, rf, onNodeClick, graph]
+    [grabMode, selectMode, rf, onNodeClick]
   );
 
   const handleNodeDragStart = React.useCallback(

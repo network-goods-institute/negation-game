@@ -94,12 +94,11 @@ describe('useGraphKeyboardHandlers', () => {
       expect(mockGraph.deleteNode).toHaveBeenCalledTimes(1);
     });
 
-    it('should delete group node when child node is selected', () => {
+    it('should delete selected node', () => {
       const mockNodes = [
-        { id: 'child-1', selected: true, type: 'point', parentId: 'group-1' },
+        { id: 'node-1', selected: true, type: 'point' },
       ];
       mockRf.getNodes.mockReturnValue(mockNodes);
-      mockRf.getNode.mockReturnValue({ id: 'group-1', type: 'group' });
 
       renderHook(() =>
         useGraphKeyboardHandlers({ graph: mockGraph, copiedNodeIdRef })
@@ -111,7 +110,7 @@ describe('useGraphKeyboardHandlers', () => {
       });
       window.dispatchEvent(deleteEvent);
 
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-1');
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('node-1');
     });
 
     it('should not delete when a node is being edited', () => {
@@ -160,7 +159,6 @@ describe('useGraphKeyboardHandlers', () => {
     it('should dispatch market panel close and cancel modes', () => {
       const graphWithModes = {
         ...mockGraph,
-        cancelMindchangeSelection: jest.fn(),
         cancelConnect: jest.fn(),
       };
 
@@ -176,7 +174,6 @@ describe('useGraphKeyboardHandlers', () => {
       window.dispatchEvent(escapeEvent);
 
       expect(dispatchMarketPanelClose).toHaveBeenCalled();
-      expect(graphWithModes.cancelMindchangeSelection).toHaveBeenCalled();
       expect(graphWithModes.cancelConnect).toHaveBeenCalled();
       expect(preventDefaultSpy).toHaveBeenCalled();
     });

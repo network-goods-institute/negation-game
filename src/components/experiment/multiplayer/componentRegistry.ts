@@ -6,7 +6,6 @@ import { ObjectionEdge } from "@/components/experiment/multiplayer/ObjectionEdge
 import { OptionEdge } from "@/components/experiment/multiplayer/OptionEdge";
 import { CommentEdge } from "@/components/experiment/multiplayer/CommentEdge";
 import { StatementNode } from "@/components/experiment/multiplayer/StatementNode";
-import { GroupNode } from "@/components/experiment/multiplayer/GroupNode";
 import ObjectionNode from "@/components/experiment/multiplayer/objection/ObjectionNode";
 import EdgeAnchorNode from "@/components/experiment/multiplayer/objection/EdgeAnchorNode";
 import CommentNode from "@/components/experiment/multiplayer/CommentNode";
@@ -21,7 +20,6 @@ export const nodeTypes: NodeTypes = {
   objection: ObjectionNode,
   comment: CommentNode,
   edge_anchor: EdgeAnchorNode,
-  group: GroupNode,
 };
 
 /**

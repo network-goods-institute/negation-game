@@ -18,12 +18,6 @@ export default function MultiplayerBoardDetailPage() {
     setGrabMode,
     perfBoost,
     setPerfBoost,
-    mindchangeSelectMode,
-    setMindchangeSelectMode,
-    mindchangeEdgeId,
-    setMindchangeEdgeId,
-    mindchangeNextDir,
-    setMindchangeNextDir,
     selectMode,
   } = useModeState();
 
@@ -58,12 +52,6 @@ export default function MultiplayerBoardDetailPage() {
       setGrabMode={setGrabMode}
       perfBoost={perfBoost}
       setPerfBoost={setPerfBoost}
-      mindchangeSelectMode={mindchangeSelectMode}
-      setMindchangeSelectMode={setMindchangeSelectMode}
-      mindchangeEdgeId={mindchangeEdgeId}
-      setMindchangeEdgeId={setMindchangeEdgeId}
-      mindchangeNextDir={mindchangeNextDir}
-      setMindchangeNextDir={setMindchangeNextDir}
       selectMode={selectMode}
     />
   );

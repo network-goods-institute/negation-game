@@ -15,16 +15,14 @@ import { useGraphKeyboardHandlers } from '@/hooks/experiment/multiplayer/useGrap
 import { useGraphWheelHandler } from '@/hooks/experiment/multiplayer/useGraphWheelHandler';
 import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNodeHandlers';
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
-import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
 import { MiniHoverStats } from './MiniHoverStats';
 import { NodePriceOverlay } from './NodePriceOverlay';
 import { EdgePriceOverlay } from './EdgePriceOverlay';
-import { enrichWithMarketData, getDocIdFromURL } from '@/utils/market/marketUtils';
+import { enrichWithMarketData, getDocIdFromURL, isMarketEnabled } from '@/utils/market/marketUtils';
 import { dispatchMarketPanelClose } from '@/utils/market/marketEvents';
 import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
 import { SnapLines } from './SnapLines';
 import { Plus, Trash2 } from 'lucide-react';
-import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 
 type YProvider = WebsocketProvider | null;
 
@@ -32,7 +30,6 @@ interface GraphCanvasProps {
   nodes: Node[];
   edges: Edge[];
   authenticated: boolean;
-  mindchangeEnabled?: boolean;
   onNodesChange?: any;
   onEdgesChange?: any;
   onConnect?: any;
@@ -52,7 +49,6 @@ interface GraphCanvasProps {
   panOnScroll?: boolean | number[];
   zoomOnScroll?: boolean;
   connectMode?: boolean;
-  mindchangeMode?: boolean;
   connectAnchorId?: string | null;
   onFlowMouseMove?: (flowX: number, flowY: number) => void;
   connectCursor?: { x: number; y: number } | null;
@@ -71,7 +67,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   nodes,
   edges,
   authenticated,
-  mindchangeEnabled: mindchangeEnabledProp,
   onNodesChange,
   onEdgesChange,
   onConnect,
@@ -91,7 +86,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   panOnScroll,
   zoomOnScroll,
   connectMode,
-  mindchangeMode,
   connectAnchorId,
   onFlowMouseMove,
   connectCursor,
@@ -103,7 +97,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   yMetaMap,
   isMarketPanelVisible = false,
 }) => {
-  const mindchangeEnabled = mindchangeEnabledProp ?? isMindchangeEnabledClient();
   const rf = useReactFlow();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const graph = useGraphActions();
@@ -120,7 +113,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const copiedNodeIdRef = React.useRef<string | null>(null);
   const altCloneMapRef = React.useRef<Map<string, { dupId: string; origin: { x: number; y: number } }>>(new Map());
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
-    connectMode: !!connectMode && !mindchangeMode,
+    connectMode: !!connectMode,
     connectAnchorId,
     connectCursor: connectCursor ?? null,
     edgesLayer,
@@ -136,19 +129,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
       const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
       const enriched = (edges as any[]).map((e) => {
-        if (mindchangeEnabled) {
-          const key = `mindchange:${e.id}`;
-          const payload = yMetaMap?.get?.(key);
-          if (payload && typeof payload === 'object') {
-            const prevUser = (e as any)?.data?.mindchange?.userValue;
-            const mc = {
-              forward: { average: Number((payload as any).forward || 0), count: Number((payload as any).forwardCount || 0) },
-              backward: { average: Number((payload as any).backward || 0), count: Number((payload as any).backwardCount || 0) },
-              ...(prevUser ? { userValue: prevUser } : {}),
-            } as any;
-            e = { ...e, data: { ...(e.data || {}), mindchange: mc } } as any;
-          }
-        }
         // Enrich with market data
         e = enrichWithMarketData(e, marketPrices, marketHoldings, marketTotals, 'edge');
         return e;
@@ -170,7 +150,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     } catch {
       return edges;
     }
-  }, [edges, graph, rf, userHoldingsLite.data, yMetaMap, mindchangeEnabled]);
+  }, [edges, graph, rf, userHoldingsLite.data, yMetaMap]);
 
   const nodesWithMarket = React.useMemo<MarketNode[]>(() => {
     try {
@@ -260,27 +240,27 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   }, [graph]);
 
   useKeyboardPanning({
-    connectMode: !!connectMode && !mindchangeMode,
+    connectMode: !!connectMode,
     onCancelConnect: graph.cancelConnect,
     forceSave,
   });
   React.useEffect(() => {
-    if (!(connectMode && !mindchangeMode) || !connectAnchorId || !onFlowMouseMove) return;
+    if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const handler = (e: MouseEvent) => {
       const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
       onFlowMouseMove(p.x, p.y);
     };
     window.addEventListener('mousemove', handler);
     return () => window.removeEventListener('mousemove', handler);
-  }, [connectMode, mindchangeMode, connectAnchorId, onFlowMouseMove, rf]);
+  }, [connectMode, connectAnchorId, onFlowMouseMove, rf]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!(connectMode && !mindchangeMode) || !connectAnchorId || !onFlowMouseMove) return;
+    if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     onFlowMouseMove(p.x, p.y);
   };
   const handleMouseUp = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!(connectMode && !mindchangeMode) || !connectAnchorId) return;
+    if (!connectMode || !connectAnchorId) return;
 
     const target = event.target as HTMLElement | null;
     if (!target) return;
@@ -453,7 +433,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
-            } else if (c?.type === 'position' && (connectMode || mindchangeMode || nodeHandlers.finalizingSnap || (nodeHandlers.draggingActive && c?.dragging === false))) {
+            } else if (c?.type === 'position' && (connectMode || nodeHandlers.finalizingSnap || (nodeHandlers.draggingActive && c?.dragging === false))) {
               // Block position updates during special modes, but allow dragging state to clear
               if (c?.dragging === false && (nodeHandlers.finalizingSnap || nodeHandlers.draggingActive)) {
                 // Pass through a change that only updates the dragging flag, not position
@@ -543,7 +523,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
-            className={`w-full h-full bg-gray-50 ${(connectMode && !mindchangeMode) ? 'connect-mode' : ''}`}
+            className={`w-full h-full bg-gray-50 ${connectMode ? 'connect-mode' : ''}`}
             style={{ willChange: 'transform' }}
             selectionOnDrag={selectMode}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
@@ -554,7 +534,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             zoomOnDoubleClick={false}
             minZoom={0.1}
             maxZoom={10}
-            nodesDraggable={Boolean(canWrite) && !connectMode && !grabMode && !mindchangeMode}
+            nodesDraggable={Boolean(canWrite) && !connectMode && !grabMode}
             nodesConnectable={!grabMode}
             elementsSelectable={selectMode}
             nodesFocusable={selectMode}
@@ -589,7 +569,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         );
       })()}
       {/* Connect overlay: draw a line from anchor origin to cursor */}
-      {(connectMode && !mindchangeMode) && connectAnchorId && edgesLayer && createPortal((() => {
+      {connectMode && connectAnchorId && edgesLayer && createPortal((() => {
         const cursorFlow = connectCursor || { x: origin.x + 100, y: origin.y };
         const tx = snappedPosition?.x ?? cursorFlow.x;
         const ty = snappedPosition?.y ?? cursorFlow.y;
@@ -604,8 +584,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           </g>
         );
       })(), edgesLayer)}
-      {/* Global arrow markers for mindchange edges */}
-      {mindchangeEnabled && edgesLayer && createPortal(<EdgeArrowMarkers />, edgesLayer)}
       {/* Snap lines for node dragging */}
       <SnapLines
         snappedX={snapResult?.snappedX ?? false}

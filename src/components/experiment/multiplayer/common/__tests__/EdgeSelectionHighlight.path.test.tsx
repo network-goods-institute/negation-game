@@ -27,7 +27,6 @@ describe('EdgeSelectionHighlight path alignment', () => {
         <EdgeSelectionHighlight
           selected
           shouldRenderOverlay
-          mindchangeRenderMode="normal"
           useBezier
           curvature={curvature}
           edgeId="e-1"
@@ -55,7 +54,6 @@ describe('EdgeSelectionHighlight path alignment', () => {
         <EdgeSelectionHighlight
           selected
           shouldRenderOverlay
-          mindchangeRenderMode="bidirectional"
           useBezier
           curvature={0.35}
           edgeId="e-2"
@@ -71,9 +69,8 @@ describe('EdgeSelectionHighlight path alignment', () => {
       </svg>
     );
     const paths = container.querySelectorAll('path');
-    expect(paths.length).toBe(2);
+    expect(paths.length).toBe(1);
     expect(paths[0].getAttribute('stroke-width')).toBe('10');
-    expect(paths[1].getAttribute('stroke-width')).toBe('10');
   });
 
   it('renders straight line with provided overlay width when not bezier', () => {
@@ -82,7 +79,6 @@ describe('EdgeSelectionHighlight path alignment', () => {
         <EdgeSelectionHighlight
           selected
           shouldRenderOverlay
-          mindchangeRenderMode="normal"
           useBezier={false}
           edgeId="e-3"
           sourceX={10}

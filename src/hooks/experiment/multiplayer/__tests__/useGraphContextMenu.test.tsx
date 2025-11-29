@@ -170,28 +170,10 @@ describe('useGraphContextMenu', () => {
       expect(result.current.multiSelectMenuOpen).toBe(false);
     });
 
-    it('should delete group node when child is selected', () => {
+    it('should delete selected nodes', () => {
       mockRf.getNodes.mockReturnValue([
-        { id: 'child-1', selected: true, type: 'point', parentId: 'group-1' },
-        { id: 'child-2', selected: true, type: 'point', parentId: 'group-1' },
-      ]);
-      mockRf.getNode.mockReturnValue({ id: 'group-1', type: 'group' });
-
-      const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
-
-      act(() => {
-        result.current.handleDeleteSelectedNodes();
-      });
-
-      // Should delete the group, not the children individually
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-1');
-      expect(mockGraph.deleteNode).toHaveBeenCalledTimes(1);
-    });
-
-    it('should delete group node directly when selected', () => {
-      mockRf.getNodes.mockReturnValue([
-        { id: 'group-1', selected: true, type: 'group' },
-        { id: 'child-1', selected: true, type: 'point', parentId: 'group-1' },
+        { id: 'node-1', selected: true, type: 'point' },
+        { id: 'node-2', selected: true, type: 'point' },
       ]);
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
@@ -200,20 +182,18 @@ describe('useGraphContextMenu', () => {
         result.current.handleDeleteSelectedNodes();
       });
 
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-1');
-      expect(mockGraph.deleteNode).toHaveBeenCalledTimes(1);
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('node-1');
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('node-2');
+      expect(mockGraph.deleteNode).toHaveBeenCalledTimes(2);
     });
 
-    it('should handle mixed selection of regular and group nodes', () => {
+
+    it('should handle mixed selection of different node types', () => {
       mockRf.getNodes.mockReturnValue([
         { id: 'point-1', selected: true, type: 'point' },
-        { id: 'group-1', selected: true, type: 'group' },
-        { id: 'child-1', selected: true, type: 'point', parentId: 'group-2' },
+        { id: 'objection-1', selected: true, type: 'objection' },
+        { id: 'comment-1', selected: true, type: 'comment' },
       ]);
-      mockRf.getNode.mockImplementation((id: string) => {
-        if (id === 'group-2') return { id: 'group-2', type: 'group' };
-        return null;
-      });
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
 
@@ -222,8 +202,8 @@ describe('useGraphContextMenu', () => {
       });
 
       expect(mockGraph.deleteNode).toHaveBeenCalledWith('point-1');
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-1');
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-2');
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('objection-1');
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('comment-1');
       expect(mockGraph.deleteNode).toHaveBeenCalledTimes(3);
     });
 

@@ -7,15 +7,9 @@ import {
   createAddPointBelow,
   createDeleteNode,
   createUpdateNodeContent,
-  createInversePair,
 } from "@/utils/experiment/multiplayer/graphOperations";
 import { useYjsUndoRedo } from "@/hooks/experiment/multiplayer/useYjsUndoRedo";
 
-jest.mock("@/actions/ai/generateInversePoint", () => ({
-  generateInversePoint: jest.fn(async () => "AI inverse content"),
-}));
-
-import { generateInversePoint } from "@/actions/ai/generateInversePoint";
 
 interface TestEnv {
   doc: Y.Doc;
@@ -332,99 +326,4 @@ describe("multiplayer undo integration", () => {
     });
   });
 
-  it("undoes inverse pair creation", async () => {
-    const env = buildEnv(
-      [
-        {
-          id: "point-1",
-          type: "point",
-          position: { x: 0, y: 0 },
-          data: { content: "Original", favor: 5 },
-        } as Node,
-      ],
-      []
-    );
-
-    const hook = renderHook(() =>
-      useYjsUndoRedo({
-        yNodesMapRef: { current: env.yNodesMap },
-        yEdgesMapRef: { current: env.yEdgesMap },
-        yTextMapRef: { current: env.yTextMap },
-        yMetaMapRef: { current: env.yMetaMap },
-        localOriginRef: { current: env.localOrigin },
-        isUndoRedoRef: { current: false },
-      })
-    );
-    let cleanup: (() => void) | undefined;
-    act(() => {
-      cleanup = hook.result.current.setupUndoManager();
-    });
-
-    const runInversePair = () =>
-      createInversePair(
-        env.getNodes(),
-        env.yNodesMap,
-        env.yTextMap,
-        env.yEdgesMap,
-        env.doc,
-        true,
-        env.localOrigin,
-        env.setNodes,
-        env.setEdges,
-        undefined,
-        undefined
-      );
-
-    act(() => {
-      runInversePair()("point-1");
-    });
-    env.syncFromDoc();
-
-    const groupNode = env.getNodes().find((node) => node.type === "group");
-    expect(groupNode).toBeDefined();
-    const inverseNode = env
-      .getNodes()
-      .find((node) => node.id !== "point-1" && node.parentId === groupNode!.id);
-    expect(inverseNode).toBeDefined();
-    expect(generateInversePoint).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      await flushPromises();
-    });
-
-    act(() => {
-      hook.result.current.undo();
-    });
-    env.syncFromDoc();
-
-    // Inverse pair operations are not tracked by undo/redo, so nodes should remain
-    expect(env.getNodes().some((node) => node.id === groupNode!.id)).toBe(true);
-    expect(env.getNodes().some((node) => node.id === inverseNode!.id)).toBe(
-      true
-    );
-
-    await act(async () => {
-      await flushPromises();
-    });
-
-    expect(env.yNodesMap.has(groupNode!.id)).toBe(true);
-    expect(env.yNodesMap.has(inverseNode!.id)).toBe(true);
-
-    act(() => {
-      hook.result.current.redo();
-    });
-    env.syncFromDoc();
-
-    expect(env.yNodesMap.has(groupNode!.id)).toBe(true);
-    expect(env.yNodesMap.has(inverseNode!.id)).toBe(true);
-    expect(env.getNodes().some((node) => node.id === groupNode!.id)).toBe(true);
-    expect(env.getNodes().some((node) => node.id === inverseNode!.id)).toBe(
-      true
-    );
-    expect(generateInversePoint).toHaveBeenCalledTimes(1);
-
-    act(() => {
-      cleanup?.();
-    });
-  });
 });
