@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPriceHistory } from "@/actions/market/getPriceHistory";
 
 export async function POST(req: NextRequest, ctx: any) {
+  if (process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED !== "true") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     const body = await req.json();
     const { securityIds, limit } = body;
