@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "ES2022",
     "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext",
-      "webworker"
+      "DOM",
+      "DOM.Iterable",
+      "ES2022",
+      "WebWorker"
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -17,7 +17,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": false,
+    "incremental": true,
     "plugins": [
       {
         "name": "next"
@@ -37,6 +37,7 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "src/lib/carroll"
   ]
 }

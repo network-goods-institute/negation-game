@@ -1,0 +1,1 @@
+DROP TABLE "mp_mindchange" CASCADE;

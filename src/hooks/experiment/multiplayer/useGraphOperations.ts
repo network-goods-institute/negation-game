@@ -11,8 +11,6 @@ import {
   createEnsureEdgeAnchor,
   createAddNodeAtPosition,
   createUpdateNodeType,
-  createInversePair,
-  createDeleteInversePair,
   createUpdateEdgeRelevance,
 } from "@/utils/experiment/multiplayer/graphOperations";
 import { createDuplicateNodeWithConnections } from "@/utils/experiment/multiplayer/graphOperations/nodeDuplication";
@@ -279,72 +277,10 @@ export const useGraphOperations = ({
     [yNodesMap, yTextMap, ydoc, canWrite, localOrigin, setNodes]
   );
 
-  const createInversePairOp = useMemo(
-    () =>
-      createInversePair(
-        nodes,
-        yNodesMap,
-        yTextMap,
-        yEdgesMap,
-        ydoc,
-        canWrite,
-        localOrigin,
-        setNodes,
-        setEdges,
-        isLockedForMe,
-        getLockOwner
-      ),
-    [
-      nodes,
-      yNodesMap,
-      yTextMap,
-      yEdgesMap,
-      ydoc,
-      canWrite,
-      localOrigin,
-      setNodes,
-      setEdges,
-      isLockedForMe,
-      getLockOwner,
-    ]
-  );
-
-  const deleteInversePair = useMemo(
-    () =>
-      createDeleteInversePair(
-        nodes,
-        edges,
-        yNodesMap,
-        yEdgesMap,
-        yTextMap,
-        ydoc,
-        canWrite,
-        localOrigin,
-        setNodes,
-        setEdges,
-        isLockedForMe,
-        getLockOwner
-      ),
-    [
-      nodes,
-      edges,
-      yNodesMap,
-      yEdgesMap,
-      yTextMap,
-      ydoc,
-      canWrite,
-      localOrigin,
-      setNodes,
-      setEdges,
-      isLockedForMe,
-      getLockOwner,
-    ]
-  );
-
   const updateNodeFavor = useCallback(
     (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
       if (!canWrite) {
-        try { (require('sonner') as any).toast?.warning?.("Read-only mode: Changes won't be saved"); } catch {}
+        try { (require('@/utils/readonlyToast') as any).showReadOnlyToast?.(); } catch {}
         return;
       }
       setNodes((nds) =>
@@ -429,8 +365,6 @@ export const useGraphOperations = ({
     ensureEdgeAnchor,
     addNodeAtPosition,
     updateNodeType,
-    createInversePair: createInversePairOp,
-    deleteInversePair,
     duplicateNodeWithConnections,
   };
 };

@@ -6,6 +6,7 @@ interface MenuItem {
   onClick: () => void;
   danger?: boolean;
   style?: React.CSSProperties;
+  icon?: React.ReactNode;
 }
 
 interface ContextMenuProps {
@@ -48,7 +49,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ open, x, y, onClose, i
 
   const style = useMemo(() => ({
     position: 'fixed' as const,
-    left: Math.max(8, Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 0) - 180)),
+    left: Math.max(8, Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 0) - 200)),
     top: Math.max(8, Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 0) - 8)),
     zIndex: 1000,
   }), [x, y]);
@@ -57,15 +58,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ open, x, y, onClose, i
 
   const menu = (
     <div ref={menuRef} style={style} onClick={(e) => e.stopPropagation()} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-      <div className="bg-white border shadow-md rounded-md py-1 min-w-[160px]">
+      <div className="bg-white border border-stone-300 shadow-lg rounded-lg p-2 flex gap-2">
         {items.map((it, idx) => (
           <button
             key={idx}
-            className={`w-full text-left px-3 py-1.5 text-sm hover:bg-stone-100 ${it.danger ? 'text-red-600' : 'text-stone-800'}`}
+            className={`flex flex-col items-center gap-1 px-3 py-2 rounded-md hover:bg-stone-100 transition-colors ${it.danger ? 'text-red-600 hover:bg-red-50' : 'text-stone-700'}`}
             style={it.style}
             onClick={() => { it.onClick(); onClose(); }}
+            title={it.label}
           >
-            {it.label}
+            {it.icon && <div className="text-lg">{it.icon}</div>}
+            <span className="text-xs whitespace-nowrap">{it.label}</span>
           </button>
         ))}
       </div>

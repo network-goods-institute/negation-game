@@ -3,8 +3,9 @@ import Link from 'next/link';
 import { ConnectedUsers } from './ConnectedUsers';
 import { WebsocketProvider } from 'y-websocket';
 import { buildRationaleIndexPath } from '@/utils/hosts/syncPaths';
-import { useSafeJson } from '@/hooks/network/useSafeJson'; import { logger } from "@/lib/logger";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSafeJson } from '@/hooks/network/useSafeJson';
+import { logger } from "@/lib/logger";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 
 type YProvider = WebsocketProvider | null;
 
@@ -33,7 +34,45 @@ interface MultiplayerHeaderProps {
   onUrlUpdate?: (id: string, slug: string) => void;
   titleEditingUser?: { name: string; color: string } | null;
   onResyncNow?: () => void;
+  onRetryConnection?: () => Promise<void>;
+  debugShowAllStates?: boolean;
 }
+
+// DEBUG: Set to true to see all error states rendered at once
+const DEBUG_SHOW_ALL_STATES = false;
+
+// Helper function to get user-friendly error message
+const getUserFriendlyErrorMessage = (
+  connectionError: string | null,
+  isConnected: boolean,
+  connectionState?: 'initializing' | 'connecting' | 'connected' | 'failed'
+): string => {
+  if (connectionError) {
+    if (connectionError.includes('AUTH_EXPIRED')) {
+      return 'Your session expired. Please reload the page.';
+    }
+    if (connectionError.includes('WebSocket')) {
+      return 'Connection lost. Your changes may not be saved.';
+    }
+    if (connectionError.includes('logged in')) {
+      return 'You need to be logged in to collaborate.';
+    }
+    // Generic error fallback
+    return 'Connection issue. Click retry to reconnect.';
+  }
+
+  if (!isConnected) {
+    if (connectionState === 'connecting') {
+      return 'Connecting to collaboration server...';
+    }
+    if (connectionState === 'failed') {
+      return 'Unable to connect. Your changes may not be saved.';
+    }
+    return 'Not connected. Your changes may not be saved.';
+  }
+
+  return '';
+};
 
 export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   username,
@@ -60,6 +99,8 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   onUrlUpdate,
   titleEditingUser,
   onResyncNow,
+  onRetryConnection,
+  debugShowAllStates = DEBUG_SHOW_ALL_STATES,
 }) => {
   const { safeJson } = useSafeJson();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -67,12 +108,14 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleSaving, setTitleSaving] = useState(false);
   const [titleCountdown, setTitleCountdown] = useState<number | null>(null);
+  const [currentErrorIndex, setCurrentErrorIndex] = useState(0);
   const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const titleCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestTitleRef = useRef<string>(title || 'Untitled');
   const [pendingTrades, setPendingTrades] = useState(0);
   const [pendingLocal, setPendingLocal] = useState(0);
+  const marketEnabled = process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
 
   useEffect(() => {
     const bumpLocal = (delta: number) => {
@@ -266,46 +309,43 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   };
   return (
     <>
-      <div className="absolute top-4 left-4 z-10 bg-white p-4 rounded-lg shadow-lg border">
-        <Link
-          href={buildRationaleIndexPath(typeof window !== 'undefined' ? window.location.host : null)}
-          className="flex items-center gap-2 text-sm text-stone-600 hover:text-stone-800 transition-colors mb-3 group"
-        >
-          <svg
-            className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+      <div className="absolute top-4 left-4 z-[60] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 w-80">
+        {/* Header with Back button */}
+        <div className="px-4 py-3 border-b border-stone-100">
+          <Link
+            href={buildRationaleIndexPath(typeof window !== 'undefined' ? window.location.host : null)}
+            className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-700 transition-colors group w-fit"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>Back to Boards</span>
-        </Link>
-        <div className="mb-2">
-          <div className="flex items-start justify-between mb-1 gap-2">
-            <label className="block text-xs text-stone-600 flex-shrink-0">Board Title</label>
-            {titleEditingUser ? (
-              <div className="flex items-center gap-1 text-xs flex-shrink-0 max-w-[140px]" style={{ color: titleEditingUser.color }}>
-                <div className="w-3 h-3 rounded-full animate-pulse flex-shrink-0" style={{ backgroundColor: titleEditingUser.color }} />
-                <span className="truncate" title={`${titleEditingUser.name} is editing...`}>
-                  {titleEditingUser.name} is editing...
+            <svg
+              className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Back</span>
+          </Link>
+        </div>
+
+        {/* Title Section */}
+        <div className="px-4 py-3 border-b border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-medium text-stone-600">Board Title</label>
+            {titleEditingUser && (
+              <div className="flex items-center gap-1.5 text-[10px] text-stone-500" style={{ color: titleEditingUser.color }}>
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: titleEditingUser.color }} />
+                <span className="truncate max-w-[100px]" title={`${titleEditingUser.name} editing`}>
+                  {titleEditingUser.name}
                 </span>
               </div>
-            ) : (titleSaving || titleCountdown !== null) ? (
-              <div className="flex items-center gap-1 text-xs text-blue-600 flex-shrink-0">
-                {titleCountdown !== null ? (
-                  <>
-                    <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse flex-shrink-0" />
-                    <span className="whitespace-nowrap">Saving in {titleCountdown}...</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                    <span className="whitespace-nowrap">Saving...</span>
-                  </>
-                )}
+            )}
+            {!titleEditingUser && (titleSaving || titleCountdown !== null) && (
+              <div className="flex items-center gap-1.5 text-[10px] text-blue-600">
+                <div className={`w-2 h-2 rounded-full ${titleCountdown !== null ? 'animate-pulse bg-blue-600' : 'border border-blue-600 border-t-transparent animate-spin'}`} />
+                <span>{titleCountdown !== null ? `${titleCountdown}s` : 'Saving'}</span>
               </div>
-            ) : null}
+            )}
           </div>
           <input
             type="text"
@@ -325,74 +365,232 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
                 (e.target as HTMLInputElement).blur();
               }
             }}
-            className="w-full px-2 py-1 text-sm bg-white border border-stone-300 rounded text-gray-700 hover:border-stone-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-colors"
-            placeholder="Untitled"
+            className="w-full px-2.5 py-1.5 text-sm bg-white border border-stone-200 rounded-lg text-stone-700 hover:border-stone-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all placeholder:text-stone-400"
+            placeholder="Untitled Board"
             disabled={!!titleEditingUser}
           />
         </div>
-        <p className="text-sm text-gray-600">
-          You are: <span className="font-semibold" style={{ color: userColor }}>{username}</span>
-        </p>
-        {proxyMode && (
-          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-1">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-              Read-Only Mode
-            </div>
-            <p className="text-xs text-amber-700">
-              You&apos;re viewing changes from others but your edits won&apos;t sync to prevent conflicts.
-              If you believe you should be able to edit, reload the window.
-            </p>
-          </div>
-        )}
-        <ConnectedUsers
-          provider={provider}
-          isConnected={isConnected}
-          currentUserId={userId}
-          canWrite={!proxyMode}
-        />
-        <div className="mt-3 pt-3 border-t border-stone-200">
-          <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-purple-50 border border-purple-200 rounded-md text-xs text-purple-700 group relative">
-            <span className="font-semibold">Carroll Mechanisms</span>
-            <span className="px-1 py-0.5 bg-purple-200 text-purple-800 rounded text-[10px] font-bold">ALPHA</span>
-            <div className="absolute left-0 top-full mt-1 w-72 p-2 bg-gray-900 text-white text-xs rounded-md shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
-              <p className="font-semibold mb-1">Initial Prototype</p>
-              <p>Bugs are to be expected. Behavior and design may change drastically and without warning.</p>
-            </div>
-          </div>
-        </div>
-        {(!isConnected || connectionError || connectionState === 'connecting' || connectionState === 'failed') && (
-          <div className="text-xs mt-1 p-2 rounded flex items-center justify-between gap-2"
-            style={{ backgroundColor: '#fff7ed', color: '#9a3412' }}>
-            <span>
-              {connectionError || (!isConnected ? (connectionState === 'connecting' ? 'Connecting to server...' : connectionState === 'failed' ? 'Connection failed' : 'Not Connected') : null)}
+        {/* User Info & Status */}
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: userColor }} />
+            <span className="text-xs text-stone-600">
+              <span className="font-medium" style={{ color: userColor }}>{username}</span>
             </span>
-            <div className="flex items-center gap-2">
-              {connectionError?.includes('AUTH_EXPIRED') ? (
-                <button
-                  onClick={() => window.location.reload()}
-                  className="text-xs text-white px-2 py-1 rounded transition-colors whitespace-nowrap"
-                  style={{ backgroundColor: '#ea580c' }}
-                >
-                  Reload Auth
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    try { onResyncNow?.(); } catch { }
-                    try { provider?.connect(); } catch { }
-                  }}
-                  className="text-xs text-white px-2 py-1 rounded transition-colors whitespace-nowrap"
-                  style={{ backgroundColor: '#ea580c' }}
-                >
-                  Retry
-                </button>
-              )}
-            </div>
           </div>
-        )}
+
+          {/* Connected Users */}
+          <ConnectedUsers
+            provider={provider}
+            isConnected={isConnected}
+            currentUserId={userId}
+            canWrite={!proxyMode}
+          />
+
+          {/* Carroll Mechanisms badge */}
+          {marketEnabled && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="mt-3 inline-flex items-center gap-1.5 px-2 py-1 bg-purple-50 border border-purple-200 rounded-md text-xs text-purple-700 cursor-help">
+                  <span className="font-semibold">Carroll Mechanisms</span>
+                  <span className="px-1 py-0.5 bg-purple-200 text-purple-800 rounded text-[10px] font-bold">ALPHA</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="text-xs font-semibold mb-1">Initial Prototype</p>
+                <p className="text-xs">Bugs are expected. Behavior and design may change without notice.</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Proxy Mode Warning */}
+          {(proxyMode || debugShowAllStates) && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg cursor-help">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-3.5 h-3.5 text-amber-600 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span className="text-[11px] text-amber-800 font-medium flex-1">Read-Only Mode</span>
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p className="text-xs">You&apos;re viewing changes from others but your edits won&apos;t sync to prevent conflicts. Reload the page if you believe you should be able to edit.</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Connection Error */}
+          {((!isConnected || connectionError) || debugShowAllStates) && (() => {
+            // Collect all active errors/states
+            const collectActiveErrors = () => {
+              const errors: Array<{ error: string | null; connected: boolean; state?: 'initializing' | 'connecting' | 'connected' | 'failed'; label: string }> = [];
+
+              if (debugShowAllStates) {
+                // Debug mode: show all possible scenarios
+                return [
+                  { error: null, connected: false, state: 'connecting' as const, label: 'Connecting' },
+                  { error: null, connected: false, state: 'failed' as const, label: 'Connection Failed' },
+                  { error: null, connected: false, state: undefined, label: 'Disconnected' },
+                  { error: 'AUTH_EXPIRED', connected: false, state: 'failed' as const, label: 'Auth Expired' },
+                  { error: 'WebSocket connection failed', connected: false, state: 'failed' as const, label: 'WebSocket Error' },
+                  { error: 'You need to be logged in to load this document', connected: false, state: 'failed' as const, label: 'Login Required' },
+                ];
+              }
+
+              // Normal mode: only add actual errors
+              if (connectionError) {
+                errors.push({ error: connectionError, connected: isConnected, state: connectionState, label: 'Connection Error' });
+              }
+              if (!isConnected && connectionState === 'connecting') {
+                errors.push({ error: null, connected: false, state: 'connecting', label: 'Connecting' });
+              }
+              if (!isConnected && connectionState === 'failed' && !connectionError) {
+                errors.push({ error: null, connected: false, state: 'failed', label: 'Connection Failed' });
+              }
+              if (!isConnected && !connectionState && !connectionError) {
+                errors.push({ error: null, connected: false, state: undefined, label: 'Disconnected' });
+              }
+
+              return errors;
+            };
+
+            const activeErrors = collectActiveErrors();
+            const hasMultipleErrors = activeErrors.length > 1;
+
+            if (activeErrors.length === 0) {
+              return null;
+            }
+
+            // Show carousel if multiple errors OR in debug mode
+            if (hasMultipleErrors || debugShowAllStates) {
+              const scenario = activeErrors[currentErrorIndex % activeErrors.length];
+              const totalStates = activeErrors.length;
+              const msg = getUserFriendlyErrorMessage(scenario.error, scenario.connected, scenario.state);
+              const isAuth = scenario.error?.includes('AUTH_EXPIRED');
+
+              return (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-medium text-stone-500">
+                      {scenario.label} ({currentErrorIndex + 1}/{totalStates})
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setCurrentErrorIndex((prev) => (prev - 1 + totalStates) % totalStates)}
+                        className="p-1 hover:bg-stone-100 rounded transition-colors"
+                        title="Previous state"
+                      >
+                        <svg className="w-3 h-3 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setCurrentErrorIndex((prev) => (prev + 1) % totalStates)}
+                        className="p-1 hover:bg-stone-100 rounded transition-colors"
+                        title="Next state"
+                      >
+                        <svg className="w-3 h-3 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 bg-orange-50 border border-orange-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <svg className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span className="text-[11px] text-orange-800 flex-1 leading-snug" title={msg}>{msg}</span>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (debugShowAllStates) {
+                            // Debug mode - just log
+                            if (isAuth) {
+                              logger.log('Debug: Would reload page');
+                            } else {
+                              logger.log('Debug: Would retry connection');
+                            }
+                          } else {
+                            // Real mode - actual actions
+                            if (isAuth) {
+                              window.location.reload();
+                            } else {
+                              try {
+                                if (onRetryConnection) {
+                                  await onRetryConnection();
+                                } else {
+                                  onResyncNow?.();
+                                }
+                              } catch (err) {
+                                logger.error('Retry failed:', err);
+                              }
+                            }
+                          }
+                        }}
+                        className="text-[10px] font-medium text-orange-700 hover:text-orange-900 px-2 py-1 bg-orange-100 hover:bg-orange-200 rounded transition-colors whitespace-nowrap"
+                      >
+                        {isAuth ? 'Reload' : 'Retry'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // Single error - no carousel needed
+            const singleError = activeErrors[0];
+            const errorMessage = getUserFriendlyErrorMessage(singleError.error, singleError.connected, singleError.state);
+            const isAuthExpired = singleError.error?.includes('AUTH_EXPIRED');
+
+            return (
+              <div className="mt-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <svg className="w-3.5 h-3.5 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span className="text-[11px] text-orange-800 flex-1 leading-snug" title={errorMessage}>
+                      {errorMessage}
+                    </span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (isAuthExpired) {
+                        window.location.reload();
+                      } else {
+                        try {
+                          if (onRetryConnection) {
+                            await onRetryConnection();
+                          } else {
+                            onResyncNow?.();
+                          }
+                        } catch (err) {
+                          logger.error('Retry failed:', err);
+                        }
+                      }
+                    }}
+                    className="text-[10px] font-medium text-orange-700 hover:text-orange-900 px-2 py-1 bg-orange-100 hover:bg-orange-200 rounded transition-colors whitespace-nowrap"
+                  >
+                    {isAuthExpired ? 'Reload' : 'Retry'}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       </div>
-      <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+      <div className="absolute top-4 right-4 z-[60] flex flex-col items-end gap-2">
         <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
           {proxyMode ? (
             <>
@@ -406,9 +604,16 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
                   <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
                   <span className="text-xs text-stone-700">Not Connected — changes won&apos;t be saved</span>
                   <button
-                    onClick={() => {
-                      try { onResyncNow?.(); } catch { }
-                      try { provider?.connect(); } catch { }
+                    onClick={async () => {
+                      try {
+                        if (onRetryConnection) {
+                          await onRetryConnection();
+                        } else {
+                          onResyncNow?.();
+                        }
+                      } catch (err) {
+                        logger.error('Retry connection failed:', err);
+                      }
                     }}
                     className="text-xs text-blue-600 hover:text-blue-800 border-l border-stone-200 pl-2 ml-1"
                     title="Retry connect"

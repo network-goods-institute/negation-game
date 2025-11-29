@@ -5,17 +5,24 @@ import { useGraphContextMenu } from '../useGraphContextMenu';
 jest.mock('@xyflow/react');
 
 describe('useGraphContextMenu', () => {
-  const mockGraph = {
+  const mockGraph: any = {
     deleteNode: jest.fn(),
+    addPointBelow: jest.fn(),
+    updateNodeType: jest.fn(),
+    startEditingNode: jest.fn(),
   };
 
-  const mockRf = {
+  const mockRf: any = {
     getNodes: jest.fn(),
     getNode: jest.fn(),
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGraph.deleteNode = jest.fn();
+    mockGraph.addPointBelow = jest.fn();
+    mockGraph.updateNodeType = jest.fn();
+    mockGraph.startEditingNode = jest.fn();
     (useReactFlow as jest.Mock).mockReturnValue(mockRf);
     mockRf.getNodes.mockReturnValue([]);
   });
@@ -28,11 +35,12 @@ describe('useGraphContextMenu', () => {
   });
 
   describe('handleMultiSelectContextMenu', () => {
-    it('should open menu when multiple nodes are selected', () => {
+    it('should open menu when right-clicking a node', () => {
       mockRf.getNodes.mockReturnValue([
         { id: 'node-1', selected: true, type: 'point' },
         { id: 'node-2', selected: true, type: 'point' },
       ]);
+      mockRf.getNode.mockReturnValue({ id: 'node-1', selected: true, type: 'point' });
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
 
@@ -41,6 +49,11 @@ describe('useGraphContextMenu', () => {
         clientY: 300,
         preventDefault: jest.fn(),
         stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('node-1')
+          })
+        }
       };
 
       act(() => {
@@ -55,11 +68,12 @@ describe('useGraphContextMenu', () => {
       expect(result.current.multiSelectMenuPos).toEqual({ x: 500, y: 300 });
     });
 
-    it('should not open menu when only one node is selected', () => {
+    it('should open menu when right-clicking a single selected node', () => {
       mockRf.getNodes.mockReturnValue([
         { id: 'node-1', selected: true, type: 'point' },
         { id: 'node-2', selected: false, type: 'point' },
       ]);
+      mockRf.getNode.mockReturnValue({ id: 'node-1', selected: true, type: 'point' });
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
 
@@ -68,6 +82,11 @@ describe('useGraphContextMenu', () => {
         clientY: 300,
         preventDefault: jest.fn(),
         stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('node-1')
+          })
+        }
       };
 
       act(() => {
@@ -76,11 +95,11 @@ describe('useGraphContextMenu', () => {
         );
       });
 
-      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
-      expect(result.current.multiSelectMenuOpen).toBe(false);
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(result.current.multiSelectMenuOpen).toBe(true);
     });
 
-    it('should not open menu when no nodes are selected', () => {
+    it('should not open menu when not clicking on a node element', () => {
       mockRf.getNodes.mockReturnValue([
         { id: 'node-1', selected: false, type: 'point' },
         { id: 'node-2', selected: false, type: 'point' },
@@ -93,6 +112,9 @@ describe('useGraphContextMenu', () => {
         clientY: 300,
         preventDefault: jest.fn(),
         stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue(null)
+        }
       };
 
       act(() => {
@@ -113,6 +135,7 @@ describe('useGraphContextMenu', () => {
         { id: 'node-2', selected: true, type: 'point' },
         { id: 'node-3', selected: false, type: 'point' },
       ]);
+      mockRf.getNode.mockReturnValue({ id: 'node-1', selected: true, type: 'point' });
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
 
@@ -122,6 +145,11 @@ describe('useGraphContextMenu', () => {
         clientY: 300,
         preventDefault: jest.fn(),
         stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('node-1')
+          })
+        }
       };
       act(() => {
         result.current.handleMultiSelectContextMenu(
@@ -142,28 +170,10 @@ describe('useGraphContextMenu', () => {
       expect(result.current.multiSelectMenuOpen).toBe(false);
     });
 
-    it('should delete group node when child is selected', () => {
+    it('should delete selected nodes', () => {
       mockRf.getNodes.mockReturnValue([
-        { id: 'child-1', selected: true, type: 'point', parentId: 'group-1' },
-        { id: 'child-2', selected: true, type: 'point', parentId: 'group-1' },
-      ]);
-      mockRf.getNode.mockReturnValue({ id: 'group-1', type: 'group' });
-
-      const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
-
-      act(() => {
-        result.current.handleDeleteSelectedNodes();
-      });
-
-      // Should delete the group, not the children individually
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-1');
-      expect(mockGraph.deleteNode).toHaveBeenCalledTimes(1);
-    });
-
-    it('should delete group node directly when selected', () => {
-      mockRf.getNodes.mockReturnValue([
-        { id: 'group-1', selected: true, type: 'group' },
-        { id: 'child-1', selected: true, type: 'point', parentId: 'group-1' },
+        { id: 'node-1', selected: true, type: 'point' },
+        { id: 'node-2', selected: true, type: 'point' },
       ]);
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
@@ -172,20 +182,18 @@ describe('useGraphContextMenu', () => {
         result.current.handleDeleteSelectedNodes();
       });
 
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-1');
-      expect(mockGraph.deleteNode).toHaveBeenCalledTimes(1);
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('node-1');
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('node-2');
+      expect(mockGraph.deleteNode).toHaveBeenCalledTimes(2);
     });
 
-    it('should handle mixed selection of regular and group nodes', () => {
+
+    it('should handle mixed selection of different node types', () => {
       mockRf.getNodes.mockReturnValue([
         { id: 'point-1', selected: true, type: 'point' },
-        { id: 'group-1', selected: true, type: 'group' },
-        { id: 'child-1', selected: true, type: 'point', parentId: 'group-2' },
+        { id: 'objection-1', selected: true, type: 'objection' },
+        { id: 'comment-1', selected: true, type: 'comment' },
       ]);
-      mockRf.getNode.mockImplementation((id) => {
-        if (id === 'group-2') return { id: 'group-2', type: 'group' };
-        return null;
-      });
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
 
@@ -194,8 +202,8 @@ describe('useGraphContextMenu', () => {
       });
 
       expect(mockGraph.deleteNode).toHaveBeenCalledWith('point-1');
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-1');
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-2');
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('objection-1');
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('comment-1');
       expect(mockGraph.deleteNode).toHaveBeenCalledTimes(3);
     });
 
@@ -218,6 +226,7 @@ describe('useGraphContextMenu', () => {
         { id: 'node-1', selected: true, type: 'point' },
         { id: 'node-2', selected: true, type: 'point' },
       ]);
+      mockRf.getNode.mockReturnValue({ id: 'node-1', selected: true, type: 'point' });
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
 
@@ -227,6 +236,11 @@ describe('useGraphContextMenu', () => {
         clientY: 300,
         preventDefault: jest.fn(),
         stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('node-1')
+          })
+        }
       };
       act(() => {
         result.current.handleMultiSelectContextMenu(
@@ -260,12 +274,82 @@ describe('useGraphContextMenu', () => {
     });
   });
 
+  describe('handleAddPointToSelected', () => {
+    it('passes selection ids and positions to addPointBelow', () => {
+      mockGraph.addPointBelow.mockReturnValue({ nodeId: 'new-1' });
+      mockRf.getNodes.mockReturnValue([
+        { id: 'node-1', selected: true, type: 'point', position: { x: 10, y: 20 }, width: 120, height: 60 },
+        { id: 'node-2', selected: true, type: 'statement', position: { x: 30, y: 40 }, width: 140, height: 80 },
+      ]);
+      mockRf.getNode.mockImplementation((id: string) => {
+        if (id === 'node-1') return { id, type: 'point', position: { x: 10, y: 20 }, width: 120, height: 60 };
+        if (id === 'node-2') return { id, type: 'statement', position: { x: 30, y: 40 }, width: 140, height: 80 };
+        return null;
+      });
+
+      const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
+
+      act(() => {
+        result.current.handleAddPointToSelected();
+      });
+
+      expect(mockGraph.addPointBelow).toHaveBeenCalledWith({
+        ids: ['node-1', 'node-2'],
+        positionsById: {
+          'node-1': { x: 10, y: 20, width: 120, height: 60 },
+          'node-2': { x: 30, y: 40, width: 140, height: 80 },
+        },
+      });
+    });
+
+    it('converts context reply into a comment node', () => {
+      mockGraph.addPointBelow.mockReturnValue({ nodeId: 'new-comment' });
+      mockRf.getNodes.mockReturnValue([
+        { id: 'comment-1', selected: true, type: 'comment', position: { x: 0, y: 0 }, width: 100, height: 50 },
+      ]);
+      mockRf.getNode.mockImplementation((id: string) => {
+        if (id === 'comment-1') return { id, type: 'comment', position: { x: 0, y: 0 }, width: 100, height: 50, selected: true };
+        return null;
+      });
+
+      const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
+
+      const mockEvent = {
+        clientX: 0,
+        clientY: 0,
+        preventDefault: jest.fn(),
+        stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('comment-1'),
+          }),
+        },
+      };
+
+      act(() => {
+        result.current.handleMultiSelectContextMenu(mockEvent as any as React.MouseEvent);
+      });
+
+      act(() => {
+        result.current.handleAddPointToSelected();
+      });
+
+      expect(mockGraph.addPointBelow).toHaveBeenCalledWith({
+        ids: ['comment-1'],
+        positionsById: { 'comment-1': { x: 0, y: 0, width: 100, height: 50 } },
+      });
+      expect(mockGraph.updateNodeType).toHaveBeenCalledWith('new-comment', 'comment');
+      expect(mockGraph.startEditingNode).toHaveBeenCalledWith('new-comment');
+    });
+  });
+
   describe('setMultiSelectMenuOpen', () => {
     it('should manually close the menu', () => {
       mockRf.getNodes.mockReturnValue([
         { id: 'node-1', selected: true, type: 'point' },
         { id: 'node-2', selected: true, type: 'point' },
       ]);
+      mockRf.getNode.mockReturnValue({ id: 'node-1', selected: true, type: 'point' });
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
 
@@ -275,6 +359,11 @@ describe('useGraphContextMenu', () => {
         clientY: 300,
         preventDefault: jest.fn(),
         stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('node-1')
+          })
+        }
       };
       act(() => {
         result.current.handleMultiSelectContextMenu(
@@ -299,6 +388,7 @@ describe('useGraphContextMenu', () => {
         { id: 'node-1', type: 'point' }, // no selected property
         { id: 'node-2', selected: true, type: 'point' },
       ]);
+      mockRf.getNode.mockReturnValue({ id: 'node-1', type: 'point' });
 
       const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
 
@@ -307,16 +397,21 @@ describe('useGraphContextMenu', () => {
         clientY: 300,
         preventDefault: jest.fn(),
         stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('node-1')
+          })
+        }
       };
 
-      // Should only count node-2 as selected
+      // Should open menu when clicking on a node element
       act(() => {
         result.current.handleMultiSelectContextMenu(
           mockEvent as any as React.MouseEvent
         );
       });
 
-      expect(result.current.multiSelectMenuOpen).toBe(false); // Only 1 selected
+      expect(result.current.multiSelectMenuOpen).toBe(true);
     });
 
     it('should handle missing graph.deleteNode gracefully', () => {

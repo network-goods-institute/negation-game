@@ -18,8 +18,6 @@ jest.mock('../GraphContext', () => ({
     updateNodeHidden: jest.fn(),
     updateNodeFavor: jest.fn(),
     addPointBelow: jest.fn(),
-    createInversePair: jest.fn(),
-    deleteInversePair: jest.fn(),
     isConnectingFromNodeId: null,
     deleteNode: jest.fn(),
     startEditingNode: jest.fn(),

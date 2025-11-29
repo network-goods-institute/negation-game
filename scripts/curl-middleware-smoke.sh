@@ -96,6 +96,9 @@ assert_header_absent() {
 }
 
 main() {
+  # Root path (no redirect, rewrite to multiplayer)
+  assert_no_redirect "/"
+
   # Root redirects
   assert_redirect "/play" "https://play.negationgame.com/"
   assert_redirect "/play/some/path?foo=bar&baz=qux" "/some/path?" # query preserved
@@ -106,12 +109,12 @@ main() {
   assert_redirect "/notifications" "https://play.negationgame.com/notifications"
   assert_redirect "/messages" "https://play.negationgame.com/messages"
   assert_redirect "/admin" "https://play.negationgame.com/admin"
-  assert_redirect "/privacy" "https://play.negationgame.com/privacy"
-  assert_redirect "/tos" "https://play.negationgame.com/tos"
   assert_redirect "/delta" "https://play.negationgame.com/delta"
   assert_redirect "/profile/username" "https://play.negationgame.com/profile/username"
 
-  # Root allowed path (no redirect) and headers
+  # Root allowed paths (no redirect) and headers
+  assert_no_redirect "/privacy"
+  assert_no_redirect "/tos"
   assert_no_redirect "/experiment/rationale/multiplayer"
   assert_header_contains "/experiment/rationale/multiplayer" "X-Robots-Tag" "noindex"
 

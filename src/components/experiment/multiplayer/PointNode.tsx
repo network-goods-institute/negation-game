@@ -1,23 +1,20 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Position, useReactFlow, useStore } from '@xyflow/react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Position, useReactFlow, useViewport } from '@xyflow/react';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
 import { useGraphActions } from './GraphContext';
 import { toast } from 'sonner';
-import { X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
 import { usePerformanceMode } from './PerformanceContext';
-import { inversePairEnabled } from '@/config/experiments';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { FavorSelector } from './common/FavorSelector';
+import { useSelectionPayload } from './common/useSelectionPayload';
 import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { LockIndicator } from './common/LockIndicator';
-import { isMarketEnabled } from '@/utils/market/marketUtils';
-import { ContextMenu } from './common/ContextMenu';
-import { useAtomValue } from 'jotai';
-import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
-import { useViewport } from '@xyflow/react';
+import { usePillHandlers } from './common/usePillHandlers';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -28,7 +25,6 @@ interface PointNodeProps {
     createdAt?: number;
     closingAnimation?: boolean;
     favor?: number;
-    directInverse?: boolean;
     hidden?: boolean;
   };
   id: string;
@@ -37,38 +33,34 @@ interface PointNodeProps {
 }
 
 export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parentId }) => {
-  const rf = useReactFlow();
-  const { zoom } = useViewport();
-  const state = useAtomValue(marketOverlayStateAtom);
-  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
   const graphCtx = useGraphActions() as any;
-
   const {
     updateNodeContent,
-    updateNodeHidden,
     updateNodeFavor,
     addPointBelow,
-    createInversePair,
-    deleteInversePair,
     isConnectingFromNodeId,
-    deleteNode,
     startEditingNode,
     stopEditingNode,
     isLockedForMe,
     getLockOwner,
     setPairNodeHeight,
     grabMode,
-  } = useGraphActions() as any;
+  } = graphCtx;
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
-
-  let side = computeSide(state);
-  if (state === 'AUTO_TEXT' || state === 'AUTO_PRICE') {
-    side = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
-  }
-  const overlayActive = side === 'PRICE';
+  const { zoom } = useViewport();
+  const overlayState = useAtomValue(marketOverlayStateAtom);
+  const overlayThreshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const overlaySide = useMemo(() => {
+    let side = computeSide(overlayState);
+    if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
+      side = zoom <= (overlayThreshold ?? 0.6) ? 'PRICE' : 'TEXT';
+    }
+    return side;
+  }, [overlayState, overlayThreshold, zoom]);
+  const overlayActive = overlaySide === 'PRICE';
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -118,23 +110,15 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     onPillMouseLeave: pill.handleMouseLeave,
     onHoverLeave: onHoverLeave,
   });
-  const [sliverHovered, setSliverHovered] = useState(false);
-  const [sliverAnimating, setSliverAnimating] = useState(false);
-  const [sliverFading, setSliverFading] = useState(false);
-  const [animationDistance, setAnimationDistance] = useState(640);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const favorValue = data.favor;
-  const favor = Math.max(1, Math.min(5, favorValue ?? 5));
-  const isDirectInverse = Boolean(data.directInverse);
+  const favor = Math.max(1, Math.min(5, data.favor ?? 5));
   const isInContainer = Boolean(parentId);
 
   const favorOpacity = useFavorOpacity({
     favor,
     selected: !!selected,
     hovered,
-    additionalFullOpacityConditions: [sliverHovered, sliverAnimating],
   });
 
   const extras = useNodeExtrasVisibility({
@@ -146,7 +130,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     interactiveSelector: INTERACTIVE_TARGET_SELECTOR,
     wrapperRef: wrapperRef as any,
   });
-
 
   useEffect(() => {
     if (!parentId || !wrapperRef?.current || !setPairNodeHeight) return;
@@ -167,98 +150,29 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     return () => { try { ro.disconnect(); } catch { } };
   }, [parentId, id, setPairNodeHeight, wrapperRef]);
 
-  const marketEnabled = isMarketEnabled();
-  const isNodeDragging = useStore((s: any) => {
+  const rf = useReactFlow();
+
+  const getSelectedPointNodes = useCallback(() => {
     try {
-      const fromInternals = s?.nodeInternals?.get?.(id);
-      if (fromInternals && typeof fromInternals === 'object') {
-        return Boolean((fromInternals as any).dragging);
-      }
-      const nodesArr = Array.isArray(s.nodes) ? s.nodes : Array.from(s.nodes?.values?.() || []);
-      const self = nodesArr.find((n: any) => String(n?.id) === String(id));
-      return Boolean(self?.dragging);
+      return rf.getNodes().filter((n: any) => n?.selected && (n.type === 'point' || n.type === 'objection'));
     } catch {
-      return false;
+      return [];
     }
-  });
-  const mindchangeSelectable = useMemo(() => {
-    try {
-      if (!graphCtx?.mindchangeMode || !graphCtx?.mindchangeEdgeId || graphCtx?.mindchangeNextDir) return false;
-      const mcEdge = (rf as any).getEdges?.().find((e: any) => String(e.id) === String(graphCtx.mindchangeEdgeId));
-      if (!mcEdge) return false;
-      if ((mcEdge as any).type === 'objection') return false;
-      return String(mcEdge.source) === id || String(mcEdge.target) === id;
-    } catch { return false; }
-  }, [graphCtx?.mindchangeMode, graphCtx?.mindchangeEdgeId, graphCtx?.mindchangeNextDir, rf, id]);
+  }, [rf]);
 
-  const handleInverseSliverClick = () => {
-    let calculatedDistance = 400;
-    try {
-      const currentEl = wrapperRef.current;
-      if (currentEl) {
-        const rect = currentEl.getBoundingClientRect();
-        const nodeWidth = Math.ceil(rect.width);
-        const gapWidth = 25;
-        const padding = 8;
-        calculatedDistance = padding + nodeWidth + gapWidth;
-      }
-    } catch { }
-
-    setAnimationDistance(calculatedDistance);
-    setSliverAnimating(true);
-    setSliverFading(false);
-
-    const animationDuration = Math.min(1000, Math.max(600, calculatedDistance * 1.2));
-
-    window.setTimeout(() => {
-      createInversePair(id);
-      setSliverFading(true);
-    }, animationDuration - 300);
-
-    window.setTimeout(() => {
-      setSliverAnimating(false);
-      setSliverFading(false);
-    }, animationDuration);
-  };
-
-  const beforeWrapper = false ? (
-    <div
-      className={`group/sliver absolute left-full top-1/2 translate-y-[calc(-50%+2px)] h-full z-0 pointer-events-auto nodrag nopan ${sliverAnimating ? '' : 'transition-all ease-out'} ${!sliverAnimating ? (sliverHovered ? 'w-[96px] -ml-[48px] duration-700' : (hovered ? 'w-[72px] -ml-[36px] duration-700' : 'w-[30px] -ml-[15px] duration-700')) : ''}`}
-      style={sliverAnimating ? {
-        width: `${animationDistance}px`,
-        marginLeft: '0px',
-        opacity: sliverFading ? 0 : 1,
-        transition: `width 1100ms ease-out, opacity ${sliverFading ? '300ms' : '0ms'} ease-out`,
-      } : undefined}
-      role="button"
-      aria-label="More"
-      tabIndex={0}
-      onMouseDown={(e) => { e.stopPropagation(); }}
-      onClick={(e) => {
-        e.stopPropagation();
-        handleInverseSliverClick();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); }
-      }}
-      onDragStart={(e) => { e.preventDefault(); }}
-      onMouseEnter={() => { setSliverHovered(true); }}
-      onMouseLeave={() => { setSliverHovered(false); }}
-    >
-      <div
-        className={`w-full h-full bg-white border-black border-4 rounded-lg shadow-lg overflow-hidden origin-left transition-all ease-out ${(hovered && !sliverAnimating) ? 'opacity-100 duration-700' : sliverAnimating ? 'opacity-0 duration-1000' : 'opacity-0 duration-700'}`}
-        style={{ willChange: 'transform, opacity' }}
-      />
-    </div>
-  ) : undefined;
+  const buildSelectionPayload = useSelectionPayload(id, getSelectedPointNodes);
+  const { handlePillMouseDown, handlePillClick } = usePillHandlers(
+    isConnectMode,
+    buildSelectionPayload,
+    addPointBelow,
+    forceHidePills
+  );
 
   const wrapperClassName = useMemo(() => {
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
-    const ringMindchange = mindchangeSelectable ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : '';
-    const dragClass = isEditing ? 'nodrag' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative origin-center group transition-transform duration-400 ease-out ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${dragClass} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable, isEditing]);
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
@@ -269,7 +183,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     onMouseLeave: (e) => {
       e.stopPropagation();
       onHoverLeave();
-      setSliverHovered(false);
       handleMouseLeave();
     },
     onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
@@ -312,6 +225,15 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           return;
         }
       }
+      if (contentRef.current && contentRef.current.contains(e.target as Node)) {
+        onClick(e);
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(INTERACTIVE_TARGET_SELECTOR)) {
+        return;
+      }
+      if (isEditing) return;
       if (locked) {
         e.stopPropagation();
         toast.warning(`Locked by ${lockOwner?.name || 'another user'}`);
@@ -323,17 +245,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   } as React.HTMLAttributes<HTMLDivElement>;
 
   const { perfMode } = usePerformanceMode();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const onContextMenuNode = (e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement | null;
-    const isEditingTarget = isEditing || (contentRef.current && contentRef.current.contains(target as Node));
-    if (isEditingTarget) return; // allow native menu for spellcheck/inputs
-    e.preventDefault();
-    e.stopPropagation();
-    setMenuPos({ x: e.clientX, y: e.clientY });
-    setMenuOpen(true);
-  };
   return (
     <>
       <NodeShell
@@ -353,7 +264,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         ]}
         containerRef={containerRef}
         containerClassName="relative inline-block group"
-        beforeWrapper={beforeWrapper}
         wrapperRef={wrapperRef}
         wrapperClassName={wrapperClassName}
         wrapperStyle={{
@@ -362,22 +272,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             ? undefined
             : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
         }}
-        wrapperProps={{ ...(wrapperProps as any), onContextMenu: onContextMenuNode }}
+        wrapperProps={wrapperProps as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
       >
         <LockIndicator locked={locked} lockOwner={lockOwner} />
-        {selected && isDirectInverse && inversePairEnabled && (
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => { e.stopPropagation(); deleteInversePair?.(id); }}
-            className="absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-6 w-6 flex items-center justify-center"
-            title="Remove inverse pair"
-            aria-label="Remove inverse pair"
-            style={{ zIndex: 20 }}
-          >
-            <XIcon size={14} />
-          </button>
-        )}
         {isConnectingFromNodeId === id && (
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
         )}
@@ -397,6 +295,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onBlur={onBlur}
           onKeyDown={onKeyDown}
           className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
+          title={typeof value === 'string' ? value : undefined}
         >
           {value || 'New point'}
         </div>
@@ -405,7 +304,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             <div className="text-sm text-stone-500 italic animate-fade-in">Hidden</div>
           </div>
         )}
-        {selected && !hidden && extras.showExtras && !marketEnabled && (
+        {selected && !hidden && extras.showExtras && (
           <div ref={(el) => extras.registerExtras?.(el)} className={`mt-1 mb-1 flex items-center gap-2 select-none`} style={{ position: 'relative', zIndex: 20 }}>
             <span className="text-[10px] uppercase tracking-wide text-stone-500 -translate-y-0.5">Favor</span>
             <FavorSelector
@@ -421,7 +320,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
             <NodeActionPill
               label="Add Point"
               visible={isEditing ? true : (shouldShowPill && extras.showExtras)}
-              onClick={() => { if (isConnectMode) return; addPointBelow?.(id); forceHidePills(); }}
+              onMouseDown={handlePillMouseDown}
+              onClick={handlePillClick}
               colorClass="bg-stone-900"
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
@@ -430,7 +330,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           </div>
         )}
       </NodeShell>
-      <ContextMenu open={menuOpen} x={menuPos.x} y={menuPos.y} onClose={() => setMenuOpen(false)} items={[{ label: "Delete", danger: true, onClick: () => { if (locked) { toast.warning(`Locked by ${lockOwner?.name || "another user"}`); } else { deleteNode?.(id); } } }]} />
     </>
   );
 };

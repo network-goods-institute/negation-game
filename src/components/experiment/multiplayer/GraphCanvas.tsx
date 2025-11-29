@@ -15,13 +15,14 @@ import { useGraphKeyboardHandlers } from '@/hooks/experiment/multiplayer/useGrap
 import { useGraphWheelHandler } from '@/hooks/experiment/multiplayer/useGraphWheelHandler';
 import { useGraphNodeHandlers } from '@/hooks/experiment/multiplayer/useGraphNodeHandlers';
 import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphContextMenu';
-import { EdgeArrowMarkers } from './common/EdgeArrowMarkers';
 import { MiniHoverStats } from './MiniHoverStats';
 import { NodePriceOverlay } from './NodePriceOverlay';
 import { EdgePriceOverlay } from './EdgePriceOverlay';
-import { enrichWithMarketData, getDocIdFromURL } from '@/utils/market/marketUtils';
+import { enrichWithMarketData, getDocIdFromURL, isMarketEnabled } from '@/utils/market/marketUtils';
 import { dispatchMarketPanelClose } from '@/utils/market/marketEvents';
 import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
+import { SnapLines } from './SnapLines';
+import { Plus, Trash2 } from 'lucide-react';
 
 type YProvider = WebsocketProvider | null;
 
@@ -48,7 +49,6 @@ interface GraphCanvasProps {
   panOnScroll?: boolean | number[];
   zoomOnScroll?: boolean;
   connectMode?: boolean;
-  mindchangeMode?: boolean;
   connectAnchorId?: string | null;
   onFlowMouseMove?: (flowX: number, flowY: number) => void;
   connectCursor?: { x: number; y: number } | null;
@@ -86,7 +86,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   panOnScroll,
   zoomOnScroll,
   connectMode,
-  mindchangeMode,
   connectAnchorId,
   onFlowMouseMove,
   connectCursor,
@@ -113,14 +112,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const midPanRef = React.useRef(false);
   const copiedNodeIdRef = React.useRef<string | null>(null);
   const altCloneMapRef = React.useRef<Map<string, { dupId: string; origin: { x: number; y: number } }>>(new Map());
-
-  const updatedAtMeta = React.useMemo(() => {
-    try { return (yMetaMap as any)?.get?.('market:updatedAt') || null; } catch { return null; }
-  }, [yMetaMap]);
-  // read live snapshots in memos below
-
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
-    connectMode: !!connectMode && !mindchangeMode,
+    connectMode: !!connectMode,
     connectAnchorId,
     connectCursor: connectCursor ?? null,
     edgesLayer,
@@ -136,19 +129,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
       const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
       const enriched = (edges as any[]).map((e) => {
-        const key = `mindchange:${e.id}`;
-        const payload = yMetaMap?.get?.(key);
-        if (payload && typeof payload === 'object') {
-          const prevUser = (e as any)?.data?.mindchange?.userValue;
-          const mc = {
-            forward: { average: Number((payload as any).forward || 0), count: Number((payload as any).forwardCount || 0) },
-            backward: { average: Number((payload as any).backward || 0), count: Number((payload as any).backwardCount || 0) },
-            ...(prevUser ? { userValue: prevUser } : {}),
-          } as any;
-          e = { ...e, data: { ...(e.data || {}), mindchange: mc } } as any;
-        }
         // Enrich with market data
-        e = enrichWithMarketData(e, marketPrices, marketHoldings, marketTotals);
+        e = enrichWithMarketData(e, marketPrices, marketHoldings, marketTotals, 'edge');
         return e;
       });
       const getNodeRect = (id: string) => {
@@ -170,12 +152,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     }
   }, [edges, graph, rf, userHoldingsLite.data, yMetaMap]);
 
-  const nodesForRender = React.useMemo<MarketNode[]>(() => {
+  const nodesWithMarket = React.useMemo<MarketNode[]>(() => {
     try {
       const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
       const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
       const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
-      const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals));
+      const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals, 'node'));
       return enriched as MarketNode[];
     } catch {
       return nodes as MarketNode[];
@@ -189,7 +171,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const priceSource = metaPrices && Object.keys(metaPrices).length ? metaPrices : null;
       const candidates = priceSource ? Object.entries(priceSource) : [];
       if (candidates.length) {
-        const allowedIds = new Set(nodesForRender.map((n) => String(n.id)));
+        const allowedIds = new Set(nodesWithMarket.map((n) => String(n.id)));
         for (const [id, price] of candidates) {
           const pNum = Number(price);
           if (Number.isFinite(pNum) && allowedIds.has(id)) {
@@ -197,7 +179,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           }
         }
       } else {
-        for (const n of nodesForRender as any[]) {
+        for (const n of nodesWithMarket as any[]) {
           const price = Number((n as any)?.data?.market?.price ?? NaN);
           if (Number.isFinite(price)) {
             out[String((n as any).id)] = price;
@@ -206,27 +188,34 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       }
     } catch { }
     return out;
-  }, [nodesForRender, yMetaMap]);
+  }, [nodesWithMarket, yMetaMap]);
 
+  const nodesForRender = React.useMemo(() => {
+    try {
+      if (canWrite) return nodesWithMarket;
+      // Force-disable dragging for all nodes when read-only
+      return (nodesWithMarket as any[]).map((n) => ({ ...n, draggable: false }));
+    } catch {
+      return nodesWithMarket;
+    }
+  }, [nodesWithMarket, canWrite]);
 
   // Custom hooks for managing complex logic
   useGraphKeyboardHandlers({ graph, copiedNodeIdRef });
   useGraphWheelHandler({ containerRef });
+  const selectionSnapshotRef = React.useRef<string[]>([]);
 
   const {
     multiSelectMenuOpen,
     multiSelectMenuPos,
     handleMultiSelectContextMenu,
     handleDeleteSelectedNodes,
+    handleAddPointToSelected,
+    getAddPointLabel,
     setMultiSelectMenuOpen,
   } = useGraphContextMenu({ graph });
 
-  const {
-    handleNodeClick: handleNodeClickInternal,
-    handleNodeDragStart: handleNodeDragStartInternal,
-    handleNodeDrag,
-    handleNodeDragStop: handleNodeDragStopInternal,
-  } = useGraphNodeHandlers({
+  const nodeHandlers = useGraphNodeHandlers({
     graph,
     grabMode,
     selectMode,
@@ -236,6 +225,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     altCloneMapRef,
   });
 
+  const {
+    handleNodeClick: handleNodeClickInternal,
+    handleNodeDragStart: handleNodeDragStartInternal,
+    handleNodeDrag,
+    handleNodeDragStop: handleNodeDragStopInternal,
+    snapResult,
+  } = nodeHandlers;
+
   const deselectAllNodes = React.useCallback(() => {
     try {
       (graph as any)?.clearNodeSelection?.();
@@ -243,35 +240,36 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   }, [graph]);
 
   useKeyboardPanning({
-    connectMode: !!connectMode && !mindchangeMode,
+    connectMode: !!connectMode,
     onCancelConnect: graph.cancelConnect,
     forceSave,
   });
   React.useEffect(() => {
-    if (!(connectMode && !mindchangeMode) || !connectAnchorId || !onFlowMouseMove) return;
+    if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const handler = (e: MouseEvent) => {
       const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
       onFlowMouseMove(p.x, p.y);
     };
     window.addEventListener('mousemove', handler);
     return () => window.removeEventListener('mousemove', handler);
-  }, [connectMode, mindchangeMode, connectAnchorId, onFlowMouseMove, rf]);
+  }, [connectMode, connectAnchorId, onFlowMouseMove, rf]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!(connectMode && !mindchangeMode) || !connectAnchorId || !onFlowMouseMove) return;
+    if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
     const p = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     onFlowMouseMove(p.x, p.y);
   };
   const handleMouseUp = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!(connectMode && !mindchangeMode) || !connectAnchorId) return;
+    if (!connectMode || !connectAnchorId) return;
 
     const target = event.target as HTMLElement | null;
     if (!target) return;
 
-    const isPane = target.closest('.react-flow__pane');
-    const isEdge = target.closest('.react-flow__edge');
+    if (target.closest('.react-flow__node') || target.closest('.react-flow__edge')) {
+      return;
+    }
 
-    if (isPane || isEdge) {
+    if (target.closest('.react-flow__pane')) {
       if (componentSnappedTarget && componentSnappedTarget.kind) {
         if (componentSnappedTarget.kind === 'node') {
           (graph as any)?.completeConnectToNode?.(componentSnappedTarget.id);
@@ -361,19 +359,21 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const isMinimap = !!target.closest('.react-flow__minimap');
     const isLabel = !!target.closest('.react-flow__edge-labels');
     const isPane = !!target.closest('.react-flow__pane');
+    const isSelectionBox = !!target.closest('.react-flow__nodesselection');
     const isOverlay = isLabel || isMinimap || isControl;
+    const isPanning = grabMode || e.button === 1;
+
     // If market panel is visible and user clicks the bare pane, close the panel via fade first
-    if (isMarketPanelVisible && !connectMode && isPane && !isNode && !isEdge && !isOverlay) {
+    // Don't trigger if clicking on the selection box (used for multi-select drag)
+    // Don't close if user is panning (grabMode) or using middle mouse button
+    if (isMarketPanelVisible && !connectMode && isPane && !isNode && !isEdge && !isOverlay && !isSelectionBox && !isPanning) {
       dispatchMarketPanelClose();
-      // Do not swallow the event if the user is panning (hand tool) or using middle mouse
-      if (!grabMode && e.button !== 1) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      return;
     }
     // Do not clear selection on mousedown; only clear text selection
-    if (!isNode && !isEdge && (isPane || isOverlay)) {
+    if (!isNode && !isEdge && !isSelectionBox && (isPane || isOverlay)) {
       try { window.getSelection()?.removeAllRanges(); } catch { }
     }
   };
@@ -433,8 +433,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           for (const c of changes || []) {
             if (c?.type === 'remove' && c?.id) {
               try { graph.deleteNode?.(c.id); } catch { }
-            } else if (c?.type === 'position' && (connectMode || mindchangeMode)) {
-              // Ignore any incidental position changes while connecting or in mindchange mode
+            } else if (c?.type === 'position' && (connectMode || nodeHandlers.finalizingSnap || (nodeHandlers.draggingActive && c?.dragging === false))) {
+              // Block position updates during special modes, but allow dragging state to clear
+              if (c?.dragging === false && (nodeHandlers.finalizingSnap || nodeHandlers.draggingActive)) {
+                // Pass through a change that only updates the dragging flag, not position
+                passthrough.push({ id: c.id, type: 'position', dragging: false });
+              }
+              // Otherwise ignore the position change entirely
               continue;
             } else if (c?.type === 'position' && c?.id && altCloneMapRef.current.has(String(c.id))) {
               const mapping = altCloneMapRef.current.get(String(c.id));
@@ -484,7 +489,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
         return (
           <ReactFlow
-            nodes={nodesForRender as any}
+            nodes={nodesForRender}
             edges={edgesForRender}
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
@@ -518,7 +523,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             fitView
-            className={`w-full h-full bg-gray-50 ${(connectMode && !mindchangeMode) ? 'connect-mode' : ''}`}
+            className={`w-full h-full bg-gray-50 ${connectMode ? 'connect-mode' : ''}`}
             style={{ willChange: 'transform' }}
             selectionOnDrag={selectMode}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
@@ -529,7 +534,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             zoomOnDoubleClick={false}
             minZoom={0.1}
             maxZoom={10}
-            nodesDraggable={!connectMode && !grabMode && !mindchangeMode}
+            nodesDraggable={Boolean(canWrite) && !connectMode && !grabMode}
             nodesConnectable={!grabMode}
             elementsSelectable={selectMode}
             nodesFocusable={selectMode}
@@ -539,7 +544,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onSelectionChange={selectMode ? ({ nodes, edges }) => {
               try {
                 if (Array.isArray(nodes)) {
-                  const anySelected = nodes.some((n: any) => (n as any)?.selected);
+                  selectionSnapshotRef.current = nodes.filter((n: any) => (n as any)?.selected).map((n: any) => n.id);
+                  const anySelected = selectionSnapshotRef.current.length > 0;
                   if (anySelected) lastSelectionChangeRef.current = Date.now();
                 }
                 if (edges && edges.length > 0) {
@@ -563,7 +569,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         );
       })()}
       {/* Connect overlay: draw a line from anchor origin to cursor */}
-      {(connectMode && !mindchangeMode) && connectAnchorId && edgesLayer && createPortal((() => {
+      {connectMode && connectAnchorId && edgesLayer && createPortal((() => {
         const cursorFlow = connectCursor || { x: origin.x + 100, y: origin.y };
         const tx = snappedPosition?.x ?? cursorFlow.x;
         const ty = snappedPosition?.y ?? cursorFlow.y;
@@ -578,8 +584,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           </g>
         );
       })(), edgesLayer)}
-      {/* Global arrow markers for mindchange edges */}
-      {edgesLayer && createPortal(<EdgeArrowMarkers />, edgesLayer)}
+      {/* Snap lines for node dragging */}
+      <SnapLines
+        snappedX={snapResult?.snappedX ?? false}
+        snappedY={snapResult?.snappedY ?? false}
+        snapX={snapResult?.snapLineX ?? null}
+        snapY={snapResult?.snapLineY ?? null}
+        edgesLayer={edgesLayer}
+      />
       <CursorOverlay cursors={cursors} />
       <OffscreenNeighborPreviews blurAllNodes={blurAllNodes} isMarketPanelVisible={isMarketPanelVisible} />
       {!grabMode && !perfMode && (
@@ -599,7 +611,13 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         onClose={() => setMultiSelectMenuOpen(false)}
         items={[
           {
-            label: 'Delete selected',
+            label: getAddPointLabel(),
+            icon: <Plus className="w-5 h-5" />,
+            onClick: handleAddPointToSelected,
+          },
+          {
+            label: 'Delete',
+            icon: <Trash2 className="w-5 h-5" />,
             danger: true,
             onClick: handleDeleteSelectedNodes,
           },

@@ -94,11 +94,13 @@ export const computeMidpointBetweenBorders = (
     const s = sourceNode as any;
     const t = targetNode as any;
     if (!s || !t) return [labelX, labelY] as const;
-    const sw = Number(s?.width);
-    const sh = Number(s?.height);
-    const tw = Number(t?.width);
-    const th = Number(t?.height);
-    if (!Number.isFinite(sw) || !Number.isFinite(sh) || !Number.isFinite(tw) || !Number.isFinite(th)) {
+    const getDim = (n: any, dim: 'width' | 'height') =>
+      Number(n?.[dim] ?? (n?.measured?.[dim] ?? n?.style?.[dim] ?? 0)) || 0;
+    const sw = getDim(s, 'width');
+    const sh = getDim(s, 'height');
+    const tw = getDim(t, 'width');
+    const th = getDim(t, 'height');
+    if (sw <= 0 || sh <= 0 || tw <= 0 || th <= 0) {
       return [labelX, labelY] as const;
     }
     const sx = Number(s?.position?.x ?? 0) + sw / 2;

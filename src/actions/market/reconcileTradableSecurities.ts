@@ -3,14 +3,15 @@
 import * as Y from "yjs";
 import { safeUnstableCache } from "@/lib/cache/nextCache";
 import { getDocSnapshotBuffer } from "@/services/yjsCompaction";
-import { createStructure, buildSecurities } from "@/lib/carroll/structure";
+import { buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
+import { createStructureWithSupports } from "./structureUtils";
 
 type RFNode = { id: string };
 type RFEdge = { id: string; source: string; target: string; type?: string };
 
 export type ReconciledMarket = {
-  structure: ReturnType<typeof createStructure>;
+  structure: ReturnType<typeof createStructureWithSupports>;
   securities: string[];
   persisted: boolean;
 };
@@ -63,7 +64,7 @@ async function computeReconciledMarket(
     seenEdgeNames.add(e.id);
   }
 
-  const structure = createStructure(
+  const structure = createStructureWithSupports(
     Array.from(nodeIds),
     negationTriples,
     supportTriples

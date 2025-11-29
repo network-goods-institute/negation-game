@@ -4,6 +4,7 @@ import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { ReactFlowProvider, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { toast } from 'sonner';
+import { showReadOnlyToast } from '@/utils/readonlyToast';
 import { Roboto_Slab } from 'next/font/google';
 import { recordOpen } from '@/actions/experimental/rationales';
 import { MultiplayerHeader } from './MultiplayerHeader';
@@ -24,24 +25,23 @@ import { useEdgeTypeManager } from '@/hooks/experiment/multiplayer/useEdgeTypeMa
 import { useGraphOperations } from '@/hooks/experiment/multiplayer/useGraphOperations';
 import { useConnectionHandlers } from '@/hooks/experiment/multiplayer/useConnectionHandlers';
 import { useNodeHelpers } from '@/hooks/experiment/multiplayer/useNodeHelpers';
-import { usePairHeights } from '@/hooks/experiment/multiplayer/usePairHeights';
 import { useEdgeSelection } from '@/hooks/experiment/multiplayer/useEdgeSelection';
 import { useNodeDragHandlers } from '@/hooks/experiment/multiplayer/useNodeDragHandlers';
 import { useMultiplayerTitle } from '@/hooks/experiment/multiplayer/useMultiplayerTitle';
 import { useKeyboardShortcuts } from '@/hooks/experiment/multiplayer/useKeyboardShortcuts';
 import { useInitialGraph } from '@/hooks/experiment/multiplayer/useInitialGraph';
 import { createGraphChangeHandlers } from '@/utils/experiment/multiplayer/graphSync';
-import { getMindchangeAveragesForEdges } from '@/actions/experimental/mindchange';
 import { buildRationaleDetailPath } from '@/utils/hosts/syncPaths';
+import { isProductionRequest } from '@/utils/hosts';
+import { QueryClient, QueryClientContext, QueryClientProvider } from '@tanstack/react-query';
 import { ORIGIN } from '@/hooks/experiment/multiplayer/yjs/origins';
-import { useMindchangeActions } from '@/hooks/experiment/multiplayer/useMindchangeActions';
-import { isMindchangeEnabledClient } from '@/utils/featureFlags';
 import { useMarket } from '@/hooks/market/useMarket';
 import { syncMarketDataToYDoc } from '@/utils/market/marketYDocSync';
 import { buildMarketViewPayload, isMarketEnabled } from '@/utils/market/marketUtils';
 import { logger } from '@/lib/logger';
 import { MarketPanel } from './market/MarketPanel';
 import { MarketErrorBoundary } from './market/MarketErrorBoundary';
+import { BoardLoading } from './BoardLoading';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -57,12 +57,6 @@ interface MultiplayerBoardContentProps {
   setGrabMode: (value: boolean) => void;
   perfBoost: boolean;
   setPerfBoost: (value: boolean) => void;
-  mindchangeSelectMode: boolean;
-  setMindchangeSelectMode: (value: boolean) => void;
-  mindchangeEdgeId: string | null;
-  setMindchangeEdgeId: (value: string | null) => void;
-  mindchangeNextDir: 'forward' | 'backward' | null;
-  setMindchangeNextDir: (value: 'forward' | 'backward' | null) => void;
   selectMode: boolean;
 }
 
@@ -84,7 +78,7 @@ const isAbortError = (error: unknown) => {
   return error instanceof DOMException && error.name === 'AbortError';
 };
 
-export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = ({
+const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   authenticated,
   userId,
   username,
@@ -96,12 +90,6 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   setGrabMode,
   perfBoost,
   setPerfBoost,
-  mindchangeSelectMode,
-  setMindchangeSelectMode,
-  mindchangeEdgeId,
-  setMindchangeEdgeId,
-  mindchangeNextDir,
-  setMindchangeNextDir,
   selectMode,
 }) => {
   const routeId = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
@@ -181,10 +169,11 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     setForceBlurNodes((v) => v + 1);
   }, []);
 
-  const { pairHeights, setPairNodeHeight, commitGroupLayout: commitGroupLayoutBase } = usePairHeights();
   const initialGraph = useInitialGraph();
 
-   const {
+  const isProdHost = typeof window !== 'undefined' ? isProductionRequest(window.location.hostname) : false;
+
+  const {
     nodes,
     edges,
     setNodes,
@@ -198,22 +187,27 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     syncYMapFromArray,
     connectionError,
     isConnected,
+    connectedWithGrace,
     connectionState,
+    hasSyncedOnce,
+    isReady,
     isSaving,
     forceSave,
     interruptSave,
     nextSaveTime,
     resyncNow,
+    restartProviderWithNewToken,
     undo,
     redo,
     stopCapturing,
     canUndo,
-     canRedo,
-   } = useYjsMultiplayer({
+    canRedo,
+  } = useYjsMultiplayer({
     roomName,
     initialNodes: initialGraph?.nodes || [],
     initialEdges: initialGraph?.edges || [],
     enabled: Boolean(initialGraph) && Boolean(resolvedId),
+    allowPersistence: !(isProdHost && !authenticated),
     localOrigin: localOriginRef.current,
     currentUserId: userId,
     onRemoteNodesAdded: (ids: string[]) => {
@@ -225,20 +219,21 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
 
   const marketEnabled = isMarketEnabled();
   const market = useMarket(resolvedId || '');
+  const marketViewData = marketEnabled ? (market?.view?.data || null) : null;
   const livePostInFlightRef = React.useRef(false);
   const lastLivePostRef = React.useRef(0);
   // (Reverted) No Yjs-driven refresh; rely on explicit refresh + polling to avoid loops
 
   // Write market view snapshot to Yjs when local query updates
   useEffect(() => {
-    if (!marketEnabled) return;
+    if (!marketEnabled || !market) return;
     if (!ydoc || !yMetaMap) return;
     try {
       const marketData = {
-        prices: market.view.data?.prices || {},
+        prices: marketViewData?.prices || {},
         holdings: {},
-        totals: market.view.data?.totals || {},
-        updatedAt: market.view.data?.updatedAt || new Date().toISOString(),
+        totals: marketViewData?.totals || {},
+        updatedAt: marketViewData?.updatedAt || new Date().toISOString(),
       };
       syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME);
       try {
@@ -252,12 +247,12 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     } catch (error) {
       logDevError('[market/ui] snapshot sync failed', error);
     }
-  }, [marketEnabled, market.view.data, ydoc, yMetaMap, resolvedId]);
+  }, [marketEnabled, marketViewData, ydoc, yMetaMap, resolvedId, market]);
 
   useEffect(() => {
-    if (!marketEnabled) return;
+    if (!marketEnabled || !market) return;
     if (!ydoc || !yMetaMap) return;
-    const prices = market.view.data?.prices || null;
+    const prices = marketViewData?.prices || null;
     const hasServerPrices = prices && Object.keys(prices).length > 0;
     if (hasServerPrices) return;
     try {
@@ -294,7 +289,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         logDevError('[market/ui] initial market fetch failed', error);
       }
     })();
-  }, [marketEnabled, market.view.data, nodes, edges, ydoc, yMetaMap, resolvedId]);
+  }, [marketEnabled, marketViewData, nodes, edges, ydoc, yMetaMap, resolvedId, market]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -320,7 +315,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             if (txt && (/outcome enumeration cap exceeded/i.test(txt) || /too many variables/i.test(txt))) {
               toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
             }
-          } catch {}
+          } catch { }
           return;
         }
         const view = await res.json();
@@ -347,7 +342,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       try { ctrl.abort(); } catch (error) { logDevError('[market/ui] abort live post failed', error); }
       window.clearTimeout(timer);
     };
-  }, [marketEnabled, resolvedId, nodes, edges, ydoc, yMetaMap, grabMode, connectMode]);
+  }, [marketEnabled, resolvedId, nodes, edges, ydoc, yMetaMap, grabMode, connectMode, market]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -403,33 +398,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       try { window.removeEventListener('market:refresh', handler); } catch (error) { logDevError('[market/ui] remove refresh listener failed', error); }
       try { window.removeEventListener('market:optimisticTrade', optimistic as any); } catch (error) { logDevError('[market/ui] remove optimistic listener failed', error); }
     };
-  }, [marketEnabled, ydoc, yMetaMap, resolvedId, routeId]);
+  }, [marketEnabled, ydoc, yMetaMap, resolvedId, routeId, market]);
 
-  useEffect(() => {
-    if (!isMindchangeEnabledClient()) return;
-    if (!resolvedId || !ydoc || !yMetaMap) return;
-    if (!edges || edges.length === 0) return;
-    (async () => {
-      try {
-        const ids = edges.filter((e: any) => e.type === 'negation' || e.type === 'objection').map((e) => e.id);
-        if (ids.length === 0) return;
-        const map = await getMindchangeAveragesForEdges(resolvedId, ids);
-        if (!map) return;
-        (ydoc as any).transact(() => {
-          for (const [eid, averages] of Object.entries(map)) {
-            const key = `mindchange:${eid}`;
-            const existing = (yMetaMap as any).get(key);
-            if (!existing) {
-              (yMetaMap as any).set(key, averages);
-            }
-          }
-        }, ORIGIN.RUNTIME);
-      } catch (error) {
-        logDevError('[mindchange/ui] preload averages failed', error);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedId, ydoc, yMetaMap, edges]);
 
   useEffect(() => {
     if (!resolvedId || !authenticated) return;
@@ -490,8 +460,8 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   }, [dbTitle, resolvedId, routeParams?.id]);
 
   const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
-  const { canWrite } = useWriteAccess(provider, userId);
-  const canEdit = Boolean(canWrite && isConnected);
+  const { canWrite } = useWriteAccess(provider, userId, { authenticated });
+  const canEdit = Boolean(canWrite && (isConnected || connectedWithGrace));
 
   useEffect(() => {
     if (!connectMode) return;
@@ -561,45 +531,28 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     markShareParamsApplied();
   }, [shareParamsApplied, isConnected, nodes, edges, setNodes, setSelectedEdgeId, setMarketPanelSelection, markShareParamsApplied]);
 
-  // Track node selection changes to open market panel
+  // Track node selection changes to open/switch market panel (but not close - panel is "sticky")
   useEffect(() => {
     if (!nodes || nodes.length === 0) return;
     const selectedNode = nodes.find((n: any) => n.selected);
     if (selectedNode && isMarketEnabled()) {
-      // Only show panel for point and objection nodes
       const nodeType = (selectedNode as any).type;
       if (nodeType === 'point' || nodeType === 'objection') {
         setMarketPanelSelection(selectedNode.id, null);
-      } else {
-        setMarketPanelSelection(null, null);
-      }
-    } else if (!selectedNode) {
-      // Only clear if there's no edge selected either
-      if (!selectedEdgeId) {
-        setMarketPanelSelection(null, null);
       }
     }
-  }, [nodes, selectedEdgeId, setMarketPanelSelection]);
+  }, [nodes, setMarketPanelSelection]);
 
-  // Track edge selection changes to open market panel
+  // Track edge selection changes to open/switch market panel (but not close - panel is "sticky")
   useEffect(() => {
     if (selectedEdgeId && isMarketEnabled()) {
-      // Only open market panel for support, negation, and objection edges
       const selectedEdge = edges.find((e: any) => e.id === selectedEdgeId);
       const edgeType = selectedEdge?.type;
       if (edgeType === 'support' || edgeType === 'negation' || edgeType === 'objection') {
         setMarketPanelSelection(null, selectedEdgeId);
-      } else {
-        setMarketPanelSelection(null, null);
-      }
-    } else if (!selectedEdgeId) {
-      // Only clear if there's no node selected either
-      const hasSelectedNode = nodes && nodes.some((n: any) => n.selected);
-      if (!hasSelectedNode) {
-        setMarketPanelSelection(null, null);
       }
     }
-  }, [selectedEdgeId, nodes, edges, setMarketPanelSelection]);
+  }, [selectedEdgeId, edges, setMarketPanelSelection]);
 
   const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite: canEdit, broadcastCursor: true });
   const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite: canEdit, broadcastLocks: true });
@@ -619,59 +572,16 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     getLockOwner,
   });
 
-  const { setMindchange, getMindchangeBreakdown } = useMindchangeActions({
-    resolvedId,
-    edges,
-    userId,
-    ydoc,
-    yMetaMap,
-    setEdges,
-    setMindchangeSelectMode,
-    setMindchangeEdgeId,
-    setMindchangeNextDir,
-    setSelectedEdgeId,
-  });
-
   const updateEdgeTypeWrapped = useCallback(async (edgeId: string, newType: 'negation' | 'support') => {
     try {
       const prev = edges.find((e: any) => e.id === edgeId);
       if (!prev) return;
       if (prev.type === newType) return;
       updateEdgeType(edgeId, newType);
-      if (newType === 'support') {
-        try {
-          setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e, data: { ...(e.data || {}), mindchange: undefined } } : e));
-        } catch (error) {
-          logDevError('[mindchange/ui] clear mindchange on support failed', error);
-        }
-      } else if (newType === 'negation') {
-        if (!isMindchangeEnabledClient()) {
-          setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e } : e));
-          return;
-        }
-        try {
-          if (resolvedId && ydoc && yMetaMap) {
-            const res = await getMindchangeAveragesForEdges(resolvedId, [edgeId]);
-            const payload = res?.[edgeId];
-            (ydoc as any).transact(() => {
-              if (payload) {
-                (yMetaMap as any).set?.(`mindchange:${edgeId}`, payload);
-              } else {
-                (yMetaMap as any).delete?.(`mindchange:${edgeId}`);
-              }
-            }, ORIGIN.RUNTIME);
-            setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e } : e));
-          } else {
-            setEdges((eds: any[]) => eds.map((e: any) => e.id === edgeId ? { ...e } : e));
-          }
-        } catch (error) {
-          logDevError('[mindchange/ui] update edge type failed', error);
-        }
-      }
     } catch (error) {
-      logDevError('[mindchange/ui] edge type effect failed', error);
+      logDevError('[edge/ui] edge type effect failed', error);
     }
-  }, [edges, updateEdgeType, resolvedId, setEdges, yMetaMap, ydoc]);
+  }, [edges, updateEdgeType]);
 
   const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
 
@@ -747,7 +657,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
   }, [setNodes]);
 
   const refreshMarketNow = useCallback(async () => {
-    try { await forceSave?.(); } catch {}
+    try { await forceSave?.(); } catch { }
     try {
       if (marketEnabled && ydoc && yMetaMap && resolvedId) {
         const payload = buildMarketViewPayload(nodes, edges);
@@ -762,7 +672,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             if (txt && (/outcome enumeration cap exceeded/i.test(txt) || /too many variables/i.test(txt))) {
               toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
             }
-          } catch {}
+          } catch { }
           return;
         }
         const view = await res.json();
@@ -777,7 +687,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
           syncMarketDataToYDoc(ydoc as any, yMetaMap as any, marketData, resolvedId || '', ORIGIN.RUNTIME);
         }
       }
-    } catch {}
+    } catch { }
   }, [forceSave, marketEnabled, ydoc, yMetaMap, resolvedId, nodes, edges]);
 
   const {
@@ -786,15 +696,13 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     updateNodePosition,
     updateNodeFavor,
     updateEdgeRelevance,
-    deleteNode,
+    deleteNode: deleteNodeBase,
     addPointBelow,
     addObjectionForEdge,
     updateEdgeAnchorPosition,
     ensureEdgeAnchor,
     addNodeAtPosition,
     updateNodeType,
-    createInversePair: inversePair,
-    deleteInversePair,
     duplicateNodeWithConnections,
   } = useGraphOperations({
     nodes,
@@ -840,6 +748,22 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     connectMode,
   });
 
+  const deleteNode = useCallback((nodeId: string) => {
+    if (marketPanelNodeId === nodeId || marketPanelEdgeId === nodeId) {
+      resetMarketPanel();
+    }
+    deleteNodeBase(nodeId);
+  }, [deleteNodeBase, marketPanelNodeId, marketPanelEdgeId, resetMarketPanel]);
+
+  useEffect(() => {
+    if (marketPanelNodeId && !nodes.some((n: any) => n.id === marketPanelNodeId)) {
+      resetMarketPanel();
+    }
+    if (marketPanelEdgeId && !edges.some((e: any) => e.id === marketPanelEdgeId)) {
+      resetMarketPanel();
+    }
+  }, [nodes, edges, marketPanelNodeId, marketPanelEdgeId, resetMarketPanel]);
+
   const { onNodesChange, onEdgesChange, onConnect } = createGraphChangeHandlers(
     setNodes,
     setEdges,
@@ -881,10 +805,6 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
     getNodeCenter,
     getEdgeMidpoint,
     getPreferredEdgeType: () => preferredEdgeTypeRef.current,
-    mindchangeSelectMode,
-    setSelectedEdgeId: setSelectedEdgeId,
-    mindchangeEdgeId,
-    setMindchangeNextDir,
   });
 
   useKeyboardShortcuts(undo, redo, {
@@ -892,24 +812,20 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       if (!canEdit) return;
       setConnectMode((v) => !v);
       setConnectAnchorId(null);
-      setMindchangeSelectMode(false);
     },
     onExitConnect: () => {
       setConnectMode(false);
       setConnectAnchorId(null);
-      setMindchangeSelectMode(false);
     },
     onPointerMode: () => {
       setConnectMode(false);
       setGrabMode(false);
       setConnectAnchorId(null);
-      setMindchangeSelectMode(false);
     },
     onToggleGrab: () => {
       setConnectMode(false);
       setGrabMode(!grabMode);
       setConnectAnchorId(null);
-      setMindchangeSelectMode(false);
     }
   });
 
@@ -926,6 +842,15 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
       return null;
     }
   }, [marketPanelNodeId, nodes]);
+  const fullyReady = Boolean(initialGraph && resolvedId && (isReady || connectionState === 'failed'));
+
+  if (!fullyReady) {
+    return (
+      <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
+        <BoardLoading />
+      </div>
+    );
+  }
 
   return (
     <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
@@ -933,7 +858,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         username={username}
         userColor={userColor}
         provider={provider}
-        isConnected={isConnected}
+        isConnected={Boolean(isConnected || connectedWithGrace)}
         connectionError={connectionError}
         connectionState={connectionState as any}
         isSaving={isSaving}
@@ -953,6 +878,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         onTitleSavingStop={handleTitleSavingStop}
         titleEditingUser={titleEditingUser}
         onResyncNow={resyncNow}
+        onRetryConnection={restartProviderWithNewToken}
         onUrlUpdate={(id, slug) => {
           try {
             if (ydoc && yMetaMap) {
@@ -977,7 +903,6 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             updateNodeFavor,
             addPointBelow,
             preferredEdgeType: preferredEdgeTypeRef.current,
-            createInversePair: inversePair,
             deleteNode,
             startEditingNode: startEditingNodeCtx,
             stopEditingNode: stopEditingNodeCtx,
@@ -1014,10 +939,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
             stopCapturing,
             addNodeAtPosition,
             updateNodeType,
-            deleteInversePair,
             duplicateNodeWithConnections,
-            setPairNodeHeight,
-            pairHeights,
             hoveredNodeId: hoveredNodeId,
             setHoveredNodeId: (nid: string | null) => {
               if (nid !== null && hoveredNodeId === nid) {
@@ -1025,43 +947,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
               }
               setHoveredNodeId(nid);
             },
-            commitGroupLayout: (groupId: string, positions: Record<string, { x: number; y: number }>, width: number, height: number) => {
-              commitGroupLayoutBase(groupId, positions, width, height, nodes, yNodesMap, ydoc, canEdit, localOriginRef.current, setNodes);
-            },
             blurNodesImmediately,
-            mindchangeMode: mindchangeSelectMode,
-            mindchangeEdgeId,
-            mindchangeNextDir,
-            beginMindchangeSelection: () => {
-              if (!isMindchangeEnabledClient()) return;
-              setMindchangeSelectMode(true);
-              setConnectMode(true);
-              setConnectAnchorId(null);
-            },
-            beginMindchangeOnEdge: (edgeId: string) => {
-              if (!isMindchangeEnabledClient()) return;
-              try {
-                const et = (edges.find((e: any) => e.id === edgeId)?.type) as string | undefined;
-                if (et !== 'negation' && et !== 'objection') return;
-              } catch (error) {
-                logDevError('[mindchange/ui] beginMindchangeOnEdge failed', error);
-              }
-              setMindchangeSelectMode(true);
-              setMindchangeEdgeId(edgeId);
-              setMindchangeNextDir(null);
-              setConnectMode(false);
-              setConnectAnchorId(null);
-            },
-            cancelMindchangeSelection: () => {
-              setMindchangeSelectMode(false);
-              setMindchangeEdgeId(null);
-              setMindchangeNextDir(null);
-              setConnectMode(false);
-              setConnectAnchorId(null);
-            },
-            setMindchangeNextDir: setMindchangeNextDir,
-            setMindchange,
-            getMindchangeBreakdown,
           }}>
             <div className="w-full h-full relative">
               <GraphCanvas
@@ -1086,7 +972,6 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                 panOnScroll={true}
                 zoomOnScroll={false}
                 connectMode={connectMode}
-                mindchangeMode={mindchangeSelectMode}
                 connectAnchorId={connectAnchorId}
                 selectMode={effectiveSelectMode}
                 blurAllNodes={forceBlurNodes}
@@ -1106,7 +991,7 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                 onBackgroundDoubleClick={(flowX, flowY) => {
                   if (connectMode) return;
                   if (!canEdit) {
-                    toast.warning("Read-only mode: Changes won't be saved");
+                    showReadOnlyToast();
                     return;
                   }
                   const nodeId = addNodeAtPosition('point', flowX, flowY);
@@ -1130,30 +1015,20 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
                   }, 50);
                 }}
               />
-              {!isMarketPanelExpanded && (
-                <ToolsBar
-                  connectMode={connectMode}
-                  setConnectMode={setConnectMode as any}
-                  setConnectAnchorId={setConnectAnchorId}
-                  canUndo={!!canUndo}
-                  canRedo={!!canRedo}
-                  undo={undo}
-                  redo={redo}
-                  connectAnchorId={connectAnchorId}
-                  readOnly={!canEdit}
-                  grabMode={grabMode}
-                  setGrabMode={setGrabMode}
-                  selectMode={effectiveSelectMode}
-                  mindchangeMode={mindchangeSelectMode}
-                  onMindchangeDone={() => {
-                    setMindchangeSelectMode(false);
-                    setConnectMode(false);
-                    setConnectAnchorId(null);
-                  }}
-                  mindchangeNextDir={mindchangeNextDir}
-                  mindchangeEdgeType={(mindchangeEdgeId || connectAnchorId) ? edges.find((e: any) => e.id === (mindchangeEdgeId || connectAnchorId))?.type : undefined}
-                />
-              )}
+              <ToolsBar
+                connectMode={connectMode}
+                setConnectMode={setConnectMode as any}
+                setConnectAnchorId={setConnectAnchorId}
+                canUndo={!!canUndo}
+                canRedo={!!canRedo}
+                undo={undo}
+                redo={redo}
+                connectAnchorId={connectAnchorId}
+                readOnly={!canEdit}
+                grabMode={grabMode}
+                setGrabMode={setGrabMode}
+                selectMode={effectiveSelectMode}
+              />
             </div>
             <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} documentId={resolvedId || ''} centerQueueVersion={centerQueueVersion} consumeCenterQueue={consumeCenterQueue} connectMode={connectMode} />
           </GraphProvider>
@@ -1208,5 +1083,20 @@ export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (
         onDismiss={() => setUndoHintPosition(null)}
       />
     </div>
+  );
+};
+
+export const MultiplayerBoardContent: React.FC<MultiplayerBoardContentProps> = (props) => {
+  const existingClient = React.useContext(QueryClientContext);
+  const [fallbackClient] = React.useState(() => new QueryClient());
+
+  if (existingClient) {
+    return <MultiplayerBoardContentInner {...props} />;
+  }
+
+  return (
+    <QueryClientProvider client={fallbackClient}>
+      <MultiplayerBoardContentInner {...props} />
+    </QueryClientProvider>
   );
 };

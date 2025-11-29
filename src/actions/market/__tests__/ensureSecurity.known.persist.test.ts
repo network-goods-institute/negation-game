@@ -18,6 +18,10 @@ jest.mock("@/actions/market/buildStructureFromDoc", () => ({
     structure: { names: ["p-a"], edges: [{ name: "edge:p-a->p-b", from: "p-a", to: "p-b" }] },
     securities: ["p-a", "edge:p-a->p-b"],
   })),
+  buildStructureFromDocUncached: jest.fn(async () => ({
+    structure: { names: ["p-a"], edges: [{ name: "edge:p-a->p-b", from: "p-a", to: "p-b" }] },
+    securities: ["p-a", "edge:p-a->p-b"],
+  })),
 }));
 
 const ensureSpy = jest.fn(async (_docId: string, _securityId: string) => {});

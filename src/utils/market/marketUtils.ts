@@ -44,6 +44,47 @@ export function isMarketEnabled(): boolean {
 }
 
 /**
+ * Market status types
+ */
+export type MarketStatus = 'not-tradeable' | 'pending' | 'active';
+
+/**
+ * Determine if a node/edge type is tradeable
+ */
+export function isTradeableType(type: string | undefined, itemType: 'node' | 'edge'): boolean {
+  if (!type) return false;
+  const t = type.toLowerCase();
+
+  if (itemType === 'node') {
+    // Tradeable node types: point, objection
+    // Not tradeable: statement, comment, edge_anchor
+    return t === 'point' || t === 'objection';
+  } else {
+    // Tradeable edge types: support, negation, objection
+    return t === 'support' || t === 'negation' || t === 'objection';
+  }
+}
+
+/**
+ * Get market status for a node/edge
+ * - 'not-tradeable': Node/edge type isn't tradeable
+ * - 'pending': Should be tradeable but doesn't have price data yet
+ * - 'active': Has price data, fully in market
+ */
+export function getMarketStatus(item: { type?: string; data?: any }, itemType: 'node' | 'edge'): MarketStatus {
+  const tradeable = isTradeableType(item.type, itemType);
+
+  if (!tradeable) {
+    return 'not-tradeable';
+  }
+
+  // Check if has price data
+  const hasPrice = typeof item.data?.market?.price === 'number' && Number.isFinite(item.data.market.price);
+
+  return hasPrice ? 'active' : 'pending';
+}
+
+/**
  * Extract market data from node/edge data object
  */
 export function extractMarketData(data: any): {
@@ -81,13 +122,14 @@ export function extractMarketData(data: any): {
 }
 
 /**
- * Enrich item with market data (prices, holdings, totals)
+ * Enrich item with market data (prices, holdings, totals) and market status
  */
-export function enrichWithMarketData<T extends { id: string; data?: any }>(
+export function enrichWithMarketData<T extends { id: string; type?: string; data?: any }>(
   item: T,
   marketPrices: Record<string, number> | null,
   marketHoldings: Record<string, string> | null,
-  marketTotals: Record<string, string> | null
+  marketTotals: Record<string, string> | null,
+  itemType?: 'node' | 'edge'
 ): T {
   let data = { ...item.data };
   const key = normalizeSecurityId(item.id);
@@ -114,6 +156,13 @@ export function enrichWithMarketData<T extends { id: string; data?: any }>(
     const tot = Number(data?.market?.total ?? 0);
     const influence = calculateMarketInfluence(usr, tot);
     data = { ...data, market: { ...data?.market, mine: usr, mineNorm: tot > 0 ? usr / tot : 0, influence } };
+  }
+
+  // Add market status
+  if (itemType) {
+    const enrichedItem = { ...item, data };
+    const status = getMarketStatus(enrichedItem, itemType);
+    data = { ...data, market: { ...data?.market, status } };
   }
 
   return { ...item, data };

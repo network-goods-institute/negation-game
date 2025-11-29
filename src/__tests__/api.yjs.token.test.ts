@@ -3,6 +3,9 @@ import { POST as tokenPOST } from "@/app/api/yjs/token/route";
 jest.mock("@/actions/users/getUserId", () => ({
   getUserId: jest.fn(async () => "user-1"),
 }));
+jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
+  getUserIdOrAnonymous: jest.fn(async () => "anon-123"),
+}));
 
 describe("yjs token endpoint", () => {
   const getUserId = require("@/actions/users/getUserId").getUserId as jest.Mock;
@@ -27,12 +30,12 @@ describe("yjs token endpoint", () => {
     });
   });
 
-  it("401s when user not authenticated", async () => {
+  it("allows anonymous token on production for read-only viewing", async () => {
     getUserId.mockResolvedValueOnce(null);
-    await withEnv({ NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "true" }, async () => {
+    await withEnv({ NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "true", YJS_AUTH_SECRET: "test-secret" }, async () => {
       const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST" });
       const res = (await tokenPOST(req)) as Response;
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(200);
     });
   });
 

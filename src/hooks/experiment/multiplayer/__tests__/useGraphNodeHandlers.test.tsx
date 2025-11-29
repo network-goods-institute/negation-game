@@ -3,7 +3,10 @@ import { useReactFlow } from '@xyflow/react';
 import { toast } from 'sonner';
 import { useGraphNodeHandlers } from '../useGraphNodeHandlers';
 
-jest.mock('@xyflow/react');
+jest.mock('@xyflow/react', () => ({
+  useReactFlow: jest.fn(),
+  useViewport: jest.fn(() => ({ zoom: 1 })),
+}));
 jest.mock('sonner');
 
 describe('useGraphNodeHandlers', () => {
@@ -38,6 +41,11 @@ describe('useGraphNodeHandlers', () => {
     mockRf.getNodes.mockReturnValue([]);
     mockRf.getEdges.mockReturnValue([]);
     altCloneMapRef.current.clear();
+    global.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      cb(0);
+      return 1 as any;
+    };
+    global.cancelAnimationFrame = jest.fn();
   });
 
   describe('handleNodeClick', () => {
@@ -367,6 +375,16 @@ describe('useGraphNodeHandlers', () => {
         })
       );
 
+      const startNode = {
+        id: 'node-1',
+        type: 'point',
+        position: { x: 0, y: 0 },
+      };
+
+      act(() => {
+        result.current.handleNodeDragStart({}, startNode);
+      });
+
       const mockNode = {
         id: 'node-1',
         type: 'point',
@@ -410,6 +428,95 @@ describe('useGraphNodeHandlers', () => {
 
       expect(mockGraph.updateNodePosition).toHaveBeenCalledWith('node-2', 150, 250);
       expect(mockGraph.updateNodePosition).toHaveBeenCalledWith('node-1', 100, 200);
+    });
+
+    it('should batch update all selected nodes when dragging primary in multi-select', () => {
+      const nodeA = { id: 'a', type: 'point', selected: true, position: { x: 10, y: 20 } };
+      const nodeB = { id: 'b', type: 'point', selected: true, position: { x: 60, y: 80 } };
+      mockRf.getNodes.mockReturnValue([nodeA, nodeB]);
+
+      const { result } = renderHook(() =>
+        useGraphNodeHandlers({
+          graph: mockGraph,
+          grabMode: false,
+          selectMode: false,
+          onNodeClick: mockOnNodeClick,
+          onNodeDragStart: mockOnNodeDragStart,
+          onNodeDragStop: mockOnNodeDragStop,
+          altCloneMapRef,
+        })
+      );
+
+      act(() => {
+        result.current.handleNodeDragStart({}, nodeA);
+      });
+
+      const dragged = { id: 'a', type: 'point', position: { x: 20, y: 30 } };
+
+      act(() => {
+        result.current.handleNodeDrag({}, dragged);
+      });
+
+      expect(mockGraph.updateNodePosition).toHaveBeenCalledWith('a', 20, 30);
+      expect(mockGraph.updateNodePosition).toHaveBeenCalledWith('b', 70, 90);
+    });
+
+    it('should not update follower directly during multi-select drag', () => {
+      const nodeA = { id: 'a', type: 'point', selected: true, position: { x: 0, y: 0 } };
+      const nodeB = { id: 'b', type: 'point', selected: true, position: { x: 10, y: 10 } };
+      mockRf.getNodes.mockReturnValue([nodeA, nodeB]);
+
+      const { result } = renderHook(() =>
+        useGraphNodeHandlers({
+          graph: mockGraph,
+          grabMode: false,
+          selectMode: false,
+          onNodeClick: mockOnNodeClick,
+          onNodeDragStart: mockOnNodeDragStart,
+          onNodeDragStop: mockOnNodeDragStop,
+          altCloneMapRef,
+        })
+      );
+
+      act(() => {
+        result.current.handleNodeDragStart({}, nodeA);
+      });
+
+      act(() => {
+        result.current.handleNodeDrag({}, { id: 'b', type: 'point', position: { x: 12, y: 12 } });
+      });
+
+      expect(mockGraph.updateNodePosition).not.toHaveBeenCalled();
+    });
+
+    it('should bypass snapping with ctrl during multi-select and update only leader', () => {
+      const nodeA = { id: 'a', type: 'point', selected: true, position: { x: 0, y: 0 } };
+      const nodeB = { id: 'b', type: 'point', selected: true, position: { x: 10, y: 10 } };
+      mockRf.getNodes.mockReturnValue([nodeA, nodeB]);
+
+      const { result } = renderHook(() =>
+        useGraphNodeHandlers({
+          graph: mockGraph,
+          grabMode: false,
+          selectMode: false,
+          onNodeClick: mockOnNodeClick,
+          onNodeDragStart: mockOnNodeDragStart,
+          onNodeDragStop: mockOnNodeDragStop,
+          altCloneMapRef,
+        })
+      );
+
+      act(() => {
+        result.current.handleNodeDragStart({}, nodeA);
+      });
+
+      act(() => {
+        result.current.handleNodeDrag({ ctrlKey: true }, { id: 'a', type: 'point', position: { x: 5, y: 6 } });
+      });
+
+      // Ctrl should disable snapping but still move the whole selection
+      expect(mockGraph.updateNodePosition).toHaveBeenCalledWith('a', 5, 6);
+      expect(mockGraph.updateNodePosition).toHaveBeenCalledWith('b', expect.any(Number), expect.any(Number));
     });
   });
 
@@ -509,6 +616,12 @@ describe('useGraphNodeHandlers', () => {
           altCloneMapRef,
         })
       );
+
+      const startNode = { id: 'node-1', type: 'point', position: { x: 0, y: 0 } };
+
+      act(() => {
+        result.current.handleNodeDragStart({}, startNode);
+      });
 
       const mockNode = { id: 'node-1', type: 'point', position: undefined };
 

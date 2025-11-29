@@ -148,9 +148,6 @@ jest.mock('@/hooks/experiment/multiplayer/useMultiplayerEditing', () => ({
   }),
 }));
 
-jest.mock('@/hooks/experiment/multiplayer/useMindchangeActions', () => ({
-  useMindchangeActions: () => ({ setMindchange: jest.fn(), getMindchangeBreakdown: jest.fn() }),
-}));
 
 jest.mock('@/hooks/experiment/multiplayer/useMultiplayerTitle', () => ({
   useMultiplayerTitle: () => ({
@@ -166,9 +163,6 @@ jest.mock('@/hooks/experiment/multiplayer/useMultiplayerTitle', () => ({
   }),
 }));
 
-jest.mock('@/hooks/experiment/multiplayer/usePairHeights', () => ({
-  usePairHeights: () => ({ pairHeights: {}, setPairNodeHeight: jest.fn(), commitGroupLayout: jest.fn() }),
-}));
 
 jest.mock('@/hooks/experiment/multiplayer/useNodeDragHandlers', () => ({
   useNodeDragHandlers: () => ({ handleNodeDragStart: jest.fn(), handleNodeDragStop: jest.fn() }),
@@ -176,11 +170,6 @@ jest.mock('@/hooks/experiment/multiplayer/useNodeDragHandlers', () => ({
 
 jest.mock('@/hooks/experiment/multiplayer/useKeyboardShortcuts', () => ({
   useKeyboardShortcuts: () => {},
-}));
-
-jest.mock('@/actions/experimental/mindchange', () => ({
-  getMindchangeAveragesForEdges: jest.fn(async () => ({})),
-  deleteMindchangeForEdge: jest.fn(async () => undefined),
 }));
 
 jest.mock('@/components/experiment/multiplayer/GraphUpdater', () => ({
@@ -218,12 +207,6 @@ describe('market panel share params', () => {
         setGrabMode={() => {}}
         perfBoost={false}
         setPerfBoost={() => {}}
-        mindchangeSelectMode={false}
-        setMindchangeSelectMode={() => {}}
-        mindchangeEdgeId={null}
-        setMindchangeEdgeId={() => {}}
-        mindchangeNextDir={null}
-        setMindchangeNextDir={() => {}}
         selectMode={true}
       />
     );
@@ -257,12 +240,6 @@ describe('market panel share params', () => {
         setGrabMode={() => {}}
         perfBoost={false}
         setPerfBoost={() => {}}
-        mindchangeSelectMode={false}
-        setMindchangeSelectMode={() => {}}
-        mindchangeEdgeId={null}
-        setMindchangeEdgeId={() => {}}
-        mindchangeNextDir={null}
-        setMindchangeNextDir={() => {}}
         selectMode={true}
       />
     );
@@ -300,12 +277,6 @@ describe('market panel share params', () => {
         setGrabMode={() => {}}
         perfBoost={false}
         setPerfBoost={() => {}}
-        mindchangeSelectMode={false}
-        setMindchangeSelectMode={() => {}}
-        mindchangeEdgeId={null}
-        setMindchangeEdgeId={() => {}}
-        mindchangeNextDir={null}
-        setMindchangeNextDir={() => {}}
         selectMode={true}
       />
     );

@@ -174,7 +174,7 @@ export const useConnectionSnapping = ({
       return { x: 0, y: 0 };
     }
 
-    // Node-origin (bottom-center)
+    // Node-origin (center)
     const n = rf.getNode(connectAnchorId as string);
     if (!n) return { x: 0, y: 0 };
     const hasDims =
@@ -185,7 +185,7 @@ export const useConnectionSnapping = ({
     if (hasDims) {
       return {
         x: n.position.x + (n.width || 0) / 2,
-        y: n.position.y + (n.height || 0),
+        y: n.position.y + (n.height || 0) / 2,
       };
     }
     if (!containerRef.current) return { x: n.position.x, y: n.position.y };
@@ -194,11 +194,11 @@ export const useConnectionSnapping = ({
     ) as HTMLElement | null;
     if (el) {
       const rect = el.getBoundingClientRect();
-      const bottomCenter = {
+      const center = {
         x: rect.left + rect.width / 2,
-        y: rect.top + rect.height,
+        y: rect.top + rect.height / 2,
       };
-      const p = rf.screenToFlowPosition(bottomCenter);
+      const p = rf.screenToFlowPosition(center);
       return { x: p.x, y: p.y };
     }
     return { x: n.position.x, y: n.position.y };
@@ -218,7 +218,7 @@ export const useConnectionSnapping = ({
     const originId = connectAnchorId;
     const nodesAll = rf.getNodes();
 
-    // Node targets (bottom-center)
+    // Node targets (center)
     const nodeTargets: Array<{
       id: string;
       x: number;
@@ -235,7 +235,7 @@ export const useConnectionSnapping = ({
           return {
             id: node.id,
             x: node.position.x + (node.width || 0) / 2,
-            y: node.position.y + (node.height || 0),
+            y: node.position.y + (node.height || 0) / 2,
             type: node.type,
           };
         }
@@ -251,11 +251,11 @@ export const useConnectionSnapping = ({
         ) as HTMLElement | null;
         if (el) {
           const rect = el.getBoundingClientRect();
-          const bottomCenter = {
+          const center = {
             x: rect.left + rect.width / 2,
-            y: rect.top + rect.height,
+            y: rect.top + rect.height / 2,
           };
-          const p = rf.screenToFlowPosition(bottomCenter);
+          const p = rf.screenToFlowPosition(center);
           return { id: node.id, x: p.x, y: p.y, type: node.type };
         }
         return {

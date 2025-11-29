@@ -207,30 +207,13 @@ export const useNodeChrome = ({
     clearNodeSelection,
   });
 
-  const [multipleSelected, setMultipleSelected] = React.useState(false);
-
-  useEffect(() => {
-    const checkSelection = () => {
-      const selectedCount = reactFlow
-        .getNodes()
-        .filter((node) => node.selected).length;
-      setMultipleSelected(selectedCount > 1);
-    };
-
-    checkSelection();
-
-    const interval = setInterval(checkSelection, 100);
-
-    return () => clearInterval(interval);
-  }, [reactFlow]);
-
   const shouldShowPill = useMemo(() => {
     if (!pill.pillVisible) return false;
     if (locked) return false;
     if (hidden) return false;
     if (hidePillWhileEditing && editable.isEditing) return false;
     if (editable.isConnectMode) return false;
-    if (multipleSelected) return false;
+    // Allow pills to show even when multiple nodes are selected
     return true;
   }, [
     pill.pillVisible,
@@ -239,7 +222,6 @@ export const useNodeChrome = ({
     hidePillWhileEditing,
     editable.isEditing,
     editable.isConnectMode,
-    multipleSelected,
   ]);
 
   // Edge-triggered visibility: react only to state transitions to avoid render loops.

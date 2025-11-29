@@ -87,6 +87,7 @@ export const MarketPanel: React.FC<Props> = ({
   const price = Number(marketData.price) || 0;
   const mine = Number(marketData.mine) || 0;
   const total = Number(marketData.total) || 0;
+  const marketStatus = marketData.status as 'not-tradeable' | 'pending' | 'active' | undefined;
 
   // Get title
   const title = useMemo(() => {
@@ -156,10 +157,6 @@ export const MarketPanel: React.FC<Props> = ({
       focusTarget.focus();
     }
     return () => {
-      const prev = previousFocusRef.current;
-      if (prev && typeof prev.focus === 'function') {
-        prev.focus();
-      }
       previousFocusRef.current = null;
     };
   }, [entityId]);
@@ -177,20 +174,20 @@ export const MarketPanel: React.FC<Props> = ({
         setIsSwitching(false);
       }, 250);
     }
-    
+
     setPrevEntityId(currentEntityId);
   }, [selectedNodeId, selectedEdgeId, prevEntityId]);
 
-  // Close when entity is deselected (but not during controlled closing animation)
+
   useEffect(() => {
-    if (!entityId && !isClosing) {
+    if (!entityId && !cachedEntity && !isClosing) {
       handleClose();
     }
-  }, [entityId, isClosing, handleClose]);
+  }, [entityId, cachedEntity, isClosing, handleClose]);
 
   // Track if this is the initial mount for opening animation
   const [isInitialMount, setIsInitialMount] = useState(true);
-  
+
   useEffect(() => {
     // After a short delay, mark as no longer initial mount
     const timer = setTimeout(() => {
@@ -219,19 +216,10 @@ export const MarketPanel: React.FC<Props> = ({
   const normEntityId = useMemo(() => (entityId ? normalizeSecurityId(entityId) : null), [entityId]);
   const preview = useBuyAmountPreview(docId, normEntityId, amount);
 
-  // Handle ESC key
+  // Listen for close event (dispatched by useGraphKeyboardHandlers on Escape, or pane click, etc.)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
     const unsubscribe = addMarketPanelCloseListener(() => { handleClose(); });
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      unsubscribe();
-    };
+    return () => { unsubscribe(); };
   }, [handleClose]);
 
   const handleTrade = async (tradeAmount: number) => {
@@ -275,7 +263,7 @@ export const MarketPanel: React.FC<Props> = ({
         logger.error('[market/ui] panel refresh failed', { error });
       }
     }
-    try { dispatchMarketRefresh(); } catch {}
+    try { dispatchMarketRefresh(); } catch { }
     finally {
       const elapsed = Date.now() - start;
       const min = 500;
@@ -291,19 +279,19 @@ export const MarketPanel: React.FC<Props> = ({
   // Use hybrid approach - instant width change, smooth transform animation
   const getPanelClasses = () => {
     const baseClasses = 'fixed z-[2000] bg-gradient-to-br from-white to-stone-50/30 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-stone-200/60 overflow-hidden backdrop-blur-xl market-panel-base flex flex-col max-h-[calc(100vh-96px)]';
-    
+
     let classes = baseClasses;
-    
+
     if (isClosing) {
       classes += ' closing';
     }
-    
+
     if (expanded) {
       classes += ' market-panel-expanded-width expanded';
     } else {
       classes += ' market-panel-normal';
     }
-    
+
     return classes;
   };
 
@@ -465,18 +453,45 @@ export const MarketPanel: React.FC<Props> = ({
           style={isSwitching ? { animation: 'contentSwitchIn 250ms ease-out' } : {}}
           onWheel={handlePanelWheel}
         >
+          {/* Pending State Banner */}
+          {marketStatus === 'pending' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="w-4 h-4 text-amber-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs font-semibold text-amber-900 mb-0.5">Joining Market</h3>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  This {entityType} is being added to the market. Prices will be available shortly.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Not Tradeable Banner */}
+          {marketStatus === 'not-tradeable' && (
+            <div className="bg-stone-100 border border-stone-200 rounded-lg p-3">
+              <p className="text-xs text-stone-600">
+                This {entityType} type is not tradeable in the market.
+              </p>
+            </div>
+          )}
+
           {/* Price */}
-          {displayEntityId && (
+          {displayEntityId && marketStatus !== 'not-tradeable' && (
             <PriceHeader key={displayEntityId} price={price} entityId={displayEntityId} docId={docId} />
           )}
 
           {/* Chart */}
-          {displayEntityId && (
+          {displayEntityId && marketStatus === 'active' && (
             <ChartSection entityId={displayEntityId} docId={docId} price={price} />
           )}
 
           {/* Position info (if user has shares) */}
-          {displayEntityId && mine > 0 && (
+          {displayEntityId && mine > 0 && marketStatus === 'active' && (
             <PositionInfo
               price={price}
               mine={mine}
@@ -487,25 +502,29 @@ export const MarketPanel: React.FC<Props> = ({
           )}
 
           {/* Trade controls */}
-          <TradeControls
-            amount={amount}
-            setAmount={setAmount}
-            mine={mine}
-            price={price}
-            disabled={submitting}
-          />
+          {marketStatus !== 'not-tradeable' && (
+            <>
+              <TradeControls
+                amount={amount}
+                setAmount={setAmount}
+                mine={mine}
+                price={price}
+                disabled={submitting || marketStatus === 'pending'}
+              />
 
-          {/* Buy/Sell buttons */}
-          <BuySellButtons
-            amount={amount}
-            price={price}
-            mine={mine}
-            onTrade={handleTrade}
-            disabled={submitting}
-            estimatedShares={preview.shares ?? null}
-            estimatedCost={preview.cost ?? null}
-            loadingShares={preview.loading}
-          />
+              {/* Buy/Sell buttons */}
+              <BuySellButtons
+                amount={amount}
+                price={price}
+                mine={mine}
+                onTrade={handleTrade}
+                disabled={submitting || marketStatus === 'pending'}
+                estimatedShares={preview.shares ?? null}
+                estimatedCost={preview.cost ?? null}
+                loadingShares={preview.loading}
+              />
+            </>
+          )}
         </div>
       </div>
     </>

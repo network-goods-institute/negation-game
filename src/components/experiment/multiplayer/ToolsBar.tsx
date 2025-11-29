@@ -6,6 +6,7 @@ import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToolbarButton } from "./ToolbarButton";
 import { MarketModeControls } from "./MarketModeControls";
+import { isMarketEnabled } from "@/utils/market/marketUtils";
 
 interface ToolsBarProps {
   connectMode: boolean;
@@ -20,10 +21,6 @@ interface ToolsBarProps {
   grabMode?: boolean;
   setGrabMode?: (v: boolean) => void;
   selectMode: boolean;
-  mindchangeMode?: boolean;
-  onMindchangeDone?: () => void;
-  mindchangeNextDir?: 'forward' | 'backward' | null;
-  mindchangeEdgeType?: string;
 }
 
 export const ToolsBar: React.FC<ToolsBarProps> = ({
@@ -39,10 +36,6 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   grabMode,
   setGrabMode,
   selectMode,
-  mindchangeMode,
-  onMindchangeDone,
-  mindchangeNextDir,
-  mindchangeEdgeType,
 }) => {
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
   const toolbarRef = React.useRef<HTMLDivElement | null>(null);
@@ -63,50 +56,6 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
     };
   }, [connectMode]);
 
-  // Focused (mindchange) mode UI
-  if (mindchangeMode) {
-    let promptText = mindchangeEdgeType === 'objection'
-      ? 'Select the mitigation point or the relation line that would change your mind if it were true.'
-      : 'Select the point that would change your mind if it were true.';
-    if (mindchangeNextDir) {
-      if (mindchangeEdgeType === 'support') {
-        promptText = 'Enter how much it would change your mind if it were false';
-      } else if (mindchangeEdgeType === 'negation') {
-        promptText = 'Enter how much it would change your mind if it were true';
-      } else {
-        promptText = 'Enter how much it changes your mind';
-      }
-    } else if (connectAnchorId) {
-      promptText = 'Select the target point';
-    }
-
-    const content = (
-      <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
-        <div className="bg-white/90 backdrop-blur border-2 border-amber-300 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
-          <div className="flex items-center gap-2 px-1 text-amber-700">
-            <span className="text-sm font-medium">Mindchange</span>
-          </div>
-          <span className="text-sm text-stone-700">
-            {promptText}
-          </span>
-          <div className="h-5 w-px bg-stone-200 mx-2" />
-          <button
-            onClick={() => setConnectAnchorId(null)}
-            className="text-sm rounded-full px-3 py-1 bg-stone-100 text-stone-900 hover:bg-stone-200"
-          >
-            Restart
-          </button>
-          <button
-            onClick={() => { onMindchangeDone?.(); setConnectAnchorId(null); }}
-            className="text-sm rounded-full px-3 py-1 bg-amber-600 text-white hover:bg-amber-700"
-          >
-            Done (Esc)
-          </button>
-        </div>
-      </div>
-    );
-    return portalTarget ? createPortal(content, portalTarget) : content;
-  }
 
   // Focused (connect) mode UI
   if (connectMode) {
@@ -119,8 +68,8 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
           </div>
           <span className="text-sm text-stone-700">
             {connectAnchorId
-              ? 'Select the target point (or click a relation line to add a mitigation)'
-              : 'Click a point to start (or click a relation line to add a mitigation)'}
+              ? 'Click target point or connecting line for mitigation'
+              : 'Click on a point or a connecting line to start connection'}
           </span>
           <div className="h-5 w-px bg-stone-200 mx-2" />
           <button
@@ -158,7 +107,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
 
           {/* Connect (line) */}
           <ToolbarButton
-            label={readOnly ? "Read-only" : "Connect"}
+            label={readOnly ? "Read-only (Log in to make changes)" : "Connect"}
             shortcut={readOnly ? undefined : "A"}
             disabled={!!readOnly}
             active={!!connectMode}
@@ -201,12 +150,16 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
             <Redo2 className="h-5 w-5" />
           </ToolbarButton>
 
-          <div className="h-6 w-px bg-stone-200 mx-2" />
+          {isMarketEnabled() && (
+            <>
+              <div className="h-6 w-px bg-stone-200 mx-2" />
 
-          {/* Market overlay mode controls (Auto / Text / Price) */}
-          <MarketModeControls />
+              {/* Market overlay mode controls (Auto / Text / Price) */}
+              <MarketModeControls />
 
-          <div className="h-6 w-px bg-stone-200 mx-2" />
+              <div className="h-6 w-px bg-stone-200 mx-2" />
+            </>
+          )}
 
           {/* Help */}
           <Tooltip delayDuration={150}>

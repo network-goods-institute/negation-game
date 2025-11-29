@@ -6,8 +6,9 @@ import { reconcileTradableSecurities } from "@/actions/market/reconcileTradableS
 import { createMarketMaker, defaultB } from "@/lib/carroll/market";
 import { and, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { createStructure, buildSecurities } from "@/lib/carroll/structure";
+import { buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
+import { createStructureWithSupports } from "./structureUtils";
 
 export type MarketView = {
   prices: Record<string, number>;
@@ -34,22 +35,33 @@ export async function computeMarketView(
       })
     );
   } catch {}
+
   const rows = await db
     .select({
+      userId: marketHoldingsTable.userId,
       securityId: marketHoldingsTable.securityId,
       amountScaled: marketHoldingsTable.amountScaled,
     })
     .from(marketHoldingsTable)
     .where(eq(marketHoldingsTable.docId, canonicalId));
+
   const normalize = (id: string) =>
     id?.startsWith("anchor:") ? id.slice("anchor:".length) : id;
+
   const rawTotals = new Map<string, bigint>();
+  const userHoldingsRaw = new Map<string, string>();
+
   for (const r of rows) {
     const id = normalize(r.securityId);
     if (!id) continue;
     const v = BigInt(r.amountScaled || "0");
     rawTotals.set(id, (rawTotals.get(id) || 0n) + v);
+
+    if (userId && r.userId === userId) {
+      userHoldingsRaw.set(id, r.amountScaled || "0");
+    }
   }
+
   let mmStruct = structure;
   let mmSecs = securities;
   if ((mmStruct.names.length === 0 || mmSecs.length === 0) && rows.length > 0) {
@@ -79,7 +91,7 @@ export async function computeMarketView(
       }
     }
     try {
-      const s = createStructure(Array.from(nodes), triples, []);
+      const s = createStructureWithSupports(Array.from(nodes), triples, []);
       const secs = buildSecurities(s, { includeNegations: "all" });
       mmStruct = s;
       mmSecs = secs;
@@ -90,7 +102,7 @@ export async function computeMarketView(
             docId: canonicalId,
             nodes: s.nodes.length,
             edges: s.edges.length,
-            supportEdges: s.supportEdges.length,
+            supportEdges: (s as any).supportEdges?.length ?? 0,
             secs: mmSecs.length,
           })
         );
@@ -119,25 +131,12 @@ export async function computeMarketView(
     });
   } catch {}
 
-  const userHoldingsRows = userId
-    ? await db
-        .select({
-          securityId: marketHoldingsTable.securityId,
-          amountScaled: marketHoldingsTable.amountScaled,
-        })
-        .from(marketHoldingsTable)
-        .where(
-          and(
-            eq(marketHoldingsTable.docId, canonicalId),
-            eq(marketHoldingsTable.userId, userId)
-          )
-        )
-    : [];
+  const secSet = new Set(mmSecs);
   const userHoldings: Record<string, string> = {};
-  for (const r of userHoldingsRows) {
-    const id = normalize(r.securityId);
-    if (!new Set(mmSecs).has(id)) continue;
-    userHoldings[id] = r.amountScaled || "0";
+  for (const [id, amount] of userHoldingsRaw) {
+    if (secSet.has(id)) {
+      userHoldings[id] = amount;
+    }
   }
 
   const outTotals: Record<string, string> = {};

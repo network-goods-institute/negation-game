@@ -126,7 +126,6 @@ jest.mock("@/hooks/experiment/multiplayer/useGraphOperations", () => ({
     updateNodePosition: jest.fn(),
     updateNodeFavor: jest.fn(),
     addPointBelow: jest.fn(),
-    inversePair: jest.fn(),
     deleteNode: jest.fn(),
     addObjectionForEdge: jest.fn(),
     updateEdgeType: jest.fn(),
@@ -134,7 +133,6 @@ jest.mock("@/hooks/experiment/multiplayer/useGraphOperations", () => ({
     ensureEdgeAnchor: jest.fn(),
     addNodeAtPosition: jest.fn(() => "new-node"),
     updateNodeType: jest.fn(),
-    deleteInversePair: jest.fn(),
     duplicateNodeWithConnections: jest.fn(),
   }),
 }));
@@ -146,15 +144,6 @@ jest.mock("@/hooks/experiment/multiplayer/useConnectionHandlers", () => ({
     completeConnectToNode: jest.fn(),
     completeConnectToEdge: jest.fn(),
     cancelConnect: jest.fn(),
-  }),
-}));
-
-jest.mock("@/hooks/experiment/multiplayer/usePairHeights", () => ({
-  usePairHeights: () => ({
-    pairNodeHeights: {},
-    pairHeights: {},
-    setPairNodeHeight: jest.fn(),
-    commitGroupLayout: jest.fn(),
   }),
 }));
 
@@ -247,7 +236,7 @@ describe("Multiplayer board detail auth gating", () => {
     })) as any;
   });
 
-  it("renders login prompt when unauthenticated", async () => {
+  it("does not render login prompt when unauthenticated (read-only view allowed)", async () => {
     render(
       <QueryClientProvider>
         <MultiplayerBoardDetailPage />
@@ -255,7 +244,7 @@ describe("Multiplayer board detail auth gating", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/Login Required/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Login Required/i)).not.toBeInTheDocument();
     });
   });
 });

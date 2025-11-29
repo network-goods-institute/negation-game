@@ -4,14 +4,21 @@ import { safeRevalidateTag } from "@/lib/cache/nextCache";
 import { marketHoldingsTable } from "@/db/tables/marketHoldingsTable";
 import { marketTradesTable } from "@/db/tables/marketTradesTable";
 import { marketStateTable } from "@/db/tables/marketStateTable";
-import { buildStructureFromDoc } from "@/actions/market/buildStructureFromDoc";
+import {
+  buildStructureFromDoc,
+  buildStructureFromDocUncached,
+} from "@/actions/market/buildStructureFromDoc";
 import { createMarketMaker, defaultB } from "@/lib/carroll/market";
+import { createStructure, buildSecurities } from "@/lib/carroll/structure";
 import { and, eq, sql } from "drizzle-orm";
 import { resolveSlugToId } from "@/utils/slugResolver";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { logger } from "@/lib/logger";
 import { ensureSecurityInDoc } from "@/actions/market/ensureSecurityInDoc";
+
+const normalize = (id: string) =>
+  id?.startsWith("anchor:") ? id.slice("anchor:".length) : id;
 
 export async function buyShares(
   docId: string,
@@ -26,9 +33,94 @@ export async function buyShares(
       return await getUserIdOrAnonymous();
     }
   })();
+
   const delta = BigInt(deltaScaled);
   const canonicalId = await resolveSlugToId(docId);
+  const normalized = normalize(securityId);
+
   let { structure, securities } = await buildStructureFromDoc(canonicalId);
+  let secSet = new Set(securities);
+
+  const isKnownName =
+    Array.isArray((structure as any)?.names) &&
+    (structure as any).names.includes(normalized);
+  const isKnownEdge =
+    Array.isArray((structure as any)?.edges) &&
+    (structure as any).edges.some((e: any) => e?.name === normalized);
+
+  if (isKnownName || isKnownEdge) {
+    try {
+      await ensureSecurityInDoc(canonicalId, normalized);
+    } catch {}
+    if (!secSet.has(normalized)) {
+      const rebuilt = await buildStructureFromDocUncached(canonicalId);
+      structure = rebuilt.structure;
+      securities = rebuilt.securities;
+      secSet = new Set(securities);
+    }
+  }
+
+  if (!secSet.has(normalized)) {
+    const looksLikeNode = /^(p-|s-|c-|group-)/.test(normalized);
+    const looksLikeEdge =
+      normalized.startsWith("edge:") && normalized.includes("->");
+
+    try {
+      logger.info?.("[market] buyShares detect", {
+        docId: canonicalId,
+        normalized,
+        looksLikeNode,
+        looksLikeEdge,
+        securitiesCount: securities.length,
+      });
+    } catch {}
+
+    if (looksLikeNode || looksLikeEdge) {
+      const edgeTriples = (structure.edges as any[]).map(
+        (e: any) => [e.name, e.from, e.to] as [string, string, string]
+      );
+      const augNodes = new Set<string>([
+        ...(structure.nodes as any as string[]),
+      ]);
+      const augEdges = new Set<string>(edgeTriples.map((t) => t[0]));
+      const triples: [string, string, string][] = [...edgeTriples];
+
+      if (looksLikeNode) {
+        augNodes.add(normalized);
+      } else if (looksLikeEdge) {
+        try {
+          const raw = normalized.slice("edge:".length);
+          const [left, right] = raw.split("->");
+          const leftParts = left.split(":");
+          const srcId = leftParts.length >= 2 ? leftParts[1] : "";
+          const tgtId = right.split(":")[0] || "";
+          if (srcId && tgtId) {
+            augNodes.add(srcId);
+            augNodes.add(tgtId);
+            if (!augEdges.has(normalized)) {
+              triples.push([normalized, srcId, tgtId]);
+            }
+          }
+        } catch {}
+      }
+
+      const augStructure = createStructure(Array.from(augNodes), triples);
+      const augSecurities = buildSecurities(augStructure, {
+        includeNegations: "all",
+      });
+      structure = augStructure;
+      securities = augSecurities;
+      secSet = new Set(securities);
+    } else {
+      const augStructure = createStructure([normalized], []);
+      const augSecurities = buildSecurities(augStructure, {
+        includeNegations: "all",
+      });
+      structure = augStructure;
+      securities = augSecurities;
+      secSet = new Set(securities);
+    }
+  }
 
   const result = await db.transaction(async (tx) => {
     await tx.execute(
@@ -37,20 +129,18 @@ export async function buyShares(
     await tx.execute(
       sql`SELECT 1 FROM market_state WHERE doc_id = ${canonicalId} FOR UPDATE`
     );
-    const selectChain: any = await tx
+
+    const rows = (await tx
       .select({
         securityId: marketHoldingsTable.securityId,
         amountScaled: marketHoldingsTable.amountScaled,
       })
       .from(marketHoldingsTable)
-      .where(eq(marketHoldingsTable.docId, canonicalId));
-    const rows = selectChain as Array<{
+      .where(eq(marketHoldingsTable.docId, canonicalId))) as Array<{
       securityId: string;
       amountScaled: string;
     }>;
-    const normalize = (id: string) =>
-      id?.startsWith("anchor:") ? id.slice("anchor:".length) : id;
-    let secSet = new Set(securities);
+
     const totals = new Map<string, bigint>();
     for (const sec of securities) totals.set(sec, 0n);
     for (const r of rows) {
@@ -58,161 +148,11 @@ export async function buyShares(
       if (!secSet.has(id)) continue;
       totals.set(id, (totals.get(id) || 0n) + BigInt(r.amountScaled || "0"));
     }
-    let mm = createMarketMaker(structure, defaultB as any, securities, {
+
+    const mm = createMarketMaker(structure, defaultB as any, securities, {
       enumerationCap: 1 << 19,
     });
     for (const sec of securities) mm.setShares(sec, totals.get(sec) || 0n);
-    const normalized = normalize(securityId);
-    try {
-      const isKnownNameEarly =
-        Array.isArray((structure as any)?.names) &&
-        (structure as any).names.includes(normalized);
-      const isKnownEdgeEarly =
-        Array.isArray((structure as any)?.edges) &&
-        (structure as any).edges.some((e: any) => e?.name === normalized);
-      if (isKnownNameEarly || isKnownEdgeEarly) {
-        await ensureSecurityInDoc(canonicalId, normalized);
-      }
-    } catch {}
-
-    if (!totals.has(normalized)) {
-      for (let i = 0; i < 3 && !totals.has(normalized); i++) {
-        await new Promise((r) => setTimeout(r, 150));
-        try {
-          const rebuilt = await buildStructureFromDoc(canonicalId);
-          structure = rebuilt.structure;
-          securities = rebuilt.securities;
-          secSet = new Set(securities);
-          totals.clear();
-          for (const sec of securities) totals.set(sec, 0n);
-          for (const r of rows) {
-            const id = normalize(r.securityId);
-            if (!secSet.has(id)) continue;
-            totals.set(
-              id,
-              (totals.get(id) || 0n) + BigInt(r.amountScaled || "0")
-            );
-          }
-          mm = createMarketMaker(structure, defaultB as any, securities, {
-            enumerationCap: 1 << 19,
-          });
-          for (const sec of securities)
-            mm.setShares(sec, totals.get(sec) || 0n);
-        } catch {}
-      }
-    }
-
-    // Only consider persisting when the ID is already part of the document structure.
-    if (!totals.has(normalized)) {
-      const isKnownName =
-        Array.isArray((structure as any)?.names) &&
-        (structure as any).names.includes(normalized);
-      const isKnownEdge =
-        Array.isArray((structure as any)?.edges) &&
-        (structure as any).edges.some((e: any) => e?.name === normalized);
-      const looksLikeNode =
-        isKnownName || /^(p-|s-|c-|group-)/.test(normalized);
-      const looksLikeEdge =
-        isKnownEdge ||
-        (normalized.startsWith("edge:") && normalized.includes("->"));
-
-      if (isKnownName || isKnownEdge) {
-        try {
-          await ensureSecurityInDoc(canonicalId, normalized);
-          const rebuilt = await buildStructureFromDoc(canonicalId);
-          structure = rebuilt.structure;
-          securities = rebuilt.securities;
-          secSet = new Set(securities);
-          totals.clear();
-          for (const sec of securities) totals.set(sec, 0n);
-          for (const r of rows) {
-            const id = normalize(r.securityId);
-            if (!secSet.has(id)) continue;
-            totals.set(
-              id,
-              (totals.get(id) || 0n) + BigInt(r.amountScaled || "0")
-            );
-          }
-          mm = createMarketMaker(structure, defaultB as any, securities, {
-            enumerationCap: 1 << 19,
-          });
-          for (const sec of securities)
-            mm.setShares(sec, totals.get(sec) || 0n);
-        } catch {}
-      }
-
-      // Legacy in-memory augmentation as a final fallback. Do not mutate doc for unknown IDs.
-      try {
-        logger.info?.("[market] buyShares detect", {
-          docId: canonicalId,
-          normalized,
-          isKnownName,
-          isKnownEdge,
-          looksLikeNode,
-          looksLikeEdge,
-          securitiesCount: securities.length,
-        });
-      } catch {}
-      if (looksLikeNode || looksLikeEdge) {
-        const edgeTriples = (structure.edges as any[]).map((e: any) => [
-          e.name,
-          e.from,
-          e.to,
-        ]) as [string, string, string][];
-        let augNodes = new Set<string>([
-          ...(structure.nodes as any as string[]),
-        ]);
-        let augEdges = new Set<string>(edgeTriples.map((t) => t[0]));
-        const triples: [string, string, string][] = [...edgeTriples];
-        if (looksLikeNode) {
-          augNodes.add(normalized);
-        } else if (looksLikeEdge) {
-          try {
-            const raw = normalized.slice("edge:".length);
-            const [left, right] = raw.split("->");
-            const leftParts = left.split(":");
-            const srcId = leftParts.length >= 2 ? leftParts[1] : "";
-            const tgtId = right.split(":")[0] || "";
-            if (srcId && tgtId) {
-              augNodes.add(srcId);
-              augNodes.add(tgtId);
-              if (!augEdges.has(normalized)) {
-                triples.push([normalized, srcId, tgtId]);
-                augEdges.add(normalized);
-              }
-            }
-          } catch {}
-        }
-        const { createStructure: mk, buildSecurities: mkSecs } = await import(
-          "@/lib/carroll/structure"
-        );
-        const augStructure = mk(Array.from(augNodes), triples);
-        const augSecurities = mkSecs(augStructure, { includeNegations: "all" });
-        const augTotals = new Map<string, bigint>();
-        for (const sec of augSecurities)
-          augTotals.set(sec, totals.get(sec) || 0n);
-        augTotals.set(normalized, augTotals.get(normalized) || 0n);
-        mm = createMarketMaker(augStructure, defaultB as any, augSecurities, {
-          enumerationCap: 1 << 19,
-        });
-        for (const sec of augSecurities)
-          mm.setShares(sec, augTotals.get(sec) || 0n);
-      } else {
-        const { createStructure: mk, buildSecurities: mkSecs } = await import(
-          "@/lib/carroll/structure"
-        );
-        const augStructure = mk([normalized], []);
-        const augSecurities = mkSecs(augStructure, { includeNegations: "all" });
-        const augTotals = new Map<string, bigint>();
-        for (const sec of augSecurities) augTotals.set(sec, 0n);
-        augTotals.set(normalized, 0n);
-        mm = createMarketMaker(augStructure, defaultB as any, augSecurities, {
-          enumerationCap: 1 << 19,
-        });
-        for (const sec of augSecurities)
-          mm.setShares(sec, augTotals.get(sec) || 0n);
-      }
-    }
 
     let pricesBeforeFixed: Record<string, bigint> = {};
     try {
@@ -222,6 +162,7 @@ export async function buyShares(
     } catch {}
 
     const cost = mm.buyShares(normalized, delta);
+
     let priceAfterFixed: bigint | undefined;
     let priceAfter: number | undefined;
     try {
@@ -243,8 +184,10 @@ export async function buyShares(
           eq(marketHoldingsTable.securityId, normalized)
         )
       );
+
     const newAmount =
       (existing[0] ? BigInt(existing[0].amountScaled) : 0n) + delta;
+
     if (existing[0]) {
       await tx
         .update(marketHoldingsTable)
@@ -258,6 +201,7 @@ export async function buyShares(
         amountScaled: newAmount.toString(),
       });
     }
+
     await tx.insert(marketTradesTable).values({
       docId: canonicalId,
       userId,
@@ -268,6 +212,7 @@ export async function buyShares(
         ? { priceAfterScaled: priceAfterFixed.toString() }
         : {}),
     });
+
     try {
       const after = (mm as any).getPricesFixed?.() as
         | Record<string, bigint>
@@ -289,6 +234,7 @@ export async function buyShares(
         }
       }
     } catch {}
+
     try {
       logger.info?.("[market] buyShares", {
         docId: canonicalId,
@@ -300,6 +246,7 @@ export async function buyShares(
         totalsKnown: securities.length,
       });
     } catch {}
+
     await tx
       .update(marketStateTable)
       .set({
@@ -307,10 +254,10 @@ export async function buyShares(
         updatedAt: new Date(),
       })
       .where(eq(marketStateTable.docId, canonicalId));
+
     return { cost: (cost as unknown as bigint).toString() };
   });
 
-  // Invalidate Next.js cache for this market
   safeRevalidateTag(`market-view:${canonicalId}`);
   safeRevalidateTag(`market-structure:${canonicalId}`);
 

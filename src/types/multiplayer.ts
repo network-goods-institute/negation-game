@@ -71,11 +71,3 @@ export type OnEdgeCreated = (result: {
  * Show undo hint callback type
  */
 export type OnShowUndoHint = (position: { x: number; y: number }) => void;
-
-export type MindchangeEdgeData = {
-  mindchange?: {
-    forward: { average: number; count: number };
-    backward: { average: number; count: number };
-    userValue?: { forward: number; backward: number };
-  };
-};

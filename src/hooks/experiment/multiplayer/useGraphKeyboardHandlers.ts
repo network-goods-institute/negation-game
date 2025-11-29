@@ -1,6 +1,7 @@
 import React from "react";
 import { useReactFlow } from "@xyflow/react";
 import { toast } from "sonner";
+import { dispatchMarketPanelClose } from "@/utils/market/marketEvents";
 
 interface UseGraphKeyboardHandlersProps {
   graph: any;
@@ -27,11 +28,30 @@ export const useGraphKeyboardHandlers = ({
       };
       if (isEditable(target) || isEditable(active)) return;
 
-      const selection = window.getSelection?.();
-      if (selection && !selection.isCollapsed) return;
-
       const isDeleteKey = key === "delete" || key === "backspace";
       if (isDeleteKey) {
+        const selection = window.getSelection?.();
+        if (selection && !selection.isCollapsed) {
+          const anchorNode = selection.anchorNode;
+          const focusNode = selection.focusNode;
+          const isInContentEditable = (node: Node | null): boolean => {
+            if (!node) return false;
+            let current: Node | null = node;
+            while (current) {
+              if (current instanceof HTMLElement && current.isContentEditable) {
+                return true;
+              }
+              current = current.parentNode;
+            }
+            return false;
+          };
+          if (
+            isInContentEditable(anchorNode) ||
+            isInContentEditable(focusNode)
+          ) {
+            return;
+          }
+        }
         // Block deletions while any node is in edit mode
         if (graph?.isAnyNodeEditing) {
           e.preventDefault();
@@ -52,24 +72,7 @@ export const useGraphKeyboardHandlers = ({
         }
         if (sel.length > 0) {
           e.preventDefault();
-          const ids = new Set<string>();
-          sel.forEach((n) => {
-            const node: any = n as any;
-            if (node.type === "group") {
-              ids.add(node.id);
-              return;
-            }
-            const pid = node.parentId;
-            if (pid) {
-              const p = rf.getNode(pid) as any;
-              if (p && p.type === "group") {
-                ids.add(p.id);
-                return;
-              }
-            }
-            ids.add(node.id);
-          });
-          ids.forEach((id) => graph.deleteNode?.(id));
+          sel.forEach((n) => graph.deleteNode?.(n.id));
           return;
         }
         // Nothing selected: prevent browser navigation on Backspace/Delete
@@ -77,25 +80,9 @@ export const useGraphKeyboardHandlers = ({
         return;
       }
       if (key === "escape") {
-        try {
-          if ((window as any).__marketPanelVisible === true) {
-            try { window.dispatchEvent(new Event('market:panelClose')); } catch {}
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-          }
-        } catch {}
-        try {
-          graph?.cancelMindchangeSelection?.();
-        } catch {}
+        dispatchMarketPanelClose();
         try {
           graph?.cancelConnect?.();
-        } catch {}
-        try {
-          graph?.clearNodeSelection?.();
-        } catch {}
-        try {
-          graph?.setSelectedEdge?.(null);
         } catch {}
         e.preventDefault();
         return;
