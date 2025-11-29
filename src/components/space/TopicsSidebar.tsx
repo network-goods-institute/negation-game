@@ -120,8 +120,11 @@ export const TopicsSidebar = memo(({
             refetchTopics();
             onTopicFiltersChange([...topicFilters, newTopicName.trim()]);
             setNewTopicDialogOpen(false);
-        } finally {
-            setIsSubmittingTopic(false);
+        } catch (error) {
+            toast.error("You're not allowed to create a topic in this space");
+        }
+        finally {
+           setIsSubmittingTopic(false);
         }
     };
 
@@ -317,7 +320,7 @@ export const TopicsSidebar = memo(({
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setNewTopicDialogOpen(false)} disabled={isSubmittingTopic}>Cancel</Button>
-                        <Button onClick={() => toast.error("You're not allowed to create a topic in this space")} disabled={!newTopicName.trim() || isSubmittingTopic}>Add Topic</Button>
+                        <Button onClick={handleDialogAddTopic} disabled={!newTopicName.trim() || isSubmittingTopic}>Add Topic</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
