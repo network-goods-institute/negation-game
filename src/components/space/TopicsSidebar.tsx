@@ -121,19 +121,18 @@ export const TopicsSidebar = memo(({
             onTopicFiltersChange([...topicFilters, newTopicName.trim()]);
             setNewTopicDialogOpen(false);
         } catch (error) {
-            const knwonErrors = [
+            const knownErrors = [
                 "Must be authenticated to create topic",
                 "Space admin access required"
             ];
+
             const errorMessage = error instanceof Error && knownErrors.includes(error.message)
                 ? error.message
                 : "Failed to create topic. Please try again.";
 
             toast.error(errorMessage);
-
-        }
-        finally {
-           setIsSubmittingTopic(false);
+        } finally {
+            setIsSubmittingTopic(false);
         }
     };
 
