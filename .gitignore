@@ -44,3 +44,9 @@ supabase/
 .claude/
 *.diff
 carroll_mechanisms/
+
+# Auto-generated carroll stub files (created when submodule fails to initialize)
+# These are only created when NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED is false
+# and should never be committed to the repo
+src/lib/carroll/*.ts
+!src/lib/carroll/.git
