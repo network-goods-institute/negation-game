@@ -16,7 +16,7 @@ describe('EdgeOverlay relevance UI when mindchange is disabled', () => {
   const OLD_ENV = process.env as any;
   beforeEach(() => {
     jest.resetModules();
-    (process as any).env = { ...OLD_ENV, NEXT_PUBLIC_ENABLE_MINDCHANGE: 'false' };
+    (process as any).env = { ...OLD_ENV, NEXT_PUBLIC_ENABLE_MINDCHANGE: 'false', NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED: 'false' };
   });
   afterAll(() => {
     (process as any).env = OLD_ENV;

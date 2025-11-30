@@ -289,6 +289,67 @@ describe("Middleware", () => {
       );
       expect(result?.type).toBe("rewrite");
     });
+
+    test("market subdomain root rewrites to multiplayer index", async () => {
+      const result = await mockMiddleware(
+        "https://market.negationgame.com/",
+        "market.negationgame.com"
+      );
+
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining("/experiment/rationale/multiplayer"),
+        })
+      );
+      expect(result?.type).toBe("rewrite");
+    });
+
+    test("market subdomain single-segment path rewrites to rationale detail", async () => {
+      const result = await mockMiddleware(
+        "https://market.negationgame.com/HBou3R",
+        "market.negationgame.com"
+      );
+
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining(
+            "/experiment/rationale/multiplayer/HBou3R"
+          ),
+        })
+      );
+      expect(result?.type).toBe("rewrite");
+    });
+
+    test("market subdomain /board/:id rewrites to rationale detail and preserves query", async () => {
+      const result = await mockMiddleware(
+        "https://market.negationgame.com/board/abc123?foo=bar",
+        "market.negationgame.com"
+      );
+
+      expect(NextResponse.rewrite).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringMatching(
+            /\/experiment\/rationale\/multiplayer\/abc123\?(?:.*foo=bar)/
+          ),
+        })
+      );
+      expect(result?.type).toBe("rewrite");
+    });
+
+    test("market subdomain experiment path redirects to short /:id", async () => {
+      const result = await mockMiddleware(
+        "https://market.negationgame.com/experiment/rationale/multiplayer/HBou3R",
+        "market.negationgame.com"
+      );
+
+      expect(NextResponse.redirect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: expect.stringContaining("/HBou3R"),
+        }),
+        expect.anything()
+      );
+      expect(result?.type).toBe("redirect");
+    });
   });
 
   describe("Path handling", () => {

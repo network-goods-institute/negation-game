@@ -139,13 +139,7 @@ jest.mock('@/hooks/experiment/multiplayer/useMultiplayerEditing', () => ({
   }),
 }));
 
-jest.mock('@/hooks/experiment/multiplayer/useMindchangeActions', () => ({
-  useMindchangeActions: () => ({ setMindchange: jest.fn(), getMindchangeBreakdown: jest.fn() }),
-}));
 
-jest.mock('@/hooks/experiment/multiplayer/usePairHeights', () => ({
-  usePairHeights: () => ({ pairHeights: {}, setPairNodeHeight: jest.fn(), commitGroupLayout: jest.fn() }),
-}));
 
 jest.mock('@/hooks/experiment/multiplayer/useNodeDragHandlers', () => ({
   useNodeDragHandlers: () => ({ handleNodeDragStart: jest.fn(), handleNodeDragStop: jest.fn() }),
@@ -175,12 +169,6 @@ describe('Board loading gating', () => {
         setGrabMode={() => {}}
         perfBoost={false}
         setPerfBoost={() => {}}
-        mindchangeSelectMode={false}
-        setMindchangeSelectMode={() => {}}
-        mindchangeEdgeId={null}
-        setMindchangeEdgeId={() => {}}
-        mindchangeNextDir={null}
-        setMindchangeNextDir={() => {}}
         selectMode={true}
       />
     );
@@ -205,12 +193,6 @@ describe('Board loading gating', () => {
         setGrabMode={() => {}}
         perfBoost={false}
         setPerfBoost={() => {}}
-        mindchangeSelectMode={false}
-        setMindchangeSelectMode={() => {}}
-        mindchangeEdgeId={null}
-        setMindchangeEdgeId={() => {}}
-        mindchangeNextDir={null}
-        setMindchangeNextDir={() => {}}
         selectMode={true}
       />
     );

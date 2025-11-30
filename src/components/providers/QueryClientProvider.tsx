@@ -8,6 +8,7 @@ import { FC, PropsWithChildren, useState, useEffect, useRef } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 import { userQueryKey } from "@/queries/users/useUser";import { logger } from "@/lib/logger";
+import { getAccessToken } from "@privy-io/react-auth";
 
 interface QueryClientProviderProps extends PropsWithChildren {
   initialUserData?: any;
@@ -42,6 +43,8 @@ export const QueryClientProvider: FC<QueryClientProviderProps> = ({ children, in
     <TanstackQueryClientProvider client={queryClient}>
       {/* Refresh Privy token cookie on mount in case expired */}
       <ClientAuthRefresher />
+      {/* Attach Authorization header for same-origin API calls */}
+      <ClientAuthFetchInterceptor />
       {children}
       <div className="hidden sm:block">
         {/* <ReactQueryDevtools buttonPosition="bottom-left" /> */}
@@ -121,6 +124,72 @@ function ClientAuthRefresher() {
       activityEvents.forEach(event => {
         document.removeEventListener(event, handleActivity);
       });
+    };
+  }, [ready, authenticated]);
+
+  return null;
+}
+
+function ClientAuthFetchInterceptor() {
+  const { ready, authenticated } = usePrivy();
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "test") return;
+    if (typeof window === "undefined" || typeof window.fetch !== "function") return;
+    const originalFetch = window.fetch.bind(window);
+
+    const isSameOriginApi = (input: RequestInfo | URL): boolean => {
+      try {
+        if (typeof input === "string") {
+          return input.startsWith("/api/");
+        }
+        if (input instanceof URL) {
+          const loc = window.location;
+          return (
+            input.origin === loc.origin && input.pathname.startsWith("/api/")
+          );
+        }
+        if (typeof Request !== "undefined" && input instanceof Request) {
+          const url = new URL(input.url, window.location.origin);
+          return (
+            url.origin === window.location.origin &&
+            url.pathname.startsWith("/api/")
+          );
+        }
+      } catch {}
+      return false;
+    };
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      try {
+        if (ready && authenticated && isSameOriginApi(input)) {
+          const token = await getAccessToken().catch(() => null);
+          if (token) {
+            if (init) {
+              init.headers = new Headers(init.headers as HeadersInit);
+              const h = init.headers as Headers;
+              if (!h.has("authorization")) {
+                h.set("authorization", `Bearer ${token}`);
+              }
+            } else if (typeof Request !== "undefined" && input instanceof Request) {
+              const newHeaders = new Headers(input.headers);
+              if (!newHeaders.has("authorization")) {
+                newHeaders.set("authorization", `Bearer ${token}`);
+              }
+              return originalFetch(
+                new Request(input, { headers: newHeaders })
+              );
+            } else {
+              init = { headers: { authorization: `Bearer ${token}` } };
+            }
+          }
+        }
+      } catch {}
+      return originalFetch(input as any, init as any);
+    };
+
+    return () => {
+      window.fetch = originalFetch;
     };
   }, [ready, authenticated]);
 

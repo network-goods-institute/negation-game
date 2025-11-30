@@ -7,6 +7,7 @@ import { usePerformanceMode } from './PerformanceContext';
 
 interface OffscreenNeighborPreviewsProps {
   blurAllNodes: number;
+  isMarketPanelVisible?: boolean;
 }
 
 type Preview = {
@@ -50,7 +51,7 @@ const getDirectionZone = (rect: DOMRect, vw: number, vh: number): DirectionZone 
   return 'bottom-right';
 };
 
-export const OffscreenNeighborPreviews: React.FC<OffscreenNeighborPreviewsProps> = ({ blurAllNodes }) => {
+export const OffscreenNeighborPreviews: React.FC<OffscreenNeighborPreviewsProps> = ({ blurAllNodes, isMarketPanelVisible = false }) => {
   const { perfMode } = usePerformanceMode();
   const rf = useReactFlow();
   const { hoveredNodeId } = useGraphActions() as any;
@@ -252,7 +253,7 @@ export const OffscreenNeighborPreviews: React.FC<OffscreenNeighborPreviewsProps>
   }, [compute, perfMode]);
 
   const totalPreviews = Object.values(previewsByZone).reduce((sum, previews) => sum + previews.length, 0);
-  if (perfMode || totalPreviews === 0) return null;
+  if (perfMode || isMarketPanelVisible || totalPreviews === 0) return null;
 
   const renderZoneStack = (zone: DirectionZone, previews: Preview[]) => {
     if (previews.length === 0) return null;

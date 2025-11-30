@@ -128,7 +128,6 @@ jest.mock('@/hooks/experiment/multiplayer/useGraphOperations', () => ({
     updateNodeFavor: jest.fn(),
     addPointBelow: jest.fn(),
     preferredEdgeType: 'support',
-    createInversePair: jest.fn(),
     deleteNode: jest.fn(),
     startEditingNode: jest.fn(),
     stopEditingNode: jest.fn(),
@@ -149,7 +148,6 @@ jest.mock('@/hooks/experiment/multiplayer/useGraphOperations', () => ({
     ensureEdgeAnchor: jest.fn(),
     addNodeAtPosition: jest.fn(() => 'new-node'),
     updateNodeType: jest.fn(),
-    deleteInversePair: jest.fn(),
     duplicateNodeWithConnections: jest.fn(),
     setPairNodeHeight: jest.fn(),
     pairHeights: {},
@@ -243,7 +241,7 @@ describe('URL updates when slug changes via peers', () => {
     yMap.set('slug', 'peer-slug');
 
     await waitFor(() => {
-      expect(spy).toHaveBeenCalled();
+      expect(window.history.replaceState).toHaveBeenCalled();
       const last = spy.mock.calls.at(-1) as any[];
       expect(last?.[2]).toContain('peer-slug');
     });

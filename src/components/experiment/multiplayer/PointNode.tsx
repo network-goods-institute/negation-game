@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Position, useReactFlow } from '@xyflow/react';
+import { Position, useReactFlow, useViewport } from '@xyflow/react';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
 import { useGraphActions } from './GraphContext';
 import { toast } from 'sonner';
-import { X as XIcon } from 'lucide-react';
 import { NodeActionPill } from './common/NodeActionPill';
 import { usePerformanceMode } from './PerformanceContext';
-import { inversePairEnabled } from '@/config/experiments';
 import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
@@ -25,7 +25,6 @@ interface PointNodeProps {
     createdAt?: number;
     closingAnimation?: boolean;
     favor?: number;
-    directInverse?: boolean;
     hidden?: boolean;
   };
   id: string;
@@ -39,8 +38,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     updateNodeContent,
     updateNodeFavor,
     addPointBelow,
-    createInversePair,
-    deleteInversePair,
     isConnectingFromNodeId,
     startEditingNode,
     stopEditingNode,
@@ -53,6 +50,17 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
+  const { zoom } = useViewport();
+  const overlayState = useAtomValue(marketOverlayStateAtom);
+  const overlayThreshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const overlaySide = useMemo(() => {
+    let side = computeSide(overlayState);
+    if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
+      side = zoom <= (overlayThreshold ?? 0.6) ? 'PRICE' : 'TEXT';
+    }
+    return side;
+  }, [overlayState, overlayThreshold, zoom]);
+  const overlayActive = overlaySide === 'PRICE';
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -105,7 +113,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const favor = Math.max(1, Math.min(5, data.favor ?? 5));
-  const isDirectInverse = Boolean(data.directInverse);
   const isInContainer = Boolean(parentId);
 
   const favorOpacity = useFavorOpacity({
@@ -123,7 +130,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     interactiveSelector: INTERACTIVE_TARGET_SELECTOR,
     wrapperRef: wrapperRef as any,
   });
-
 
   useEffect(() => {
     if (!parentId || !wrapperRef?.current || !setPairNodeHeight) return;
@@ -145,15 +151,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   }, [parentId, id, setPairNodeHeight, wrapperRef]);
 
   const rf = useReactFlow();
-  const mindchangeSelectable = useMemo(() => {
-    try {
-      if (!graphCtx?.mindchangeMode || !graphCtx?.mindchangeEdgeId || graphCtx?.mindchangeNextDir) return false;
-      const mcEdge = (rf as any).getEdges?.().find((e: any) => String(e.id) === String(graphCtx.mindchangeEdgeId));
-      if (!mcEdge) return false;
-      if ((mcEdge as any).type === 'objection') return false;
-      return String(mcEdge.source) === id || String(mcEdge.target) === id;
-    } catch { return false; }
-  }, [graphCtx?.mindchangeMode, graphCtx?.mindchangeEdgeId, graphCtx?.mindchangeNextDir, rf, id]);
 
   const getSelectedPointNodes = useCallback(() => {
     try {
@@ -174,9 +171,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const wrapperClassName = useMemo(() => {
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
-    const ringMindchange = mindchangeSelectable ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${ringMindchange} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, mindchangeSelectable]);
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
@@ -270,23 +266,16 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         containerClassName="relative inline-block group"
         wrapperRef={wrapperRef}
         wrapperClassName={wrapperClassName}
-        wrapperStyle={{ ...innerScaleStyle, opacity: hidden ? undefined : favorOpacity }}
+        wrapperStyle={{
+          ...innerScaleStyle,
+          opacity: hidden
+            ? undefined
+            : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
+        }}
         wrapperProps={wrapperProps as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
       >
         <LockIndicator locked={locked} lockOwner={lockOwner} />
-        {selected && isDirectInverse && inversePairEnabled && (
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => { e.stopPropagation(); deleteInversePair?.(id); }}
-            className="absolute -top-2 -right-2 bg-white border rounded-full shadow hover:bg-stone-50 transition h-6 w-6 flex items-center justify-center"
-            title="Remove inverse pair"
-            aria-label="Remove inverse pair"
-            style={{ zIndex: 20 }}
-          >
-            <XIcon size={14} />
-          </button>
-        )}
         {isConnectingFromNodeId === id && (
           <div className="absolute -top-3 right-0 text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded-full shadow">From</div>
         )}

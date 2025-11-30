@@ -231,3 +231,20 @@ jest.mock('@/lib/notifications/notificationQueue', () => ({
 afterEach(() => {
   jest.clearAllMocks()
 }) 
+
+// Silence jsdom window.open not implemented errors in tests that trigger link opens
+if (typeof window !== 'undefined') {
+  try {
+    Object.defineProperty(window, 'open', { value: jest.fn(), writable: true });
+  } catch {}
+}
+
+// Polyfill ResizeObserver for tests
+if (typeof global.ResizeObserver === 'undefined') {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+

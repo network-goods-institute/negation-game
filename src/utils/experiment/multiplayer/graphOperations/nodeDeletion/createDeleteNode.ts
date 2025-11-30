@@ -18,14 +18,6 @@ export const createDeleteNode = (
   yMetaMap?: any,
   documentId?: string
 ) => {
-  let deleteMindchangeForEdgeAction:
-    | null
-    | ((docId: string, edgeId: string) => Promise<{ ok: true }>) = null;
-  try {
-    const mod = require("@/actions/experimental/mindchange");
-    deleteMindchangeForEdgeAction = mod?.deleteMindchangeForEdge || null;
-  } catch {}
-
   return (nodeId: string) => {
     if (!canWrite) {
       showReadOnlyToast();
@@ -55,28 +47,11 @@ export const createDeleteNode = (
 
       // When deleting an edge, delete the edge and any attached objection edges, but preserve all nodes
       if (yEdgesMap && ydoc) {
-        try {
-          if (documentId && deleteMindchangeForEdgeAction) {
-            for (const e of edgesToDelete) {
-              deleteMindchangeForEdgeAction(documentId, String(e.id)).catch(
-                () => undefined
-              );
-            }
-          }
-        } catch {}
         ydoc.transact(() => {
           for (const e of edgesToDelete) {
             // eslint-disable-next-line drizzle/enforce-delete-with-where
             yEdgesMap.delete(e.id as any);
           }
-          try {
-            if (yMetaMap) {
-              for (const e of edgesToDelete) {
-                // eslint-disable-next-line drizzle/enforce-delete-with-where
-                yMetaMap.delete(`mindchange:${String(e.id)}` as any);
-              }
-            }
-          } catch {}
         }, localOrigin);
 
         // Update local state after Yjs sync
@@ -137,63 +112,6 @@ export const createDeleteNode = (
       });
     }
 
-    // Handle container deletion - convert children back to standalone nodes
-    if (node.type === "group") {
-      const children = nodes.filter((n: any) => n.parentId === nodeId);
-      const childrenToStandalone = children.map((child: any) => {
-        const parent = nodes.find((n: any) => n.id === nodeId);
-        const absoluteX = (parent?.position?.x || 0) + (child.position?.x || 0);
-        const absoluteY = (parent?.position?.y || 0) + (child.position?.y || 0);
-
-        return {
-          id: child.id,
-          type: child.type,
-          data: { ...child.data },
-          position: { x: absoluteX, y: absoluteY },
-          parentId: undefined,
-          extent: undefined,
-          expandParent: undefined,
-          selected: false,
-          measured: undefined,
-          width: undefined,
-          height: undefined,
-          positionAbsolute: undefined,
-        };
-      });
-
-      // Update local state immediately
-      setNodes((nds) =>
-        nds
-          .filter((n: any) => n.id !== nodeId)
-          .map((n: any) => {
-            const standalone = childrenToStandalone.find(
-              (s: any) => s.id === n.id
-            );
-            return standalone || n;
-          })
-      );
-
-      // Sync to Yjs
-      if (yNodesMap && ydoc) {
-        ydoc.transact(() => {
-          // Delete the container
-
-          // eslint-disable-next-line drizzle/enforce-delete-with-where
-          yNodesMap.delete(nodeId as any);
-          try {
-            // eslint-disable-next-line drizzle/enforce-delete-with-where
-            yTextMap?.delete(nodeId as any);
-          } catch {}
-
-          // Update children to standalone
-          for (const child of childrenToStandalone) {
-            yNodesMap.set(child.id, child);
-          }
-        }, localOrigin);
-      }
-      return;
-    }
-
     const incidentEdges = edges.filter(
       (e: any) => e.source === nodeId || e.target === nodeId
     );
@@ -227,15 +145,6 @@ export const createDeleteNode = (
 
     // First sync to Yjs, then update local state to ensure consistency
     if (yNodesMap && yEdgesMap && ydoc) {
-      try {
-        if (documentId && deleteMindchangeForEdgeAction) {
-          for (const edgeId of Array.from(edgesToDeleteIds)) {
-            deleteMindchangeForEdgeAction(documentId, String(edgeId)).catch(
-              () => undefined
-            );
-          }
-        }
-      } catch {}
       ydoc.transact(() => {
         edgesToDeleteIds.forEach((edgeId) => {
           // eslint-disable-next-line drizzle/enforce-delete-with-where

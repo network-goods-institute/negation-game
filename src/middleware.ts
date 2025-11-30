@@ -2,7 +2,8 @@ import { SPACE_HEADER, USER_HEADER } from "@/constants/config";
 import { getSpaceFromPathname } from "@/lib/negation-game/getSpaceFromPathname";
 import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";
 import { getPrivyClient } from "@/lib/privy/getPrivyClient";
-import { NextRequest, NextResponse } from "next/server";import { logger } from "@/lib/logger";
+import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // Special subdomains that shouldn't redirect to a space
 const BLACKLISTED_SUBDOMAINS = new Set(["www", "api", "admin"]);
@@ -84,11 +85,42 @@ async function handleAuth(req: NextRequest): Promise<NextResponse> {
       const claims = await client.verifyAuthToken(token);
       response.headers.set(USER_HEADER, JSON.stringify(claims));
     } catch (error: any) {
-      if (error.name !== "JWTExpired") {
+      const isExpired =
+        error?.name === "JWTExpired" || error?.code === "ERR_JWT_EXPIRED";
+
+      if (isExpired) {
+        try {
+          const client = await getPrivyClient();
+          const rawAuth =
+            req.headers.get("authorization") ||
+            req.headers.get("x-privy-token");
+          const bearer =
+            rawAuth && rawAuth.toLowerCase().startsWith("bearer ")
+              ? rawAuth.slice(7).trim()
+              : rawAuth || null;
+
+          if (bearer) {
+            const claims = await client.verifyAuthToken(bearer);
+            response.headers.set(USER_HEADER, JSON.stringify(claims));
+            response.cookies.set("privy-token", bearer, {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === "production",
+              sameSite: "strict",
+              path: "/",
+              maxAge: 24 * 60 * 60,
+            });
+            return response;
+          }
+        } catch {}
+
+        logger.warn(
+          "Privy token expired in middleware; awaiting client refresh"
+        );
+      } else {
         logger.error("Error verifying Privy auth token:", error);
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        response.cookies.delete("privy-token");
       }
-      // eslint-disable-next-line drizzle/enforce-delete-with-where
-      response.cookies.delete("privy-token");
     }
   }
 
@@ -141,13 +173,82 @@ function handleSubdomain(
     return response;
   }
 
+  // Handle market subdomain - public market boards (no auth gate)
+  if (subdomain === "market") {
+    const path = url.pathname;
+    // Root → board index
+    if (path === "/" || path === "") {
+      const dest = new URL("/experiment/rationale/multiplayer", req.url);
+      url.searchParams.forEach((value, key) => {
+        dest.searchParams.set(key, value);
+      });
+      return NextResponse.rewrite(dest);
+    }
+    // Canonicalize experiment path to short /:id or root
+    if (path.startsWith("/experiment/rationale/multiplayer")) {
+      const segs = path.split("/").filter(Boolean);
+      const idOrSlug = segs.length >= 4 ? segs[3] : null;
+      const to = new URL(
+        idOrSlug ? `/${encodeURIComponent(idOrSlug)}` : "/",
+        req.url
+      );
+      url.searchParams.forEach((value, key) => to.searchParams.set(key, value));
+      return NextResponse.redirect(to, 307);
+    }
+    // Allow direct board links at /:idOrSlug
+    const singleSeg = path.match(/^\/([^\/]+)\/?$/);
+    if (singleSeg) {
+      const idOrSlug = singleSeg[1];
+      // Avoid rewriting known static/platform routes
+      const reserved = new Set([
+        "api",
+        "_next",
+        "favicon.ico",
+        "robots.txt",
+        "sitemap.xml",
+        "assets",
+        "static",
+      ]);
+      if (!reserved.has(idOrSlug)) {
+        const dest = new URL(
+          `/experiment/rationale/multiplayer/${encodeURIComponent(idOrSlug)}`,
+          req.url
+        );
+        url.searchParams.forEach((value, key) => {
+          dest.searchParams.set(key, value);
+        });
+        return NextResponse.rewrite(dest);
+      }
+    }
+    const boardMatch = path.match(/^\/board\/([^\/]+)\/?$/);
+    if (boardMatch) {
+      const idOrSlug = boardMatch[1];
+      const dest = new URL(
+        `/experiment/rationale/multiplayer/${encodeURIComponent(idOrSlug)}`,
+        req.url
+      );
+      url.searchParams.forEach((value, key) => {
+        dest.searchParams.set(key, value);
+      });
+      const response = NextResponse.rewrite(dest);
+      response.headers.set(SPACE_HEADER, "global");
+      return response;
+    }
+    const response = NextResponse.next();
+    response.headers.set(SPACE_HEADER, "global");
+    return response;
+  }
+
   // Handle play subdomain - shows the old landing page and app behavior
   if (subdomain === "play") {
     const pathname = url.pathname;
 
     // Redirect privacy/tos to canonical URL
     if (shouldRedirectToCanonical(pathname)) {
-      const redirectUrl = new URL(`https://negationgame.com${pathname}`, req.url);
+      const redirectUrl = new URL(
+        `https://negationgame.com${pathname}`,
+        req.url
+      );
       url.searchParams.forEach((value, key) => {
         redirectUrl.searchParams.set(key, value);
       });
@@ -191,7 +292,10 @@ function handleSubdomain(
 
     // Redirect privacy/tos to canonical URL
     if (shouldRedirectToCanonical(targetPath)) {
-      const redirectUrl = new URL(`https://negationgame.com${targetPath}`, req.url);
+      const redirectUrl = new URL(
+        `https://negationgame.com${targetPath}`,
+        req.url
+      );
       url.searchParams.forEach((value, key) => {
         redirectUrl.searchParams.set(key, value);
       });
@@ -245,7 +349,10 @@ function handleSubdomain(
 
     // Redirect privacy/tos to canonical URL
     if (shouldRedirectToCanonical(targetPath)) {
-      const redirectUrl = new URL(`https://negationgame.com${targetPath}`, req.url);
+      const redirectUrl = new URL(
+        `https://negationgame.com${targetPath}`,
+        req.url
+      );
       url.searchParams.forEach((value, key) => {
         redirectUrl.searchParams.set(key, value);
       });
@@ -476,7 +583,11 @@ export default async function middleware(req: NextRequest) {
   }
 
   // Redirect /s/* paths to play.negationgame.com on root domain (but not in dev)
-  const isLocalhost = hostNoPort === 'localhost' || hostNoPort === '127.0.0.1' || hostNoPort.startsWith('localhost:') || hostNoPort.startsWith('127.0.0.1:');
+  const isLocalhost =
+    hostNoPort === "localhost" ||
+    hostNoPort === "127.0.0.1" ||
+    hostNoPort.startsWith("localhost:") ||
+    hostNoPort.startsWith("127.0.0.1:");
   if (pathname.startsWith("/s/") && !isLocalhost) {
     const redirectUrl = new URL(
       `https://play.negationgame.com${pathname}`,
@@ -490,11 +601,7 @@ export default async function middleware(req: NextRequest) {
 
   // Allow only specific paths on root domain
   // Everything else redirects to play.negationgame.com
-  const allowedRootPaths = [
-    "/experiment",
-    "/privacy",
-    "/tos",
-  ];
+  const allowedRootPaths = ["/experiment", "/privacy", "/tos"];
   if (isLocalhost) {
     // Allow /s/ paths in development
     allowedRootPaths.push("/s/");

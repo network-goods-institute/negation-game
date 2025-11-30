@@ -1,5 +1,11 @@
 import { useMemo, useRef } from "react";
-import { useReactFlow } from "@xyflow/react";
+import { useReactFlow, useViewport } from "@xyflow/react";
+import { useAtomValue } from "jotai";
+import {
+  marketOverlayStateAtom,
+  marketOverlayZoomThresholdAtom,
+  computeSide,
+} from "@/atoms/marketOverlayAtom";
 
 interface UseEdgePerformanceOptimizationOptions {
   sourceId: string;
@@ -19,6 +25,9 @@ export const useEdgePerformanceOptimization = ({
   targetY,
 }: UseEdgePerformanceOptimizationOptions) => {
   const rf = useReactFlow();
+  const { zoom } = useViewport();
+  const state = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
 
   // Track position update frequency to detect rapid updates (network-aware)
   const updateFrequencyTracker = useRef({
@@ -68,11 +77,17 @@ export const useEdgePerformanceOptimization = ({
   const sourceNode = rf.getNode(sourceId);
   const targetNode = rf.getNode(targetId);
 
+  let side = computeSide(state);
+  if (state === "AUTO_TEXT" || state === "AUTO_PRICE") {
+    side = zoom <= (threshold ?? 0.6) ? "PRICE" : "TEXT";
+  }
+  const overlayActive = side === "PRICE";
+
   return {
     isHighFrequencyUpdates,
     sourceNode,
     targetNode,
-    // Ellipses always ON for proper visual layering
-    shouldRenderEllipses: true,
+    // Ellipses OFF when overlay active (so edge circles show through nodes)
+    shouldRenderEllipses: !overlayActive,
   };
 };

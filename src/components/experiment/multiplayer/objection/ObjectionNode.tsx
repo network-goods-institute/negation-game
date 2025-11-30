@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useMemo } from 'react';
-import { Position, useReactFlow, useStore } from '@xyflow/react';
+import { Position, useReactFlow, useStore, useViewport } from '@xyflow/react';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
 import { useGraphActions } from '../GraphContext';
 
 import { toast } from 'sonner';
@@ -45,6 +47,17 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
     const hidden = (data as any)?.hidden === true;
+    const { zoom } = useViewport();
+    const overlayState = useAtomValue(marketOverlayStateAtom);
+    const overlayThreshold = useAtomValue(marketOverlayZoomThresholdAtom);
+    const overlaySide = useMemo(() => {
+        let side = computeSide(overlayState);
+        if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
+            side = zoom <= (overlayThreshold ?? 0.6) ? 'PRICE' : 'TEXT';
+        }
+        return side;
+    }, [overlayState, overlayThreshold, zoom]);
+    const overlayActive = overlaySide === 'PRICE';
 
     const rf = useReactFlow();
 
@@ -297,7 +310,12 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 wrapperRef={wrapperRef}
                 wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-all duration-300 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
-                wrapperStyle={{ ...innerScaleStyle, opacity: hidden ? undefined : favorOpacity } as any}
+                wrapperStyle={{
+                    ...innerScaleStyle,
+                    opacity: hidden
+                        ? undefined
+                        : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
+                } as any}
                 wrapperProps={wrapperProps as any}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
             >
@@ -322,8 +340,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     {value || (pointLike ? 'New point' : 'New mitigation')}
                 </div>
                 {hidden && (
-                    <div className="absolute inset-0 flex
-items-center justify-center pointer-events-none select-none">
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
                         <div className={`text-xs ${pointLike ? 'text-gray-600' : 'text-amber-600'} italic animate-fade-in`}>Hidden</div>
                     </div>
                 )}

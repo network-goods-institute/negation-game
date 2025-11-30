@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { EdgeProps, getBezierPath, getStraightPath, Position, useStore, Edge } from '@xyflow/react';
-import { ContextMenu } from './ContextMenu';
 import { EdgeOverlay } from './EdgeOverlay';
+import { ContextMenu } from './ContextMenu';
 import { EdgeMidpointControl } from './EdgeMidpointControl';
 import { EdgeInteractionOverlay } from './EdgeInteractionOverlay';
 import { EdgeMaskDefs } from './EdgeMaskDefs';
@@ -12,12 +12,12 @@ import { EDGE_CONFIGURATIONS, EdgeType } from './EdgeConfiguration';
 import { edgeIsObjectionStyle } from './edgeStyle';
 import { usePerformanceMode } from '../PerformanceContext';
 import { computeMidpointBetweenBorders, getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
-import { useMindchangeRenderConfig } from './useMindchangeRenderConfig';
 import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
 import { MainEdgeRenderer } from './MainEdgeRenderer';
-import { MindchangeBadges } from './MindchangeBadges';
-import { computeMindchangeStrokeWidth } from './computeMindchangeStrokeWidth';
-import { isMindchangeEnabledClient } from '@/utils/featureFlags';
+import { getMarkerIdForEdgeType } from './EdgeArrowMarkers';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
 
 export interface BaseEdgeProps extends EdgeProps {
   edgeType: EdgeType;
@@ -48,6 +48,12 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     menuPos,
     setMenuOpen,
     setMenuPos,
+    quickBuyOpen,
+    sidePanelOpen,
+    clickPos,
+    setQuickBuyOpen,
+    setSidePanelOpen,
+    setClickPos,
     isHovered,
     selected,
     setIsConnectHovered,
@@ -81,16 +87,23 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const { perfMode } = usePerformanceMode();
   const lightMode = (perfMode || grabMode) && !selected && !isHovered && !connectMode;
 
-  const [vx, vy, zoom] = useStore((s: any) => s.transform);
-  const edges = useStore((s: any) => Array.from(s.edges?.values?.() || s.edges || []));
+  const [, , zoom] = useStore((s: any) => s.transform);
+  const overlayState = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const marketEnabled = isMarketEnabled();
+  const side = useMemo(() => {
+    if (!marketEnabled) return 'TEXT'; // Always show text/relevance when market is disabled
+    let s = computeSide(overlayState);
+    if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
+      s = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+    }
+    return s;
+  }, [overlayState, zoom, threshold, marketEnabled]);
+  const showPriceMode = marketEnabled && side === 'PRICE';
 
-  const enableMindchange = isMindchangeEnabledClient();
-  const mindchange = enableMindchange ? (props as any).data?.mindchange : undefined;
   const relevanceRaw = Number((props as any)?.data?.relevance ?? 3);
   const relevance = Math.max(1, Math.min(5, Math.round(relevanceRaw)));
-  const mcF = Math.max(0, Math.min(100, Math.round(Number(mindchange?.forward?.average ?? 0)))) / 100;
-  const mcB = Math.max(0, Math.min(100, Math.round(Number(mindchange?.backward?.average ?? 0)))) / 100;
-  const strapStrength = enableMindchange ? Math.max(mcF, mcB) : Math.max(0, Math.min(1, (relevance - 1) / 4));
+  const strapStrength = Math.max(0, Math.min(1, (relevance - 1) / 4));
   const strapGeometry = useStrapGeometry(
     (visual.useStrap && !lightMode) ? {
       sourceX: sourceX ?? 0,
@@ -117,8 +130,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       if (props.edgeType === 'objection') {
         const objectionY = sourceNode?.position?.y ?? 0;
         const anchorY = targetNode?.position?.y ?? 0;
-        sourcePosition = objectionY < anchorY ? Position.Top : Position.Bottom;
-        targetPosition = objectionY > anchorY ? Position.Top : Position.Bottom;
+        // Align bezier orientation with MainEdgeRenderer and GraphUpdater
+        sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+        targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
       }
 
       return getBezierPath({
@@ -145,7 +159,32 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     return computeMidpointBetweenBorders(sourceNode, targetNode, labelX, labelY);
   }, [sourceNode, targetNode, labelX, labelY]);
 
-  const mindchangeRenderConfig = useMindchangeRenderConfig(mindchange, props.edgeType);
+  const mindchangeRenderConfig = { mode: 'normal', markerStart: null, markerEnd: null, markerId: null };
+
+  // Only read market data if market feature is enabled
+  const infl = marketEnabled ? Number(((props as any).data?.market?.influence) ?? NaN) : NaN;
+  const srcMine = marketEnabled ? Number((sourceNode as any)?.data?.market?.mine ?? 0) : 0;
+  const tgtMine = marketEnabled ? Number((targetNode as any)?.data?.market?.mine ?? 0) : 0;
+  const marketPrice = marketEnabled ? Number(((props as any).data?.market?.price) ?? NaN) : NaN;
+  const edgeTypeLocal = props.edgeType;
+  const marketMarkers = useMemo(() => {
+    if (!marketEnabled) return { start: undefined as string | undefined, end: undefined as string | undefined };
+    try {
+      const localInfl = infl;
+      if (Number.isNaN(localInfl)) return { start: undefined as string | undefined, end: undefined as string | undefined };
+      const localSrcMine = srcMine;
+      const localTgtMine = tgtMine;
+      if (!(localSrcMine > 0 || localTgtMine > 0)) return { start: undefined, end: undefined };
+      const tau = 0.2;
+      const markerId = getMarkerIdForEdgeType(edgeTypeLocal) || undefined;
+      if (!markerId) return { start: undefined, end: undefined };
+      if (localInfl > tau) return { start: undefined, end: `url(#${markerId})` };
+      if (localInfl < -tau) return { start: `url(#${markerId})`, end: undefined };
+      return { start: undefined, end: undefined };
+    } catch {
+      return { start: undefined as string | undefined, end: undefined as string | undefined };
+    }
+  }, [marketEnabled, infl, srcMine, tgtMine, edgeTypeLocal]);
 
   const [bidirectionalLabelX, bidirectionalLabelY] = useMemo(() => {
     if (mindchangeRenderConfig.mode !== 'bidirectional' || !visual.useBezier) {
@@ -199,17 +238,30 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     return [(fLabelX + bLabelX) / 2, (fLabelY + bLabelY) / 2];
   }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, sourceX, sourceY, targetX, targetY, sourceNode, targetNode, props]);
 
+  const actualLabelX = (bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number;
+  const actualLabelY = (bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number;
+
   const edgeStyles = useMemo(() => {
-    const width = enableMindchange
-      ? computeMindchangeStrokeWidth({ visual, mindchange: mindchange, edgeType: props.edgeType })
-      : visual.strokeWidth(relevance);
+    const width = visual.strokeWidth(relevance);
+    let marketWidth = width;
+    try {
+      const mp = marketPrice;
+      // Only apply market-based width when in PRICE mode
+      if (showPriceMode && Number.isFinite(mp)) {
+        // Log-scaled emphasis: 0 -> ~1.5px, 1 -> ~11.5px; obvious visual tie to price
+        const p = Math.max(0, Math.min(1, Number(mp)));
+        const strength = Math.log1p(99 * p) / Math.log(100); // 0..1 with log curve
+        const strongWidth = 1.5 + 10 * strength;
+        marketWidth = Math.max(width, strongWidth);
+      }
+    } catch { }
     const baseStyle = {
       stroke: visual.stroke,
-      strokeWidth: width,
+      strokeWidth: marketWidth,
     } as const;
 
     if (visual.strokeDasharray) {
-      if (props.edgeType === 'objection') {
+      if (edgeTypeLocal === 'objection') {
         const useDotted = edgeIsObjectionStyle(targetNode?.type);
         return {
           ...baseStyle,
@@ -224,49 +276,31 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     }
 
     return baseStyle;
-  }, [visual, props.edgeType, targetNode, mindchange, enableMindchange, relevance]);
+  }, [visual, edgeTypeLocal, targetNode, relevance, marketPrice, showPriceMode]);
 
   const edgeStylesWithPointer = useMemo(() => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
   }, [edgeStyles, grabMode]);
 
-  const mindchangeActive = !!(mindchange && (
-    (props as any).data?.mindchange?.forward?.count > 0 ||
-    (props as any).data?.mindchange?.backward?.count > 0
-  ));
+  // Selection overlay stroke should scale with actual edge width to avoid looking outdated
+  const overlayStrokeWidth = Math.max(6, Math.round(Number((edgeStyles as any)?.strokeWidth ?? 2)) + 4);
+
+  const mindchangeActive = false;
+
+  const hasMarketPrice = marketPrice != null && Number.isFinite(marketPrice);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedEdge?.(props.id as string);
+
+    // Always open the delete/context menu on right-click
     setMenuPos({ x: e.clientX, y: e.clientY });
     setMenuOpen(true);
   };
 
   const handleEdgeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const mindchangeMode = (graphActions as any)?.mindchangeMode;
-    const mindchangeEdgeId = (graphActions as any)?.mindchangeEdgeId;
-
-    // Handle mindchange mode: clicking base edge for objection mindchange
-    if (mindchangeMode && mindchangeEdgeId) {
-      const selectedEdge = edges.find((edge: any) => edge.id === mindchangeEdgeId) as Edge | undefined;
-      if (selectedEdge?.type === 'objection') {
-        // User clicked a base edge while setting mindchange for an objection
-        const anchorIdForBase = String((selectedEdge as any).target || '');
-        const baseEdgeId = anchorIdForBase.startsWith('anchor:')
-          ? anchorIdForBase.slice('anchor:'.length)
-          : '';
-
-        if (baseEdgeId === props.id) {
-          // This is the base edge that the objection anchors to - select backward direction
-          try { (graphActions as any)?.setSelectedEdge?.(mindchangeEdgeId); } catch { }
-          (graphActions as any)?.setMindchangeNextDir?.('backward');
-          (graphActions as any)?.cancelConnect?.();
-          return;
-        }
-      }
-    }
 
     if (connectMode) {
       const midpoint = { x: (labelX ?? cx), y: (labelY ?? cy) };
@@ -278,20 +312,22 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       }
       return;
     }
+    if (marketEnabled && hasMarketPrice && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) {
+      setClickPos({ x: e.clientX, y: e.clientY });
+      setQuickBuyOpen(true);
+      setSelectedEdge?.(props.id as string);
+      return;
+    }
     graphActions.clearNodeSelection?.();
     setSelectedEdge?.(props.id as string);
   };
 
   const handleAddObjection = () => {
     graphActions.clearNodeSelection?.();
-    addObjectionForEdge(props.id as string, cx, cy);
+    addObjectionForEdge(props.id as string, actualLabelX, actualLabelY);
     setHoveredEdge(null);
     setSelectedEdge?.(null);
   };
-
-  const contextMenuItems = [
-    { label: 'Delete edge', danger: true, onClick: () => deleteNode?.(props.id as string) },
-  ];
 
   const sHidden = !!(sourceNode as any)?.data?.hidden;
   const tHidden = !!(targetNode as any)?.data?.hidden;
@@ -324,9 +360,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           <EdgeSelectionHighlight
             selected={selected}
             shouldRenderOverlay={shouldRenderOverlay}
-            mindchangeRenderMode={mindchangeRenderConfig.mode}
-            mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
-            mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
+            edgeId={props.id as string}
             useBezier={visual.useBezier ?? false}
             curvature={visual.curvature}
             sourceX={sourceX ?? 0}
@@ -337,6 +371,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             targetNode={targetNode}
             edgeType={props.edgeType}
             pathD={pathD}
+            overlayStrokeWidth={overlayStrokeWidth}
           />
 
           {shouldRenderOverlay && connectMode && isHovered && !selected && (
@@ -347,34 +382,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             )
           )}
 
-          {(() => {
-            try {
-              const mindchangeMode = (graphActions as any)?.mindchangeMode;
-              const mindchangeEdgeId = (graphActions as any)?.mindchangeEdgeId as string | null;
-              const mindchangeNextDir = (graphActions as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
-              if (!mindchangeMode || !mindchangeEdgeId || mindchangeNextDir) return null;
-              const selectedEdge = edges.find((e: any) => e.id === mindchangeEdgeId) as Edge | undefined;
-              if (!selectedEdge || (selectedEdge as any).type !== 'objection') return null;
-              const anchorIdForBase = String((selectedEdge as any).target || '');
-              const baseEdgeId = anchorIdForBase.startsWith('anchor:') ? anchorIdForBase.slice('anchor:'.length) : '';
-              if (baseEdgeId !== (props.id as string)) return null;
-              return visual.useBezier ? (
-                <path d={pathD} stroke="#10b981" strokeWidth={6} fill="none" strokeLinecap="round" opacity={0.95} strokeDasharray="8 4" />
-              ) : (
-                <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#10b981" strokeWidth={6} strokeLinecap="round" opacity={0.95} strokeDasharray="8 4" />
-              );
-            } catch {
-              return null;
-            }
-          })()}
 
           <MainEdgeRenderer
-            mindchangeRenderMode={mindchangeRenderConfig.mode}
-            mindchangeMarkerId={mindchangeRenderConfig.markerId}
-            mindchangeMarkerStart={mindchangeRenderConfig.markerStart}
-            mindchangeMarkerEnd={mindchangeRenderConfig.markerEnd}
-            hasForward={(props as any).data?.mindchange?.forward?.count > 0}
-            hasBackward={(props as any).data?.mindchange?.backward?.count > 0}
             useBezier={visual.useBezier ?? false}
             curvature={visual.curvature}
             sourceX={sourceX ?? 0}
@@ -389,25 +398,12 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             interactionWidth={behavior.interactionWidth}
             label={visual.label}
             labelStyle={visual.labelStyle}
+            labelX={actualLabelX}
+            labelY={actualLabelY}
           />
         </g>
       </g>
 
-      <MindchangeBadges
-        edgeId={props.id as string}
-        edgeType={props.edgeType}
-        sourceX={sourceX ?? 0}
-        sourceY={sourceY ?? 0}
-        targetX={targetX ?? 0}
-        targetY={targetY ?? 0}
-        sourceNode={sourceNode}
-        targetNode={targetNode}
-        mindchangeData={mindchange}
-        overlayActive={mindchangeActive && (graphActions as any)?.overlayActiveEdgeId === (props.id as string)}
-        zoom={zoom}
-        vx={vx}
-        vy={vy}
-      />
 
       {!grabMode && (
         <EdgeInteractionOverlay
@@ -433,8 +429,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
       {showAffordance && props.edgeType !== 'comment' && (
         <EdgeMidpointControl
-          cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
-          cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
+          cx={actualLabelX}
+          cy={actualLabelY}
           borderColor={visual.borderColor}
           onContextMenu={handleContextMenu}
           disabled={grabMode}
@@ -445,12 +441,16 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
       {!connectMode && !grabMode && props.edgeType !== 'comment' && (
         <EdgeOverlay
-          cx={(bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number}
-          cy={(bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number}
+          cx={actualLabelX}
+          cy={actualLabelY}
           isHovered={isHovered}
           selected={selected}
           edgeId={props.id as string}
           edgeType={props.edgeType}
+          marketPrice={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? marketPrice : NaN}
+          marketMine={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? Number(((props as any).data?.market?.mine) ?? NaN) : NaN}
+          marketTotal={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? Number(((props as any).data?.market?.total) ?? NaN) : NaN}
+          marketInfluence={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? infl : NaN}
           srcX={sourceX ?? 0}
           srcY={sourceY ?? 0}
           tgtX={targetX ?? 0}
@@ -460,11 +460,14 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
           onAddObjection={handleAddObjection}
           onToggleEdgeType={() => updateEdgeType?.(props.id as string, props.edgeType === "support" ? "negation" : "support")}
-          onConnectionClick={undefined}
+          onConnectionClick={(sx: number, sy: number) => {
+            setClickPos({ x: sx, y: sy });
+            setQuickBuyOpen(true);
+            setSelectedEdge?.(props.id as string);
+          }}
           starColor={visual.starColor}
           sourceLabel={(sourceNode as any)?.data?.content || (sourceNode as any)?.data?.statement}
           targetLabel={(targetNode as any)?.data?.content || (targetNode as any)?.data?.statement}
-          mindchange={mindchange}
           relevance={relevance}
           onUpdateRelevance={(val) => (graphActions as any)?.updateEdgeRelevance?.(props.id as string, val as any)}
           suppress={endpointDragging}
@@ -472,12 +475,20 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
         />
       )}
 
+      {/* Edge-level quick buy and side panel removed; edge buy handled inline via EdgeOverlay */}
+
       <ContextMenu
         open={menuOpen}
         x={menuPos.x}
         y={menuPos.y}
         onClose={() => setMenuOpen(false)}
-        items={contextMenuItems}
+        items={[
+          {
+            label: 'Delete Edge',
+            onClick: () => deleteNode?.(props.id as string),
+            danger: true,
+          },
+        ]}
       />
     </>
   );

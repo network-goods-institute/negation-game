@@ -1,6 +1,7 @@
 import React from "react";
 import { useReactFlow } from "@xyflow/react";
 import { toast } from "sonner";
+import { dispatchMarketPanelClose } from "@/utils/market/marketEvents";
 
 interface UseGraphKeyboardHandlersProps {
   graph: any;
@@ -71,24 +72,7 @@ export const useGraphKeyboardHandlers = ({
         }
         if (sel.length > 0) {
           e.preventDefault();
-          const ids = new Set<string>();
-          sel.forEach((n) => {
-            const node: any = n as any;
-            if (node.type === "group") {
-              ids.add(node.id);
-              return;
-            }
-            const pid = node.parentId;
-            if (pid) {
-              const p = rf.getNode(pid) as any;
-              if (p && p.type === "group") {
-                ids.add(p.id);
-                return;
-              }
-            }
-            ids.add(node.id);
-          });
-          ids.forEach((id) => graph.deleteNode?.(id));
+          sel.forEach((n) => graph.deleteNode?.(n.id));
           return;
         }
         // Nothing selected: prevent browser navigation on Backspace/Delete
@@ -96,17 +80,9 @@ export const useGraphKeyboardHandlers = ({
         return;
       }
       if (key === "escape") {
-        try {
-          graph?.cancelMindchangeSelection?.();
-        } catch {}
+        dispatchMarketPanelClose();
         try {
           graph?.cancelConnect?.();
-        } catch {}
-        try {
-          graph?.clearNodeSelection?.();
-        } catch {}
-        try {
-          graph?.setSelectedEdge?.(null);
         } catch {}
         e.preventDefault();
         return;

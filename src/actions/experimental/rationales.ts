@@ -190,7 +190,17 @@ export async function createRationale(params?: {
   id?: string;
   title?: string;
 }) {
-  const userId = await getUserIdOrAnonymous();
+  const userId = await getUserId();
+  const anonId = await getUserIdOrAnonymous();
+  const isProd =
+    (typeof process !== "undefined" &&
+      (process.env.VERCEL === "1" ||
+        String(process.env.NODE_ENV).toLowerCase() === "production")) ||
+    false;
+  if (!userId && isProd) {
+    throw new Error("Unauthorized");
+  }
+  const ownerId = userId ?? anonId ?? DEFAULT_OWNER;
   const id = params?.id || `m-${nanoid()}`;
   const title = (params?.title || DEFAULT_TITLE).trim() || DEFAULT_TITLE;
 
@@ -198,11 +208,11 @@ export async function createRationale(params?: {
   await db.transaction(async (tx) => {
     await tx
       .insert(mpDocsTable)
-      .values({ id, ownerId: userId, title })
+      .values({ id, ownerId, title })
       .onConflictDoNothing();
     await tx
       .insert(mpDocAccessTable)
-      .values({ docId: id, userId })
+      .values({ docId: id, userId: ownerId })
       .onConflictDoNothing();
     try {
       const slug = slugify(title);

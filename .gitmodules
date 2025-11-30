@@ -4,3 +4,6 @@
 [submodule "yjs-ws"]
 	path = yjs-ws
 	url = https://github.com/network-goods-institute/negation-game-yjs-ws.git
+[submodule "src/lib/carroll"]
+	path = src/lib/carroll
+	url = https://github.com/network-goods-institute/carroll-lmsr-ts.git

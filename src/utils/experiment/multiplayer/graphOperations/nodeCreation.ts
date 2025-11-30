@@ -310,67 +310,67 @@ export const createAddPointBelow = (
       .map((id) => nodes.find((n: any) => n.id === id))
       .filter(Boolean);
 
-  if (parents.length === 0) return;
+    if (parents.length === 0) return;
 
-  const firstParentId = parentNodeIds[0];
-  const last = lastAddRef.current[firstParentId] || 0;
-  if (now - last < 500) return;
-  lastAddRef.current[firstParentId] = now;
+    const firstParentId = parentNodeIds[0];
+    const last = lastAddRef.current[firstParentId] || 0;
+    if (now - last < 500) return;
+    lastAddRef.current[firstParentId] = now;
 
-  const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
+    const newId = `p-${now}-${Math.floor(Math.random() * 1e6)}`;
 
-  const firstParent = parents[0];
-  let newPos;
-  const hasMultipleParents = parents.length > 1;
-  if (hasMultipleParents) {
-    const positions = parentNodeIds.map((pid) => {
-      const override = positionsOverride?.[pid];
-      const p = parents.find((n: any) => n.id === pid) as any | undefined;
-      const x = override?.x ?? p?.position?.x;
-      const y = override?.y ?? p?.position?.y;
-      const width =
-        override?.width ??
-        p?.width ??
-        p?.measured?.width ??
-        p?.style?.width ??
-        0;
-      const height =
-        override?.height ??
-        p?.height ??
-        p?.measured?.height ??
-        p?.style?.height ??
-        0;
-      return { id: pid, x, y, width, height };
-    });
-    const valid = positions.filter(
-      (p) =>
-        Number.isFinite(p.x) &&
-        Number.isFinite(p.y) &&
-        Number.isFinite(p.width) &&
-        Number.isFinite(p.height)
-    );
-    const centerX =
-      valid.reduce((sum, pos) => sum + (pos.x + pos.width / 2), 0) /
-      (valid.length || positions.length || 1);
-    // Find the lowest parent (max Y + height) instead of averaging
-    const lowestBottomEdge =
-      valid.length > 0
-        ? Math.max(...valid.map((pos) => pos.y + pos.height))
-        : 0;
-    const avgWidth =
-      valid.reduce((sum, pos) => sum + pos.width, 0) /
-      (valid.length || positions.length || 1);
-    const newWidthEstimate = avgWidth || 200;
-    const newX = centerX - newWidthEstimate / 2;
-    const newY = lowestBottomEdge + 32;
-    newPos = { x: newX, y: newY };
-  } else {
-    newPos = calculateNodePositionBelow(
-      firstParent,
-      nodes,
-      getViewportOffset
-    );
-  }
+    const firstParent = parents[0];
+    let newPos;
+    const hasMultipleParents = parents.length > 1;
+    if (hasMultipleParents) {
+      const positions = parentNodeIds.map((pid) => {
+        const override = positionsOverride?.[pid];
+        const p = parents.find((n: any) => n.id === pid) as any | undefined;
+        const x = override?.x ?? p?.position?.x;
+        const y = override?.y ?? p?.position?.y;
+        const width =
+          override?.width ??
+          p?.width ??
+          p?.measured?.width ??
+          p?.style?.width ??
+          0;
+        const height =
+          override?.height ??
+          p?.height ??
+          p?.measured?.height ??
+          p?.style?.height ??
+          0;
+        return { id: pid, x, y, width, height };
+      });
+      const valid = positions.filter(
+        (p) =>
+          Number.isFinite(p.x) &&
+          Number.isFinite(p.y) &&
+          Number.isFinite(p.width) &&
+          Number.isFinite(p.height)
+      );
+      const centerX =
+        valid.reduce((sum, pos) => sum + (pos.x + pos.width / 2), 0) /
+        (valid.length || positions.length || 1);
+      // Find the lowest parent (max Y + height) instead of averaging
+      const lowestBottomEdge =
+        valid.length > 0
+          ? Math.max(...valid.map((pos) => pos.y + pos.height))
+          : 0;
+      const avgWidth =
+        valid.reduce((sum, pos) => sum + pos.width, 0) /
+        (valid.length || positions.length || 1);
+      const newWidthEstimate = avgWidth || 200;
+      const newX = centerX - newWidthEstimate / 2;
+      const newY = lowestBottomEdge + 32;
+      newPos = { x: newX, y: newY };
+    } else {
+      newPos = calculateNodePositionBelow(
+        firstParent,
+        nodes,
+        getViewportOffset
+      );
+    }
 
     // Determine content based on parent types
     const parentTypes = new Set(parents.map((p: any) => p.type));
@@ -407,7 +407,7 @@ export const createAddPointBelow = (
       type: "point",
       position: {
         x: newPos.x,
-        y: newPos.y + (hasMultipleParents ? 0 : (firstParentType === "comment" ? -10 : 32)),
+        y: newPos.y,
       },
       data: { content: defaultContent, favor: 5, createdAt: Date.now() },
       selected: true,

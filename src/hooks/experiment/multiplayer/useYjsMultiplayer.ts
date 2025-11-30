@@ -76,6 +76,10 @@ export const useYjsMultiplayer = ({
     localOriginRef.current = localOrigin;
   }, [localOrigin]);
 
+  useEffect(() => {
+    setHasSyncedOnce(false);
+  }, [roomName, enabled]);
+
   const disconnectGraceMs = useRef<number>(
     Number(process.env.NEXT_PUBLIC_MULTIPLAYER_DISCONNECT_GRACE_MS || 4000)
   );

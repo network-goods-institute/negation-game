@@ -396,10 +396,11 @@ export const useEditableNode = ({
 
   const onInput = (e: React.FormEvent<HTMLDivElement>) => {
     draftRef.current = (e.target as HTMLDivElement).innerText;
-    if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
-    updateTimerRef.current = window.setTimeout(() => {
-      updateNodeContent(id, draftRef.current);
-    }, 120);
+    if (updateTimerRef.current) {
+      clearTimeout(updateTimerRef.current);
+      updateTimerRef.current = null;
+    }
+    updateNodeContent(id, draftRef.current);
     if (wrapperRef.current && contentRef.current) {
       wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
 
@@ -577,6 +578,7 @@ export const useEditableNode = ({
     startEditingProgrammatically,
     // Handle mouse events to allow text selection while preventing unwanted node dragging
     onContentMouseDown: (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isEditing) return; // allow native selection/caret when editing
       // Track mouse down time for selection containment logic
       (e as any)._mouseDownTime = Date.now();
 
@@ -592,10 +594,12 @@ export const useEditableNode = ({
       // Allow normal text selection behavior by not preventing default
     },
     onContentMouseMove: (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isEditing) return;
       // Always prevent propagation to avoid interfering with text selection drag
       e.stopPropagation();
     },
     onContentMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isEditing) return;
       // When mouse leaves content area during text selection, stop the selection
       // to prevent global text selection
       const selection = window.getSelection();
@@ -622,6 +626,7 @@ export const useEditableNode = ({
       e.stopPropagation();
     },
     onContentMouseUp: (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isEditing) return;
       // Clean up any lingering selection state
       delete (e as any)._mouseDownTime;
       e.stopPropagation();

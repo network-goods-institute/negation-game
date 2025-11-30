@@ -69,7 +69,6 @@ const pickComparable = (node: Node) => {
       title: titleNormalized,
       hidden: (data as any).hidden,
       favor: (data as any).favor,
-      directInverse: (data as any).directInverse,
     },
   };
 };

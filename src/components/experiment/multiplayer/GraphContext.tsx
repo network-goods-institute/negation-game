@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 
 type GraphActions = {
+    globalMarketOverlays?: boolean;
     currentUserId?: string;
     updateNodeContent: (nodeId: string, content: string) => void;
     updateNodePosition?: (nodeId: string, x: number, y: number) => void;
@@ -11,7 +12,6 @@ type GraphActions = {
     updateNodeFavor?: (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => void;
     addPointBelow?: (parentNodeId: string) => void;
     preferredEdgeType?: 'support' | 'negation';
-    createInversePair: (pointNodeId: string) => void;
     deleteNode: (nodeId: string) => void;
     beginConnectFromNode: (nodeId: string, cursor?: { x: number; y: number }) => void;
     beginConnectFromEdge?: (edgeId: string, cursor?: { x: number; y: number }) => void;
@@ -20,9 +20,6 @@ type GraphActions = {
     cancelConnect: () => void;
     isConnectingFromNodeId: string | null;
     connectMode?: boolean;
-    mindchangeMode?: boolean;
-    mindchangeEdgeId?: string | null;
-    mindchangeNextDir?: 'forward' | 'backward' | null;
     addObjectionForEdge: (edgeId: string, midX?: number, midY?: number) => void;
     hoveredEdgeId: string | null;
     setHoveredEdge: (edgeId: string | null) => void;
@@ -49,31 +46,13 @@ type GraphActions = {
     addNodeAtPosition?: (type: 'point' | 'statement' | 'objection' | 'comment', x: number, y: number) => string;
     updateNodeType?: (nodeId: string, newType: 'point' | 'statement' | 'objection' | 'comment') => void;
     openTypeSelector?: (nodeId: string) => void;
-    deleteInversePair?: (inverseNodeId: string) => void;
     duplicateNodeWithConnections?: (nodeId: string, offset?: { x?: number; y?: number }) => string | null;
-    setPairNodeHeight?: (groupId: string, nodeId: string, height: number) => void;
-    pairHeights?: Record<string, number>;
     isAnyNodeEditing?: boolean;
     hoveredNodeId?: string | null;
     setHoveredNodeId?: (nodeId: string | null) => void;
-    commitGroupLayout?: (
-        groupId: string,
-        positions: Record<string, { x: number; y: number }>,
-        width: number,
-        height: number
-    ) => void;
     grabMode?: boolean;
     clearNodeSelection?: () => void;
     blurNodesImmediately?: () => void;
-    beginMindchangeSelection?: () => void; // deprecated
-    beginMindchangeOnEdge?: (edgeId: string) => void;
-    cancelMindchangeSelection?: () => void;
-    setMindchangeNextDir?: (dir: 'forward' | 'backward' | null) => void;
-    setMindchange?: (edgeId: string, params: { forward?: number; backward?: number }) => Promise<void>;
-    getMindchangeBreakdown?: (edgeId: string) => Promise<{
-        forward: Array<{ userId: string; username: string; value: number }>;
-        backward: Array<{ userId: string; username: string; value: number }>;
-    }>;
 };
 
 const GraphContext = createContext<GraphActions | null>(null);
@@ -84,16 +63,15 @@ export const useGraphActions = () => {
     const ctx = useContext(GraphContext);
     if (!ctx) {
         return {
+            globalMarketOverlays: false,
             currentUserId: undefined,
             updateNodeContent: () => { },
             updateNodePosition: () => { },
             ensureEdgeAnchor: () => { },
             updateNodeHidden: () => { },
             updateNodeFavor: () => { },
-
             addPointBelow: () => { },
             preferredEdgeType: 'support',
-            createInversePair: () => { },
             deleteNode: () => { },
             beginConnectFromNode: () => { },
             beginConnectFromEdge: () => { },
@@ -101,9 +79,6 @@ export const useGraphActions = () => {
             cancelConnect: () => { },
             isConnectingFromNodeId: null,
             connectMode: false,
-            mindchangeMode: false,
-            mindchangeEdgeId: null,
-            mindchangeNextDir: null,
             addObjectionForEdge: () => { },
             hoveredEdgeId: null,
             setHoveredEdge: () => { },
@@ -133,10 +108,6 @@ export const useGraphActions = () => {
             clearNodeSelection: () => { },
             blurNodesImmediately: () => { },
             openTypeSelector: () => { },
-            beginMindchangeSelection: () => { },
-            beginMindchangeOnEdge: () => { },
-            cancelMindchangeSelection: () => { },
-            setMindchangeNextDir: () => { },
         } as GraphActions;
     }
     return ctx;

@@ -66,6 +66,7 @@ describe("rationales actions", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     (getUserId as unknown as jest.Mock).mockResolvedValue("me");
+    (getUserIdOrAnonymous as unknown as jest.Mock).mockResolvedValue("me");
     mockGetDocSnapshotBuffer.mockReset();
   });
 
@@ -202,6 +203,8 @@ describe("rationales actions", () => {
     const { createRationale } = await import(
       "@/actions/experimental/rationales"
     );
+    (getUserId as unknown as jest.Mock).mockResolvedValueOnce(null);
+    (getUserIdOrAnonymous as unknown as jest.Mock).mockResolvedValueOnce("anon-123");
     await createRationale({ title: "Hello" });
 
     // Validate inserted owner and access

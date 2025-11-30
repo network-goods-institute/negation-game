@@ -29,7 +29,16 @@ export const isProductionRequest = (
   if (!hostname) return isProductionEnvironment();
   const h = hostname.toLowerCase().trim();
   // Short-circuit specific Vercel deployment to non-prod
-  if (h === "negation-game-git-mindchange-network-goods-institute.vercel.app")
+  if (
+    h === "negation-game-git-mindchange-network-goods-institute.vercel.app" ||
+    h ===
+      "negation-game-git-carroll-mechan-def371-network-goods-institute.vercel.app" ||
+    h === "negation-game-git-market-panell-network-goods-institute.vercel.app" ||
+    h ===
+      "negation-game-git-merge-main-int-09ba35-network-goods-institute.vercel.app" ||
+    // Treat market.negationgame.com as non-production (allow anon)
+    h === "market.negationgame.com"
+  )
     return false;
   // Treat as production if either the environment is production or the hostname is a production domain
   return isProductionEnvironment() || isProductionHostname(hostname);

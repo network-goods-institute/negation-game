@@ -273,7 +273,6 @@ export const CommentNode: React.FC<CommentNodeProps> = ({ data, id, selected, pa
           onBlur={onBlur}
           onKeyDown={onKeyDown}
           className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
-          title={typeof value === 'string' ? value : undefined}
         >
           {value || 'New comment'}
         </div>

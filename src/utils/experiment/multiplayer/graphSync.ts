@@ -36,7 +36,13 @@ export const createEdgeByType = (
   targetHandle?: string | null
 ): Edge => {
   return {
-    id: deterministicEdgeId(edgeType, source, target, sourceHandle, targetHandle),
+    id: deterministicEdgeId(
+      edgeType,
+      source,
+      target,
+      sourceHandle,
+      targetHandle
+    ),
     source,
     target,
     sourceHandle: sourceHandle || null,
@@ -70,7 +76,8 @@ export const createGraphChangeHandlers = (
   localOrigin?: any,
   getCurrentNodes?: () => Node[],
   getPreferredEdgeType?: () => "support" | "negation",
-  connectMode?: boolean
+  connectMode?: boolean,
+  onEdgeAdded?: (edge: Edge) => void
 ) => {
   let rafEdgesId: number | null = null;
   let pendingEdges: Edge[] | null = null;
@@ -78,7 +85,12 @@ export const createGraphChangeHandlers = (
   let pendingNodePositions: Map<string, { x: number; y: number }> | null = null;
 
   const flushPendingNodePositions = () => {
-    if (!ydoc || !yNodesMap || !pendingNodePositions || pendingNodePositions.size === 0) {
+    if (
+      !ydoc ||
+      !yNodesMap ||
+      !pendingNodePositions ||
+      pendingNodePositions.size === 0
+    ) {
       return;
     }
     const entries = pendingNodePositions;
@@ -188,7 +200,11 @@ export const createGraphChangeHandlers = (
     const sourceNode = currentNodes.find((n: any) => n.id === params.source);
     const targetNode = currentNodes.find((n: any) => n.id === params.target);
     const preferredType = getPreferredEdgeType?.();
-    const edgeType = chooseEdgeType(sourceNode?.type, targetNode?.type, preferredType);
+    const edgeType = chooseEdgeType(
+      sourceNode?.type,
+      targetNode?.type,
+      preferredType
+    );
 
     const edge = createEdgeByType(
       edgeType,
@@ -209,7 +225,9 @@ export const createGraphChangeHandlers = (
             e.type === "comment")
       );
       if (pairExists) {
-        try { toast.warning?.("Cannot add duplicate edge"); } catch {}
+        try {
+          toast.warning?.("Cannot add duplicate edge");
+        } catch {}
         return eds;
       }
       return addEdge(edge, eds);
@@ -220,6 +238,10 @@ export const createGraphChangeHandlers = (
         if (!yEdgesMap.has(edge.id)) yEdgesMap.set(edge.id, edge);
       }, localOrigin);
     }
+
+    try {
+      onEdgeAdded?.(edge);
+    } catch {}
   };
 
   const commitNodePositions = (nodes: Node[]) => {
@@ -234,7 +256,10 @@ export const createGraphChangeHandlers = (
           (existing.position?.x ?? 0) === (node.position?.x ?? 0) &&
           (existing.position?.y ?? 0) === (node.position?.y ?? 0);
         if (samePos) continue;
-        yNodesMap.set(node.id, { ...existing, position: node.position } as Node);
+        yNodesMap.set(node.id, {
+          ...existing,
+          position: node.position,
+        } as Node);
       }
     }, localOrigin);
   };

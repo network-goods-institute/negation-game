@@ -1,14 +1,14 @@
 import React from 'react';
-import { EdgeLabelRenderer, useStore } from '@xyflow/react';
+import { EdgeLabelRenderer, useStore, useReactFlow } from '@xyflow/react';
 import { createPortal } from 'react-dom';
-import { ContextMenu } from "../common/ContextMenu";
+import { ContextMenu } from './ContextMenu';
 import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
-import { MindchangeEditor } from './MindchangeEditor';
-import { MindchangeIndicators } from './MindchangeIndicators';
-import { breakdownCache } from './MindchangeBreakdown';
-import { isMindchangeEnabledClient } from '@/utils/featureFlags';
+import { InlinePriceHistory } from '../market/InlinePriceHistory';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
 
 const EDGE_ANCHOR_SIZE = 36;
 const PERSISTENCE_PADDING = 14;
@@ -25,19 +25,18 @@ export interface EdgeOverlayProps {
   srcY?: number;
   tgtX?: number;
   tgtY?: number;
+  marketPrice?: number;
+  marketMine?: number;
+  marketTotal?: number;
+  marketInfluence?: number;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onAddObjection: () => void;
   onToggleEdgeType?: () => void;
-  onConnectionClick?: () => void;
+  onConnectionClick?: (x: number, y: number) => void;
   starColor?: string;
   sourceLabel?: string;
   targetLabel?: string;
-  mindchange?: {
-    forward: { average: number; count: number };
-    backward: { average: number; count: number };
-    userValue?: { forward: number; backward: number };
-  };
   relevance?: number;
   onUpdateRelevance?: (relevance: number) => void;
   suppress?: boolean;
@@ -51,18 +50,22 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   selected = false,
   edgeId,
   edgeType,
+  marketPrice,
+  marketMine,
+  marketTotal,
+  marketInfluence,
   onMouseEnter,
   onMouseLeave,
   onAddObjection,
   onToggleEdgeType,
   onConnectionClick,
   starColor = 'text-stone-600',
-  mindchange,
   relevance,
   onUpdateRelevance,
   suppress = false,
   suppressReason,
 }) => {
+  const rf = useReactFlow();
   const graph = useGraphActions();
   const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
   const setOverlayActive = (graph as any)?.setOverlayActiveEdge as ((id: string | null) => void) | undefined;
@@ -79,6 +82,21 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   } = usePersistencePointerHandlers({ grabMode });
 
   const [tx, ty, zoom] = useStore((s: any) => s.transform);
+
+  const overlayState = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const marketEnabled = isMarketEnabled();
+  const side = React.useMemo(() => {
+    if (!marketEnabled) return 'TEXT';
+    let s = computeSide(overlayState);
+    if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
+      s = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+    }
+    return s;
+  }, [overlayState, zoom, threshold, marketEnabled]);
+  // Edge overlay price circle ALWAYS shows when market is enabled (toolbar state doesn't affect it)
+  const showPriceCircle = marketEnabled;
+  const showRelevanceStars = !marketEnabled || side === 'TEXT';
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
   const anchorNode = useStore((s: any) => s.nodeInternals?.get?.(`anchor:${edgeId}`));
@@ -91,6 +109,10 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [anchorScreenPos, setAnchorScreenPos] = React.useState<{ x: number; y: number } | null>(null);
 
   const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [hoverBuy, setHoverBuy] = React.useState(false);
+  const docId = React.useMemo(() => {
+    try { return window.location.pathname.split('/').pop() || ''; } catch { return ''; }
+  }, []);
   const handlePortalMouseDown = React.useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
       return;
@@ -106,51 +128,15 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const handleConnectionAwareClick = React.useCallback((e: React.MouseEvent, normalAction: () => void) => {
     if (connectMode && onConnectionClick) {
       e.stopPropagation();
-      onConnectionClick();
+      const sx = (anchorScreenPos?.x ?? fallbackScreenLeft);
+      const sy = (anchorScreenPos?.y ?? fallbackScreenTop);
+      onConnectionClick(sx, sy);
       return;
     }
     normalAction();
-  }, [connectMode, onConnectionClick]);
+  }, [connectMode, onConnectionClick, anchorScreenPos?.x, anchorScreenPos?.y, fallbackScreenLeft, fallbackScreenTop]);
 
-  const rawForwardAvg = Math.round(Number((mindchange as any)?.forward?.average ?? 0));
-  const rawBackwardAvg = Math.round(Number((mindchange as any)?.backward?.average ?? 0));
 
-  const getCachedAvg = (dir: 'forward' | 'backward') => {
-    const key = `${edgeId}:${dir}`;
-    const cached = breakdownCache.get(key);
-    if (!cached || !cached.data || cached.data.length === 0) return null;
-    const sum = cached.data.reduce((a, b) => a + (Number(b.value) || 0), 0);
-    return Math.round(sum / cached.data.length);
-  };
-  const displayForwardAvg = rawForwardAvg === 0 ? (getCachedAvg('forward') ?? 0) : rawForwardAvg;
-  const displayBackwardAvg = rawBackwardAvg === 0 ? (getCachedAvg('backward') ?? 0) : rawBackwardAvg;
-
-  const [cacheTick, setCacheTick] = React.useState(0);
-
-  const prefetchBreakdowns = React.useCallback(async () => {
-    if (!isMindchangeEnabledClient()) return;
-    if (!(graph as any)?.getMindchangeBreakdown) return;
-    if (edgeType !== 'negation' && edgeType !== 'objection') return;
-    const now = Date.now();
-    const fKey = `${edgeId}:forward`;
-    const bKey = `${edgeId}:backward`;
-    const isFresh = (k: string) => { const c = breakdownCache.get(k); return !!c && (now - c.ts) < 30000; };
-    const fFresh = isFresh(fKey);
-    const bFresh = isFresh(bKey);
-    if (fFresh && bFresh) return;
-    try {
-      const res = await (graph as any).getMindchangeBreakdown(edgeId);
-      const ts = Date.now();
-      if (!fFresh) breakdownCache.set(fKey, { ts, data: res.forward });
-      if (!bFresh) breakdownCache.set(bKey, { ts, data: res.backward });
-      setCacheTick((t) => t + 1);
-    } catch { }
-  }, [graph, edgeId, edgeType]);
-
-  // Mindchange editor/UI state
-  const [editDir, setEditDir] = React.useState<null | 'forward' | 'backward'>(null);
-  const [value, setValue] = React.useState<number>(Math.abs(rawForwardAvg));
-  const initializedKeyRef = React.useRef<string | null>(null);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [menuPos, setMenuPos] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isSaving, setIsSaving] = React.useState(false);
@@ -195,7 +181,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     }
   }, [edgeId, tx, ty, zoom]);
 
-  const showHUD = Boolean(overlayOpen) && !suppress && !grabMode && (overlayActiveId == null || overlayActiveId === edgeId);
+  const showHUD = Boolean(overlayOpen) && !suppress && !grabMode;
+
   React.useEffect(() => {
     try {
       if (showHUD) setOverlayActive?.(edgeId);
@@ -215,87 +202,26 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     }
   }, [selected, isHovered, anchorHover, isNearOverlay, suppress, edgeId, setOverlayActive, overlayActiveId]);
 
-  React.useEffect(() => {
-    if (!isMindchangeEnabledClient()) { initializedKeyRef.current = null; return; }
-    if (!editDir) { initializedKeyRef.current = null; return; }
-    const initKey = `${edgeId}:${editDir}`;
-    if (initializedKeyRef.current === initKey) return;
-    try { prefetchBreakdowns(); } catch { }
-    const user = (mindchange as any)?.userValue as { forward?: number; backward?: number } | undefined;
-    let seed: number | undefined;
-    if (user && typeof user[editDir] === 'number' && user[editDir] !== undefined) {
-      // If user has an explicit value (including 0), use it once as the seed
-      seed = Math.abs(Number(user[editDir]));
-    } else {
-      const me = (graph as any)?.currentUserId as (string | undefined);
-      const findMine = (dir: 'forward' | 'backward'): number | null => {
-        try {
-          const key = `${edgeId}:${dir}`;
-          const cached = breakdownCache.get(key);
-          if (!cached || !cached.data || !Array.isArray(cached.data)) return null;
-          const rec = (cached.data as any[]).find((r) => me && r?.userId === me);
-          return rec ? Math.abs(Number(rec.value || 0)) : null;
-        } catch { return null; }
-      };
-      const mine = findMine(editDir);
-      if (mine != null && Number.isFinite(mine) && mine > 0) {
-        seed = mine;
-      } else {
-        const avg = editDir === 'forward' ? Number(displayForwardAvg) : Number(displayBackwardAvg);
-        seed = Math.abs(Number.isFinite(avg) ? avg : 0);
-      }
-    }
-    if (!Number.isFinite(seed)) seed = 100;
-    setValue(Math.max(0, Math.min(100, Math.round(seed as number))));
-    initializedKeyRef.current = initKey;
-  }, [editDir, mindchange, displayForwardAvg, displayBackwardAvg, cacheTick, graph, edgeId, prefetchBreakdowns]);
-
-  const handleSaveMindchange = async () => {
-    if (!graph.setMindchange || !editDir || isSaving) return;
-    setIsSaving(true);
-    try {
-      const v = Math.max(0, Math.min(100, Math.round(value)));
-      const params = editDir === 'forward' ? { forward: v } : { backward: v };
-      await graph.setMindchange(edgeId, params);
-      try {
-        const key = `${edgeId}:${editDir}` as const;
-        breakdownCache.set(key, { ts: 0, data: [] });
-        setCacheTick((t) => t + 1);
-      } catch { }
-      setEditDir(null);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const mindchangeNextDir = (graph as any)?.mindchangeNextDir as ('forward' | 'backward' | null);
-  const mindchangeEdgeId = (graph as any)?.mindchangeEdgeId as (string | null);
-  const setMindchangeNextDirFn = (graph as any)?.setMindchangeNextDir as ((v: 'forward' | 'backward' | null) => void) | undefined;
-  const lastOpenKeyRef = React.useRef<string | null>(null);
-  React.useEffect(() => {
-    if (!isMindchangeEnabledClient()) return;
-    if (edgeType !== 'negation' && edgeType !== 'objection') return;
-    if (!selected) { lastOpenKeyRef.current = null; return; }
-    if (mindchangeEdgeId !== edgeId || !mindchangeNextDir) return;
-    const key = `${edgeId}:${mindchangeNextDir}`;
-    if (lastOpenKeyRef.current === key) return;
-    lastOpenKeyRef.current = key;
-    setEditDir(mindchangeNextDir);
-    try { setMindchangeNextDirFn?.(null); } catch { }
-  }, [selected, edgeId, edgeType, mindchangeNextDir, mindchangeEdgeId, setMindchangeNextDirFn]);
 
   React.useEffect(() => {
-    const lockForMindchange = Boolean((graph as any)?.mindchangeMode) &&
-      (((graph as any)?.mindchangeEdgeId as string | null) === edgeId || Boolean(editDir));
     if (suppress) { setOverlayOpen(false); return; }
-    if (lockForMindchange) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (selected) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (isHovered) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (anchorHover) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (!isNearOverlay) setOverlayOpen(false);
-  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, editDir, suppress, setOverlayActive]);
+  }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, suppress, setOverlayActive]);
 
-  // Do not auto-close editor based on global mindchangeMode; editor can be opened directly
+  // Prevent browser page zoom (Ctrl/⌘ + wheel) while interacting with the overlay/buy UI
+  React.useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if ((overlayOpen || isNearOverlay || anchorHover) && (e.ctrlKey || (e as any).metaKey)) {
+        try { e.preventDefault(); } catch { }
+      }
+    };
+    window.addEventListener('wheel', onWheel, { capture: true, passive: false } as any);
+    return () => window.removeEventListener('wheel', onWheel as any, { capture: true } as any);
+  }, [overlayOpen, isNearOverlay, anchorHover]);
+
 
   return (
     <React.Fragment>
@@ -314,7 +240,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
           onMouseEnter={(e) => {
             onMouseEnter();
             setAnchorHover(true);
-            prefetchBreakdowns();
             try {
               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
               setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
@@ -328,6 +253,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
       {portalTarget && showHUD && createPortal(
         <div
           ref={portalContainerRef}
+          data-edge-overlay-container={edgeId}
           style={{
             position: 'fixed',
             left: anchorScreenPos?.x ?? fallbackScreenLeft,
@@ -383,7 +309,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   onMouseEnter={() => setIsNearOverlay(true)}
                   onMouseLeave={() => setIsNearOverlay(false)}
                 >
-                  {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && !editDir && (
+                  {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && (
                     <EdgeTypeToggle
                       edgeType={edgeType}
                       onToggle={onToggleEdgeType}
@@ -392,8 +318,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     />
                   )}
 
-                  {(() => {
-                    if (isMindchangeEnabledClient()) return null;
+                  {showRelevanceStars && (() => {
                     const rel = Math.max(1, Math.min(5, Math.round(Number(relevance || 0))));
                     if (edgeType === 'support' || edgeType === 'negation') {
                       return (
@@ -441,107 +366,122 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     return null;
                   })()}
 
-                  {(edgeType === 'negation' || edgeType === 'objection') && !editDir && (() => {
-                    if (!isMindchangeEnabledClient()) return null;
-                    const handleClick = (e: React.MouseEvent) => handleConnectionAwareClick(e, () => {
-                      e.stopPropagation();
-                      try { prefetchBreakdowns(); } catch { }
-                      (graph as any)?.beginMindchangeOnEdge?.(edgeId);
-                    });
+
+                  {/* Buy circle – hover shows price history, click opens full market panel */}
+                  {showPriceCircle && (() => {
+                    const rawPrice = Number(marketPrice as number);
+                    const priceNum = Number.isFinite(rawPrice) ? rawPrice : 0.5;
+                    const size = 24;
+                    const t = (edgeType || '').toLowerCase();
+                    const isSupport = t === 'support';
+                    const isNegation = t === 'negation';
+                    const isObjection = t === 'objection';
+                    if (!(isSupport || isNegation || isObjection)) return null;
+                    const color = isSupport ? '#10b981' : (isNegation ? '#ef4444' : '#f59e0b');
+                    const fill = () => {
+                      const p = Math.max(0, Math.min(1, priceNum));
+                      if (isObjection) {
+                        const h = Math.round(size * p);
+                        const y = size - h;
+                        return (
+                          <g clipPath={`url(#edge-mini-clip-inline-${edgeId})`}>
+                            <g transform={`rotate(-45 ${size / 2} ${size / 2})`}>
+                              <rect x={0} y={y} width={size} height={h} fill={color} />
+                            </g>
+                          </g>
+                        );
+                      }
+                      const h = Math.round(size * p);
+                      const y = isSupport ? (size - h) : 0;
+                      return (
+                        <g clipPath={`url(#edge-mini-clip-inline-${edgeId})`}>
+                          <rect x={0} y={y} width={size} height={h} fill={color} />
+                        </g>
+                      );
+                    };
                     return (
-                      <button
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={handleClick}
-                        className="rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-white text-gray-700 shadow-md hover:shadow-lg hover:bg-gray-50 active:scale-95 transition-all duration-150 border border-gray-200"
-                        title="Mindchange"
+                      <div
+                        className="relative ml-2"
+                        onMouseEnter={() => setHoverBuy(true)}
+                        onMouseLeave={() => setHoverBuy(false)}
+                        style={{ pointerEvents: 'auto' }}
                       >
-                        Mindchange
-                      </button>
+                        <button
+                          type="button"
+                          aria-label="Buy"
+                          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            try { (graph as any)?.clearNodeSelection?.(); } catch { }
+                            try { (graph as any)?.setSelectedEdge?.(edgeId); } catch { }
+                          }}
+                          className="h-7 w-7 rounded-full bg-white border border-stone-200 shadow-none transition flex items-center justify-center hover:shadow-sm hover:border-stone-300 cursor-pointer"
+                        >
+                          <svg width={size} height={size}>
+                            <defs><clipPath id={`edge-mini-clip-inline-${edgeId}`}><circle cx={size / 2} cy={size / 2} r={(size / 2) - 2} /></clipPath></defs>
+                            {/* Thin white frame so inner circle is big */}
+                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 0.5} fill="white" stroke="white" strokeWidth={2} />
+                            {/* Inner circle background */}
+                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 2} fill="#ffffff" stroke="#e5e7eb" strokeWidth={0.5} />
+                            {fill()}
+                            <circle cx={size / 2} cy={size / 2} r={(size / 2) - 2} fill="none" stroke="#334155" strokeOpacity={0.15} strokeWidth={0.5} />
+                          </svg>
+                        </button>
+                        {hoverBuy && (
+                          <div
+                            data-testid="buy-circle-tooltip"
+                            className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 rounded-md shadow-md ${isObjection ? 'bg-amber-50 border border-amber-200' : 'bg-white border border-stone-200'}`}
+                            style={{ width: '220px', pointerEvents: 'none' }}
+                          >
+                            <InlinePriceHistory
+                              entityId={edgeId}
+                              docId={docId}
+                              currentPrice={priceNum}
+                              variant={isObjection ? 'objection' : 'default'}
+                              className="w-full"
+                              compact={true}
+                            />
+                          </div>
+                        )}
+                      </div>
                     );
                   })()}
 
-                  {!editDir && (
+                  {
                     <button
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onAddObjection(); setOverlayOpen(false); })}
+                      onClick={(e) => handleConnectionAwareClick(e, () => {
+                        e.stopPropagation();
+                        onAddObjection();
+                        setOverlayOpen(false);
+                        setOverlayActive?.(null);
+                      })}
                       type="button"
                       data-interactive="true"
                       className="rounded-lg px-4 py-1.5 text-xs font-semibold bg-gradient-to-b from-gray-800 to-gray-900 text-white shadow-md hover:shadow-lg hover:from-gray-700 hover:to-gray-800 active:scale-95 transition-all duration-150 border border-gray-700"
-                      title="Add mitigation to this relation"
                     >
                       Mitigate
                     </button>
-                  )}
+                  }
 
-                  {editDir && (
-                    // Editor only available when feature enabled
-                    <MindchangeEditor
-                      value={value}
-                      isSaving={isSaving}
-                      edgeType={edgeType}
-                      onValueChange={setValue}
-                      onSave={handleSaveMindchange}
-                      onCancel={() => {
-                        setEditDir(null);
-                        try { (graph as any)?.setSelectedEdge?.(null); } catch { }
-                        (graph as any)?.cancelMindchangeSelection?.();
-                      }}
-                      onClear={(() => {
-                        const me = (graph as any)?.currentUserId as (string | undefined);
-                        const getDirUserVal = (dir: 'forward' | 'backward'): number => {
-                          const local = Number((mindchange as any)?.userValue?.[dir] || 0) || 0;
-                          if (local > 0) return local;
-                          try {
-                            const key = `${edgeId}:${dir}`;
-                            const cached = breakdownCache.get(key);
-                            if (!cached || !cached.data || !Array.isArray(cached.data)) return 0;
-                            const rec = (cached.data as any[]).find((r) => me && r?.userId === me);
-                            return rec ? Number(rec.value || 0) : 0;
-                          } catch { return 0; }
-                        };
-                        const present = editDir ? getDirUserVal(editDir) : 0;
-                        return present > 0 ? async () => {
-                          if (!graph.setMindchange || !editDir || isSaving) return;
-                          setIsSaving(true);
-                          try {
-                            const params = editDir === 'forward' ? { forward: 0 } : { backward: 0 };
-                            await graph.setMindchange(edgeId, params);
-                            try {
-                              const key = `${edgeId}:${editDir}` as const;
-                              breakdownCache.set(key, { ts: 0, data: [] });
-                              setCacheTick((t) => t + 1);
-                            } catch { }
-                            setEditDir(null);
-                            try { (graph as any)?.setSelectedEdge?.(null); } catch { }
-                            (graph as any)?.cancelMindchangeSelection?.();
-                          } finally {
-                            setIsSaving(false);
-                          }
-                        } : undefined;
-                      })()}
-                    />
-                  )}
 
-                  {(edgeType === 'negation' || edgeType === 'objection') && (
-                    isMindchangeEnabledClient() ? (
-                      <MindchangeIndicators
-                      edgeId={edgeId}
-                      edgeType={edgeType}
-                      mindchange={mindchange}
-                      />
-                    ) : null
-                  )}
+
                 </div>
               </div>
             </div>
           </div>
+
           <ContextMenu
             open={menuOpen}
             x={menuPos.x}
             y={menuPos.y}
             onClose={() => setMenuOpen(false)}
             items={[
-              { label: 'Delete edge', danger: true, onClick: () => { try { (graph as any)?.deleteNode?.(edgeId); } catch { } } },
+              {
+                label: 'Delete Edge',
+                onClick: () => { try { (graph as any)?.deleteNode?.(edgeId); } catch { } },
+                danger: true,
+              },
             ]}
           />
         </div>,

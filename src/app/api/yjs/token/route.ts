@@ -11,9 +11,9 @@ export async function POST(req: Request) {
 
   const url = new URL(req.url);
   const hostname = url.hostname;
-  // Allow anonymous tokens for viewing on ALL environments (including production).
-  // Writes are still blocked server-side at the updates route on production.
   const userId = await getUserIdOrAnonymous();
+  const isProd = isProductionRequest(hostname);
+  const readonly = isProd && (!userId || userId.startsWith("anon"));
 
   const secret = process.env.YJS_AUTH_SECRET;
   if (!secret) {
@@ -25,10 +25,8 @@ export async function POST(req: Request) {
   }
   const timestamp = Math.floor(Date.now() / 1000);
   const expiry = timestamp + 60 * 60 * 8;
-  // Include a hint for potential readonly handling (current server ignores this and relies on HTTP write guards)
-  const readonly = isProductionRequest(hostname) && !userId;
   const payload = JSON.stringify({
-    userId,
+    userId: userId || "anon",
     expiry,
     mode: readonly ? "readonly" : "rw",
   });

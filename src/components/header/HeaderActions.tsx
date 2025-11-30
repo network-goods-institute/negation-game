@@ -44,7 +44,8 @@ export const HeaderActions = () => {
     const { mobileFiltersOpen } = useSpaceSearch();
 
     const isSpacePage = pathname.match(/^\/s\/[^\/]+$/) !== null;
-    const isExperimentPage = pathname.startsWith('/experiment');
+    // Check if this is an experiment/multiplayer page (including rewritten routes like "/" and "/board/[id]")
+    const isExperimentPage = pathname.startsWith('/experiment') || pathname === '/' || pathname.startsWith('/board/');
 
     useEffect(() => {
         // Get the search container element for portal rendering

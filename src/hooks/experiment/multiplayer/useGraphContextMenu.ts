@@ -18,39 +18,40 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
 
   const buildPositionsById = React.useCallback(
     (ids: string[]) => {
-      return ids.reduce<Record<string, { x: number; y: number; width: number; height: number }>>(
-        (acc, nid) => {
-          const node = rf.getNode(nid) as any;
-          const x = Number.isFinite(node?.position?.x) ? node.position.x : 0;
-          const y = Number.isFinite(node?.position?.y) ? node.position.y : 0;
+      return ids.reduce<
+        Record<string, { x: number; y: number; width: number; height: number }>
+      >((acc, nid) => {
+        const node = rf.getNode(nid) as any;
+        const x = Number.isFinite(node?.position?.x) ? node.position.x : 0;
+        const y = Number.isFinite(node?.position?.y) ? node.position.y : 0;
 
-          let width =
-            Number(node?.width ?? node?.measured?.width ?? node?.style?.width ?? 0) ||
-            0;
-          let height =
-            Number(node?.height ?? node?.measured?.height ?? node?.style?.height ?? 0) ||
-            0;
+        let width =
+          Number(
+            node?.width ?? node?.measured?.width ?? node?.style?.width ?? 0
+          ) || 0;
+        let height =
+          Number(
+            node?.height ?? node?.measured?.height ?? node?.style?.height ?? 0
+          ) || 0;
 
-          if ((!width || !height) && typeof document !== "undefined") {
-            try {
-              const selector = `.react-flow__node[data-id="${nid}"]`;
-              const el = document.querySelector(selector) as HTMLElement | null;
-              if (el) {
-                const rect = el.getBoundingClientRect();
-                if (!width) width = Math.ceil(rect.width);
-                if (!height) height = Math.ceil(rect.height);
-              }
-            } catch {}
-          }
+        if ((!width || !height) && typeof document !== "undefined") {
+          try {
+            const selector = `.react-flow__node[data-id="${nid}"]`;
+            const el = document.querySelector(selector) as HTMLElement | null;
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              if (!width) width = Math.ceil(rect.width);
+              if (!height) height = Math.ceil(rect.height);
+            }
+          } catch {}
+        }
 
-          if (!width) width = 240;
-          if (!height) height = 80;
+        if (!width) width = 240;
+        if (!height) height = 80;
 
-          acc[nid] = { x, y, width, height };
-          return acc;
-        },
-        {}
-      );
+        acc[nid] = { x, y, width, height };
+        return acc;
+      }, {});
     },
     [rf]
   );
@@ -62,6 +63,15 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
 
       // Safety check for DOM methods
       if (!target || typeof target.closest !== "function") {
+        return;
+      }
+
+      const editableEl = target.closest('[contenteditable="true"]') as HTMLElement | null;
+      const interactiveEl = target.closest("input, textarea, select, button") as HTMLElement | null;
+      if (editableEl && editableEl.contentEditable === "true") {
+        return;
+      }
+      if (interactiveEl && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/i.test(interactiveEl.tagName || "")) {
         return;
       }
 
@@ -117,30 +127,15 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
       return;
     }
 
-    const ids = new Set<string>();
-    sel.forEach((n) => {
-      const node: any = n as any;
-      if (node.type === "group") {
-        ids.add(node.id);
-        return;
-      }
-      const pid = node.parentId;
-      if (pid) {
-        const p = rf.getNode(pid) as any;
-        if (p && p.type === "group") {
-          ids.add(p.id);
-          return;
-        }
-      }
-      ids.add(node.id);
-    });
-    ids.forEach((id) => graph.deleteNode?.(id));
+    sel.forEach((n) => graph.deleteNode?.(n.id));
     setMultiSelectMenuOpen(false);
   }, [rf, graph]);
 
   const handleAddPointToSelected = React.useCallback(() => {
     const sel = rf.getNodes().filter((n) => (n as any).selected);
-    const contextNode = contextMenuNodeId ? rf.getNode(contextMenuNodeId) : null;
+    const contextNode = contextMenuNodeId
+      ? rf.getNode(contextMenuNodeId)
+      : null;
     const contextType = (contextNode as any)?.type;
     const wantsComment = contextType === "comment";
 

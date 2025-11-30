@@ -7,6 +7,7 @@ jest.mock('@xyflow/react', () => {
     ...actual,
     useStore: jest.fn(),
     useReactFlow: jest.fn(() => ({ getEdges: jest.fn(), getNodes: jest.fn() })),
+    useViewport: jest.fn(() => ({ x: 0, y: 0, zoom: 1 })),
     Position: { Top: 'top', Bottom: 'bottom' },
   };
 });
@@ -17,8 +18,6 @@ jest.mock('../GraphContext', () => ({
     updateNodeHidden: jest.fn(),
     updateNodeFavor: jest.fn(),
     addPointBelow: jest.fn(),
-    createInversePair: jest.fn(),
-    deleteInversePair: jest.fn(),
     isConnectingFromNodeId: null,
     deleteNode: jest.fn(),
     startEditingNode: jest.fn(),
@@ -108,9 +107,19 @@ import { useStore } from '@xyflow/react';
 import { PointNode } from '../PointNode';
 
 describe('PointNode dragging UI behavior', () => {
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    process.env = { ...OLD_ENV, NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED: 'false' };
+  });
+
   afterEach(() => {
     cleanup();
     jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    process.env = OLD_ENV;
   });
 
   it('shows favor and pill when not dragging', () => {

@@ -2,9 +2,13 @@ import { renderHook } from '@testing-library/react';
 import { useReactFlow } from '@xyflow/react';
 import { toast } from 'sonner';
 import { useGraphKeyboardHandlers } from '../useGraphKeyboardHandlers';
+import { dispatchMarketPanelClose } from '@/utils/market/marketEvents';
 
 jest.mock('@xyflow/react');
 jest.mock('sonner');
+jest.mock('@/utils/market/marketEvents', () => ({
+  dispatchMarketPanelClose: jest.fn(),
+}));
 
 describe('useGraphKeyboardHandlers', () => {
   const mockGraph = {
@@ -90,12 +94,11 @@ describe('useGraphKeyboardHandlers', () => {
       expect(mockGraph.deleteNode).toHaveBeenCalledTimes(1);
     });
 
-    it('should delete group node when child node is selected', () => {
+    it('should delete selected node', () => {
       const mockNodes = [
-        { id: 'child-1', selected: true, type: 'point', parentId: 'group-1' },
+        { id: 'node-1', selected: true, type: 'point' },
       ];
       mockRf.getNodes.mockReturnValue(mockNodes);
-      mockRf.getNode.mockReturnValue({ id: 'group-1', type: 'group' });
 
       renderHook(() =>
         useGraphKeyboardHandlers({ graph: mockGraph, copiedNodeIdRef })
@@ -107,7 +110,7 @@ describe('useGraphKeyboardHandlers', () => {
       });
       window.dispatchEvent(deleteEvent);
 
-      expect(mockGraph.deleteNode).toHaveBeenCalledWith('group-1');
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('node-1');
     });
 
     it('should not delete when a node is being edited', () => {
@@ -149,9 +152,18 @@ describe('useGraphKeyboardHandlers', () => {
   });
 
   describe('Escape key handling', () => {
-    it('should clear node selection and deselect edge', () => {
+    beforeEach(() => {
+      (dispatchMarketPanelClose as jest.Mock).mockClear();
+    });
+
+    it('should dispatch market panel close and cancel modes', () => {
+      const graphWithModes = {
+        ...mockGraph,
+        cancelConnect: jest.fn(),
+      };
+
       renderHook(() =>
-        useGraphKeyboardHandlers({ graph: mockGraph, copiedNodeIdRef })
+        useGraphKeyboardHandlers({ graph: graphWithModes, copiedNodeIdRef })
       );
 
       const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
@@ -161,9 +173,30 @@ describe('useGraphKeyboardHandlers', () => {
       });
       window.dispatchEvent(escapeEvent);
 
-      expect(mockGraph.clearNodeSelection).toHaveBeenCalled();
-      expect(mockGraph.setSelectedEdge).toHaveBeenCalledWith(null);
+      expect(dispatchMarketPanelClose).toHaveBeenCalled();
+      expect(graphWithModes.cancelConnect).toHaveBeenCalled();
       expect(preventDefaultSpy).toHaveBeenCalled();
+    });
+
+    it('should not dispatch when typing in editable field', () => {
+      renderHook(() =>
+        useGraphKeyboardHandlers({ graph: mockGraph, copiedNodeIdRef })
+      );
+
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+
+      const escapeEvent = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+      });
+      Object.defineProperty(escapeEvent, 'target', { value: input });
+      input.dispatchEvent(escapeEvent);
+
+      expect(dispatchMarketPanelClose).not.toHaveBeenCalled();
+
+      document.body.removeChild(input);
     });
   });
 
