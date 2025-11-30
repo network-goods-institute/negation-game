@@ -15,6 +15,9 @@ import { computeMidpointBetweenBorders, getTrimmedLineCoords } from '@/utils/exp
 import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
 import { MainEdgeRenderer } from './MainEdgeRenderer';
 import { getMarkerIdForEdgeType } from './EdgeArrowMarkers';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
 
 export interface BaseEdgeProps extends EdgeProps {
   edgeType: EdgeType;
@@ -84,7 +87,19 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const { perfMode } = usePerformanceMode();
   const lightMode = (perfMode || grabMode) && !selected && !isHovered && !connectMode;
 
-
+  const [, , zoom] = useStore((s: any) => s.transform);
+  const overlayState = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const marketEnabled = isMarketEnabled();
+  const side = useMemo(() => {
+    if (!marketEnabled) return 'TEXT'; // Always show text/relevance when market is disabled
+    let s = computeSide(overlayState);
+    if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
+      s = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+    }
+    return s;
+  }, [overlayState, zoom, threshold, marketEnabled]);
+  const showPriceMode = marketEnabled && side === 'PRICE';
 
   const relevanceRaw = Number((props as any)?.data?.relevance ?? 3);
   const relevance = Math.max(1, Math.min(5, Math.round(relevanceRaw)));
@@ -146,12 +161,14 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const mindchangeRenderConfig = { mode: 'normal', markerStart: null, markerEnd: null, markerId: null };
 
-  const infl = Number(((props as any).data?.market?.influence) ?? NaN);
-  const srcMine = Number((sourceNode as any)?.data?.market?.mine ?? 0);
-  const tgtMine = Number((targetNode as any)?.data?.market?.mine ?? 0);
-  const marketPrice = Number(((props as any).data?.market?.price) ?? NaN);
+  // Only read market data if market feature is enabled
+  const infl = marketEnabled ? Number(((props as any).data?.market?.influence) ?? NaN) : NaN;
+  const srcMine = marketEnabled ? Number((sourceNode as any)?.data?.market?.mine ?? 0) : 0;
+  const tgtMine = marketEnabled ? Number((targetNode as any)?.data?.market?.mine ?? 0) : 0;
+  const marketPrice = marketEnabled ? Number(((props as any).data?.market?.price) ?? NaN) : NaN;
   const edgeTypeLocal = props.edgeType;
   const marketMarkers = useMemo(() => {
+    if (!marketEnabled) return { start: undefined as string | undefined, end: undefined as string | undefined };
     try {
       const localInfl = infl;
       if (Number.isNaN(localInfl)) return { start: undefined as string | undefined, end: undefined as string | undefined };
@@ -167,7 +184,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     } catch {
       return { start: undefined as string | undefined, end: undefined as string | undefined };
     }
-  }, [infl, srcMine, tgtMine, edgeTypeLocal]);
+  }, [marketEnabled, infl, srcMine, tgtMine, edgeTypeLocal]);
 
   const [bidirectionalLabelX, bidirectionalLabelY] = useMemo(() => {
     if (mindchangeRenderConfig.mode !== 'bidirectional' || !visual.useBezier) {
@@ -229,7 +246,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     let marketWidth = width;
     try {
       const mp = marketPrice;
-      if (Number.isFinite(mp)) {
+      // Only apply market-based width when in PRICE mode
+      if (showPriceMode && Number.isFinite(mp)) {
         // Log-scaled emphasis: 0 -> ~1.5px, 1 -> ~11.5px; obvious visual tie to price
         const p = Math.max(0, Math.min(1, Number(mp)));
         const strength = Math.log1p(99 * p) / Math.log(100); // 0..1 with log curve
@@ -258,7 +276,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     }
 
     return baseStyle;
-  }, [visual, edgeTypeLocal, targetNode, relevance, marketPrice]);
+  }, [visual, edgeTypeLocal, targetNode, relevance, marketPrice, showPriceMode]);
 
   const edgeStylesWithPointer = useMemo(() => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
@@ -270,7 +288,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const mindchangeActive = false;
 
   const hasMarketPrice = marketPrice != null && Number.isFinite(marketPrice);
-  const marketEnabled = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -430,10 +447,10 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           selected={selected}
           edgeId={props.id as string}
           edgeType={props.edgeType}
-          marketPrice={(props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection') ? Number(((props as any).data?.market?.price) ?? NaN) : NaN}
-          marketMine={(props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection') ? Number(((props as any).data?.market?.mine) ?? NaN) : NaN}
-          marketTotal={(props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection') ? Number(((props as any).data?.market?.total) ?? NaN) : NaN}
-          marketInfluence={(props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection') ? Number(((props as any).data?.market?.influence) ?? NaN) : NaN}
+          marketPrice={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? marketPrice : NaN}
+          marketMine={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? Number(((props as any).data?.market?.mine) ?? NaN) : NaN}
+          marketTotal={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? Number(((props as any).data?.market?.total) ?? NaN) : NaN}
+          marketInfluence={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? infl : NaN}
           srcX={sourceX ?? 0}
           srcY={sourceY ?? 0}
           tgtX={targetX ?? 0}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buyAmount } from "@/actions/market/buyAmount";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,8 +20,22 @@ export async function POST(req: Request, ctx: any) {
   const spendScaled = String(json?.spendScaled || "0");
   if (!securityId)
     return NextResponse.json({ error: "securityId required" }, { status: 400 });
-  // Ensure an anonymous session is established when needed
-  await getUserIdOrAnonymous();
+
+  const userId = await getUserIdOrAnonymous();
+
+  const rateLimit = await checkRateLimit(userId, 30, 60000, "market-buy");
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded", resetTime: rateLimit.resetTime },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": rateLimit.resetTime.toString(),
+        },
+      }
+    );
+  }
   try {
     const res = await buyAmount(docId, securityId, spendScaled);
     return NextResponse.json(res, { status: 200 });

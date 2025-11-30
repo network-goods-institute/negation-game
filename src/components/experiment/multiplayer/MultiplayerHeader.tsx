@@ -113,11 +113,12 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   const titleCountdownRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestTitleRef = useRef<string>(title || 'Untitled');
+  const marketEnabled = process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
   const [pendingTrades, setPendingTrades] = useState(0);
   const [pendingLocal, setPendingLocal] = useState(0);
-  const marketEnabled = process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
 
   useEffect(() => {
+    if (!marketEnabled) return;
     const bumpLocal = (delta: number) => {
       setPendingLocal((p) => Math.max(0, p + delta));
     };
@@ -139,9 +140,10 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
       try { window.removeEventListener('market:tradeStarted', onStart as any); } catch { }
       try { window.removeEventListener('market:tradeFinished', onFinish as any); } catch { }
     };
-  }, [documentId, provider]);
+  }, [marketEnabled, documentId, provider]);
 
   useEffect(() => {
+    if (!marketEnabled) return;
     let disposed = false;
     const recompute = () => {
       try {
@@ -166,11 +168,12 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
       }
     } catch { }
     return () => { disposed = true; };
-  }, [provider]);
+  }, [marketEnabled, provider]);
 
   useEffect(() => {
+    if (!marketEnabled) return;
     try { (provider as any)?.awareness?.setLocalStateField?.('marketPending', pendingLocal); } catch { }
-  }, [provider, pendingLocal]);
+  }, [marketEnabled, provider, pendingLocal]);
 
   useEffect(() => {
     setLocalTitle(title || 'Untitled');
@@ -650,84 +653,86 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
             </>
           )}
         </div>
-        <div className="flex items-end justify-end">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  className={`group relative flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1.5 shadow-sm hover:shadow-md transition-all cursor-help ${pendingTrades > 0
-                    ? 'border-blue-200'
-                    : 'border-stone-200'
-                    }`}
-                  aria-label="Pending trades"
-                  aria-live="polite"
-                  role="status"
-                >
-                  <div className="relative flex items-center justify-center">
-                    <svg
-                      className={`w-3.5 h-3.5 ${pendingTrades > 0
-                        ? 'text-blue-500 animate-pulse'
-                        : 'text-stone-400'
-                        }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                      />
-                    </svg>
-                  </div>
-                  <span className={`text-xs font-medium relative inline-flex items-center ${pendingTrades > 0
-                    ? 'text-blue-700'
-                    : 'text-stone-600'
-                    }`}>
-                    <span
-                      key={pendingTrades}
-                      className="inline-block animate-fade-in-scale"
-                    >
-                      {pendingTrades}
-                    </span>
-                    <span className="ml-1">{pendingTrades === 1 ? 'trade' : 'trades'}</span>
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="left" align="end" alignOffset={-90} className="bg-white border-stone-200 shadow-lg px-4 py-3">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 pb-2 border-b border-stone-200">
-                    <svg
-                      className={`w-4 h-4 ${pendingTrades > 0 ? 'text-blue-500' : 'text-stone-400'}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                      />
-                    </svg>
-                    <span className="font-semibold text-sm text-stone-900">
-                      {pendingTrades > 0 ? 'Active Trades' : 'No Active Trades'}
+        {marketEnabled && (
+          <div className="flex items-end justify-end">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    className={`group relative flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1.5 shadow-sm hover:shadow-md transition-all cursor-help ${pendingTrades > 0
+                      ? 'border-blue-200'
+                      : 'border-stone-200'
+                      }`}
+                    aria-label="Pending trades"
+                    aria-live="polite"
+                    role="status"
+                  >
+                    <div className="relative flex items-center justify-center">
+                      <svg
+                        className={`w-3.5 h-3.5 ${pendingTrades > 0
+                          ? 'text-blue-500 animate-pulse'
+                          : 'text-stone-400'
+                          }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                        />
+                      </svg>
+                    </div>
+                    <span className={`text-xs font-medium relative inline-flex items-center ${pendingTrades > 0
+                      ? 'text-blue-700'
+                      : 'text-stone-600'
+                      }`}>
+                      <span
+                        key={pendingTrades}
+                        className="inline-block animate-fade-in-scale"
+                      >
+                        {pendingTrades}
+                      </span>
+                      <span className="ml-1">{pendingTrades === 1 ? 'trade' : 'trades'}</span>
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                    <div className="text-stone-500 text-xs">Total:</div>
-                    <div className="text-stone-900 font-semibold text-xs text-right tabular-nums">{pendingTrades}</div>
-                    <div className="text-stone-500 text-xs">Yours:</div>
-                    <div className="text-blue-600 font-semibold text-xs text-right tabular-nums">{pendingLocal}</div>
-                    <div className="text-stone-500 text-xs">Others:</div>
-                    <div className="text-purple-600 font-semibold text-xs text-right tabular-nums">{Math.max(0, pendingTrades - pendingLocal)}</div>
+                </TooltipTrigger>
+                <TooltipContent side="left" align="end" alignOffset={-90} className="bg-white border-stone-200 shadow-lg px-4 py-3">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 pb-2 border-b border-stone-200">
+                      <svg
+                        className={`w-4 h-4 ${pendingTrades > 0 ? 'text-blue-500' : 'text-stone-400'}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                        />
+                      </svg>
+                      <span className="font-semibold text-sm text-stone-900">
+                        {pendingTrades > 0 ? 'Active Trades' : 'No Active Trades'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                      <div className="text-stone-500 text-xs">Total:</div>
+                      <div className="text-stone-900 font-semibold text-xs text-right tabular-nums">{pendingTrades}</div>
+                      <div className="text-stone-500 text-xs">Yours:</div>
+                      <div className="text-blue-600 font-semibold text-xs text-right tabular-nums">{pendingLocal}</div>
+                      <div className="text-stone-500 text-xs">Others:</div>
+                      <div className="text-purple-600 font-semibold text-xs text-right tabular-nums">{Math.max(0, pendingTrades - pendingLocal)}</div>
+                    </div>
                   </div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div >
     </>
   );

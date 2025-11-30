@@ -6,6 +6,9 @@ import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
 import { InlinePriceHistory } from '../market/InlinePriceHistory';
+import { useAtomValue } from 'jotai';
+import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
 
 const EDGE_ANCHOR_SIZE = 36;
 const PERSISTENCE_PADDING = 14;
@@ -79,6 +82,21 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   } = usePersistencePointerHandlers({ grabMode });
 
   const [tx, ty, zoom] = useStore((s: any) => s.transform);
+
+  const overlayState = useAtomValue(marketOverlayStateAtom);
+  const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const marketEnabled = isMarketEnabled();
+  const side = React.useMemo(() => {
+    if (!marketEnabled) return 'TEXT';
+    let s = computeSide(overlayState);
+    if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
+      s = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
+    }
+    return s;
+  }, [overlayState, zoom, threshold, marketEnabled]);
+  // Edge overlay price circle ALWAYS shows when market is enabled (toolbar state doesn't affect it)
+  const showPriceCircle = marketEnabled;
+  const showRelevanceStars = !marketEnabled || side === 'TEXT';
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
   const anchorNode = useStore((s: any) => s.nodeInternals?.get?.(`anchor:${edgeId}`));
@@ -300,9 +318,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     />
                   )}
 
-                  {(() => {
-                    const marketEnabled = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
-                    if (marketEnabled) return null;
+                  {showRelevanceStars && (() => {
                     const rel = Math.max(1, Math.min(5, Math.round(Number(relevance || 0))));
                     if (edgeType === 'support' || edgeType === 'negation') {
                       return (
@@ -352,7 +368,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 
 
                   {/* Buy circle – hover shows price history, click opens full market panel */}
-                  {(() => {
+                  {showPriceCircle && (() => {
                     const rawPrice = Number(marketPrice as number);
                     const priceNum = Number.isFinite(rawPrice) ? rawPrice : 0.5;
                     const size = 24;
@@ -396,8 +412,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                           onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            try { (graph as any)?.clearNodeSelection?.(); } catch {}
-                            try { (graph as any)?.setSelectedEdge?.(edgeId); } catch {}
+                            try { (graph as any)?.clearNodeSelection?.(); } catch { }
+                            try { (graph as any)?.setSelectedEdge?.(edgeId); } catch { }
                           }}
                           className="h-7 w-7 rounded-full bg-white border border-stone-200 shadow-none transition flex items-center justify-center hover:shadow-sm hover:border-stone-300 cursor-pointer"
                         >

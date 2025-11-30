@@ -34,7 +34,9 @@ export async function computeMarketView(
         sampleSecurities: securities.slice(0, 10),
       })
     );
-  } catch {}
+  } catch (error) {
+    logger.error("[market] Failed to log market_view_build", { error });
+  }
 
   const rows = await db
     .select({
@@ -87,7 +89,9 @@ export async function computeMarketView(
             nodes.add(tgtId);
             triples.push([id, srcId, tgtId]);
           }
-        } catch {}
+        } catch (error) {
+          logger.error("[market] Failed to parse edge ID in view fallback", { error, id });
+        }
       }
     }
     try {
@@ -106,8 +110,12 @@ export async function computeMarketView(
             secs: mmSecs.length,
           })
         );
-      } catch {}
-    } catch {}
+      } catch (logError) {
+        logger.error("[market] Failed to log market_view_fallback", { error: logError });
+      }
+    } catch (error) {
+      logger.error("[market] Failed to build fallback structure", { error, docId: canonicalId });
+    }
   }
 
   const totals = new Map<string, bigint>();
@@ -121,7 +129,7 @@ export async function computeMarketView(
   try {
     const priceCount = Object.keys(prices || {}).length;
     const sample = Object.entries(prices || {}).slice(0, 3);
-    logger.info?.("[market] view priced", {
+    logger.info("[market] view priced", {
       docId: canonicalId,
       names: mmStruct.names.length,
       edges: mmStruct.edges.length,
@@ -129,7 +137,9 @@ export async function computeMarketView(
       priceCount,
       sample,
     });
-  } catch {}
+  } catch (error) {
+    logger.error("[market] Failed to log view priced", { error });
+  }
 
   const secSet = new Set(mmSecs);
   const userHoldings: Record<string, string> = {};

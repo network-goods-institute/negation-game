@@ -6,6 +6,7 @@ import { getDocSnapshotBuffer } from "@/services/yjsCompaction";
 import { buildSecurities } from "@/lib/carroll/structure";
 import { resolveSlugToId } from "@/utils/slugResolver";
 import { createStructureWithSupports } from "./structureUtils";
+import { logger } from "@/lib/logger";
 
 type RFNode = { id: string };
 type RFEdge = { id: string; source: string; target: string; type?: string };
@@ -24,7 +25,9 @@ async function computeReconciledMarket(
   if (buf && buf.byteLength) {
     try {
       Y.applyUpdate(ydoc, new Uint8Array(buf));
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to apply Yjs update in reconcile", { error, canonicalId });
+    }
   }
   const yNodes = ydoc.getMap<RFNode>("nodes");
   const yEdges = ydoc.getMap<RFEdge>("edges");

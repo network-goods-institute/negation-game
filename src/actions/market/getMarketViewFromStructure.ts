@@ -79,8 +79,10 @@ export async function getMarketViewFromStructure(docId: string, userId: string |
   const prices = mm.getPrices();
   try {
     const priceCount = Object.keys(prices || {}).length;
-    logger.info?.('[market] view priced (override)', { docId: canonicalId, names: structure.names.length, edges: structure.edges.length, secs: securities.length, priceCount });
-  } catch {}
+    logger.info('[market] view priced (override)', { docId: canonicalId, names: structure.names.length, edges: structure.edges.length, secs: securities.length, priceCount });
+  } catch (error) {
+    logger.error("[market] Failed to log view priced (override)", { error });
+  }
   // User holdings
   const userRows = userId
     ? await db

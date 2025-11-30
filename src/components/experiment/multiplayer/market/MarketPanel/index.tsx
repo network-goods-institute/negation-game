@@ -222,6 +222,13 @@ export const MarketPanel: React.FC<Props> = ({
     return () => { unsubscribe(); };
   }, [handleClose]);
 
+  // Show toast notification when preview fails
+  useEffect(() => {
+    if (preview.error) {
+      toast.error('Market preview failed: outcome enumeration cap exceeded');
+    }
+  }, [preview.error]);
+
   const handleTrade = async (tradeAmount: number) => {
     if (!entityId || submitting) return;
 

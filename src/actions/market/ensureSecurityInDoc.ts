@@ -67,14 +67,18 @@ export async function ensureSecurityInDoc(
   if (baseBuf && baseBuf.byteLength) {
     try {
       Y.applyUpdate(baseDoc, new Uint8Array(baseBuf));
-    } catch {}
+    } catch (error) {
+      throw new Error(`Failed to apply base doc update: ${error}`);
+    }
   }
 
   const doc = new Y.Doc();
   if (baseBuf && baseBuf.byteLength) {
     try {
       Y.applyUpdate(doc, new Uint8Array(baseBuf));
-    } catch {}
+    } catch (error) {
+      throw new Error(`Failed to apply doc update: ${error}`);
+    }
   }
 
   const yNodes = doc.getMap<RFNode>("nodes");

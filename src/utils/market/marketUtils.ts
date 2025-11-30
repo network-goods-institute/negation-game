@@ -4,6 +4,22 @@
 
 export const SHARES_SCALE_FACTOR = 1e18;
 
+export const SECURITY_ID_MAX_LENGTH = 200;
+export const SECURITY_ID_PATTERN = /^[a-zA-Z0-9_:\->.]+$/;
+export const MAX_TRADE_SCALED = 10n ** 18n;
+
+export function validateSecurityId(id: string): void {
+  if (!id || typeof id !== "string") {
+    throw new Error("Security ID is required");
+  }
+  if (id.length > SECURITY_ID_MAX_LENGTH) {
+    throw new Error(`Security ID exceeds maximum length of ${SECURITY_ID_MAX_LENGTH}`);
+  }
+  if (!SECURITY_ID_PATTERN.test(id)) {
+    throw new Error("Security ID contains invalid characters");
+  }
+}
+
 /**
  * Convert scaled shares string to number
  */

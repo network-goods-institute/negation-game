@@ -3,7 +3,7 @@ import { render } from '@testing-library/react';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
 import { GraphCanvas } from '@/components/experiment/multiplayer/GraphCanvas';
 
-process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = 'false';
+process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = 'true';
 
 let currentHoldings: any = null;
 

@@ -6,7 +6,7 @@ import { EdgeOverlay, EdgeOverlayProps } from "@/components/experiment/multiplay
 jest.mock("@xyflow/react", () => ({
   __esModule: true,
   EdgeLabelRenderer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  useStore: (selector: (s: { transform: [number, number, number] }) => [number, number, number]) => selector({ transform: [0, 0, 1] }),
+  useStore: (selector: (s: { transform: [number, number, number] }) => [number, number, number]) => selector({ transform: [0, 0, 0.5] }),
   useReactFlow: () => ({
     zoomIn: jest.fn(),
     zoomOut: jest.fn(),
@@ -23,6 +23,19 @@ jest.mock("react-dom", () => {
 
 jest.mock("@/components/experiment/multiplayer/GraphContext", () => ({
   useGraphActions: () => ({ overlayActiveEdgeId: null, setOverlayActiveEdge: jest.fn(), grabMode: false, connectMode: false }),
+}));
+
+jest.mock("jotai", () => {
+  const actual = jest.requireActual("jotai");
+  return {
+    ...actual,
+    useAtomValue: () => "LOCK_PRICE",
+  };
+});
+
+jest.mock("@/utils/market/marketUtils", () => ({
+  ...jest.requireActual("@/utils/market/marketUtils"),
+  isMarketEnabled: () => true,
 }));
 
 beforeAll(() => {

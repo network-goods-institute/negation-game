@@ -125,12 +125,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       const overlayId = (graph as any)?.overlayActiveEdgeId as (string | null);
       const visible = new Set<string>();
       if (overlayId) visible.add(String(overlayId));
-      const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
-      const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
-      const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
+      const marketPrices: Record<string, number> | null = marketEnabled ? ((yMetaMap as any)?.get?.('market:prices') || null) : null;
+      const marketHoldings: Record<string, string> | null = marketEnabled ? (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null) : null;
+      const marketTotals: Record<string, string> | null = marketEnabled ? ((yMetaMap as any)?.get?.('market:totals') || null) : null;
       const enriched = (edges as any[]).map((e) => {
-        // Enrich with market data
-        e = enrichWithMarketData(e, marketPrices, marketHoldings, marketTotals, 'edge');
+        // Enrich with market data only if market is enabled
+        if (marketEnabled) {
+          e = enrichWithMarketData(e, marketPrices, marketHoldings, marketTotals, 'edge');
+        }
         return e;
       });
       const getNodeRect = (id: string) => {
@@ -150,22 +152,28 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     } catch {
       return edges;
     }
-  }, [edges, graph, rf, userHoldingsLite.data, yMetaMap]);
+  }, [edges, graph, rf, userHoldingsLite.data, yMetaMap, marketEnabled]);
 
   const nodesWithMarket = React.useMemo<MarketNode[]>(() => {
     try {
-      const marketPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
-      const marketHoldings: Record<string, string> | null = (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null);
-      const marketTotals: Record<string, string> | null = (yMetaMap as any)?.get?.('market:totals') || null;
-      const enriched = (nodes as any[]).map((n) => enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals, 'node'));
+      const marketPrices: Record<string, number> | null = marketEnabled ? ((yMetaMap as any)?.get?.('market:prices') || null) : null;
+      const marketHoldings: Record<string, string> | null = marketEnabled ? (userHoldingsLite.data || (yMetaMap as any)?.get?.('market:holdings') || null) : null;
+      const marketTotals: Record<string, string> | null = marketEnabled ? ((yMetaMap as any)?.get?.('market:totals') || null) : null;
+      const enriched = (nodes as any[]).map((n) => {
+        if (marketEnabled) {
+          return enrichWithMarketData(n, marketPrices, marketHoldings, marketTotals, 'node');
+        }
+        return n;
+      });
       return enriched as MarketNode[];
     } catch {
       return nodes as MarketNode[];
     }
-  }, [nodes, userHoldingsLite.data, yMetaMap]);
+  }, [nodes, userHoldingsLite.data, yMetaMap, marketEnabled]);
 
   const nodePriceMap = React.useMemo(() => {
     const out: Record<string, number> = {};
+    if (!marketEnabled) return out;
     try {
       const metaPrices: Record<string, number> | null = (yMetaMap as any)?.get?.('market:prices') || null;
       const priceSource = metaPrices && Object.keys(metaPrices).length ? metaPrices : null;
@@ -188,7 +196,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       }
     } catch { }
     return out;
-  }, [nodesWithMarket, yMetaMap]);
+  }, [nodesWithMarket, yMetaMap, marketEnabled]);
 
   const nodesForRender = React.useMemo(() => {
     try {

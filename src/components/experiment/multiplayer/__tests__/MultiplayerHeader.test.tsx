@@ -3,6 +3,8 @@ import React from 'react';
 import { MultiplayerHeader } from '@/components/experiment/multiplayer/MultiplayerHeader';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
+process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = 'true';
+
 function createProviderWithPending(values: number[] = []) {
   const states = new Map<any, any>(
     values.map((v, i) => [String(i + 1), { marketPending: v, user: { name: `U${i + 1}` } }])

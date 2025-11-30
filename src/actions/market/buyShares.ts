@@ -16,6 +16,9 @@ import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { logger } from "@/lib/logger";
 import { ensureSecurityInDoc } from "@/actions/market/ensureSecurityInDoc";
+import {
+  validateSecurityId,
+} from "@/utils/market/marketUtils";
 
 const normalize = (id: string) =>
   id?.startsWith("anchor:") ? id.slice("anchor:".length) : id;
@@ -35,8 +38,10 @@ export async function buyShares(
   })();
 
   const delta = BigInt(deltaScaled);
+
   const canonicalId = await resolveSlugToId(docId);
   const normalized = normalize(securityId);
+  validateSecurityId(normalized);
 
   let { structure, securities } = await buildStructureFromDoc(canonicalId);
   let secSet = new Set(securities);
@@ -51,7 +56,13 @@ export async function buyShares(
   if (isKnownName || isKnownEdge) {
     try {
       await ensureSecurityInDoc(canonicalId, normalized);
-    } catch {}
+    } catch (error) {
+      logger.error("[market] ensureSecurityInDoc failed", {
+        error,
+        canonicalId,
+        normalized,
+      });
+    }
     if (!secSet.has(normalized)) {
       const rebuilt = await buildStructureFromDocUncached(canonicalId);
       structure = rebuilt.structure;
@@ -66,14 +77,16 @@ export async function buyShares(
       normalized.startsWith("edge:") && normalized.includes("->");
 
     try {
-      logger.info?.("[market] buyShares detect", {
+      logger.info("[market] buyShares detect", {
         docId: canonicalId,
         normalized,
         looksLikeNode,
         looksLikeEdge,
         securitiesCount: securities.length,
       });
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to log buyShares detect", { error });
+    }
 
     if (looksLikeNode || looksLikeEdge) {
       const edgeTriples = (structure.edges as any[]).map(
@@ -101,7 +114,12 @@ export async function buyShares(
               triples.push([normalized, srcId, tgtId]);
             }
           }
-        } catch {}
+        } catch (error) {
+          logger.error("[market] Failed to parse edge security ID", {
+            error,
+            normalized,
+          });
+        }
       }
 
       const augStructure = createStructure(Array.from(augNodes), triples);
@@ -159,7 +177,12 @@ export async function buyShares(
       const pf = (mm as any).getPricesFixed?.();
       if (pf && typeof pf === "object")
         pricesBeforeFixed = pf as Record<string, bigint>;
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to get prices before trade", {
+        error,
+        docId: canonicalId,
+      });
+    }
 
     const cost = mm.buyShares(normalized, delta);
 
@@ -169,7 +192,12 @@ export async function buyShares(
       const pf = (mm as any).getPricesFixed?.();
       priceAfterFixed = pf?.[normalized];
       priceAfter = mm.getPrices()?.[normalized];
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to get prices after trade", {
+        error,
+        docId: canonicalId,
+      });
+    }
 
     const existing = await tx
       .select({
@@ -213,6 +241,7 @@ export async function buyShares(
         : {}),
     });
 
+    const MAX_SYNTHETIC_ROWS = 50;
     try {
       const after = (mm as any).getPricesFixed?.() as
         | Record<string, bigint>
@@ -220,7 +249,17 @@ export async function buyShares(
       if (after && typeof after === "object") {
         const diffs = Object.keys(after)
           .filter((sec) => sec !== normalized)
-          .filter((sec) => (pricesBeforeFixed[sec] ?? null) !== after[sec]);
+          .filter((sec) => (pricesBeforeFixed[sec] ?? null) !== after[sec])
+          .map((sec) => ({
+            sec,
+            delta: Math.abs(
+              Number(after[sec] ?? 0n) - Number(pricesBeforeFixed[sec] ?? 0n)
+            ),
+          }))
+          .sort((a, b) => b.delta - a.delta)
+          .slice(0, MAX_SYNTHETIC_ROWS)
+          .map((d) => d.sec);
+
         if (diffs.length > 0) {
           const syntheticRows = diffs.map((sec) => ({
             docId: canonicalId,
@@ -233,10 +272,15 @@ export async function buyShares(
           await tx.insert(marketTradesTable).values(syntheticRows as any);
         }
       }
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to insert synthetic price history", {
+        error,
+        docId: canonicalId,
+      });
+    }
 
     try {
-      logger.info?.("[market] buyShares", {
+      logger.info("[market] buyShares", {
         docId: canonicalId,
         userId,
         securityId: normalized,
@@ -245,7 +289,9 @@ export async function buyShares(
         priceAfter,
         totalsKnown: securities.length,
       });
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to log buyShares result", { error });
+    }
 
     await tx
       .update(marketStateTable)

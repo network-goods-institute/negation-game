@@ -32,7 +32,9 @@ export async function seedMarketMeta(docId: string): Promise<SeedMarketResult> {
   if (baseBuf && baseBuf.byteLength) {
     try {
       Y.applyUpdate(baseDoc, new Uint8Array(baseBuf));
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to apply base doc update in seedMarketMeta", { error, canonicalId });
+    }
   }
 
   // Apply updates on a working doc
@@ -40,7 +42,9 @@ export async function seedMarketMeta(docId: string): Promise<SeedMarketResult> {
   if (baseBuf && baseBuf.byteLength) {
     try {
       Y.applyUpdate(doc, new Uint8Array(baseBuf));
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to apply doc update in seedMarketMeta", { error, canonicalId });
+    }
   }
 
   const yMeta = doc.getMap<unknown>("meta");
@@ -66,12 +70,14 @@ export async function seedMarketMeta(docId: string): Promise<SeedMarketResult> {
   });
 
   try {
-    logger.info?.("[market] seedMarketMeta", {
+    logger.info("[market] seedMarketMeta", {
       docId: canonicalId,
       prices: priceCount,
       totals: totalCount,
     });
-  } catch {}
+  } catch (error) {
+    logger.error("[market] Failed to log seedMarketMeta", { error });
+  }
 
   return { ok: true, prices: priceCount, totals: totalCount };
 }

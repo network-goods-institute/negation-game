@@ -3,6 +3,7 @@ import { marketTradesTable } from "@/db/tables/marketTradesTable";
 import { eq, and, desc, lt } from "drizzle-orm";
 import { resolveSlugToId } from "@/utils/slugResolver";
 import { fromFixed } from "@/lib/carroll";
+import { logger } from "@/lib/logger";
 
 export type PricePoint = {
   timestamp: string;
@@ -47,7 +48,8 @@ export async function getPriceHistory(
       )
       .orderBy(desc(marketTradesTable.createdAt))
       .limit(Math.min(limit, 200));
-  } catch {
+  } catch (error) {
+    logger.warn("[market] priceAfterScaled column missing, falling back", { error });
     trades = await db
       .select({
         deltaScaled: marketTradesTable.deltaScaled,
@@ -123,7 +125,9 @@ export async function getPriceHistory(
           });
         }
       }
-    } catch {}
+    } catch (error) {
+      logger.error("[market] Failed to fetch baseline price", { error, docId, securityId });
+    }
   }
 
   return points;

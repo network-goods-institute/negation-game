@@ -3,6 +3,8 @@ import { render, screen, act } from "@testing-library/react";
 import { MultiplayerHeader } from "@/components/experiment/multiplayer/MultiplayerHeader";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = 'true';
+
 class FakeAwareness {
   local: any = {};
   peers = new Map<string, any>();
