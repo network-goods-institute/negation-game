@@ -3,7 +3,8 @@ import * as Y from "yjs";
 import { Node, Edge } from "@xyflow/react";
 import { WebsocketProvider } from "y-websocket";
 import { fetchYjsAuthToken, getRefreshDelayMs } from "./yjs/auth";
-import { HydrationStatus } from "./useYjsDocumentHydration";import { logger } from "@/lib/logger";
+import { HydrationStatus } from "./useYjsDocumentHydration";
+import { logger } from "@/lib/logger";
 import { createConnectionGrace } from "./connectionGrace";
 
 interface UseYjsProviderConnectionProps {
@@ -65,7 +66,9 @@ export const useYjsProviderConnection = ({
   const restartProviderWithNewTokenRef = useRef<(() => Promise<void>) | null>(
     null
   );
-  const connectionGraceRef = useRef<ReturnType<typeof createConnectionGrace> | null>(null);
+  const connectionGraceRef = useRef<ReturnType<
+    typeof createConnectionGrace
+  > | null>(null);
   const graceMs = useMemo(() => {
     const env = Number(process.env.NEXT_PUBLIC_MP_DISCONNECT_GRACE_MS || "");
     return Number.isFinite(env) && env > 0 ? env : 1200;
@@ -188,8 +191,8 @@ export const useYjsProviderConnection = ({
       refreshTimerRef.current = window.setTimeout(() => {
         suppressNextResyncRef.current = true;
         isRefreshingTokenRef.current = true;
-        restartProviderWithNewTokenRef.current
-          ?.()
+        restartProviderWithNewTokenRef
+          .current?.()
           .catch(() => undefined)
           .finally(() => {
             isRefreshingTokenRef.current = false;
@@ -254,7 +257,10 @@ export const useYjsProviderConnection = ({
       });
 
       if (!connectionGraceRef.current) {
-        connectionGraceRef.current = createConnectionGrace(graceMs, setIsConnected);
+        connectionGraceRef.current = createConnectionGrace(
+          graceMs,
+          setIsConnected
+        );
       }
       provider.on("status", (status: { status: string }) => {
         const connected = status?.status === "connected";
@@ -306,7 +312,9 @@ export const useYjsProviderConnection = ({
 
       provider.on("connection-error", () => {
         logger.error("[YJS Provider] connection-error event received");
-        try { connectionGraceRef.current?.forceDisconnectNow(); } catch {}
+        try {
+          connectionGraceRef.current?.forceDisconnectNow();
+        } catch {}
         setConnectionState("failed");
         setConnectionError("WebSocket connection failed");
       });
@@ -333,7 +341,9 @@ export const useYjsProviderConnection = ({
       providerRef.current?.destroy?.();
     } catch {}
     providerRef.current = null;
-    try { connectionGraceRef.current?.dispose(); } catch {}
+    try {
+      connectionGraceRef.current?.dispose();
+    } catch {}
   }, [clearFallbackSeedingTimer, clearRefreshTimer]);
 
   const createProvider = useCallback(async () => {
@@ -345,7 +355,9 @@ export const useYjsProviderConnection = ({
 
     const doc = ydocRef.current;
     if (!doc) {
-      logger.error("[YJS Provider] createProvider - no document available");
+      logger.warn(
+        "[YJS Provider] createProvider - no document available (component may be unmounted or not ready)"
+      );
       return null;
     }
     if (!wsUrl) {
@@ -410,6 +422,13 @@ export const useYjsProviderConnection = ({
   const restartProviderWithNewToken = useCallback(async () => {
     logger.log("[YJS Provider] restartProviderWithNewToken called");
     try {
+      if (!ydocRef.current) {
+        logger.log(
+          "[YJS Provider] restartProviderWithNewToken - document not ready, skipping restart"
+        );
+        return;
+      }
+
       suppressNextResyncRef.current = true;
       isRefreshingTokenRef.current = true;
       logger.log(
@@ -460,6 +479,14 @@ export const useYjsProviderConnection = ({
       shouldSeedOnConnect: shouldSeedOnConnectRef.current,
       didResyncOnConnect: didResyncOnConnectRef.current,
     });
+
+    // Guard: if doc doesn't exist yet, bail early
+    if (!ydocRef.current) {
+      logger.log(
+        "[YJS Provider] initializeProvider - document not ready yet, skipping initialization"
+      );
+      return;
+    }
 
     try {
       setConnectionState("initializing");
@@ -514,9 +541,7 @@ export const useYjsProviderConnection = ({
         );
       }
 
-      logger.log(
-        "[YJS Provider] initializeProvider - initialization complete"
-      );
+      logger.log("[YJS Provider] initializeProvider - initialization complete");
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Authentication failed";
