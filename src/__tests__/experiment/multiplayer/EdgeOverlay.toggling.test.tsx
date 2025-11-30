@@ -97,7 +97,7 @@ describe("EdgeOverlay edge type toggling", () => {
 });
 
 describe("EdgeOverlay market overlay visibility", () => {
-  it("hides price circle when overlay side is TEXT", () => {
+  it("shows price circle when overlay side is TEXT", () => {
     process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = "true";
     setOverlayState("LOCK_TEXT");
 
@@ -107,7 +107,7 @@ describe("EdgeOverlay market overlay visibility", () => {
     fireEvent.mouseEnter(anchor);
 
     expect(screen.getByText("Mitigate")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /buy/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /buy/i })).toBeInTheDocument();
   });
 
   it("shows price circle when overlay side is PRICE", () => {
