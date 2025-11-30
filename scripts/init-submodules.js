@@ -130,6 +130,31 @@ function removeCarrollStubsIfPresent(targetPath = carrollPath, fsModule = fs) {
   return true;
 }
 
+function assertSubmoduleInitialized(dirPath, name, fsModule = fs) {
+  const exists = fsModule.existsSync(path.join(dirPath, '.git'));
+
+  if (!exists) {
+    console.error(`❌ Critical submodule '${name}' failed to initialize`);
+    process.exit(1);
+  }
+}
+
+function validateRequiredSubmodules({
+  repoRootPath = repoRoot,
+  fsModule = fs,
+  requireCarroll = false,
+  carrollRoot = carrollPath,
+} = {}) {
+  for (const submodule of criticalSubmodules) {
+    const submodulePath = path.join(repoRootPath, submodule);
+    assertSubmoduleInitialized(submodulePath, submodule, fsModule);
+  }
+
+  if (requireCarroll) {
+    assertSubmoduleInitialized(carrollRoot, 'carroll', fsModule);
+  }
+}
+
 function initSubmodules({
   env = process.env,
   runCommand = run,
@@ -140,7 +165,7 @@ function initSubmodules({
 
   if (token) {
     const urlKey = `url.https://x-access-token:${token}@github.com/.insteadOf`;
-    runCommand('git', ['config', '--global', urlKey, 'https://github.com/']);
+    runCommand('git', ['config', '--local', urlKey, 'https://github.com/']);
   }
 
   runCommand('git', ['submodule', 'sync', '--recursive']);
@@ -152,40 +177,42 @@ function initSubmodules({
     allowFailure: true,
   });
 
+  const carrollExists =
+    fsModule.existsSync(path.join(carrollRoot, '.git')) ||
+    fsModule.existsSync(path.join(carrollRoot, 'package.json'));
+  const marketEnabled = env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
+
   if (success) {
+    validateRequiredSubmodules({
+      repoRootPath,
+      fsModule,
+      requireCarroll: marketEnabled,
+      carrollRoot,
+    });
     return;
   }
 
   console.warn('⚠️  Some submodules failed to initialize. Checking if carroll can be skipped...');
 
-  const carrollExists =
-    fsModule.existsSync(path.join(carrollRoot, '.git')) ||
-    fsModule.existsSync(path.join(carrollRoot, 'package.json'));
+  const canUseStubs = !carrollExists && !marketEnabled;
 
-  if (!carrollExists) {
-    const marketEnabled = env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
-
-    if (marketEnabled) {
-      console.error('❌ carroll submodule is required when NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED=true');
-      process.exit(1);
-    }
-
+  if (canUseStubs) {
     console.warn('ℹ️  carroll submodule not initialized, but market features are disabled. Creating stubs...');
 
     writeCarrollStubs(carrollRoot, fsModule);
 
     console.log('✓ Created carroll stubs in src/lib/carroll/');
     console.log('  (market.ts, fixed.ts, structure.ts, marketActors.ts, index.ts)');
-  }
 
-  for (const submodule of criticalSubmodules) {
-    const submodulePath = path.join(repoRootPath, submodule);
-    const exists = fsModule.existsSync(path.join(submodulePath, '.git'));
-
-    if (!exists) {
-      console.error(`❌ Critical submodule '${submodule}' failed to initialize`);
-      process.exit(1);
-    }
+    validateRequiredSubmodules({
+      repoRootPath,
+      fsModule,
+      requireCarroll: false,
+      carrollRoot,
+    });
+  } else {
+    console.error('❌ git submodule update failed for required submodules');
+    process.exit(1);
   }
 }
 
@@ -198,6 +225,6 @@ module.exports = {
   initSubmodules,
   removeCarrollStubsIfPresent,
   run,
+  validateRequiredSubmodules,
   writeCarrollStubs,
 };
-
