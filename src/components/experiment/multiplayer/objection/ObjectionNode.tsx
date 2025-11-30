@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useMemo } from 'react';
 import { Position, useReactFlow, useStore, useViewport } from '@xyflow/react';
 import { useAtomValue } from 'jotai';
 import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
 import { useGraphActions } from '../GraphContext';
 
 import { toast } from 'sonner';
@@ -50,13 +51,15 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const { zoom } = useViewport();
     const overlayState = useAtomValue(marketOverlayStateAtom);
     const overlayThreshold = useAtomValue(marketOverlayZoomThresholdAtom);
+    const marketEnabled = isMarketEnabled();
     const overlaySide = useMemo(() => {
+        if (!marketEnabled) return 'TEXT';
         let side = computeSide(overlayState);
         if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
             side = zoom <= (overlayThreshold ?? 0.6) ? 'PRICE' : 'TEXT';
         }
         return side;
-    }, [overlayState, overlayThreshold, zoom]);
+    }, [overlayState, overlayThreshold, zoom, marketEnabled]);
     const overlayActive = overlaySide === 'PRICE';
 
     const rf = useReactFlow();

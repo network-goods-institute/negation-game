@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Position, useReactFlow, useViewport } from '@xyflow/react';
 import { useAtomValue } from 'jotai';
 import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
+import { isMarketEnabled } from '@/utils/market/marketUtils';
 import { useGraphActions } from './GraphContext';
 import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
@@ -53,13 +54,15 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const { zoom } = useViewport();
   const overlayState = useAtomValue(marketOverlayStateAtom);
   const overlayThreshold = useAtomValue(marketOverlayZoomThresholdAtom);
+  const marketEnabled = isMarketEnabled();
   const overlaySide = useMemo(() => {
+    if (!marketEnabled) return 'TEXT';
     let side = computeSide(overlayState);
     if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
       side = zoom <= (overlayThreshold ?? 0.6) ? 'PRICE' : 'TEXT';
     }
     return side;
-  }, [overlayState, overlayThreshold, zoom]);
+  }, [overlayState, overlayThreshold, zoom, marketEnabled]);
   const overlayActive = overlaySide === 'PRICE';
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
