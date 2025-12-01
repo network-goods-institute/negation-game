@@ -1,4 +1,5 @@
 import { reconcileTradableSecurities } from "@/actions/market/reconcileTradableSecurities";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 import * as Y from "yjs";
 
 jest.mock("@/utils/slugResolver", () => ({
@@ -24,7 +25,7 @@ jest.mock("@/services/yjsCompaction", () => ({
   getDocSnapshotBuffer: async () => buildSupportSnapshot(),
 }));
 
-describe("reconcile support edges", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("reconcile support edges", () => {
   it("preserves support edges and securities", async () => {
     const { structure, securities } = await reconcileTradableSecurities(
       "doc-support"

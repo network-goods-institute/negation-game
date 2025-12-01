@@ -1,4 +1,5 @@
 import { buyShares } from "@/actions/market/buyShares";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
   getUserIdOrAnonymous: jest.fn(async () => "anon-u1"),
@@ -55,7 +56,7 @@ jest.mock("@/services/db", () => {
   };
 });
 
-describe("buyShares with anonymous user", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("buyShares with anonymous user", () => {
   beforeEach(() => {
     inserts.length = 0;
     updates.length = 0;

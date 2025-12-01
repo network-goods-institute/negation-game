@@ -1,4 +1,5 @@
 import { getMarketView } from "@/actions/market/getMarketView";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/utils/slugResolver", () => ({
   resolveSlugToId: async (x: string) => x,
@@ -45,7 +46,7 @@ jest.mock("@/lib/carroll/market", () => ({
   defaultB: 1n,
 }));
 
-describe("reconcile tradability on market view fetch", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("reconcile tradability on market view fetch", () => {
   beforeEach(() => ensureSpy.mockClear());
 
   it("does not persist missing endpoints but still prices the edge", async () => {

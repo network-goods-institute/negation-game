@@ -1,4 +1,5 @@
 import { buyAmount } from "@/actions/market/buyAmount";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
   getUserIdOrAnonymous: jest.fn(async () => "u-test"),
@@ -62,7 +63,7 @@ jest.mock("@/services/db", () => {
   };
 });
 
-describe("buyAmount cross-security history", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("buyAmount cross-security history", () => {
   beforeEach(() => {
     inserts.length = 0;
     mmState.after = false;

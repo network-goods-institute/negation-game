@@ -1,4 +1,5 @@
 import { seedMarketMeta } from "@/actions/market/seedMarketMeta";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/utils/slugResolver", () => ({
   resolveSlugToId: async (x: string) => x,
@@ -34,7 +35,7 @@ jest.mock("@/services/db", () => ({
 jest.mock("@/db/tables/mpDocsTable", () => ({ mpDocsTable: {} }));
 jest.mock("@/db/tables/mpDocUpdatesTable", () => ({ mpDocUpdatesTable: {} }));
 
-describe("seedMarketMeta", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("seedMarketMeta", () => {
   beforeEach(() => {
     inserts.length = 0;
   });
