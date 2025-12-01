@@ -1,5 +1,6 @@
 import { buyShares } from "@/actions/market/buyShares";
 import { buyAmount } from "@/actions/market/buyAmount";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
   getUserIdOrAnonymous: jest.fn(async () => "anon-tester"),
@@ -53,7 +54,7 @@ jest.mock("@/services/db", () => {
   return { db: { transaction: async (fn: any) => fn(tx) } };
 });
 
-describe("ensureSecurityInDoc for known securities", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("ensureSecurityInDoc for known securities", () => {
   beforeEach(() => {
     ensureSpy.mockClear();
   });

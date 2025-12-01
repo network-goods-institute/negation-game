@@ -1,4 +1,5 @@
 import { getMarketViewFromStructure } from "@/actions/market/getMarketViewFromStructure";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/services/db", () => {
   const chain = {
@@ -20,7 +21,7 @@ jest.mock("@/utils/slugResolver", () => ({
 
 const approx = (a: number, b: number, eps = 1e-6) => Math.abs(a - b) <= eps;
 
-describe("getMarketViewFromStructure (no holdings)", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("getMarketViewFromStructure (no holdings)", () => {
   it("prices 2 nodes + 1 edge without anchors at 3/7", async () => {
     const a = "p-a";
     const b = "p-b";

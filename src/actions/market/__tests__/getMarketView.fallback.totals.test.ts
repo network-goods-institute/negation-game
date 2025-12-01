@@ -1,4 +1,5 @@
 import { getMarketView } from "@/actions/market/getMarketView";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/services/db", () => {
   const rows = [
@@ -32,7 +33,7 @@ jest.mock("@/utils/slugResolver", () => ({
   resolveSlugToId: async (x: string) => x,
 }));
 
-describe("getMarketView fallback totals recomputation", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("getMarketView fallback totals recomputation", () => {
   it("repopulates totals for fallback-rebuilt securities", async () => {
     const view = await getMarketView("doc-fallback-test");
     expect(view).toBeTruthy();

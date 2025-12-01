@@ -1,5 +1,6 @@
 import { buyShares } from "@/actions/market/buyShares";
 import { buyAmount } from "@/actions/market/buyAmount";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
   getUserIdOrAnonymous: jest.fn(async () => "anon-tester"),
@@ -69,7 +70,7 @@ jest.mock("@/services/db", () => {
   };
 });
 
-describe("no doc mutation for unknown nodes", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("no doc mutation for unknown nodes", () => {
   beforeEach(() => {
     buildCalls = 0;
     ensureSpy.mockClear();

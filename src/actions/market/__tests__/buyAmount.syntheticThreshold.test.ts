@@ -1,4 +1,5 @@
 import { buyAmount } from "@/actions/market/buyAmount";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
   getUserIdOrAnonymous: jest.fn(async () => "u-test"),
@@ -64,7 +65,7 @@ jest.mock("@/services/db", () => {
   };
 });
 
-describe("synthetic rows reflect any price change", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("synthetic rows reflect any price change", () => {
   beforeEach(() => {
     inserts.length = 0;
     mmState.after = false;

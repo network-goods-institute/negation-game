@@ -1,4 +1,5 @@
 import { getMarketView } from "@/actions/market/getMarketView";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 import * as Y from "yjs";
 
 jest.mock("@/utils/slugResolver", () => ({
@@ -53,7 +54,7 @@ jest.mock("@/lib/carroll/market", () => ({
   defaultB: 1n,
 }));
 
-describe("reconcile tradability for objection edges", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("reconcile tradability for objection edges", () => {
   beforeEach(() => {
     capturedSecs.splice(0, capturedSecs.length);
   });
