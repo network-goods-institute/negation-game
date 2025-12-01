@@ -47,15 +47,22 @@ export const sub = (_a: any, _b: any): any => {
 export const SCALE = 0n;
 `,
   'structure.ts': `// Auto-generated stub - market features disabled
-export interface CarrollStructure {
-	nodes: string[];
-	edges: any[];
-}
-export interface CarrollEdge {
-	name: string;
-	from: string;
-	to: string;
-}
+export type Name = string;
+
+export type CarrollEdge = {
+	name: Name;
+	from: Name;
+	to: Name;
+};
+
+export type CarrollStructure = {
+	nodes: Name[];
+	edges: CarrollEdge[];
+	supportEdges: CarrollEdge[];
+	names: Name[];
+	indexOf: (name: Name) => number;
+};
+
 export const createStructure = (..._args: any[]): any => {
 	throw new Error('Market features disabled - NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED not set');
 };
