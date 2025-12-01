@@ -234,6 +234,7 @@ The application will be available at `http://localhost:3001`.
 - Database schema changes should be made in `src/db/schema.ts`, then generate migrations with `drizzle-kit`
 - Never edit migration files directly unless explicitly needed
 
+
 ## Contributing
 
 We welcome contributions to the Negation Game! We have two roadmaps for the project [here](https://github.com/orgs/network-goods-institute/projects/1/views/1) and [here](https://github.com/orgs/network-goods-institute/projects/3).

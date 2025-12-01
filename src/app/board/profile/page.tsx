@@ -17,11 +17,12 @@ import { fetchUser } from "@/actions/users/fetchUser";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { uploadAvatar } from "@/actions/users/uploadAvatar";
+import { voterCache } from "@/lib/voterCache";
 
 type ProfileData = {
   id: string;
   username: string;
-  createdAt: string | Date;
+  createdAt: string;
   avatarUrl?: string | null;
   avatarUpdatedAt?: string | null;
 };
@@ -124,6 +125,14 @@ export default function ProfilePage() {
         throw new Error(result?.error || "Upload failed");
       }
       setAvatarVersion(Date.now());
+      if (profile?.id) {
+        voterCache.set(profile.id, {
+          id: profile.id,
+          username: profile.username,
+          avatarUrl: result.avatarUrl ?? null,
+          avatarUpdatedAt: result.updatedAt ?? new Date().toISOString(),
+        });
+      }
       setProfile((prev) =>
         prev
           ? {

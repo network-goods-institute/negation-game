@@ -49,7 +49,7 @@ describe("NodeVoting", () => {
   });
 
   describe("rendering", () => {
-    it("should render like button with no votes", () => {
+    it("should render upvote button with no votes", () => {
       render(
         <NodeVoting
           nodeId="node-1"
@@ -58,7 +58,7 @@ describe("NodeVoting", () => {
         />
       );
 
-      const button = screen.getByRole("button", { name: /like/i });
+      const button = screen.getByRole("button", { name: /upvote/i });
       expect(button).toBeInTheDocument();
       expect(button).toHaveAttribute("aria-pressed", "false");
     });
@@ -72,7 +72,7 @@ describe("NodeVoting", () => {
         />
       );
 
-      const button = screen.getByRole("button", { name: /unlike/i });
+      const button = screen.getByRole("button", { name: /remove upvote/i });
       expect(button).toHaveAttribute("aria-pressed", "true");
 
       await waitFor(() => {
@@ -190,7 +190,7 @@ describe("NodeVoting", () => {
         />
       );
 
-      const button = screen.getByRole("button", { name: /like/i });
+      const button = screen.getByRole("button", { name: /upvote/i });
       fireEvent.click(button);
 
       expect(mockOnToggleVote).toHaveBeenCalledWith(
@@ -203,7 +203,7 @@ describe("NodeVoting", () => {
     it("should not call onToggleVote when onToggleVote is undefined", () => {
       render(<NodeVoting nodeId="node-1" votes={[]} />);
 
-      const button = screen.getByRole("button", { name: /like/i });
+      const button = screen.getByRole("button", { name: /upvote/i });
       fireEvent.click(button);
 
       expect(mockOnToggleVote).not.toHaveBeenCalled();
@@ -218,7 +218,7 @@ describe("NodeVoting", () => {
         />
       );
 
-      const button = screen.getByRole("button", { name: /like/i });
+      const button = screen.getByRole("button", { name: /upvote/i });
       expect(button).toHaveAttribute("data-interactive", "true");
     });
   });
@@ -325,7 +325,7 @@ describe("NodeVoting", () => {
         />
       );
 
-      const button = screen.getByRole("button", { name: /like/i });
+      const button = screen.getByRole("button", { name: /upvote/i });
       expect(button).toHaveClass("border-stone-300");
     });
 
@@ -339,7 +339,7 @@ describe("NodeVoting", () => {
         />
       );
 
-      const button = screen.getByRole("button", { name: /like/i });
+      const button = screen.getByRole("button", { name: /upvote/i });
       expect(button).toHaveClass("border-amber-300");
     });
   });

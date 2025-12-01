@@ -21,9 +21,15 @@ export async function getVotersByIds(userIds: string[]): Promise<VoterData[]> {
       id: usersTable.id,
       username: usersTable.username,
       avatarUrl: usersTable.avatarUrl,
+      avatarUpdatedAt: usersTable.avatarUpdatedAt,
     })
     .from(usersTable)
     .where(and(inArray(usersTable.id, uniqueIds), eq(usersTable.isActive, true)));
 
-  return users;
+  return users.map((user) => ({
+    ...user,
+    avatarUpdatedAt: user.avatarUpdatedAt
+      ? user.avatarUpdatedAt.toISOString()
+      : null,
+  }));
 }

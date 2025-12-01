@@ -25,7 +25,9 @@ describe("POST /api/users/voters", () => {
   });
 
   it("returns voters for valid ids", async () => {
-    const voters = [{ id: "user-1", username: "Alice", avatarUrl: null }];
+    const voters = [
+      { id: "user-1", username: "Alice", avatarUrl: null, avatarUpdatedAt: null },
+    ];
     mockedGetVotersByIds.mockResolvedValue(voters);
 
     const { POST } = await import("../route");

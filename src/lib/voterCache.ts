@@ -1,6 +1,6 @@
 import type { VoterData } from "@/types/voters";
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 60 * 1000; // 1 minute
 
 interface CacheEntry {
   data: VoterData;
@@ -21,6 +21,11 @@ class VoterCache {
     }
 
     return entry.data;
+  }
+
+  invalidate(userId: string): void {
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
+    this.cache.delete(userId);
   }
 
   set(userId: string, data: VoterData): void {

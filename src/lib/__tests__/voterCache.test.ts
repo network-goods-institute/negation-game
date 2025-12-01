@@ -36,7 +36,7 @@ describe("VoterCache", () => {
 
       // Mock Date.now to simulate time passing
       const originalNow = Date.now;
-      Date.now = jest.fn(() => originalNow() + 6 * 60 * 1000); // 6 minutes later
+      Date.now = jest.fn(() => originalNow() + 2 * 60 * 1000); // beyond 1 minute cache
 
       const result = voterCache.get("user-1");
       expect(result).toBeNull();
@@ -54,9 +54,9 @@ describe("VoterCache", () => {
 
       voterCache.set("user-1", voter);
 
-      // Mock Date.now to simulate 4 minutes passing (under the 5 minute cache)
+      // Mock Date.now to simulate 30 seconds passing (under the 1 minute cache)
       const originalNow = Date.now;
-      Date.now = jest.fn(() => originalNow() + 4 * 60 * 1000);
+      Date.now = jest.fn(() => originalNow() + 30 * 1000);
 
       const result = voterCache.get("user-1");
       expect(result).toEqual(voter);

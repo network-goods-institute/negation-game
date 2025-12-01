@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthSetup } from "@/hooks/experiment/multiplayer/useAuthSetup";
 import { logger } from "@/lib/logger";
 import { voterCache } from "@/lib/voterCache";
+import { queueVoterFetch } from "@/lib/voterFetchQueue";
 import type { VoterData } from "@/types/voters";
 import { ThumbsUpIcon } from "./ThumbsUpIcon";
 
@@ -59,7 +60,7 @@ const VoterAvatar: React.FC<{
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const displayName = isCurrentUser ? "You" : (voter.username || `User ${voter.id.slice(0, 6)}`);
+  const displayName = isCurrentUser ? "You" : (voter.username || "Anonymous user");
   const hasAvatar = voter.avatarUrl && !imageError;
 
   // If we're still loading voter data, show skeleton
@@ -148,7 +149,7 @@ export const NodeVoting: React.FC<NodeVotingProps> = ({
       let mounted = true;
       setLoading(true);
 
-      fetchVotersFromApi(missing)
+      queueVoterFetch(missing, fetchVotersFromApi)
         .then((voters) => {
           if (!mounted) return;
 
@@ -217,13 +218,13 @@ export const NodeVoting: React.FC<NodeVotingProps> = ({
   }, [enrichedVoters, userId]);
 
   const tooltipContent = React.useMemo(() => {
-    if (voteCount === 0) return "No likes yet. Click to like.";
+    if (voteCount === 0) return "No upvotes yet. Click to upvote.";
 
     const list = namesForTooltip.join(", ");
     return (
       <div className="space-y-1">
         <div className="font-medium">
-          {voteCount} {voteCount === 1 ? "person likes" : "people like"} this
+          {voteCount} {voteCount === 1 ? "person upvoted" : "people upvoted"} this
         </div>
         <div className="text-stone-400 dark:text-stone-500 text-[11px]">
           {list}
@@ -247,7 +248,7 @@ export const NodeVoting: React.FC<NodeVotingProps> = ({
                 event.stopPropagation();
               }}
               data-interactive="true"
-              aria-label={voted ? "Unlike" : "Like"}
+              aria-label={voted ? "Remove upvote" : "Upvote"}
               aria-pressed={voted}
             >
               <ThumbsUpIcon className="w-5 h-5" filled={false} />
