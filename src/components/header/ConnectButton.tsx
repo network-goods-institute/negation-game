@@ -204,7 +204,7 @@ export const ConnectButton = () => {
               <div className="flex items-center gap-1 overflow-hidden">
                 <p className="overflow-clip max-w-full">{user.username}</p>
                 <ChevronDownIcon className="size-4 flex-shrink-0" />
-                {(unreadCount > 0 || unreadMessageCount > 0 || incompleteAssignmentCount > 0) && (
+                {notificationsEnabled && (unreadCount > 0 || unreadMessageCount > 0 || incompleteAssignmentCount > 0) && (
                   <Badge
                     variant="destructive"
                     className="h-4 min-w-4 px-1 text-xs absolute -top-1 -right-1"

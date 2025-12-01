@@ -166,7 +166,7 @@ describe('ConnectButton - Notification Badge', () => {
     });
   });
 
-  describe('when notifications are disabled', () => {
+    describe('when notifications are disabled', () => {
     beforeEach(() => {
       (isFeatureEnabled as jest.Mock).mockImplementation(() => false);
     });
@@ -183,41 +183,9 @@ describe('ConnectButton - Notification Badge', () => {
       expect(screen.queryByText('5')).not.toBeInTheDocument();
     });
 
-    it('shows badge only for messages when notifications disabled but messages exist', () => {
+    it('hides notification badges entirely when feature is disabled', () => {
       (useUnreadNotificationCount as jest.Mock).mockImplementation(() => ({
-        data: 5, // Cached notification count (should be ignored)
-      }));
-      (useUnreadMessageCount as jest.Mock).mockImplementation(() => ({
-        data: 3,
-      }));
-
-      render(<ConnectButton />);
-
-      // Should only show message count, not notification count
-      const button = screen.getByRole('button', { name: /testuser/i });
-      const badge = button.querySelector('.bg-destructive');
-      expect(badge).toBeInTheDocument();
-      expect(badge).toHaveTextContent('3');
-    });
-
-    it('shows badge only for assignments when notifications disabled but assignments exist', () => {
-      (useUnreadNotificationCount as jest.Mock).mockImplementation(() => ({
-        data: 5, // Cached notification count (should be ignored)
-      }));
-      (useIncompleteAssignmentCount as jest.Mock).mockImplementation(() => 2);
-
-      render(<ConnectButton />);
-
-      // Should only show assignment count, not notification count
-      const button = screen.getByRole('button', { name: /testuser/i });
-      const badge = button.querySelector('.bg-destructive');
-      expect(badge).toBeInTheDocument();
-      expect(badge).toHaveTextContent('2');
-    });
-
-    it('shows combined count for messages and assignments (excluding notifications)', () => {
-      (useUnreadNotificationCount as jest.Mock).mockImplementation(() => ({
-        data: 10, // Cached notification count (should be ignored)
+        data: 5,
       }));
       (useUnreadMessageCount as jest.Mock).mockImplementation(() => ({
         data: 3,
@@ -226,26 +194,21 @@ describe('ConnectButton - Notification Badge', () => {
 
       render(<ConnectButton />);
 
-      // Should show 5 (3 messages + 2 assignments), NOT 15
       const button = screen.getByRole('button', { name: /testuser/i });
-      const badge = button.querySelector('.bg-destructive');
-      expect(badge).toBeInTheDocument();
-      expect(badge).toHaveTextContent('5');
+      expect(button.querySelector('.bg-destructive')).not.toBeInTheDocument();
     });
 
-    it('does not show badge when only cached notifications exist', () => {
+    it('does not render aggregate badges when notifications feature is disabled', () => {
       (useUnreadNotificationCount as jest.Mock).mockImplementation(() => ({
-        data: 5, // Cached notification count (should be ignored)
+        data: 10,
       }));
       (useUnreadMessageCount as jest.Mock).mockImplementation(() => ({
-        data: 0,
+        data: 4,
       }));
-      (useIncompleteAssignmentCount as jest.Mock).mockImplementation(() => 0);
+      (useIncompleteAssignmentCount as jest.Mock).mockImplementation(() => 6);
 
       render(<ConnectButton />);
 
-      // No badge should appear at all
-      expect(screen.queryByText('5')).not.toBeInTheDocument();
       const button = screen.getByRole('button', { name: /testuser/i });
       expect(button.querySelector('.bg-destructive')).not.toBeInTheDocument();
     });
@@ -264,9 +227,7 @@ describe('ConnectButton - Notification Badge', () => {
       render(<ConnectButton />);
 
       const button = screen.getByRole('button', { name: /testuser/i });
-      const badge = button.querySelector('.bg-destructive');
-      expect(badge).toBeInTheDocument();
-      expect(badge).toHaveTextContent('2');
+      expect(button.querySelector('.bg-destructive')).not.toBeInTheDocument();
     });
 
     it('handles null notification count when feature is disabled', () => {
@@ -281,9 +242,8 @@ describe('ConnectButton - Notification Badge', () => {
       render(<ConnectButton />);
 
       const button = screen.getByRole('button', { name: /testuser/i });
-      const badge = button.querySelector('.bg-destructive');
-      expect(badge).toBeInTheDocument();
-      expect(badge).toHaveTextContent('1');
+      expect(button.querySelector('.bg-destructive')).not.toBeInTheDocument();
     });
   });
 });
+
