@@ -33,6 +33,14 @@ jest.mock('../common/NodeShell', () => ({
   NodeShell: ({ children }: any) => <div data-testid="nodeshell">{children}</div>,
 }));
 
+jest.mock('@/hooks/experiment/multiplayer/useAuthSetup', () => ({
+  useAuthSetup: () => ({
+    userId: "test-user",
+    username: "Test User",
+    authenticated: true,
+  }),
+}));
+
 jest.mock('../common/useNodeChrome', () => ({
   useNodeChrome: () => ({
     editable: {
@@ -103,6 +111,10 @@ jest.mock('../common/ContextMenu', () => ({
   ContextMenu: () => null,
 }));
 
+jest.mock('../common/NodeVoting', () => ({
+  NodeVoting: () => <div data-testid="node-voting" />,
+}));
+
 import { useStore } from '@xyflow/react';
 import { PointNode } from '../PointNode';
 
@@ -146,7 +158,7 @@ describe('PointNode dragging UI behavior', () => {
       />
     );
 
-    expect(screen.queryByTestId('favor')).toBeInTheDocument();
+    expect(screen.queryByTestId('node-voting')).toBeInTheDocument();
     expect(screen.queryByTestId('pill')).toBeInTheDocument();
   });
 
@@ -173,7 +185,7 @@ describe('PointNode dragging UI behavior', () => {
       />
     );
 
-    expect(screen.queryByTestId('favor')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('node-voting')).not.toBeInTheDocument();
     expect(screen.queryByTestId('pill')).not.toBeInTheDocument();
   });
 });

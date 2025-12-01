@@ -469,7 +469,7 @@ export const useYjsProviderConnection = ({
     } finally {
       isRefreshingTokenRef.current = false;
     }
-  }, [createProvider, destroyProvider, setConnectionError, setConnectionState]);
+  }, [createProvider, destroyProvider, setConnectionError, setConnectionState, ydocRef]);
 
   restartProviderWithNewTokenRef.current = restartProviderWithNewToken;
 
@@ -563,6 +563,7 @@ export const useYjsProviderConnection = ({
     setConnectionState,
     shouldSeedOnConnectRef,
     hydrationStatusRef,
+    ydocRef,
   ]);
 
   return useMemo(

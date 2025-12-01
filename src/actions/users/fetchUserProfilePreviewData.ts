@@ -31,6 +31,8 @@ export const fetchUserProfilePreviewData = async (userId: string) => {
       bio: user.bio,
       delegationUrl: user.delegationUrl,
       createdAt: user.createdAt,
+      avatarUrl: (user as any)?.avatarUrl || null,
+      avatarUpdatedAt: (user as any)?.avatarUpdatedAt || null,
       rationalesCount: rationalesCount,
     };
     return result;

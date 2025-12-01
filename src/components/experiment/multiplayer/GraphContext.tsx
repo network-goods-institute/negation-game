@@ -10,6 +10,7 @@ type GraphActions = {
     setAutoFocusNodeId?: (nodeId: string | null) => void;
     updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
     updateNodeFavor?: (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => void;
+    toggleNodeVote?: (nodeId: string, userId: string, username?: string) => void;
     addPointBelow?: (parentNodeId: string) => void;
     preferredEdgeType?: 'support' | 'negation';
     deleteNode: (nodeId: string) => void;
@@ -70,6 +71,7 @@ export const useGraphActions = () => {
             ensureEdgeAnchor: () => { },
             updateNodeHidden: () => { },
             updateNodeFavor: () => { },
+            toggleNodeVote: () => { },
             addPointBelow: () => { },
             preferredEdgeType: 'support',
             deleteNode: () => { },

@@ -154,6 +154,10 @@ NEXT_PUBLIC_ENABLE_MINDCHANGE=false
 
 # Optional: Development
 ESLINT_USE_FLAT_CONFIG=false
+
+# Avatars (Supabase storage)
+SUPABASE_URL="https://<your-project>.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 ```
 
 **Getting the required credentials:**
@@ -162,6 +166,7 @@ ESLINT_USE_FLAT_CONFIG=false
 - **Privy**: Sign up at [Privy.io](https://privy.io) and create an app to get your credentials
 - **OpenAI**: Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
 - **Google AI**: Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- **Supabase**: From your project settings → API, copy the `SUPABASE_URL` and `service_role` key.
 
 ### 4. Set up the database
 
@@ -179,6 +184,11 @@ Run database migrations using Drizzle:
 pnpm drizzle-kit generate
 pnpm drizzle-kit migrate
 ```
+
+Create the Supabase storage bucket for avatars (one-time in Supabase):
+
+- Bucket name: `profile-pictures`
+- Public read enabled; writes are done via the server (service role key).
 
 ### 5. Set up the Yjs WebSocket server
 

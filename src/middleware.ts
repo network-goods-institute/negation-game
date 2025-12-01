@@ -529,6 +529,15 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl, 307);
   }
 
+  // Allow the profile page under /board/profile to bypass board rewrites
+  if (pathname === "/board/profile" || pathname.startsWith("/board/profile/")) {
+    const passThrough = NextResponse.next();
+    authResponse.headers.forEach((value, key) => {
+      passThrough.headers.set(key, value);
+    });
+    return passThrough;
+  }
+
   // Handle /board/:id routes on root domain (rewrite to multiplayer rationale)
   const boardMatch = pathname.match(/^\/board\/([^/]+)\/?$/);
   if (boardMatch) {
