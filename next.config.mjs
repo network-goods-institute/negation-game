@@ -7,6 +7,18 @@ const nextConfig = {
   transpilePackages: ["next-mdx-remote"],
   // Avoid bundling multiple copies of yjs in server builds (Next 15+)
   serverExternalPackages: ["yjs", "y-websocket"],
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        'negationgame.com',
+        'play.negationgame.com',
+        'scroll.negationgame.com',
+        'market.negationgame.com',
+        '*.negationgame.com',
+        ...(isDev ? ['localhost:3000', '127.0.0.1:3000'] : []),
+      ],
+    },
+  },
   webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.output.globalObject = 'self';
