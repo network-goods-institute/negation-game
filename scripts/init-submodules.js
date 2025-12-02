@@ -185,10 +185,35 @@ function initSubmodules({
     tokenLength: token.length,
   });
 
+  let configuredToken = false;
   if (token) {
+    console.log('✓ Token found, validating access to carroll repository...');
+
+    const testResult = spawnSync('git', [
+      'ls-remote',
+      '--exit-code',
+      `https://x-access-token:${token}@github.com/network-goods-institute/carroll-lmsr-ts.git`,
+      'HEAD'
+    ], { stdio: 'pipe', shell: false });
+
+    if (testResult.status !== 0) {
+      console.error('❌ Token validation failed - cannot access carroll repository');
+      console.error('   Make sure your token has access to network-goods-institute/carroll-lmsr-ts');
+      const stderr = testResult.stderr?.toString() || '';
+      if (stderr.includes('Invalid username or token')) {
+        console.error('   Error: Invalid or expired token');
+      } else if (stderr.includes('403')) {
+        console.error('   Error: Token lacks required permissions or org policy restriction');
+      }
+      console.warn('⚠️  Proceeding anyway - may fall back to stubs if market is disabled');
+    } else {
+      console.log('✓ Token validated successfully');
+    }
+
     console.log('✓ Configuring git with token...');
     const urlKey = `url.https://x-access-token:${token}@github.com/.insteadOf`;
     runCommand('git', ['config', '--local', urlKey, 'https://github.com/']);
+    configuredToken = true;
   } else {
     console.warn('⚠️  No GitHub token found in environment');
   }
@@ -201,6 +226,11 @@ function initSubmodules({
   const success = runCommand('git', ['submodule', 'update', '--init', '--recursive', '--depth', '1'], {
     allowFailure: true,
   });
+
+  if (configuredToken) {
+    const urlKey = `url.https://x-access-token:${token}@github.com/.insteadOf`;
+    runCommand('git', ['config', '--local', '--unset-all', urlKey], { allowFailure: true });
+  }
 
   const carrollExists =
     fsModule.existsSync(path.join(carrollRoot, '.git')) ||
