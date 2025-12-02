@@ -210,16 +210,18 @@ function initSubmodules({
       console.log('✓ Token validated successfully');
     }
 
-    console.log('✓ Configuring git with token...');
-    // Set token for each private submodule URL directly
-    runCommand('git', ['config', 'submodule.src/lib/carroll.url',
-      `https://x-access-token:${token}@github.com/network-goods-institute/carroll-lmsr-ts.git`]);
     configuredToken = true;
   } else {
     console.warn('⚠️  No GitHub token found in environment');
   }
 
   runCommand('git', ['submodule', 'sync', '--recursive']);
+
+  if (token) {
+    console.log('✓ Configuring git with token...');
+    runCommand('git', ['config', 'submodule.src/lib/carroll.url',
+      `https://x-access-token:${token}@github.com/network-goods-institute/carroll-lmsr-ts.git`]);
+  }
 
   const carrollRoot = path.join(repoRootPath, 'src', 'lib', 'carroll');
   removeCarrollStubsIfPresent(carrollRoot, fsModule);
