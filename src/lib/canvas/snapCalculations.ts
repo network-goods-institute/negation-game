@@ -25,12 +25,26 @@ const getDims = (
 ): { width: number; height: number } => {
   const override = overrides?.[node.id];
   if (override) return override;
+  // Use style.width (base CSS width) over measured.width (which includes expansion during editing)
   const width =
-    Number(node?.width ?? node?.measured?.width ?? (node as any)?.style?.width ?? 0) || 0;
+    Number(node?.width ?? (node as any)?.style?.width ?? node?.measured?.width ?? 0) || 0;
   const height =
-    Number(node?.height ?? node?.measured?.height ?? (node as any)?.style?.height ?? 0) || 0;
+    Number(node?.height ?? (node as any)?.style?.height ?? node?.measured?.height ?? 0) || 0;
   // Normalize to integers to avoid sub-pixel drift at different zooms
   return { width: Math.round(width), height: Math.round(height) };
+};
+
+// Cache for snap line positions to prevent jitter
+let snapLineCache: {
+  snapLineX: number | null;
+  snapLineY: number | null;
+  xRounded: number | null;
+  yRounded: number | null;
+} = {
+  snapLineX: null,
+  snapLineY: null,
+  xRounded: null,
+  yRounded: null,
 };
 
 export const calculateSnapPositions = (
@@ -77,6 +91,38 @@ export const calculateSnapPositions = (
       snapY = result.snapY;
       snapLineY = result.snapLineY;
     }
+  }
+
+  // Round snap line positions to prevent sub-pixel jitter
+  // and use cache to stabilize the line position
+  if (snapLineX !== null) {
+    const rounded = Math.round(snapLineX);
+    // Use cached value if it's close enough (within 0.5px)
+    if (snapLineCache.xRounded !== null && Math.abs(rounded - snapLineCache.xRounded) < 1) {
+      snapLineX = snapLineCache.snapLineX;
+    } else {
+      snapLineX = rounded;
+      snapLineCache.snapLineX = rounded;
+      snapLineCache.xRounded = rounded;
+    }
+  } else {
+    snapLineCache.snapLineX = null;
+    snapLineCache.xRounded = null;
+  }
+
+  if (snapLineY !== null) {
+    const rounded = Math.round(snapLineY);
+    // Use cached value if it's close enough (within 0.5px)
+    if (snapLineCache.yRounded !== null && Math.abs(rounded - snapLineCache.yRounded) < 1) {
+      snapLineY = snapLineCache.snapLineY;
+    } else {
+      snapLineY = rounded;
+      snapLineCache.snapLineY = rounded;
+      snapLineCache.yRounded = rounded;
+    }
+  } else {
+    snapLineCache.snapLineY = null;
+    snapLineCache.yRounded = null;
   }
 
   return { snapX, snapY, snapLineX, snapLineY };
@@ -418,6 +464,36 @@ export const calculateGroupSnapPositions = (
       snapY = otherBottom - groupBounds.height;
       snapLineY = otherBottom;
     }
+  }
+
+  // Round snap line positions to prevent sub-pixel jitter
+  // and use cache to stabilize the line position (same cache as single node)
+  if (snapLineX !== null) {
+    const rounded = Math.round(snapLineX);
+    if (snapLineCache.xRounded !== null && Math.abs(rounded - snapLineCache.xRounded) < 1) {
+      snapLineX = snapLineCache.snapLineX;
+    } else {
+      snapLineX = rounded;
+      snapLineCache.snapLineX = rounded;
+      snapLineCache.xRounded = rounded;
+    }
+  } else {
+    snapLineCache.snapLineX = null;
+    snapLineCache.xRounded = null;
+  }
+
+  if (snapLineY !== null) {
+    const rounded = Math.round(snapLineY);
+    if (snapLineCache.yRounded !== null && Math.abs(rounded - snapLineCache.yRounded) < 1) {
+      snapLineY = snapLineCache.snapLineY;
+    } else {
+      snapLineY = rounded;
+      snapLineCache.snapLineY = rounded;
+      snapLineCache.yRounded = rounded;
+    }
+  } else {
+    snapLineCache.snapLineY = null;
+    snapLineCache.yRounded = null;
   }
 
   return { snapX, snapY, snapLineX, snapLineY };
