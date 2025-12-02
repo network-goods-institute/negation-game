@@ -69,6 +69,7 @@ export async function computeMarketView(
   if ((mmStruct.names.length === 0 || mmSecs.length === 0) && rows.length > 0) {
     const nodes = new Set<string>();
     const triples: Array<[string, string, string]> = [];
+    const edgeIds = new Set<string>();
     for (const r of rows) {
       const rawId = normalize(r.securityId);
       if (!rawId) continue;
@@ -84,7 +85,8 @@ export async function computeMarketView(
           const leftParts = left.split(":");
           const srcId = leftParts.length >= 2 ? leftParts[1] : "";
           const tgtId = right.split(":")[0] || "";
-          if (srcId && tgtId) {
+          if (srcId && tgtId && !edgeIds.has(id)) {
+            edgeIds.add(id);
             nodes.add(srcId);
             nodes.add(tgtId);
             triples.push([id, srcId, tgtId]);

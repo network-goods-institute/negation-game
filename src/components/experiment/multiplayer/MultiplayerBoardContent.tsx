@@ -172,6 +172,9 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const initialGraph = useInitialGraph();
 
   const isProdHost = typeof window !== 'undefined' ? isProductionRequest(window.location.hostname) : false;
+  const lastMarketStructSigRef = useRef<string | null>(null);
+  const nodesRef = useRef<any[]>([]);
+  const edgesRef = useRef<any[]>([]);
 
   const {
     nodes,
@@ -218,16 +221,24 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   });
 
   const marketEnabled = isMarketEnabled();
-  const market = useMarket(resolvedId || '');
+  const market = useMarket(marketEnabled && resolvedId ? resolvedId : '');
   const marketViewData = marketEnabled ? (market?.view?.data || null) : null;
-  const livePostInFlightRef = React.useRef(false);
-  const lastLivePostRef = React.useRef(0);
-  // (Reverted) No Yjs-driven refresh; rely on explicit refresh + polling to avoid loops
+  const initialMarketFetchDoneRef = useRef(false);
 
-  // Write market view snapshot to Yjs when local query updates
   useEffect(() => {
-    if (!marketEnabled || !market) return;
+    nodesRef.current = nodes as any[];
+    edgesRef.current = edges as any[];
+  }, [nodes, edges]);
+
+  useEffect(() => {
+    initialMarketFetchDoneRef.current = false;
+    lastMarketStructSigRef.current = null;
+  }, [resolvedId]);
+
+  useEffect(() => {
+    if (!marketEnabled) return;
     if (!ydoc || !yMetaMap) return;
+    if (!marketViewData) return;
     try {
       const marketData = {
         prices: marketViewData?.prices || {},
@@ -236,86 +247,48 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         updatedAt: marketViewData?.updatedAt || new Date().toISOString(),
       };
       syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME);
-      try {
-        const pCount = Object.keys(marketData.prices).length;
-        const hCount = Object.keys(marketData.holdings).length;
-        const tCount = Object.keys(marketData.totals).length;
-        logger.info('[market/ui] wrote snapshot to yMetaMap', { docId: resolvedId, prices: pCount, holdings: hCount, totals: tCount, updatedAt: marketData.updatedAt });
-      } catch (error) {
-        logDevError('[market/ui] snapshot log failed', error);
-      }
     } catch (error) {
       logDevError('[market/ui] snapshot sync failed', error);
     }
-  }, [marketEnabled, marketViewData, ydoc, yMetaMap, resolvedId, market]);
+  }, [marketEnabled, marketViewData, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
-    if (!marketEnabled || !market) return;
-    if (!ydoc || !yMetaMap) return;
-    const prices = marketViewData?.prices || null;
-    const hasServerPrices = prices && Object.keys(prices).length > 0;
-    if (hasServerPrices) return;
+    if (!marketEnabled) return;
+    if (!resolvedId || !ydoc || !yMetaMap) return;
+    if (initialMarketFetchDoneRef.current) return;
+    if (marketViewData && Object.keys(marketViewData.prices || {}).length > 0) {
+      initialMarketFetchDoneRef.current = true;
+      return;
+    }
     try {
       const existing = (yMetaMap as any).get?.('market:prices') || null;
-      if (existing && Object.keys(existing).length > 0) return;
+      if (existing && Object.keys(existing).length > 0) {
+        initialMarketFetchDoneRef.current = true;
+        return;
+      }
     } catch (error) {
       logDevError('[market/ui] read yMetaMap prices failed', error);
     }
     if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
     if (nodes.length === 0 && edges.length === 0) return;
-    (async () => {
-      try {
-        const payload = buildMarketViewPayload(nodes, edges);
-        const res = await fetch(`/api/market/${encodeURIComponent(resolvedId || '')}/view`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          const view = await res.json();
-          const marketData = {
-            prices: view?.prices || {},
-            holdings: {},
-            totals: view?.totals || {},
-            updatedAt: view?.updatedAt || new Date().toISOString(),
-          };
-          const prevUpdated = (yMetaMap as any).get?.('market:updatedAt');
-          if (!prevUpdated || prevUpdated !== marketData.updatedAt) {
-            syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME);
-          }
-        }
-      } catch (error) {
-        if (isAbortError(error)) return;
-        logDevError('[market/ui] initial market fetch failed', error);
-      }
-    })();
-  }, [marketEnabled, marketViewData, nodes, edges, ydoc, yMetaMap, resolvedId, market]);
-
-  useEffect(() => {
-    if (!marketEnabled) return;
-    if (!resolvedId || !ydoc || !yMetaMap) return;
-    if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
-    const payload = buildMarketViewPayload(nodes, edges);
     const ctrl = new AbortController();
     const timer = window.setTimeout(async () => {
-      if (livePostInFlightRef.current) return;
-      const now = Date.now();
-      if (now - lastLivePostRef.current < 2000) return;
-      livePostInFlightRef.current = true;
+      if (initialMarketFetchDoneRef.current) return;
+      initialMarketFetchDoneRef.current = true;
       try {
-        const res = await fetch(`/api/market/${encodeURIComponent(resolvedId || '')}/view`, {
+        const payload = buildMarketViewPayload(nodes, edges);
+        const res = await fetch(`/api/market/${encodeURIComponent(resolvedId)}/view`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(payload),
           signal: ctrl.signal,
         });
         if (!res.ok) {
-          try {
-            const txt = await res.text();
-            if (txt && (/outcome enumeration cap exceeded/i.test(txt) || /too many variables/i.test(txt))) {
-              toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
-            }
-          } catch { }
+          const txt = await res.text().catch(() => '');
+          if (/outcome enumeration cap exceeded|too many variables/i.test(txt)) {
+            toast.error('Market too complex. Remove some nodes or edges.');
+          }
+          initialMarketFetchDoneRef.current = false;
           return;
         }
         const view = await res.json();
@@ -325,24 +298,21 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           totals: view?.totals || {},
           updatedAt: view?.updatedAt || new Date().toISOString(),
         };
-        const prevUpdated = (yMetaMap as any).get?.('market:updatedAt');
-        if (!prevUpdated || prevUpdated !== marketData.updatedAt) {
-          syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId || '', ORIGIN.RUNTIME, 'live');
-        }
-        lastLivePostRef.current = Date.now();
+        syncMarketDataToYDoc(ydoc, yMetaMap, marketData, resolvedId, ORIGIN.RUNTIME);
       } catch (error) {
-        if (isAbortError(error)) return;
-        logDevError('[market/ui] live market post failed', error);
+        if (isAbortError(error)) {
+          initialMarketFetchDoneRef.current = false;
+          return;
+        }
+        initialMarketFetchDoneRef.current = false;
+        logDevError('[market/ui] initial market fetch failed', error);
       }
-      finally {
-        livePostInFlightRef.current = false;
-      }
-    }, 400);
+    }, 800);
     return () => {
-      try { ctrl.abort(); } catch (error) { logDevError('[market/ui] abort live post failed', error); }
+      try { ctrl.abort(); } catch {}
       window.clearTimeout(timer);
     };
-  }, [marketEnabled, resolvedId, nodes, edges, ydoc, yMetaMap, grabMode, connectMode, market]);
+  }, [marketEnabled, marketViewData, nodes, edges, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -656,11 +626,56 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     });
   }, [setNodes]);
 
-  const refreshMarketNow = useCallback(async () => {
+  const refreshFlightRef = React.useRef<{ inFlight: boolean; lastRun: number; timer: number | null; pending: boolean; lastErrorPayloadHash: string | null; lastErrorAt: number }>({
+    inFlight: false,
+    lastRun: 0,
+    timer: null,
+    pending: false,
+    lastErrorPayloadHash: null,
+    lastErrorAt: 0,
+  });
+
+  const refreshMarketNow = useCallback(async (overridePayload?: { nodes: string[]; edges: Array<{ id: string; source: string; target: string }> }) => {
+    const state = refreshFlightRef.current;
+    const MIN_INTERVAL_MS = 1200;
+    const ERROR_COOLDOWN_MS = 30000;
+
+    const schedule = (delay: number) => {
+      if (state.timer !== null) return;
+      state.timer = window.setTimeout(() => {
+        state.timer = null;
+        refreshMarketNow();
+      }, delay);
+    };
+
+    if (state.inFlight) {
+      state.pending = true;
+      return;
+    }
+
+    const elapsed = Date.now() - state.lastRun;
+    if (elapsed < MIN_INTERVAL_MS) {
+      schedule(MIN_INTERVAL_MS - elapsed);
+      return;
+    }
+
+    const currentNodes = nodesRef.current;
+    const currentEdges = edgesRef.current;
+    const payload = overridePayload || buildMarketViewPayload(currentNodes, currentEdges);
+    const payloadHash = JSON.stringify(payload);
+    if (
+      state.lastErrorPayloadHash &&
+      state.lastErrorPayloadHash === payloadHash &&
+      Date.now() - state.lastErrorAt < ERROR_COOLDOWN_MS
+    ) {
+      return;
+    }
+
+    state.inFlight = true;
+    state.pending = false;
     try { await forceSave?.(); } catch { }
     try {
       if (marketEnabled && ydoc && yMetaMap && resolvedId) {
-        const payload = buildMarketViewPayload(nodes, edges);
         const res = await fetch(`/api/market/${encodeURIComponent(resolvedId)}/view`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -671,10 +686,13 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             const txt = await res.text();
             if (txt && (/outcome enumeration cap exceeded/i.test(txt) || /too many variables/i.test(txt))) {
               toast.error('Too many variables in market view. Delete a few nodes or edges to continue.');
+              state.lastErrorPayloadHash = payloadHash;
+              state.lastErrorAt = Date.now();
             }
           } catch { }
           return;
         }
+        state.lastErrorPayloadHash = null;
         const view = await res.json();
         const marketData = {
           prices: view?.prices || {},
@@ -688,7 +706,54 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         }
       }
     } catch { }
-  }, [forceSave, marketEnabled, ydoc, yMetaMap, resolvedId, nodes, edges]);
+    finally {
+      state.inFlight = false;
+      state.lastRun = Date.now();
+      if (state.pending) {
+        state.pending = false;
+        schedule(MIN_INTERVAL_MS);
+      }
+    }
+  }, [forceSave, marketEnabled, ydoc, yMetaMap, resolvedId]);
+
+  useEffect(() => {
+    return () => {
+      const state = refreshFlightRef.current;
+      if (state.timer !== null) {
+        try { window.clearTimeout(state.timer); } catch { }
+        state.timer = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!marketEnabled) return;
+    if (!resolvedId) return;
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
+    if (nodes.length === 0 && edges.length === 0) return;
+    const relevantNodes = nodes
+      .filter((n: any) => String(n?.type || '') !== 'edge_anchor')
+      .map((n: any) => `${n.id}:${n.type || ''}`)
+      .sort()
+      .join('|');
+    const relevantEdges = edges
+      .filter((e: any) => {
+        const t = String(e?.type || '').toLowerCase();
+        return t === 'support' || t === 'negation' || t === 'objection';
+      })
+      .map((e: any) => {
+        const src = String(e?.source || '').replace(/^anchor:/, '');
+        const tgt = String(e?.target || '').replace(/^anchor:/, '');
+        return `${e.id}:${e.type || ''}:${src}->${tgt}`;
+      })
+      .sort()
+      .join('|');
+    const sig = `${resolvedId}::${relevantNodes}#${relevantEdges}`;
+    if (sig && sig !== lastMarketStructSigRef.current) {
+      lastMarketStructSigRef.current = sig;
+      refreshMarketNow(buildMarketViewPayload(nodesRef.current, edgesRef.current));
+    }
+  }, [marketEnabled, resolvedId, nodes, edges, refreshMarketNow]);
 
   const {
     updateNodeContent,
