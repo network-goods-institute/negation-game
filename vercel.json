@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "submodules": false
+  },
   "crons": [
     {
       "path": "/api/notifications/detect-scroll-proposals",

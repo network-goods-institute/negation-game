@@ -225,7 +225,10 @@ export const MarketPanel: React.FC<Props> = ({
   // Show toast notification when preview fails
   useEffect(() => {
     if (preview.error) {
-      toast.error('Market preview failed: outcome enumeration cap exceeded');
+      const errorMsg = preview.error === '504' || preview.error === '500'
+        ? 'Market preview timed out - structure too complex'
+        : 'Market preview failed';
+      toast.error(errorMsg);
     }
   }, [preview.error]);
 
