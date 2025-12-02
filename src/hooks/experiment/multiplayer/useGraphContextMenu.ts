@@ -15,6 +15,13 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
   const [contextMenuNodeId, setContextMenuNodeId] = React.useState<
     string | null
   >(null);
+  const [contextMenuTargetIds, setContextMenuTargetIds] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    if (multiSelectMenuOpen) return;
+    setContextMenuTargetIds([]);
+    setContextMenuNodeId(null);
+  }, [multiSelectMenuOpen]);
 
   const buildPositionsById = React.useCallback(
     (ids: string[]) => {
@@ -89,6 +96,15 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
           const selectedNodes = rf
             .getNodes()
             .filter((n) => (n as any).selected);
+          const targetNodes =
+            clickedNode && !(clickedNode as any).selected
+              ? [clickedNode]
+              : selectedNodes.length > 0
+                ? selectedNodes
+                : clickedNode
+                  ? [clickedNode]
+                  : [];
+          setContextMenuTargetIds(targetNodes.map((n) => n.id));
 
           // If the clicked node is not selected, select it (and deselect others if not multi-selecting)
           if (clickedNode && !(clickedNode as any).selected) {
@@ -111,6 +127,8 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
               );
             }, 0);
           }
+        } else {
+          setContextMenuTargetIds([]);
         }
 
         setMultiSelectMenuPos({ x: e.clientX, y: e.clientY });
@@ -121,18 +139,51 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
   );
 
   const handleDeleteSelectedNodes = React.useCallback(() => {
-    const sel = rf.getNodes().filter((n) => (n as any).selected);
-    if (sel.length === 0) {
+    const nodes = rf.getNodes();
+    const selectionById = nodes.reduce<Record<string, any>>((acc, node) => {
+      acc[node.id] = node;
+      return acc;
+    }, {});
+    const targets = contextMenuTargetIds
+      .map((id) => selectionById[id])
+      .filter(Boolean);
+    const selectedNodes = nodes.filter((n) => (n as any).selected);
+    const effectiveTargets =
+      targets.length > 0
+        ? targets
+        : selectedNodes.length > 0
+          ? selectedNodes
+          : contextMenuNodeId && selectionById[contextMenuNodeId]
+            ? [selectionById[contextMenuNodeId]]
+            : [];
+
+    if (effectiveTargets.length === 0) {
       setMultiSelectMenuOpen(false);
       return;
     }
 
-    sel.forEach((n) => graph.deleteNode?.(n.id));
+    effectiveTargets.forEach((n) => graph.deleteNode?.(n.id));
     setMultiSelectMenuOpen(false);
-  }, [rf, graph]);
+  }, [rf, graph, contextMenuTargetIds, contextMenuNodeId]);
 
   const handleAddPointToSelected = React.useCallback(() => {
-    const sel = rf.getNodes().filter((n) => (n as any).selected);
+    const nodes = rf.getNodes();
+    const selectionById = nodes.reduce<Record<string, any>>((acc, node) => {
+      acc[node.id] = node;
+      return acc;
+    }, {});
+    const contextTargets = contextMenuTargetIds
+      .map((id) => selectionById[id])
+      .filter(Boolean);
+    const selectedNodes = nodes.filter((n) => (n as any).selected);
+    const sel =
+      contextTargets.length > 0
+        ? contextTargets
+        : selectedNodes.length > 0
+          ? selectedNodes
+          : contextMenuNodeId && selectionById[contextMenuNodeId]
+            ? [selectionById[contextMenuNodeId]]
+            : [];
     const contextNode = contextMenuNodeId
       ? rf.getNode(contextMenuNodeId)
       : null;
@@ -163,7 +214,7 @@ export const useGraphContextMenu = ({ graph }: UseGraphContextMenuProps) => {
       }
     }
     setMultiSelectMenuOpen(false);
-  }, [rf, graph, buildPositionsById, contextMenuNodeId]);
+  }, [rf, graph, buildPositionsById, contextMenuNodeId, contextMenuTargetIds]);
 
   const getAddPointLabel = React.useCallback(() => {
     // Use the right-clicked node to determine the label immediately

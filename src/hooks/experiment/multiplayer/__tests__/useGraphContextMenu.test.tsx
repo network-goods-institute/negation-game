@@ -272,6 +272,44 @@ describe('useGraphContextMenu', () => {
       expect(mockGraph.deleteNode).not.toHaveBeenCalled();
       expect(result.current.multiSelectMenuOpen).toBe(false);
     });
+
+    it('should delete the right-clicked node even if selection has not updated yet', () => {
+      mockRf.getNodes.mockReturnValue([
+        { id: 'node-1', selected: false, type: 'point' },
+        { id: 'node-2', selected: true, type: 'point' },
+      ]);
+      mockRf.getNode.mockImplementation((id: string) => ({ id, selected: id === 'node-2', type: 'point' }));
+
+      const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
+
+      const openEvent = {
+        clientX: 500,
+        clientY: 300,
+        preventDefault: jest.fn(),
+        stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('node-1')
+          })
+        }
+      };
+
+      act(() => {
+        result.current.handleMultiSelectContextMenu(openEvent as any as React.MouseEvent);
+      });
+
+      mockRf.getNodes.mockReturnValue([
+        { id: 'node-1', selected: false, type: 'point' },
+        { id: 'node-2', selected: true, type: 'point' },
+      ]);
+
+      act(() => {
+        result.current.handleDeleteSelectedNodes();
+      });
+
+      expect(mockGraph.deleteNode).toHaveBeenCalledWith('node-1');
+      expect(mockGraph.deleteNode).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('handleAddPointToSelected', () => {
@@ -340,6 +378,44 @@ describe('useGraphContextMenu', () => {
       });
       expect(mockGraph.updateNodeType).toHaveBeenCalledWith('new-comment', 'comment');
       expect(mockGraph.startEditingNode).toHaveBeenCalledWith('new-comment');
+    });
+
+    it('uses the right-clicked node when no nodes are marked selected', () => {
+      mockGraph.addPointBelow.mockReturnValue({ nodeId: 'new-2' });
+      mockRf.getNodes.mockReturnValue([
+        { id: 'node-1', selected: false, type: 'point', position: { x: 12, y: 24 }, width: 160, height: 90 },
+      ]);
+      mockRf.getNode.mockImplementation((id: string) => {
+        if (id === 'node-1') return { id, selected: false, type: 'point', position: { x: 12, y: 24 }, width: 160, height: 90 };
+        return null;
+      });
+
+      const { result } = renderHook(() => useGraphContextMenu({ graph: mockGraph }));
+
+      const openEvent = {
+        clientX: 250,
+        clientY: 150,
+        preventDefault: jest.fn(),
+        stopPropagation: jest.fn(),
+        target: {
+          closest: jest.fn().mockReturnValue({
+            getAttribute: jest.fn().mockReturnValue('node-1')
+          })
+        }
+      };
+
+      act(() => {
+        result.current.handleMultiSelectContextMenu(openEvent as any as React.MouseEvent);
+      });
+
+      act(() => {
+        result.current.handleAddPointToSelected();
+      });
+
+      expect(mockGraph.addPointBelow).toHaveBeenCalledWith({
+        ids: ['node-1'],
+        positionsById: { 'node-1': { x: 12, y: 24, width: 160, height: 90 } },
+      });
     });
   });
 
