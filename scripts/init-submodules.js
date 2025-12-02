@@ -211,8 +211,9 @@ function initSubmodules({
     }
 
     console.log('✓ Configuring git with token...');
-    const urlKey = `url.https://x-access-token:${token}@github.com/.insteadOf`;
-    runCommand('git', ['config', '--local', urlKey, 'https://github.com/']);
+    // Set token for each private submodule URL directly
+    runCommand('git', ['config', 'submodule.src/lib/carroll.url',
+      `https://x-access-token:${token}@github.com/network-goods-institute/carroll-lmsr-ts.git`]);
     configuredToken = true;
   } else {
     console.warn('⚠️  No GitHub token found in environment');
@@ -228,8 +229,9 @@ function initSubmodules({
   });
 
   if (configuredToken) {
-    const urlKey = `url.https://x-access-token:${token}@github.com/.insteadOf`;
-    runCommand('git', ['config', '--local', '--unset-all', urlKey], { allowFailure: true });
+    // Reset submodule URL to original (without token)
+    runCommand('git', ['config', '--unset', 'submodule.src/lib/carroll.url'], { allowFailure: true });
+    runCommand('git', ['submodule', 'sync', '--recursive'], { allowFailure: true });
   }
 
   const carrollExists =
