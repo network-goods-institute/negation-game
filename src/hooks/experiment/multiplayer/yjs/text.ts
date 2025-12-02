@@ -56,6 +56,18 @@ const pickComparable = (node: Node) => {
   const legacy = node.type === 'statement' ? (data as any).statement : (data as any).content;
   const titleNormalized =
     typeof (data as any).title === 'string' ? (data as any).title : (typeof legacy === 'string' ? legacy : undefined);
+  const votesRaw = (data as any).votes;
+  const votes =
+    Array.isArray(votesRaw)
+      ? votesRaw
+          .map((entry: any) =>
+            typeof entry === 'string'
+              ? { id: entry, name: undefined }
+              : { id: String(entry?.id || ''), name: entry?.name }
+          )
+          .filter((v) => v.id)
+          .sort((a, b) => a.id.localeCompare(b.id))
+      : [];
   return {
     id: node.id,
     type: node.type,
@@ -69,6 +81,7 @@ const pickComparable = (node: Node) => {
       title: titleNormalized,
       hidden: (data as any).hidden,
       favor: (data as any).favor,
+      votes,
     },
   };
 };

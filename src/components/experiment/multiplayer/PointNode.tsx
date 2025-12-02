@@ -11,7 +11,7 @@ import { useNodeChrome } from './common/useNodeChrome';
 import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
-import { FavorSelector } from './common/FavorSelector';
+import { NodeVoting } from './common/NodeVoting';
 import { useSelectionPayload } from './common/useSelectionPayload';
 import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { LockIndicator } from './common/LockIndicator';
@@ -27,6 +27,7 @@ interface PointNodeProps {
     closingAnimation?: boolean;
     favor?: number;
     hidden?: boolean;
+    votes?: Array<string | { id: string; name?: string }>;
   };
   id: string;
   selected?: boolean;
@@ -38,6 +39,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const {
     updateNodeContent,
     updateNodeFavor,
+    toggleNodeVote,
     addPointBelow,
     isConnectingFromNodeId,
     startEditingNode,
@@ -309,12 +311,10 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         )}
         {selected && !hidden && extras.showExtras && (
           <div ref={(el) => extras.registerExtras?.(el)} className={`mt-1 mb-1 flex items-center gap-2 select-none`} style={{ position: 'relative', zIndex: 20 }}>
-            <span className="text-[10px] uppercase tracking-wide text-stone-500 -translate-y-0.5">Favor</span>
-            <FavorSelector
-              value={favor}
-              onSelect={(level) => updateNodeFavor?.(id, level)}
-              activeClassName="text-amber-500"
-              inactiveClassName="text-stone-300"
+            <NodeVoting
+              nodeId={id}
+              votes={data.votes || []}
+              onToggleVote={toggleNodeVote}
             />
           </div>
         )}

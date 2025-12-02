@@ -34,6 +34,14 @@ jest.mock('../common/NodeShell', () => ({
   NodeShell: ({ children }: any) => <div data-testid="nodeshell">{children}</div>,
 }));
 
+jest.mock('@/hooks/experiment/multiplayer/useAuthSetup', () => ({
+  useAuthSetup: () => ({
+    userId: "test-user",
+    username: "Test User",
+    authenticated: true,
+  }),
+}));
+
 jest.mock('../common/useNodeChrome', () => ({
   useNodeChrome: () => ({
     editable: {

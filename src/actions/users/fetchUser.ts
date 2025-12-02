@@ -43,6 +43,8 @@ export const fetchUser = async (idOrUsername: string) => {
         showReadReceipts: usersTable.showReadReceipts,
         receiveReadReceipts: usersTable.receiveReadReceipts,
         createdAt: usersTable.createdAt,
+        avatarUrl: usersTable.avatarUrl,
+        avatarUpdatedAt: usersTable.avatarUpdatedAt,
       })
       .from(usersTable)
       .where(whereCondition)
