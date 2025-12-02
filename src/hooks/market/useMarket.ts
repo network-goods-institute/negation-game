@@ -35,10 +35,10 @@ async function postBuyAmount(docId: string, securityId: string, spendScaled: str
 }
 
 export function useMarket(docId: string) {
-  const enabled = typeof window !== "undefined" && process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === "true";
+  const enabled = typeof window !== "undefined" && process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === "true" && Boolean(docId);
   const qc = useQueryClient();
   const key = ["market:view", docId];
-  const view = useQuery({ queryKey: key, queryFn: () => fetchMarketView(docId), enabled });
+  const view = useQuery({ queryKey: key, queryFn: () => fetchMarketView(docId), enabled, staleTime: 30000, refetchOnWindowFocus: false });
   const buyShares = useMutation({
     mutationFn: ({ securityId, deltaScaled }: { securityId: string; deltaScaled: string }) =>
       postBuyShares(docId, securityId, deltaScaled),
