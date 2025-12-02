@@ -207,9 +207,8 @@ describe("init-submodules", () => {
 
     expect(runCommand).toHaveBeenCalledWith("git", [
       "config",
-      "--local",
-      "url.https://x-access-token:test-token@github.com/.insteadOf",
-      "https://github.com/",
+      "submodule.src/lib/carroll.url",
+      "https://x-access-token:test-token@github.com/network-goods-institute/carroll-lmsr-ts.git",
     ]);
   });
 
@@ -220,10 +219,18 @@ describe("init-submodules", () => {
 
     const runCommand = jest.fn(() => true);
 
+    // Pass clean env without any token variables
+    const cleanEnv = Object.keys(process.env).reduce((acc, key) => {
+      if (!key.includes('TOKEN') && !key.includes('token')) {
+        acc[key] = process.env[key];
+      }
+      return acc;
+    }, {} as NodeJS.ProcessEnv);
+
     initSubmodules({
       runCommand,
       repoRootPath: tempRoot,
-      env: { ...process.env },
+      env: cleanEnv,
     });
 
     expect(runCommand).not.toHaveBeenCalledWith(
