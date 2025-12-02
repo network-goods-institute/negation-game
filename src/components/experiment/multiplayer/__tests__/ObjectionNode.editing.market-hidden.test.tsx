@@ -98,6 +98,14 @@ jest.mock('../common/LockIndicator', () => ({
   LockIndicator: () => <div data-testid="lock" />,
 }));
 
+jest.mock('@/hooks/experiment/multiplayer/useAuthSetup', () => ({
+  useAuthSetup: () => ({
+    userId: "test-user",
+    username: "Test User",
+    authenticated: true,
+  }),
+}));
+
 jest.mock('../common/MarketContextMenu', () => ({
   MarketContextMenu: () => null,
 }));

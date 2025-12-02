@@ -1,3 +1,4 @@
+#!/usr/bin/env -S npx tsx
 import { config } from "dotenv";
 config({ path: ".env.local" });
 

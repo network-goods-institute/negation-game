@@ -14,6 +14,7 @@ import { Plus, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { encodeId } from "@/lib/negation-game/encodeId";
 import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface TopicsSidebarProps {
     space: string;
@@ -119,6 +120,17 @@ export const TopicsSidebar = memo(({
             refetchTopics();
             onTopicFiltersChange([...topicFilters, newTopicName.trim()]);
             setNewTopicDialogOpen(false);
+        } catch (error) {
+            const knownErrors = [
+                "Must be authenticated to create topic",
+                "Space admin access required"
+            ];
+
+            const errorMessage = error instanceof Error && knownErrors.includes(error.message)
+                ? error.message
+                : "Failed to create topic. Please try again.";
+
+            toast.error(errorMessage);
         } finally {
             setIsSubmittingTopic(false);
         }

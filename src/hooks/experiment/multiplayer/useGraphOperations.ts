@@ -302,6 +302,56 @@ export const useGraphOperations = ({
     [setNodes, yNodesMap, ydoc, canWrite, localOrigin]
   );
 
+  const normalizeVotes = useCallback(
+    (raw: any): Array<{ id: string; name?: string }> => {
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((entry) =>
+          typeof entry === 'string' ? { id: entry, name: undefined } : entry
+        )
+        .filter((v) => v && typeof v.id === 'string')
+        .sort((a, b) => a.id.localeCompare(b.id));
+    },
+    []
+  );
+
+  const toggleNodeVote = useCallback(
+    (nodeId: string, userId: string, name?: string) => {
+      if (!canWrite) {
+        try { (require('@/utils/readonlyToast') as any).showReadOnlyToast?.(); } catch {}
+        return;
+      }
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== nodeId) return n;
+          const currentVotes = normalizeVotes((n.data as any)?.votes);
+          const existing = currentVotes.find((v) => v.id === userId);
+          const updatedVotes = existing
+            ? currentVotes.filter((v) => v.id !== userId)
+            : [...currentVotes, { id: userId, name }];
+          return { ...n, data: { ...(n.data || {}), votes: updatedVotes } };
+        })
+      );
+      if (yNodesMap && ydoc && canWrite) {
+        ydoc.transact(() => {
+          const base = yNodesMap.get(nodeId);
+          if (base) {
+            const currentVotes = normalizeVotes((base as any).data?.votes);
+            const existing = currentVotes.find((v) => v.id === userId);
+            const votes = existing
+              ? currentVotes.filter((v) => v.id !== userId)
+              : [...currentVotes, { id: userId, name }];
+            yNodesMap.set(nodeId, {
+              ...base,
+              data: { ...(base.data || {}), votes },
+            });
+          }
+        }, localOrigin);
+      }
+    },
+    [setNodes, yNodesMap, ydoc, canWrite, localOrigin, normalizeVotes]
+  );
+
   const updateEdgeRelevance = useMemo(
     () => createUpdateEdgeRelevance(
       yEdgesMap,
@@ -357,6 +407,7 @@ export const useGraphOperations = ({
     updateNodeHidden,
     updateNodePosition,
     updateNodeFavor,
+    toggleNodeVote,
     updateEdgeRelevance,
     deleteNode,
     addPointBelow,

@@ -14,12 +14,11 @@ import {
 import { useUser } from "@/queries/users/useUser";
 import { usePrivy } from "@privy-io/react-auth";
 import { clearPrivyCookie } from '@/actions/users/auth';
-import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, TrophyIcon, BellIcon, SettingsIcon, MessageSquareIcon, BarChart3Icon, ChevronDownIcon, ShieldIcon, ShieldCheckIcon } from "lucide-react";
+import { LoaderCircleIcon, CoinsIcon, UserIcon, LogOutIcon, BellIcon, MessageSquareIcon, BarChart3Icon, ChevronDownIcon, ShieldIcon, ShieldCheckIcon } from "lucide-react";
 import { useAdminStatus } from "@/hooks/admin/useAdminStatus";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { EarningsDialog } from "../dialogs/EarningsDialog";
 import Link from "next/link";
-import { LeaderboardDialog } from "@/components/dialogs/LeaderboardDialog";
 import { useUnreadNotificationCount } from "@/queries/notifications/useNotifications";
 import { useUnreadMessageCount } from "@/queries/messages/useUnreadMessageCount";
 import { useIncompleteAssignmentCount } from "@/queries/assignments/useIncompleteAssignmentCount";
@@ -49,7 +48,6 @@ export const ConnectButton = () => {
   const defaultSpacesRef = useRef<string[]>([]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -204,7 +202,7 @@ export const ConnectButton = () => {
               <div className="flex items-center gap-1 overflow-hidden">
                 <p className="overflow-clip max-w-full">{user.username}</p>
                 <ChevronDownIcon className="size-4 flex-shrink-0" />
-                {(unreadCount > 0 || unreadMessageCount > 0 || incompleteAssignmentCount > 0) && (
+                {notificationsEnabled && (unreadCount > 0 || unreadMessageCount > 0 || incompleteAssignmentCount > 0) && (
                   <Badge
                     variant="destructive"
                     className="h-4 min-w-4 px-1 text-xs absolute -top-1 -right-1"
@@ -225,8 +223,8 @@ export const ConnectButton = () => {
               {user.cred} cred
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild disabled={pathname === `/profile/${user.username}`}>
-              <Link prefetch href={`/profile/${user.username}`} className="gap-2">
+            <DropdownMenuItem asChild disabled={pathname === `/board/profile`}>
+              <Link prefetch href="/board/profile" className="gap-2">
                 <UserIcon className="size-4" />
                 Profile
               </Link>
@@ -280,10 +278,6 @@ export const ConnectButton = () => {
                 Collect Earnings
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => setLeaderboardOpen(true)} className="gap-2">
-              <TrophyIcon className="size-4" />
-              Leaderboard
-            </DropdownMenuItem>
             {currentSpace && (
               <DropdownMenuItem asChild disabled={pathname === `/s/${currentSpace}/statistics`}>
                 <Link prefetch href={`/s/${currentSpace}/statistics`} className="gap-2">
@@ -327,13 +321,6 @@ export const ConnectButton = () => {
                 </Link>
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild disabled={pathname === "/settings"}>
-              <Link prefetch href="/settings" className="gap-2">
-                <SettingsIcon className="size-4" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={async () => { await clearPrivyCookie(); logout(); }} className="gap-2">
               <LogOutIcon className="size-4" />
               Sign out
@@ -342,7 +329,6 @@ export const ConnectButton = () => {
         </DropdownMenu>
 
         <EarningsDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-        <LeaderboardDialog open={leaderboardOpen} onOpenChange={setLeaderboardOpen} space={currentSpace || "global"} />
       </>
     );
 };

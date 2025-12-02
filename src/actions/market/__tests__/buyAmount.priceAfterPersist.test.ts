@@ -1,4 +1,5 @@
 import { buyAmount } from "@/actions/market/buyAmount";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
   getUserIdOrAnonymous: jest.fn(async () => "u-test"),
@@ -63,7 +64,7 @@ jest.mock("@/services/db", () => {
   };
 });
 
-describe("price_after_scaled persistence", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("price_after_scaled persistence", () => {
   beforeEach(() => {
     inserts.length = 0;
     mmState.after = false;

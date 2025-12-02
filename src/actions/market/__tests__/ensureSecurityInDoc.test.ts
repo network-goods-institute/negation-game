@@ -1,4 +1,5 @@
 import { ensureSecurityInDoc } from "@/actions/market/ensureSecurityInDoc";
+import { skipIfCarrollStubbed } from "@/test/utils/skipIfCarrollStubbed";
 
 jest.mock("@/utils/slugResolver", () => ({
   resolveSlugToId: async (x: string) => x,
@@ -23,7 +24,7 @@ jest.mock("@/services/db", () => ({
 jest.mock("@/db/tables/mpDocsTable", () => ({ mpDocsTable: {} }));
 jest.mock("@/db/tables/mpDocUpdatesTable", () => ({ mpDocUpdatesTable: {} }));
 
-describe("ensureSecurityInDoc", () => {
+(skipIfCarrollStubbed ? describe.skip : describe)("ensureSecurityInDoc", () => {
   beforeEach(() => { inserts.length = 0; });
 
   it("persists a node update", async () => {

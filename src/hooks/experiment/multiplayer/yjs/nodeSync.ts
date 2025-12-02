@@ -5,7 +5,18 @@ import { mergeNodesWithText } from "./text";
 
 const toComparableNode = (node: Node) => {
   const { id, type, position, data, width, height, style } = node;
-  const { content, statement, ...rest } = data ?? {};
+  const { content, statement, votes: rawVotes, ...rest } = data ?? {};
+  const votes =
+    Array.isArray(rawVotes)
+      ? rawVotes
+          .map((entry: any) =>
+            typeof entry === "string"
+              ? { id: entry, name: undefined }
+              : { id: String(entry?.id || ""), name: entry?.name }
+          )
+          .filter((v) => v.id)
+          .sort((a, b) => a.id.localeCompare(b.id))
+      : [];
   const styleObj = style as CSSProperties | undefined;
   const widthValue =
     typeof width === "number"
@@ -25,7 +36,7 @@ const toComparableNode = (node: Node) => {
     position,
     width: widthValue,
     height: heightValue,
-    data: rest,
+    data: { ...rest, votes },
   };
 };
 
