@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
+// Load .env files if present
+try {
+  require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+} catch (e) {
+  // dotenv not available or .env doesn't exist - continue without it
+}
+
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -170,9 +177,20 @@ function initSubmodules({
 } = {}) {
   const token = env.GITHUB_TOKEN || env.GH_TOKEN || env.SUBMODULE_TOKEN || '';
 
+  console.log('🔍 Token check:', {
+    hasGITHUB_TOKEN: !!env.GITHUB_TOKEN,
+    hasGH_TOKEN: !!env.GH_TOKEN,
+    hasSUBMODULE_TOKEN: !!env.SUBMODULE_TOKEN,
+    tokenPresent: !!token,
+    tokenLength: token.length,
+  });
+
   if (token) {
+    console.log('✓ Configuring git with token...');
     const urlKey = `url.https://x-access-token:${token}@github.com/.insteadOf`;
     runCommand('git', ['config', '--local', urlKey, 'https://github.com/']);
+  } else {
+    console.warn('⚠️  No GitHub token found in environment');
   }
 
   runCommand('git', ['submodule', 'sync', '--recursive']);
