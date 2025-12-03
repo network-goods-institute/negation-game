@@ -78,9 +78,17 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     grabMode,
     beginConnectFromEdge,
     completeConnectToEdge,
+    currentUserId,
   } = graphActions;
 
+  const effectiveUserId = currentUserId || '';
 
+  const sourceVotes = ((sourceNode as any)?.data?.votes) || [];
+  const targetVotes = ((targetNode as any)?.data?.votes) || [];
+  const sourceNormalizedVotes = sourceVotes.map((v: any) => typeof v === 'string' ? v : v.id);
+  const targetNormalizedVotes = targetVotes.map((v: any) => typeof v === 'string' ? v : v.id);
+  const sourceHasMyVote = effectiveUserId && sourceNormalizedVotes.includes(effectiveUserId);
+  const targetHasMyVote = effectiveUserId && targetNormalizedVotes.includes(effectiveUserId);
 
   const maskingData = useEdgeNodeMasking(sourceNode, targetNode);
 
@@ -349,6 +357,118 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             } : undefined}
           />
         )}
+
+        {/* Gold highlight for my vote on connected nodes - OUTSIDE mask so it's always visible */}
+        {(sourceHasMyVote || targetHasMyVote) && (
+          <>
+            <defs>
+              <linearGradient
+                id={`vote-gradient-${props.id}`}
+                x1={sourceX}
+                y1={sourceY}
+                x2={targetX}
+                y2={targetY}
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop
+                  offset="0%"
+                  stopColor="#fbbf24"
+                  stopOpacity={sourceHasMyVote ? 0.7 : 0}
+                />
+                <stop
+                  offset="50%"
+                  stopColor="#fbbf24"
+                  stopOpacity={0}
+                />
+                <stop
+                  offset="50%"
+                  stopColor="#fbbf24"
+                  stopOpacity={0}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="#fbbf24"
+                  stopOpacity={targetHasMyVote ? 0.7 : 0}
+                />
+              </linearGradient>
+              <linearGradient
+                id={`vote-gradient-blur-${props.id}`}
+                x1={sourceX}
+                y1={sourceY}
+                x2={targetX}
+                y2={targetY}
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop
+                  offset="0%"
+                  stopColor="#f59e0b"
+                  stopOpacity={sourceHasMyVote ? 0.4 : 0}
+                />
+                <stop
+                  offset="50%"
+                  stopColor="#f59e0b"
+                  stopOpacity={0}
+                />
+                <stop
+                  offset="50%"
+                  stopColor="#f59e0b"
+                  stopOpacity={0}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="#f59e0b"
+                  stopOpacity={targetHasMyVote ? 0.4 : 0}
+                />
+              </linearGradient>
+            </defs>
+            {visual.useBezier ? (
+              <>
+                <path
+                  d={pathD}
+                  stroke={`url(#vote-gradient-blur-${props.id})`}
+                  strokeWidth={Math.max(6, (edgeStyles as any)?.strokeWidth + 3)}
+                  fill="none"
+                  strokeLinecap="round"
+                  className="pointer-events-none"
+                  style={{ filter: 'blur(3px)' }}
+                />
+                <path
+                  d={pathD}
+                  stroke={`url(#vote-gradient-${props.id})`}
+                  strokeWidth={Math.max(4, (edgeStyles as any)?.strokeWidth + 2)}
+                  fill="none"
+                  strokeLinecap="round"
+                  className="pointer-events-none"
+                />
+              </>
+            ) : (
+              <>
+                <line
+                  x1={sourceX}
+                  y1={sourceY}
+                  x2={targetX}
+                  y2={targetY}
+                  stroke={`url(#vote-gradient-blur-${props.id})`}
+                  strokeWidth={Math.max(6, (edgeStyles as any)?.strokeWidth + 3)}
+                  strokeLinecap="round"
+                  className="pointer-events-none"
+                  style={{ filter: 'blur(3px)' }}
+                />
+                <line
+                  x1={sourceX}
+                  y1={sourceY}
+                  x2={targetX}
+                  y2={targetY}
+                  stroke={`url(#vote-gradient-${props.id})`}
+                  strokeWidth={Math.max(4, (edgeStyles as any)?.strokeWidth + 2)}
+                  strokeLinecap="round"
+                  className="pointer-events-none"
+                />
+              </>
+            )}
+          </>
+        )}
+
         <g mask={`url(#edge-mask-${props.id})`}>
           {(visual.useStrap && strapGeometry && mindchangeRenderConfig.mode === 'normal' && !mindchangeRenderConfig.markerStart && !mindchangeRenderConfig.markerEnd) && (
             <>

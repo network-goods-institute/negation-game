@@ -16,6 +16,8 @@ import { useSelectionPayload } from './common/useSelectionPayload';
 import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { LockIndicator } from './common/LockIndicator';
 import { usePillHandlers } from './common/usePillHandlers';
+import { useVoteVisuals } from './common/useVoteVisuals';
+import { VoteGlow } from './common/VoteGlow';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -48,11 +50,17 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     getLockOwner,
     setPairNodeHeight,
     grabMode,
+    currentUserId,
   } = graphCtx;
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
+
+  const { hasMyVote, hasOthersVotes, glowOpacity } = useVoteVisuals({
+    votes: data.votes || [],
+    currentUserId,
+  });
   const { zoom } = useViewport();
   const overlayState = useAtomValue(marketOverlayStateAtom);
   const overlayThreshold = useAtomValue(marketOverlayZoomThresholdAtom);
@@ -176,8 +184,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const wrapperClassName = useMemo(() => {
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
+    const goldBorder = hasMyVote ? 'ring-3 ring-amber-400 ring-offset-1 shadow-lg shadow-amber-400/30' : '';
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${goldBorder} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, hasMyVote]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
@@ -279,6 +288,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         }}
         wrapperProps={wrapperProps as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
+        beforeWrapper={hasOthersVotes && <VoteGlow opacity={glowOpacity} />}
       >
         <LockIndicator locked={locked} lockOwner={lockOwner} />
         {isConnectingFromNodeId === id && (
