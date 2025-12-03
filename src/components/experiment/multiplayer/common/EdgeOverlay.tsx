@@ -9,6 +9,7 @@ import { InlinePriceHistory } from '../market/InlinePriceHistory';
 import { useAtomValue } from 'jotai';
 import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
+import { logger } from '@/lib/logger';
 
 const EDGE_ANCHOR_SIZE = 36;
 const PERSISTENCE_PADDING = 14;
@@ -99,7 +100,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const showRelevanceStars = !marketEnabled || side === 'TEXT';
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
-  const anchorNode = useStore((s: any) => s.nodeInternals?.get?.(`anchor:${edgeId}`));
+  const anchorNodeId = `anchor:${edgeId}`;
+
+  const anchorNode = useStore((s: any) => s.nodeInternals?.get?.(anchorNodeId));
   const baseX = typeof anchorNode?.position?.x === 'number' ? anchorNode.position.x : cx;
   const baseY = typeof anchorNode?.position?.y === 'number' ? anchorNode.position.y : cy;
 
@@ -107,6 +110,104 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const fallbackScreenTop = ty + baseY * zoom;
 
   const [anchorScreenPos, setAnchorScreenPos] = React.useState<{ x: number; y: number } | null>(null);
+  const anchorMissesRef = React.useRef(0);
+  const updateAnchorScreenPos = React.useCallback(() => {
+    if (typeof document === 'undefined') return false;
+    try {
+      const escapedId = (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') ? CSS.escape(String(edgeId)) : String(edgeId);
+      const labelEl = document.querySelector(`[data-anchor-edge-id="${escapedId}"]`) as HTMLElement | null;
+      const anchorEl = document.querySelector(`[data-id="${anchorNodeId}"]`) as HTMLElement | null;
+      const getValidRect = (node: HTMLElement | null) => {
+        if (!node) return null;
+        const rect = node.getBoundingClientRect();
+        if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height)) return null;
+        if (rect.width === 0 && rect.height === 0) return null;
+        return rect;
+      };
+      const labelRect = getValidRect(labelEl);
+      const anchorRect = getValidRect(anchorEl);
+      const rect = labelRect || anchorRect;
+      if (rect) {
+        anchorMissesRef.current = 0;
+        const next = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        setAnchorScreenPos((prev) => {
+          if (!prev || prev.x !== next.x || prev.y !== next.y) return next;
+          return prev;
+        });
+        return true;
+      }
+      anchorMissesRef.current += 1;
+      if (anchorMissesRef.current === 3) {
+        logger.warn('[edge/overlay] anchor rect missing', {
+          edgeId,
+          edgeType,
+          anchorNodeId,
+          labelEl: Boolean(labelEl),
+          anchorEl: Boolean(anchorEl),
+          zoom,
+          tx,
+          ty,
+        });
+      }
+      // fallback to transform-based position so HUD still renders
+      setAnchorScreenPos((prev) => {
+        if (prev && prev.x === fallbackScreenLeft && prev.y === fallbackScreenTop) return prev;
+        return { x: fallbackScreenLeft, y: fallbackScreenTop };
+      });
+    } catch { }
+    return false;
+  }, [edgeId, anchorNodeId, fallbackScreenLeft, fallbackScreenTop, edgeType, tx, ty, zoom]);
+
+  React.useEffect(() => {
+    setAnchorScreenPos(null);
+  }, [edgeId, anchorNodeId]);
+
+  React.useLayoutEffect(() => {
+    let frame: number | null = null;
+    const startedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+    const tick = () => {
+      const found = updateAnchorScreenPos();
+      const now = (typeof performance !== 'undefined' && typeof performance.now === 'function') ? performance.now() : Date.now();
+      if (!found && (now - startedAt < 2000)) {
+        frame = requestAnimationFrame(tick);
+      }
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      if (frame != null) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [updateAnchorScreenPos, tx, ty, zoom]);
+
+  React.useLayoutEffect(() => {
+    updateAnchorScreenPos();
+  });
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let raf: number | null = null;
+    const blockGesture = (e: Event) => {
+      try { e.preventDefault(); } catch { }
+    };
+    const handleResize = () => {
+      if (raf != null) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        updateAnchorScreenPos();
+      });
+    };
+    window.addEventListener('gesturestart', blockGesture as any, { passive: false } as any);
+    window.addEventListener('gesturechange', blockGesture as any, { passive: false } as any);
+    window.addEventListener('gestureend', blockGesture as any, { passive: false } as any);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      if (raf != null) cancelAnimationFrame(raf);
+      window.removeEventListener('gesturestart', blockGesture as any);
+      window.removeEventListener('gesturechange', blockGesture as any);
+      window.removeEventListener('gestureend', blockGesture as any);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [updateAnchorScreenPos]);
 
   const portalContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [hoverBuy, setHoverBuy] = React.useState(false);
@@ -149,37 +250,6 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
       setIsNearOverlay(false);
     }
   }, [suppress]);
-
-  React.useLayoutEffect(() => {
-    if (typeof document === 'undefined') {
-      setAnchorScreenPos(null);
-      return;
-    }
-    const anchorId = `anchor:${edgeId}`;
-    const compute = () => {
-      const el = document.querySelector(`[data-id="${anchorId}"]`) as HTMLElement | null;
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-      } else {
-        setAnchorScreenPos(null);
-      }
-    };
-    compute();
-    window.addEventListener('resize', compute);
-    return () => {
-      window.removeEventListener('resize', compute);
-    };
-  }, [edgeId, tx, ty, zoom, baseX, baseY]);
-
-  React.useLayoutEffect(() => {
-    if (typeof document === 'undefined') return;
-    const labelEl = document.querySelector(`[data-anchor-edge-id="${edgeId}"]`) as HTMLElement | null;
-    if (labelEl) {
-      const rect = labelEl.getBoundingClientRect();
-      setAnchorScreenPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-    }
-  }, [edgeId, tx, ty, zoom]);
 
   const showHUD = Boolean(overlayOpen) && !suppress && !grabMode;
 

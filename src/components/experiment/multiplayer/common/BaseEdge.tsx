@@ -439,7 +439,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
         </EdgeMidpointControl>
       )}
 
-      {!connectMode && !grabMode && props.edgeType !== 'comment' && (
+      {!connectMode && !grabMode && props.edgeType !== 'comment' && shouldRenderOverlay && (
         <EdgeOverlay
           cx={actualLabelX}
           cy={actualLabelY}

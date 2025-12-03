@@ -57,13 +57,28 @@ export const useWritableSync = ({
         if (n.type === "answer") return { ...n, type: "point" };
         return n;
       });
+      const edgeIds = new Set<string>(
+        nextEdges.map((edge: any) => String((edge as any)?.id || ""))
+      );
+      const activeAnchorIds = new Set<string>();
+      nextEdges.forEach((edge: any) => {
+        const target = (edge as any)?.target;
+        if ((edge as any)?.type === "objection" && typeof target === "string" && target.startsWith("anchor:")) {
+          const parentEdgeId = target.slice("anchor:".length);
+          if (edgeIds.has(parentEdgeId)) {
+            activeAnchorIds.add(target);
+          }
+        }
+      });
       setEdges(() => nextEdges as any);
       setNodes(
         (prev) =>
           mergeNodesWithText(
             nextNodes as any,
             yt as any,
-            new Map((prev as any[]).map((p: any) => [p.id, p]))
+            new Map((prev as any[]).map((p: any) => [p.id, p])),
+            undefined,
+            activeAnchorIds
           ) as any
       );
     } catch {}

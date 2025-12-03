@@ -69,4 +69,50 @@ describe("mergeNodesWithText", () => {
     expect(result.draggable).toBe(false);
     expect(result.selected).toBe(false);
   });
+
+  it("preserves edge_anchor nodes only when they are still referenced", () => {
+    const doc = new Y.Doc();
+    const yTextMap = doc.getMap<Y.Text>("node_text");
+    const pointNode: Node = {
+      id: "p1",
+      type: "point",
+      position: { x: 0, y: 0 },
+      data: { content: "point" },
+      draggable: true,
+    };
+    const anchorNode: Node = {
+      id: "anchor:e1",
+      type: "edge_anchor",
+      position: { x: 10, y: 10 },
+      data: { parentEdgeId: "e1" },
+    } as Node;
+
+    const previous = new Map<string, Node>([
+      [pointNode.id, pointNode],
+      [anchorNode.id, anchorNode],
+    ]);
+
+    const activeAnchors = new Set<string>([anchorNode.id]);
+    const mergedWithAnchor = mergeNodesWithText(
+      [pointNode],
+      yTextMap,
+      previous,
+      undefined,
+      activeAnchors
+    );
+    expect(mergedWithAnchor.find((n) => n.id === anchorNode.id)).toBe(
+      anchorNode
+    );
+
+    const mergedWithoutAnchor = mergeNodesWithText(
+      [pointNode],
+      yTextMap,
+      previous,
+      undefined,
+      new Set<string>()
+    );
+    expect(
+      mergedWithoutAnchor.find((n) => n.id === anchorNode.id)
+    ).toBeUndefined();
+  });
 });

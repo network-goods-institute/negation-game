@@ -21,6 +21,7 @@ import { EdgePriceOverlay } from './EdgePriceOverlay';
 import { enrichWithMarketData, getDocIdFromURL, isMarketEnabled } from '@/utils/market/marketUtils';
 import { dispatchMarketPanelClose } from '@/utils/market/marketEvents';
 import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
+import { useMarketMetaVersion } from '@/hooks/market/useMarketMetaVersion';
 import { SnapLines } from './SnapLines';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -104,6 +105,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   React.useEffect(() => { try { setDocId(getDocIdFromURL() || null); } catch { setDocId(null); } }, []);
   const marketEnabled = process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
   const userHoldingsLite = useUserHoldingsLite(marketEnabled ? docId : null, 5000);
+  const marketMetaVersion = useMarketMetaVersion(yMetaMap as any, marketEnabled);
   const [edgesLayer, setEdgesLayer] = React.useState<SVGElement | null>(null);
   const suppressEdgeDeselectRef = React.useRef(false);
   const lastSelectionChangeRef = React.useRef<number>(0);
@@ -152,7 +154,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     } catch {
       return edges;
     }
-  }, [edges, graph, rf, userHoldingsLite.data, yMetaMap, marketEnabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- marketMetaVersion triggers intentional re-computation when market data changes
+  }, [edges, graph, rf, userHoldingsLite.data, yMetaMap, marketEnabled, marketMetaVersion]);
 
   const nodesWithMarket = React.useMemo<MarketNode[]>(() => {
     try {
@@ -169,7 +172,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     } catch {
       return nodes as MarketNode[];
     }
-  }, [nodes, userHoldingsLite.data, yMetaMap, marketEnabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- marketMetaVersion triggers intentional re-computation when market data changes
+  }, [nodes, userHoldingsLite.data, yMetaMap, marketEnabled, marketMetaVersion]);
 
   const nodePriceMap = React.useMemo(() => {
     const out: Record<string, number> = {};
@@ -196,7 +200,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       }
     } catch { }
     return out;
-  }, [nodesWithMarket, yMetaMap, marketEnabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- marketMetaVersion triggers intentional re-computation when market data changes
+  }, [nodesWithMarket, yMetaMap, marketEnabled, marketMetaVersion]);
 
   const nodesForRender = React.useMemo(() => {
     try {

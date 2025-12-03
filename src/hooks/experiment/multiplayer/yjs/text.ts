@@ -53,21 +53,25 @@ const mergeContent = (
 
 const pickComparable = (node: Node) => {
   const data = (node.data || {}) as Record<string, unknown>;
-  const legacy = node.type === 'statement' ? (data as any).statement : (data as any).content;
+  const legacy =
+    node.type === "statement" ? (data as any).statement : (data as any).content;
   const titleNormalized =
-    typeof (data as any).title === 'string' ? (data as any).title : (typeof legacy === 'string' ? legacy : undefined);
+    typeof (data as any).title === "string"
+      ? (data as any).title
+      : typeof legacy === "string"
+        ? legacy
+        : undefined;
   const votesRaw = (data as any).votes;
-  const votes =
-    Array.isArray(votesRaw)
-      ? votesRaw
-          .map((entry: any) =>
-            typeof entry === 'string'
-              ? { id: entry, name: undefined }
-              : { id: String(entry?.id || ''), name: entry?.name }
-          )
-          .filter((v) => v.id)
-          .sort((a, b) => a.id.localeCompare(b.id))
-      : [];
+  const votes = Array.isArray(votesRaw)
+    ? votesRaw
+        .map((entry: any) =>
+          typeof entry === "string"
+            ? { id: entry, name: undefined }
+            : { id: String(entry?.id || ""), name: entry?.name }
+        )
+        .filter((v) => v.id)
+        .sort((a, b) => a.id.localeCompare(b.id))
+    : [];
   return {
     id: node.id,
     type: node.type,
@@ -101,10 +105,14 @@ export const mergeNodesWithText = (
   nodes: Node[],
   yTextMap: Y.Map<Y.Text> | null,
   prevById?: NodeMap,
-  isLockedForMe?: (nodeId: string) => boolean
+  isLockedForMe?: (nodeId: string) => boolean,
+  activeAnchorIds?: Set<string>
 ): Node[] => {
   if (!yTextMap) return nodes;
-  return nodes.map((node) => {
+
+  const yjsNodeIds = new Set(nodes.map((n) => n.id));
+
+  const merged = nodes.map((node) => {
     const text = yTextMap.get(node.id);
     const previous = prevById?.get(node.id);
 
@@ -123,8 +131,8 @@ export const mergeNodesWithText = (
         typeof previousData["title"] === "string"
           ? (previousData["title"] as string)
           : base.type === "statement"
-          ? (previousData["statement"] as string | undefined)
-          : (previousData["content"] as string | undefined);
+            ? (previousData["statement"] as string | undefined)
+            : (previousData["content"] as string | undefined);
       if (typeof fallbackValue === "string") {
         withContent =
           base.type === "statement"
@@ -138,10 +146,14 @@ export const mergeNodesWithText = (
       const prevAny = previous as any;
       const nextAny = withContent as any;
       if (prevAny.style && !nextAny.style) nextAny.style = prevAny.style;
-      if (prevAny.measured && !nextAny.measured) nextAny.measured = prevAny.measured;
+      if (prevAny.measured && !nextAny.measured)
+        nextAny.measured = prevAny.measured;
       if (prevAny.width && !nextAny.width) nextAny.width = prevAny.width;
       if (prevAny.height && !nextAny.height) nextAny.height = prevAny.height;
-      if (typeof prevAny.draggable !== 'undefined' && typeof nextAny.draggable === 'undefined') {
+      if (
+        typeof prevAny.draggable !== "undefined" &&
+        typeof nextAny.draggable === "undefined"
+      ) {
         nextAny.draggable = prevAny.draggable;
       }
     }
@@ -155,4 +167,19 @@ export const mergeNodesWithText = (
     }
     return withSelection;
   });
+
+  // Preserve local-only anchors that are still referenced so objection overlays stay stable between Yjs merges.
+  if (prevById && activeAnchorIds?.size) {
+    prevById.forEach((prevNode, id) => {
+      if (
+        !yjsNodeIds.has(id) &&
+        (prevNode as any).type === "edge_anchor" &&
+        activeAnchorIds.has(id)
+      ) {
+        merged.push(prevNode);
+      }
+    });
+  }
+
+  return merged;
 };

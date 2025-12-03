@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useReactFlow, Node, Edge, getBezierPath, Position } from '@xyflow/react';
 
 interface GraphUpdaterProps {
@@ -59,7 +59,7 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
     }
   }, [centerQueueVersion, consumeCenterQueue]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (connectMode) return;
     try {
       const eps = 0.1;
@@ -137,7 +137,6 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
             targetPosition,
             curvature: 0.35,
           });
-          // If we have real dimensions for both nodes, prefer between-borders midpoint like the HUD
           const hasDims = Number.isFinite(sc.w) && Number.isFinite(sc.h) && Number.isFinite(tc.w) && Number.isFinite(tc.h) && sc.w > 0 && sc.h > 0 && tc.w > 0 && tc.h > 0;
           if (hasDims) {
             const bb = betweenBorders(sc, tc);
@@ -156,37 +155,48 @@ export const GraphUpdater: React.FC<GraphUpdaterProps> = ({ nodes, edges, setNod
         desired.set(w.anchorId, { x: pos.x, y: pos.y, parentEdgeId: w.parentEdgeId });
       }
 
-      // Second pass: anchors whose parent is an objection (nested). Use existing or newly-computed anchor positions.
-      for (const w of wanted) {
-        if (String(w.parent?.type || '') !== 'objection') continue;
+      // Iterative passes for nested objections: keep processing until no more anchors can be computed
+      // This handles arbitrary nesting depth (objection -> objection -> objection -> ...)
+      const processed = new Set<string>();
+      let maxPasses = 10;
+      while (maxPasses > 0) {
+        let addedAny = false;
+        for (const w of wanted) {
+          if (String(w.parent?.type || '') !== 'objection') continue;
+          if (processed.has(w.anchorId)) continue;
 
-        const s = rf.getNode(String(w.parent.source));
-        let t = rf.getNode(String(w.parent.target));
-        let sc = s ? center(s) : null;
-        let tc = t ? center(t) : null;
-        if (!tc) {
-          const aid = String(w.parent.target);
-          const cached = desired.get(aid);
-          if (cached) {
-            tc = { x: cached.x, y: cached.y, w: 0, h: 0 } as any;
+          const s = rf.getNode(String(w.parent.source));
+          let t = rf.getNode(String(w.parent.target));
+          let sc = s ? center(s) : null;
+          let tc = t ? center(t) : null;
+          if (!tc) {
+            const aid = String(w.parent.target);
+            const cached = desired.get(aid);
+            if (cached) {
+              tc = { x: cached.x, y: cached.y, w: 0, h: 0 } as any;
+            }
+          }
+          if (sc && tc) {
+            const sourcePosition = sc.y < tc.y ? Position.Bottom : Position.Top;
+            const targetPosition = sc.y > tc.y ? Position.Bottom : Position.Top;
+            const [_path, lx, ly] = getBezierPath({
+              sourceX: sc.x,
+              sourceY: sc.y,
+              sourcePosition,
+              targetX: tc.x,
+              targetY: tc.y,
+              targetPosition,
+              curvature: 0.35,
+            });
+            const hasDims = Number.isFinite(sc.w) && Number.isFinite(sc.h) && Number.isFinite(tc.w) && Number.isFinite(tc.h) && sc.w > 0 && sc.h > 0 && tc.w > 0 && tc.h > 0;
+            const { x, y } = hasDims ? betweenBorders(sc, tc) : { x: lx, y: ly };
+            desired.set(w.anchorId, { x, y, parentEdgeId: w.parentEdgeId });
+            processed.add(w.anchorId);
+            addedAny = true;
           }
         }
-        if (sc && tc) {
-          const sourcePosition = sc.y < tc.y ? Position.Bottom : Position.Top;
-          const targetPosition = sc.y > tc.y ? Position.Bottom : Position.Top;
-          const [_path, lx, ly] = getBezierPath({
-            sourceX: sc.x,
-            sourceY: sc.y,
-            sourcePosition,
-            targetX: tc.x,
-            targetY: tc.y,
-            targetPosition,
-            curvature: 0.35,
-          });
-          const hasDims = Number.isFinite(sc.w) && Number.isFinite(sc.h) && Number.isFinite(tc.w) && Number.isFinite(tc.h) && sc.w > 0 && sc.h > 0 && tc.w > 0 && tc.h > 0;
-          const { x, y } = hasDims ? betweenBorders(sc, tc) : { x: lx, y: ly };
-          desired.set(w.anchorId, { x, y, parentEdgeId: w.parentEdgeId });
-        }
+        if (!addedAny) break;
+        maxPasses--;
       }
 
       if (desired.size === 0) return;

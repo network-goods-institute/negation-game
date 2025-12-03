@@ -717,8 +717,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   }, [forceSave, marketEnabled, ydoc, yMetaMap, resolvedId]);
 
   useEffect(() => {
+    const state = refreshFlightRef.current;
     return () => {
-      const state = refreshFlightRef.current;
       if (state.timer !== null) {
         try { window.clearTimeout(state.timer); } catch { }
         state.timer = null;

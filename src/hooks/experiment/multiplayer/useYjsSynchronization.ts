@@ -139,6 +139,24 @@ export const useYjsSynchronization = ({
     };
     doc.on("update", onDocUpdate);
 
+    const getActiveAnchorIds = () => {
+      const edgesMap = yEdgesMapRef.current;
+      if (!edgesMap) return undefined;
+      const edgeIds = new Set<string>();
+      edgesMap.forEach((edge) => edgeIds.add(String((edge as any)?.id || "")));
+      const anchorIds = new Set<string>();
+      edgesMap.forEach((edge) => {
+        const target = (edge as any)?.target;
+        if ((edge as any)?.type === "objection" && typeof target === "string" && target.startsWith("anchor:")) {
+          const parentEdgeId = target.slice("anchor:".length);
+          if (edgeIds.has(parentEdgeId)) {
+            anchorIds.add(target);
+          }
+        }
+      });
+      return anchorIds;
+    };
+
     const updateNodesFromY = createUpdateNodesFromY(
       yNodes,
       yTextMapRef,
@@ -147,7 +165,8 @@ export const useYjsSynchronization = ({
       localOriginRef,
       isUndoRedoRef,
       isLockedForMe,
-      onRemoteNodesAdded
+      onRemoteNodesAdded,
+      getActiveAnchorIds
     );
 
     const updateEdgesFromY = createUpdateEdgesFromY(

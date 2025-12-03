@@ -1,5 +1,5 @@
 import React from 'react';
-import { BezierEdge, StraightEdge } from '@xyflow/react';
+import { BezierEdge, StraightEdge, Position } from '@xyflow/react';
 interface MainEdgeRendererProps {
   useBezier: boolean;
   curvature?: number;
@@ -35,11 +35,22 @@ export const MainEdgeRenderer: React.FC<MainEdgeRendererProps> = ({
   label,
   labelStyle,
 }) => {
-  // Simple edge renderer without mindchange logic
   if (useBezier) {
+    let edgeProps = { ...props };
+
+    if (edgeType === 'objection') {
+      const objectionY = sourceNode?.position?.y ?? 0;
+      const anchorY = targetNode?.position?.y ?? 0;
+      edgeProps = {
+        ...edgeProps,
+        sourcePosition: objectionY < anchorY ? Position.Bottom : Position.Top,
+        targetPosition: objectionY > anchorY ? Position.Bottom : Position.Top,
+      };
+    }
+
     return (
       <BezierEdge
-        {...props}
+        {...edgeProps}
         style={edgeStylesWithPointer}
         label={label}
         labelStyle={labelStyle}

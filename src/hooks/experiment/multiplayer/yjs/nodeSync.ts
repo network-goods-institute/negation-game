@@ -48,7 +48,8 @@ export const createUpdateNodesFromY = (
   localOriginRef?: MutableRefObject<unknown>,
   isUndoRedoRef?: MutableRefObject<boolean>,
   isLockedForMe?: (nodeId: string) => boolean,
-  onRemoteNodesAdded?: (nodeIds: string[]) => void
+  onRemoteNodesAdded?: (nodeIds: string[]) => void,
+  getActiveAnchorIds?: () => Set<string> | undefined
 ) => {
   const knownNodeIds = new Set<string>();
 
@@ -152,12 +153,15 @@ export const createUpdateNodesFromY = (
       return;
     }
 
+    const activeAnchorIds = getActiveAnchorIds?.();
+
     setNodes((previous) =>
       mergeNodesWithText(
         sorted,
         yTextMapRef.current,
         new Map(previous.map((node) => [node.id, node])),
-        isLockedForMe
+        isLockedForMe,
+        activeAnchorIds
       )
     );
 
