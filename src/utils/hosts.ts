@@ -3,7 +3,7 @@ export const isProductionHostname = (
 ): boolean => {
   if (!hostname) return false;
   const h = hostname.toLowerCase().trim();
-  if (h === "negation-game-git-mindchange-network-goods-institute.vercel.app")
+  if (h === "negation-game-git-visual-epistem-5a0d2b-network-goods-institute.vercel.app")
     return false;
   if (h === "negationgame.com") return true;
   if (h.endsWith(".negationgame.com")) return true;
@@ -30,12 +30,7 @@ export const isProductionRequest = (
   const h = hostname.toLowerCase().trim();
   // Short-circuit specific Vercel deployment to non-prod
   if (
-    h === "negation-game-git-mindchange-network-goods-institute.vercel.app" ||
-    h ===
-      "negation-game-git-carroll-mechan-def371-network-goods-institute.vercel.app" ||
-    h === "negation-game-git-market-panell-network-goods-institute.vercel.app" ||
-    h ===
-      "negation-game-git-merge-main-int-09ba35-network-goods-institute.vercel.app" ||
+    h === "negation-game-git-visual-epistem-5a0d2b-network-goods-institute.vercel.app" ||
     // Treat market.negationgame.com as non-production (allow anon)
     h === "market.negationgame.com"
   )
