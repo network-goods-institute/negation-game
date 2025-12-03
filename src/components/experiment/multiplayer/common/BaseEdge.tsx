@@ -451,6 +451,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           marketMine={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? Number(((props as any).data?.market?.mine) ?? NaN) : NaN}
           marketTotal={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? Number(((props as any).data?.market?.total) ?? NaN) : NaN}
           marketInfluence={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? infl : NaN}
+          votes={((props as any).data?.votes) || []}
           srcX={sourceX ?? 0}
           srcY={sourceY ?? 0}
           tgtX={targetX ?? 0}

@@ -352,6 +352,43 @@ export const useGraphOperations = ({
     [setNodes, yNodesMap, ydoc, canWrite, localOrigin, normalizeVotes]
   );
 
+  const toggleEdgeVote = useCallback(
+    (edgeId: string, userId: string, name?: string) => {
+      if (!canWrite) {
+        try { (require('@/utils/readonlyToast') as any).showReadOnlyToast?.(); } catch {}
+        return;
+      }
+      setEdges((eds) =>
+        eds.map((e) => {
+          if (e.id !== edgeId) return e;
+          const currentVotes = normalizeVotes((e.data as any)?.votes);
+          const existing = currentVotes.find((v) => v.id === userId);
+          const updatedVotes = existing
+            ? currentVotes.filter((v) => v.id !== userId)
+            : [...currentVotes, { id: userId, name }];
+          return { ...e, data: { ...(e.data || {}), votes: updatedVotes } };
+        })
+      );
+      if (yEdgesMap && ydoc && canWrite) {
+        ydoc.transact(() => {
+          const base = yEdgesMap.get(edgeId);
+          if (base) {
+            const currentVotes = normalizeVotes((base as any).data?.votes);
+            const existing = currentVotes.find((v) => v.id === userId);
+            const votes = existing
+              ? currentVotes.filter((v) => v.id !== userId)
+              : [...currentVotes, { id: userId, name }];
+            yEdgesMap.set(edgeId, {
+              ...base,
+              data: { ...(base.data || {}), votes },
+            });
+          }
+        }, localOrigin);
+      }
+    },
+    [setEdges, yEdgesMap, ydoc, canWrite, localOrigin, normalizeVotes]
+  );
+
   const updateEdgeRelevance = useMemo(
     () => createUpdateEdgeRelevance(
       yEdgesMap,
@@ -363,7 +400,7 @@ export const useGraphOperations = ({
     [yEdgesMap, ydoc, canWrite, localOrigin, setEdges]
   );
 
-  
+
 
   const ensureEdgeAnchor = useMemo(
     () => createEnsureEdgeAnchor(setNodes),
@@ -408,6 +445,7 @@ export const useGraphOperations = ({
     updateNodePosition,
     updateNodeFavor,
     toggleNodeVote,
+    toggleEdgeVote,
     updateEdgeRelevance,
     deleteNode,
     addPointBelow,

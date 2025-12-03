@@ -11,6 +11,7 @@ type GraphActions = {
     updateNodeHidden?: (nodeId: string, hidden: boolean) => void;
     updateNodeFavor?: (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => void;
     toggleNodeVote?: (nodeId: string, userId: string, username?: string) => void;
+    toggleEdgeVote?: (edgeId: string, userId: string, username?: string) => void;
     addPointBelow?: (parentNodeId: string) => void;
     preferredEdgeType?: 'support' | 'negation';
     deleteNode: (nodeId: string) => void;
@@ -72,6 +73,7 @@ export const useGraphActions = () => {
             updateNodeHidden: () => { },
             updateNodeFavor: () => { },
             toggleNodeVote: () => { },
+            toggleEdgeVote: () => { },
             addPointBelow: () => { },
             preferredEdgeType: 'support',
             deleteNode: () => { },

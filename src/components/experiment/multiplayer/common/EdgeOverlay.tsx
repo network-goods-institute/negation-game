@@ -5,6 +5,7 @@ import { ContextMenu } from './ContextMenu';
 import { useGraphActions } from '../GraphContext';
 import { usePersistencePointerHandlers } from './usePersistencePointerHandlers';
 import { EdgeTypeToggle } from './EdgeTypeToggle';
+import { EdgeVoting } from './EdgeVoting';
 import { InlinePriceHistory } from '../market/InlinePriceHistory';
 import { useAtomValue } from 'jotai';
 import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
@@ -30,6 +31,7 @@ export interface EdgeOverlayProps {
   marketMine?: number;
   marketTotal?: number;
   marketInfluence?: number;
+  votes?: Array<string | { id: string; name?: string; avatarUrl?: string }>;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onAddObjection: () => void;
@@ -55,6 +57,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   marketMine,
   marketTotal,
   marketInfluence,
+  votes = [],
   onMouseEnter,
   onMouseLeave,
   onAddObjection,
@@ -68,6 +71,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
 }) => {
   const rf = useReactFlow();
   const graph = useGraphActions();
+  const { toggleEdgeVote } = graph;
   const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
   const setOverlayActive = (graph as any)?.setOverlayActiveEdge as ((id: string | null) => void) | undefined;
   const [overlayOpen, setOverlayOpen] = React.useState<boolean>(Boolean(selected || overlayActiveId === edgeId));
@@ -388,54 +392,13 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                     />
                   )}
 
-                  {showRelevanceStars && (() => {
-                    const rel = Math.max(1, Math.min(5, Math.round(Number(relevance || 0))));
-                    if (edgeType === 'support' || edgeType === 'negation') {
-                      return (
-                        <div className="flex items-center gap-0.5 px-1">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <button
-                              key={`rel-${i}`}
-                              title={`Set relevance to ${i}`}
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance?.(i); })}
-                              type="button"
-                              data-interactive="true"
-                              className="transition-transform hover:scale-110 active:scale-95"
-                            >
-                              <span className={`text-base font-bold transition-all ${i <= rel ? starColor : 'text-gray-300'}`}>
-                                {edgeType === 'support' ? '+' : '-'}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    }
-                    if (edgeType === 'objection') {
-                      return (
-                        <div className="flex items-center gap-2.5 text-xs select-none relative">
-                          <span className="text-xs font-semibold text-gray-700">Relevance:</span>
-                          <div className="flex items-center gap-0.5">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                              <button
-                                key={`obj-rel-${i}`}
-                                title={`Set relevance to ${i}`}
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={(e) => handleConnectionAwareClick(e, () => { e.stopPropagation(); onUpdateRelevance?.(i); })}
-                                type="button"
-                                data-interactive="true"
-                                className="transition-transform hover:scale-125 active:scale-95"
-                              >
-                                <span className={`text-base transition-all ${i <= rel ? starColor + ' drop-shadow-sm' : 'text-gray-300'}`}>★</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-
+                  {(edgeType === 'support' || edgeType === 'negation' || edgeType === 'objection') && (
+                    <EdgeVoting
+                      edgeId={edgeId}
+                      votes={votes}
+                      onToggleVote={toggleEdgeVote}
+                    />
+                  )}
 
                   {/* Buy circle – hover shows price history, click opens full market panel */}
                   {showPriceCircle && (() => {
