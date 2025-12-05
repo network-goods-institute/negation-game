@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { QueryClientProvider } from '@/components/providers/QueryClientProvider';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
 import { EdgeOverlay } from '@/components/experiment/multiplayer/common/EdgeOverlay';
 
@@ -16,33 +17,35 @@ const noop = () => {};
 
 const renderOverlay = (edgeType: 'support' | 'negation', overlayActiveEdgeId: string | null) => {
   return render(
-    <GraphProvider value={{
-      currentUserId: 'u1',
-      updateNodeContent: () => {},
-      addObjectionForEdge: () => {},
-      hoveredEdgeId: null,
-      setHoveredEdge: () => {},
-      selectedEdgeId: null,
-      setSelectedEdge: () => {},
-      overlayActiveEdgeId,
-      setOverlayActiveEdge: () => {},
-      updateEdgeAnchorPosition: () => {},
-      connectMode: false,
-      grabMode: false,
-    } as any}>
-      <EdgeOverlay
-        cx={100}
-        cy={100}
-        isHovered={false}
-        selected={false}
-        edgeId="e1"
-        edgeType={edgeType}
-        onMouseEnter={noop}
-        onMouseLeave={noop}
-        onAddObjection={noop}
-        onToggleEdgeType={noop}
-      />
-    </GraphProvider>
+    <QueryClientProvider>
+      <GraphProvider value={{
+        currentUserId: 'u1',
+        updateNodeContent: () => {},
+        addObjectionForEdge: () => {},
+        hoveredEdgeId: null,
+        setHoveredEdge: () => {},
+        selectedEdgeId: null,
+        setSelectedEdge: () => {},
+        overlayActiveEdgeId,
+        setOverlayActiveEdge: () => {},
+        updateEdgeAnchorPosition: () => {},
+        connectMode: false,
+        grabMode: false,
+      } as any}>
+        <EdgeOverlay
+          cx={100}
+          cy={100}
+          isHovered={false}
+          selected={false}
+          edgeId="e1"
+          edgeType={edgeType}
+          onMouseEnter={noop}
+          onMouseLeave={noop}
+          onAddObjection={noop}
+          onToggleEdgeType={noop}
+        />
+      </GraphProvider>
+    </QueryClientProvider>
   );
 };
 

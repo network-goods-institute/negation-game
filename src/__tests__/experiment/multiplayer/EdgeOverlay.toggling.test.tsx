@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { getDefaultStore } from "jotai";
+import { QueryClientProvider } from "@/components/providers/QueryClientProvider";
 
 import { EdgeOverlay, EdgeOverlayProps } from "@/components/experiment/multiplayer/common/EdgeOverlay";
 import { MarketOverlayState, defaultZoomThreshold, marketOverlayStateAtom, marketOverlayZoomThresholdAtom } from "@/atoms/marketOverlayAtom";
@@ -78,7 +79,11 @@ describe("EdgeOverlay edge type toggling", () => {
       onToggleEdgeType,
     });
 
-    render(<EdgeOverlay {...props} />);
+    render(
+      <QueryClientProvider>
+        <EdgeOverlay {...props} />
+      </QueryClientProvider>
+    );
 
     const anchor = screen.getByTestId("edge-overlay-anchor");
     fireEvent.mouseEnter(anchor);
@@ -101,7 +106,11 @@ describe("EdgeOverlay market overlay visibility", () => {
     process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = "true";
     setOverlayState("LOCK_TEXT");
 
-    render(<EdgeOverlay {...createProps()} />);
+    render(
+      <QueryClientProvider>
+        <EdgeOverlay {...createProps()} />
+      </QueryClientProvider>
+    );
 
     const anchor = screen.getByTestId("edge-overlay-anchor");
     fireEvent.mouseEnter(anchor);
@@ -114,7 +123,11 @@ describe("EdgeOverlay market overlay visibility", () => {
     process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = "true";
     mockTransform = [0, 0, 0.4];
 
-    render(<EdgeOverlay {...createProps({ marketPrice: 0.4 })} />);
+    render(
+      <QueryClientProvider>
+        <EdgeOverlay {...createProps({ marketPrice: 0.4 })} />
+      </QueryClientProvider>
+    );
 
     const anchor = screen.getByTestId("edge-overlay-anchor");
     fireEvent.mouseEnter(anchor);

@@ -156,10 +156,10 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
 
               {/* Market overlay mode controls (Auto / Text / Price) */}
               <MarketModeControls />
-
-              <div className="h-6 w-px bg-stone-200 mx-2" />
             </>
           )}
+
+          <div className="h-6 w-px bg-stone-200 mx-2" />
 
           {/* Help */}
           <Tooltip delayDuration={150}>

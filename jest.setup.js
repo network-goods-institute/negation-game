@@ -194,6 +194,14 @@ jest.mock('sonner', () => ({
   Toaster: () => <div data-testid="toaster" />,
 }))
 
+// Mock global fetch
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ userId: null }),
+  })
+)
+
 // Stub react-markdown globally in tests that don't override it
 jest.mock('react-markdown', () => ({
   __esModule: true,

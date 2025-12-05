@@ -12,6 +12,7 @@ import { EDGE_CONFIGURATIONS, EdgeType } from './EdgeConfiguration';
 import { edgeIsObjectionStyle } from './edgeStyle';
 import { usePerformanceMode } from '../PerformanceContext';
 import { computeMidpointBetweenBorders, getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
+import { getHalfBezierPaths } from '@/utils/experiment/multiplayer/bezierSplit';
 import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
 import { MainEdgeRenderer } from './MainEdgeRenderer';
 import { getMarkerIdForEdgeType } from './EdgeArrowMarkers';
@@ -85,10 +86,25 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const sourceVotes = ((sourceNode as any)?.data?.votes) || [];
   const targetVotes = ((targetNode as any)?.data?.votes) || [];
+  const edgeVotes = ((props as any).data?.votes) || [];
   const sourceNormalizedVotes = sourceVotes.map((v: any) => typeof v === 'string' ? v : v.id);
   const targetNormalizedVotes = targetVotes.map((v: any) => typeof v === 'string' ? v : v.id);
+  const edgeNormalizedVotes = edgeVotes.map((v: any) => typeof v === 'string' ? v : v.id);
   const sourceHasMyVote = effectiveUserId && sourceNormalizedVotes.includes(effectiveUserId);
   const targetHasMyVote = effectiveUserId && targetNormalizedVotes.includes(effectiveUserId);
+  const edgeHasMyVote = effectiveUserId && edgeNormalizedVotes.includes(effectiveUserId);
+  const edgeOthersVotes = effectiveUserId
+    ? edgeNormalizedVotes.filter((v: string) => v !== effectiveUserId)
+    : edgeNormalizedVotes;
+  const edgeHasOthersVotes = edgeOthersVotes.length > 0;
+  const sourceOthersVotes = effectiveUserId
+    ? sourceNormalizedVotes.filter((v: string) => v !== effectiveUserId)
+    : sourceNormalizedVotes;
+  const targetOthersVotes = effectiveUserId
+    ? targetNormalizedVotes.filter((v: string) => v !== effectiveUserId)
+    : targetNormalizedVotes;
+  const sourceHasOthersVotes = sourceOthersVotes.length > 0;
+  const targetHasOthersVotes = targetOthersVotes.length > 0;
 
   const maskingData = useEdgeNodeMasking(sourceNode, targetNode);
 
@@ -358,116 +374,102 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           />
         )}
 
-        {/* Gold highlight for my vote on connected nodes - OUTSIDE mask so it's always visible */}
-        {(sourceHasMyVote || targetHasMyVote) && (
-          <>
-            <defs>
-              <linearGradient
-                id={`vote-gradient-${props.id}`}
-                x1={sourceX}
-                y1={sourceY}
-                x2={targetX}
-                y2={targetY}
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop
-                  offset="0%"
-                  stopColor="#fbbf24"
-                  stopOpacity={sourceHasMyVote ? 0.7 : 0}
-                />
-                <stop
-                  offset="50%"
-                  stopColor="#fbbf24"
-                  stopOpacity={0}
-                />
-                <stop
-                  offset="50%"
-                  stopColor="#fbbf24"
-                  stopOpacity={0}
-                />
-                <stop
-                  offset="100%"
-                  stopColor="#fbbf24"
-                  stopOpacity={targetHasMyVote ? 0.7 : 0}
-                />
-              </linearGradient>
-              <linearGradient
-                id={`vote-gradient-blur-${props.id}`}
-                x1={sourceX}
-                y1={sourceY}
-                x2={targetX}
-                y2={targetY}
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop
-                  offset="0%"
-                  stopColor="#f59e0b"
-                  stopOpacity={sourceHasMyVote ? 0.4 : 0}
-                />
-                <stop
-                  offset="50%"
-                  stopColor="#f59e0b"
-                  stopOpacity={0}
-                />
-                <stop
-                  offset="50%"
-                  stopColor="#f59e0b"
-                  stopOpacity={0}
-                />
-                <stop
-                  offset="100%"
-                  stopColor="#f59e0b"
-                  stopOpacity={targetHasMyVote ? 0.4 : 0}
-                />
-              </linearGradient>
-            </defs>
-            {visual.useBezier ? (
-              <>
-                <path
-                  d={pathD}
-                  stroke={`url(#vote-gradient-blur-${props.id})`}
-                  strokeWidth={Math.max(6, (edgeStyles as any)?.strokeWidth + 3)}
-                  fill="none"
-                  strokeLinecap="round"
-                  className="pointer-events-none"
-                  style={{ filter: 'blur(3px)' }}
-                />
-                <path
-                  d={pathD}
-                  stroke={`url(#vote-gradient-${props.id})`}
-                  strokeWidth={Math.max(4, (edgeStyles as any)?.strokeWidth + 2)}
-                  fill="none"
-                  strokeLinecap="round"
-                  className="pointer-events-none"
-                />
-              </>
-            ) : (
-              <>
-                <line
-                  x1={sourceX}
-                  y1={sourceY}
-                  x2={targetX}
-                  y2={targetY}
-                  stroke={`url(#vote-gradient-blur-${props.id})`}
-                  strokeWidth={Math.max(6, (edgeStyles as any)?.strokeWidth + 3)}
-                  strokeLinecap="round"
-                  className="pointer-events-none"
-                  style={{ filter: 'blur(3px)' }}
-                />
-                <line
-                  x1={sourceX}
-                  y1={sourceY}
-                  x2={targetX}
-                  y2={targetY}
-                  stroke={`url(#vote-gradient-${props.id})`}
-                  strokeWidth={Math.max(4, (edgeStyles as any)?.strokeWidth + 2)}
-                  strokeLinecap="round"
-                  className="pointer-events-none"
-                />
-              </>
-            )}
-          </>
-        )}
+        {/* Others' votes glow - centered on edge label, extends to nodes only if BOTH edge AND node have votes */}
+        {edgeHasOthersVotes && (() => {
+          const centerX = actualLabelX;
+          const centerY = actualLabelY;
+          const intensity = Math.min(1, 0.5 + edgeOthersVotes.length * 0.15);
+          const size = edgeHasMyVote ? 32 : 28;
+          const strokeWidth = edgeHasMyVote ? 20 : 16;
+          const extendToSource = edgeHasOthersVotes && sourceHasOthersVotes;
+          const extendToTarget = edgeHasOthersVotes && targetHasOthersVotes;
+          const isObjection = props.edgeType === 'objection';
+
+          const color = '#78716c';
+          const strokeStyle = `url(#edge-hatch-${props.id})`;
+          const lineOpacity = intensity * 0.9;
+
+          const halfPaths = isObjection && visual.useBezier && pathD ? getHalfBezierPaths(pathD) : null;
+          const sourceHalfBezier = halfPaths?.firstHalf ?? '';
+          const targetHalfBezier = halfPaths?.secondHalf ?? '';
+
+          return (
+            <>
+              <defs>
+                <pattern
+                  id={`edge-hatch-${props.id}`}
+                  patternUnits="userSpaceOnUse"
+                  width="5"
+                  height="5"
+                  patternTransform="rotate(45)"
+                >
+                  <line x1="0" y1="0" x2="0" y2="5" stroke={color} strokeWidth={edgeHasMyVote ? "2.5" : "2"} />
+                </pattern>
+              </defs>
+
+              {extendToSource && (
+                isObjection && visual.useBezier ? (
+                  <path
+                    d={sourceHalfBezier}
+                    stroke={strokeStyle}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeLinecap="round"
+                    opacity={lineOpacity}
+                    className="pointer-events-none"
+                  />
+                ) : (
+                  <line
+                    x1={sourceX}
+                    y1={sourceY}
+                    x2={centerX}
+                    y2={centerY}
+                    stroke={strokeStyle}
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    opacity={lineOpacity}
+                    className="pointer-events-none"
+                  />
+                )
+              )}
+
+              {extendToTarget && (
+                isObjection && visual.useBezier ? (
+                  <path
+                    d={targetHalfBezier}
+                    stroke={strokeStyle}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeLinecap="round"
+                    opacity={lineOpacity}
+                    className="pointer-events-none"
+                  />
+                ) : (
+                  <line
+                    x1={centerX}
+                    y1={centerY}
+                    x2={targetX}
+                    y2={targetY}
+                    stroke={strokeStyle}
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    opacity={lineOpacity}
+                    className="pointer-events-none"
+                  />
+                )
+              )}
+
+              <circle
+                cx={centerX}
+                cy={centerY}
+                r={size}
+                fill={`url(#edge-hatch-${props.id})`}
+                opacity={intensity}
+                className="pointer-events-none"
+              />
+            </>
+          );
+        })()}
 
         <g mask={`url(#edge-mask-${props.id})`}>
           {(visual.useStrap && strapGeometry && mindchangeRenderConfig.mode === 'normal' && !mindchangeRenderConfig.markerStart && !mindchangeRenderConfig.markerEnd) && (
@@ -522,6 +524,88 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             labelY={actualLabelY}
           />
         </g>
+
+        {/* Emerald highlight for my vote on edge - extends to nodes only if BOTH edge AND node have my vote */}
+        {edgeHasMyVote && (() => {
+          const centerX = actualLabelX;
+          const centerY = actualLabelY;
+          const extendToSource = edgeHasMyVote && sourceHasMyVote;
+          const extendToTarget = edgeHasMyVote && targetHasMyVote;
+          const isObjection = props.edgeType === 'objection';
+          const emeraldStyle = { filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.7))' };
+
+          const emeraldHalfPaths = isObjection && visual.useBezier && pathD ? getHalfBezierPaths(pathD) : null;
+          const emeraldSourceHalfBezier = emeraldHalfPaths?.firstHalf ?? '';
+          const emeraldTargetHalfBezier = emeraldHalfPaths?.secondHalf ?? '';
+
+          return (
+            <>
+              {extendToSource && (
+                isObjection && visual.useBezier && emeraldSourceHalfBezier ? (
+                  <path
+                    d={emeraldSourceHalfBezier}
+                    stroke="#10b981"
+                    strokeWidth={8}
+                    fill="none"
+                    strokeLinecap="round"
+                    opacity={0.9}
+                    className="pointer-events-none"
+                    style={emeraldStyle}
+                  />
+                ) : (
+                  <line
+                    x1={sourceX}
+                    y1={sourceY}
+                    x2={centerX}
+                    y2={centerY}
+                    stroke="#10b981"
+                    strokeWidth={8}
+                    strokeLinecap="round"
+                    opacity={0.9}
+                    className="pointer-events-none"
+                    style={emeraldStyle}
+                  />
+                )
+              )}
+              {extendToTarget && (
+                isObjection && visual.useBezier && emeraldTargetHalfBezier ? (
+                  <path
+                    d={emeraldTargetHalfBezier}
+                    stroke="#10b981"
+                    strokeWidth={8}
+                    fill="none"
+                    strokeLinecap="round"
+                    opacity={0.9}
+                    className="pointer-events-none"
+                    style={emeraldStyle}
+                  />
+                ) : (
+                  <line
+                    x1={centerX}
+                    y1={centerY}
+                    x2={targetX}
+                    y2={targetY}
+                    stroke="#10b981"
+                    strokeWidth={8}
+                    strokeLinecap="round"
+                    opacity={0.9}
+                    className="pointer-events-none"
+                    style={emeraldStyle}
+                  />
+                )
+              )}
+              <circle
+                cx={centerX}
+                cy={centerY}
+                r={18}
+                fill="#10b981"
+                opacity={0.9}
+                className="pointer-events-none"
+                style={emeraldStyle}
+              />
+            </>
+          );
+        })()}
       </g>
 
 

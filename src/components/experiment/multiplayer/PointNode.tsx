@@ -57,7 +57,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
 
-  const { hasMyVote, hasOthersVotes, glowOpacity } = useVoteVisuals({
+  const { hasMyVote, hasOthersVotes, othersVoteCount } = useVoteVisuals({
     votes: data.votes || [],
     currentUserId,
   });
@@ -184,8 +184,8 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const wrapperClassName = useMemo(() => {
     const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
     const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
-    const goldBorder = hasMyVote ? 'ring-3 ring-amber-400 ring-offset-1 shadow-lg shadow-amber-400/30' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${goldBorder} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+    const myVoteBorder = hasMyVote ? 'border-l-[6px] border-l-emerald-500 shadow-[-3px_0_8px_rgba(16,185,129,0.3)]' : '';
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${myVoteBorder} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
   }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, hasMyVote]);
 
   const wrapperProps = {
@@ -288,7 +288,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         }}
         wrapperProps={wrapperProps as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
-        beforeWrapper={hasOthersVotes && <VoteGlow opacity={glowOpacity} />}
+        beforeWrapper={hasOthersVotes && <VoteGlow voteCount={othersVoteCount} />}
       >
         <LockIndicator locked={locked} lockOwner={lockOwner} />
         {isConnectingFromNodeId === id && (
