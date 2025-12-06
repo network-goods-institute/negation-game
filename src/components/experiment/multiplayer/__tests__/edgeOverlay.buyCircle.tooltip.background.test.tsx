@@ -194,11 +194,7 @@ describe("EdgeOverlay buy circle tooltip background", () => {
     expect(overlay.style.top).toBe("70px");
 
     rect = { left: 150, top: 200, width: 40, height: 40, right: 190, bottom: 240, x: 150, y: 200, toJSON: () => ({}) };
-    rerender(
-      <QueryClientProvider>
-        <EdgeOverlay {...props} />
-      </QueryClientProvider>
-    );
+    rerender(<EdgeOverlay {...props} />);
 
     act(() => {
       window.dispatchEvent(new Event("resize"));
@@ -236,11 +232,7 @@ describe("EdgeOverlay buy circle tooltip background", () => {
     expect(overlay.style.top).toBe("30px");
 
     rect = { left: 80, top: 120, width: 30, height: 30, right: 110, bottom: 150, x: 80, y: 120, toJSON: () => ({}) };
-    rerender(
-      <QueryClientProvider>
-        <EdgeOverlay {...props} />
-      </QueryClientProvider>
-    );
+    rerender(<EdgeOverlay {...props} />);
 
     act(() => {
       while (rafCallbacks.length) {
