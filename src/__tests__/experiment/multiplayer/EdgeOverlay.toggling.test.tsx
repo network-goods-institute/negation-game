@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { getDefaultStore } from "jotai";
-import { QueryClientProvider } from "@/components/providers/QueryClientProvider";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { EdgeOverlay, EdgeOverlayProps } from "@/components/experiment/multiplayer/common/EdgeOverlay";
 import { MarketOverlayState, defaultZoomThreshold, marketOverlayStateAtom, marketOverlayZoomThresholdAtom } from "@/atoms/marketOverlayAtom";
@@ -67,6 +67,11 @@ const createProps = (overrides: Partial<EdgeOverlayProps> = {}): EdgeOverlayProp
   ...overrides,
 });
 
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient();
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
 describe("EdgeOverlay edge type toggling", () => {
   it("keeps overlay visible when switching edge type", () => {
     const onMouseEnter = jest.fn();
@@ -79,11 +84,7 @@ describe("EdgeOverlay edge type toggling", () => {
       onToggleEdgeType,
     });
 
-    render(
-      <QueryClientProvider>
-        <EdgeOverlay {...props} />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<EdgeOverlay {...props} />);
 
     const anchor = screen.getByTestId("edge-overlay-anchor");
     fireEvent.mouseEnter(anchor);
@@ -106,11 +107,7 @@ describe("EdgeOverlay market overlay visibility", () => {
     process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = "true";
     setOverlayState("LOCK_TEXT");
 
-    render(
-      <QueryClientProvider>
-        <EdgeOverlay {...createProps()} />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<EdgeOverlay {...createProps()} />);
 
     const anchor = screen.getByTestId("edge-overlay-anchor");
     fireEvent.mouseEnter(anchor);
@@ -123,11 +120,7 @@ describe("EdgeOverlay market overlay visibility", () => {
     process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED = "true";
     mockTransform = [0, 0, 0.4];
 
-    render(
-      <QueryClientProvider>
-        <EdgeOverlay {...createProps({ marketPrice: 0.4 })} />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<EdgeOverlay {...createProps({ marketPrice: 0.4 })} />);
 
     const anchor = screen.getByTestId("edge-overlay-anchor");
     fireEvent.mouseEnter(anchor);

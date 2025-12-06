@@ -256,3 +256,17 @@ if (typeof global.ResizeObserver === 'undefined') {
   }
 }
 
+// Polyfill fetch for tests
+if (typeof global.fetch === 'undefined') {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: async () => ({}),
+      text: async () => '',
+      headers: new Map(),
+      status: 200,
+      statusText: 'OK',
+    })
+  );
+}
+

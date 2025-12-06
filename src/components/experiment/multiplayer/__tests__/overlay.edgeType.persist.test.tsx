@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
-import { QueryClientProvider } from '@/components/providers/QueryClientProvider';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GraphProvider } from '@/components/experiment/multiplayer/GraphContext';
 import { EdgeOverlay } from '@/components/experiment/multiplayer/common/EdgeOverlay';
 
@@ -16,8 +16,9 @@ jest.mock('@xyflow/react', () => ({
 const noop = () => {};
 
 const renderOverlay = (edgeType: 'support' | 'negation', overlayActiveEdgeId: string | null) => {
+  const queryClient = new QueryClient();
   return render(
-    <QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
       <GraphProvider value={{
         currentUserId: 'u1',
         updateNodeContent: () => {},
