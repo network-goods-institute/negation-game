@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { EdgeOverlay, EdgeOverlayProps } from "@/components/experiment/multiplayer/common/EdgeOverlay";
 
@@ -98,10 +99,20 @@ const createProps = (overrides: Partial<EdgeOverlayProps> = {}): EdgeOverlayProp
   ...overrides,
 });
 
+const renderWithProviders = (ui: React.ReactElement) => {
+  const queryClient = new QueryClient();
+  const result = render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return {
+    ...result,
+    rerender: (newUi: React.ReactElement) =>
+      result.rerender(<QueryClientProvider client={queryClient}>{newUi}</QueryClientProvider>),
+  };
+};
+
 describe("EdgeOverlay buy circle tooltip background", () => {
   it("shows a backgrounded chart tooltip on hover", () => {
     const props = createProps();
-    render(<EdgeOverlay {...props} />);
+    renderWithProviders(<EdgeOverlay {...props} />);
 
     const buyButton = screen.getByRole("button", { name: /buy/i });
     fireEvent.mouseEnter(buyButton.parentElement as HTMLElement);
@@ -115,7 +126,7 @@ describe("EdgeOverlay buy circle tooltip background", () => {
 
   it("repositions once the anchor element appears", () => {
     const props = createProps({ selected: true, isHovered: false });
-    const { container } = render(<EdgeOverlay {...props} />);
+    const { container } = renderWithProviders(<EdgeOverlay {...props} />);
 
     const overlay = container.querySelector('[data-edge-overlay-container="edge-1"]') as HTMLElement;
     expect(overlay).toBeTruthy();
@@ -168,7 +179,7 @@ describe("EdgeOverlay buy circle tooltip background", () => {
     document.body.appendChild(anchor);
 
     const props = createProps({ selected: true, isHovered: false, cx: 0, cy: 0 });
-    const { container, rerender } = render(<EdgeOverlay {...props} />);
+    const { container, rerender } = renderWithProviders(<EdgeOverlay {...props} />);
 
     act(() => {
       while (rafCallbacks.length) {
@@ -206,7 +217,7 @@ describe("EdgeOverlay buy circle tooltip background", () => {
     document.body.appendChild(anchor);
 
     const props = createProps({ selected: true, isHovered: false, cx: 0, cy: 0 });
-    const { container, rerender } = render(<EdgeOverlay {...props} />);
+    const { container, rerender } = renderWithProviders(<EdgeOverlay {...props} />);
 
     act(() => {
       while (rafCallbacks.length) {
