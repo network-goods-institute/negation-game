@@ -172,10 +172,9 @@ export const resolveDocAccess = async (
 
   const shareToken = opts.shareToken || null;
   if (shareToken) {
-    // Validate token format: must be "sl-" followed by 21 characters
     if (!shareToken.startsWith("sl-") || shareToken.length !== 24) {
       logger.warn(`[mpAccess] Invalid share token format: ${shareToken.substring(0, 5)}...`);
-      return { status: "forbidden", docId: canonicalId, requiresAuth: true };
+      return { status: "forbidden", docId: canonicalId };
     }
 
     const nowUtc = new Date();
@@ -224,5 +223,5 @@ export const resolveDocAccess = async (
     }
   }
 
-  return { status: "forbidden", docId: canonicalId, requiresAuth: true };
+  return { status: "forbidden", docId: canonicalId, requiresAuth: anonymous };
 };
