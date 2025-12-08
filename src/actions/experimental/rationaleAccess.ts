@@ -34,7 +34,7 @@ const assertOwnerAccess = async (docId: string, userId: string) => {
  * @param opts.requireLogin - Whether the link requires authentication
  * @param opts.expiresAt - Optional ISO 8601 expiry date (must be future date)
  *
- * @returns Created share link with token (format: "sl-" + 16 chars)
+ * @returns Created share link with token (format: "sl-" + 21 chars)
  *
  * @throws Error if user is unauthorized or not document owner
  * @throws Error if expiresAt is invalid or in the past
@@ -64,14 +64,15 @@ export const createShareLink = async (
   const canonicalId = await resolveSlugToId(docId);
   await assertOwnerAccess(canonicalId, userId);
 
-  const token = `sl-${nanoid(16)}`;
+  const token = `sl-${nanoid(21)}`;
   let expiresAtDate: Date | null = null;
   if (opts.expiresAt) {
     expiresAtDate = new Date(opts.expiresAt);
     if (isNaN(expiresAtDate.getTime())) {
       throw new Error("Invalid expiry date");
     }
-    if (expiresAtDate <= new Date()) {
+    const nowUtc = new Date();
+    if (expiresAtDate <= nowUtc) {
       throw new Error("Expiry must be in the future");
     }
   }
@@ -130,7 +131,7 @@ export const listShareLinks = async (
   if (limit < 1 || limit > 100) throw new Error("Limit must be between 1 and 100");
   if (offset < 0) throw new Error("Offset must be non-negative");
 
-  const now = new Date();
+  const nowUtc = new Date();
   const rows = await db
     .select({
       id: mpDocShareLinksTable.id,
@@ -149,7 +150,7 @@ export const listShareLinks = async (
 
   return rows.filter((row) => {
     if (row.disabledAt) return false;
-    if (row.expiresAt && row.expiresAt <= now) return false;
+    if (row.expiresAt && row.expiresAt <= nowUtc) return false;
     return true;
   });
 };
@@ -174,9 +175,10 @@ export const revokeShareLink = async (docId: string, linkId: string) => {
   const canonicalId = await resolveSlugToId(docId);
   await assertOwnerAccess(canonicalId, userId);
 
+  const nowUtc = new Date();
   await db
     .update(mpDocShareLinksTable)
-    .set({ disabledAt: new Date() })
+    .set({ disabledAt: nowUtc })
     .where(and(eq(mpDocShareLinksTable.id, linkId), eq(mpDocShareLinksTable.docId, canonicalId)));
 
   return { ok: true } as const;

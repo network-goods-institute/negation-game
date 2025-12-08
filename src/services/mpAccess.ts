@@ -56,7 +56,7 @@ const isAnonymousId = (userId: string | null | undefined): boolean => {
  * @param docId - Document ID or slug to resolve access for
  * @param opts - Options object
  * @param opts.userId - User ID to check access for (null for anonymous, "anon-" prefix for session)
- * @param opts.shareToken - Optional share link token (format: "sl-" + 16 chars)
+ * @param opts.shareToken - Optional share link token (format: "sl-" + 21 chars)
  *
  * @returns DocAccessResult indicating access status and role:
  * - status: "ok" - Access granted with role and source
@@ -172,13 +172,13 @@ export const resolveDocAccess = async (
 
   const shareToken = opts.shareToken || null;
   if (shareToken) {
-    // Validate token format: must be "sl-" followed by 16 characters
-    if (!shareToken.startsWith("sl-") || shareToken.length !== 19) {
+    // Validate token format: must be "sl-" followed by 21 characters
+    if (!shareToken.startsWith("sl-") || shareToken.length !== 24) {
       logger.warn(`[mpAccess] Invalid share token format: ${shareToken.substring(0, 5)}...`);
       return { status: "forbidden", docId: canonicalId, requiresAuth: true };
     }
 
-    const now = new Date();
+    const nowUtc = new Date();
     const links = await safeLimit(
       db
         .select({
@@ -197,7 +197,7 @@ export const resolveDocAccess = async (
             isNull(mpDocShareLinksTable.disabledAt),
             or(
               isNull(mpDocShareLinksTable.expiresAt),
-              gt(mpDocShareLinksTable.expiresAt, now)
+              gt(mpDocShareLinksTable.expiresAt, nowUtc)
             )
           )
         )
