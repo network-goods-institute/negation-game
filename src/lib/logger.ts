@@ -1,11 +1,17 @@
 /**
- * Logger utility that only logs in development
+ * Logger utility that only logs to BROWSER console in development, it should always log to server console regardless of environment
  * Use this instead of console for any custom logging
  *
  * To force all logs in production, set: NEXT_PUBLIC_ENABLE_LOGS=true
  */
+const isServer = typeof window === "undefined";
+
 const shouldLog = () => {
-  return process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_ENABLE_LOGS === 'true';
+  if (isServer) return true;
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PUBLIC_ENABLE_LOGS === "true"
+  );
 };
 
 export const logger = {

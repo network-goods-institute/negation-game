@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
-import { isProductionRequest } from "@/utils/hosts";
 import { createHash } from "crypto";
 import { logger } from "@/lib/logger";
 import { resolveDocAccess, canWriteRole } from "@/services/mpAccess";
 import { isValidSlugOrId } from "@/utils/slugResolver";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: Request) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
@@ -26,6 +26,23 @@ export async function POST(req: Request) {
   }
 
   const userId = await getUserIdOrAnonymous();
+
+  // Rate limit: 100 token requests per minute per user
+  const rateLimit = await checkRateLimit(userId, 100, 60000, "yjs-token");
+  if (!rateLimit.allowed) {
+    const res = NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429 }
+    );
+    res.headers.set("X-RateLimit-Limit", "100");
+    res.headers.set("X-RateLimit-Remaining", "0");
+    res.headers.set("X-RateLimit-Reset", String(rateLimit.resetTime));
+    res.headers.set(
+      "Retry-After",
+      String(Math.ceil((rateLimit.resetTime - Date.now()) / 1000))
+    );
+    return res;
+  }
 
   const secret = process.env.YJS_AUTH_SECRET;
   if (!secret) {
@@ -67,6 +84,9 @@ export async function POST(req: Request) {
   try {
     res.headers.set("x-yjs-expires-at", String(expiry * 1000));
     res.headers.set("cache-control", "no-store");
+    res.headers.set("X-RateLimit-Limit", "100");
+    res.headers.set("X-RateLimit-Remaining", String(rateLimit.remaining));
+    res.headers.set("X-RateLimit-Reset", String(rateLimit.resetTime));
   } catch {}
   return res;
 }

@@ -20,10 +20,19 @@ const DEFAULT_OWNER = "connormcmk";
 const DEFAULT_TITLE = "Untitled";
 
 const claimOwnershipIfMissing = async (docId: string, userId: string) => {
-  await db
+  const result = await db
     .update(mpDocsTable)
     .set({ ownerId: userId })
-    .where(eq(mpDocsTable.id, docId));
+    .where(and(eq(mpDocsTable.id, docId), sql`owner_id IS NULL`))
+    .returning({ id: mpDocsTable.id });
+
+  if (result.length === 0) {
+    logger.warn(
+      `[mpAccess] Failed to claim ownership for ${docId} - already claimed`
+    );
+    return false;
+  }
+
   try {
     await db
       .insert(mpDocPermissionsTable)
@@ -37,8 +46,10 @@ const claimOwnershipIfMissing = async (docId: string, userId: string) => {
         target: [mpDocPermissionsTable.docId, mpDocPermissionsTable.userId],
         set: { role: "owner", updatedAt: new Date(), grantedBy: userId },
       });
+    return true;
   } catch (err) {
     logger.error("[mpAccess] Failed to upsert owner permission", err);
+    return false;
   }
 };
 
@@ -46,13 +57,20 @@ const assertDocOwnerAccess = async (docId: string, userId: string) => {
   const access = await resolveDocAccess(docId, { userId });
   if (access.status === "not_found") throw new Error("Document not found");
   if (access.status === "ok" && access.ownerId === null) {
-    await claimOwnershipIfMissing(docId, userId);
-    return {
-      ...access,
-      role: "owner",
-      ownerId: userId,
-      source: "owner",
-    };
+    const claimed = await claimOwnershipIfMissing(docId, userId);
+    if (claimed) {
+      return {
+        ...access,
+        role: "owner" as const,
+        ownerId: userId,
+        source: "owner" as const,
+      };
+    }
+    const retryAccess = await resolveDocAccess(docId, { userId });
+    if (retryAccess.status !== "ok" || retryAccess.role !== "owner") {
+      throw new Error("Forbidden");
+    }
+    return retryAccess;
   }
   if (access.status !== "ok" || access.role !== "owner") {
     throw new Error("Forbidden");
@@ -196,7 +214,7 @@ export async function recordOpen(docId: string) {
     await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
-      .where(eq(mpDocsTable.id, canonicalId));
+      .where(and(eq(mpDocsTable.id, canonicalId), sql`owner_id IS NULL`));
   }
   const existing = await db
     .select({ id: mpDocAccessTable.id })
@@ -312,10 +330,19 @@ export async function renameRationale(id: string, title: string) {
   if (access.status !== "ok") throw new Error("Forbidden");
   if (access.ownerId && access.ownerId !== userId) throw new Error("Forbidden");
   if (!access.ownerId) {
-    await db
+    const result = await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
-      .where(eq(mpDocsTable.id, canonicalId));
+      .where(and(eq(mpDocsTable.id, canonicalId), sql`owner_id IS NULL`))
+      .returning({ id: mpDocsTable.id });
+
+    if (result.length === 0) {
+      logger.warn(
+        `[Rename] Failed to claim ownership for ${canonicalId} - already claimed`
+      );
+      throw new Error("Forbidden");
+    }
+
     try {
       await db
         .insert(mpDocPermissionsTable)

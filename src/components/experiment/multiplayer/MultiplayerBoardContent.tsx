@@ -119,6 +119,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const lastAddRef = useRef<Record<string, number>>({});
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [marketPanelState, setMarketPanelState] = useState<MarketPanelState>({
     nodeId: null,
     edgeId: null,
@@ -963,6 +964,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         onResyncNow={resyncNow}
         onRetryConnection={restartProviderWithNewToken}
         accessRole={accessRole}
+        onShareDialogChange={setShareDialogOpen}
         onUrlUpdate={(id, slug) => {
           try {
             if (ydoc && yMetaMap) {
@@ -1101,20 +1103,22 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                   }, 50);
                 }}
               />
-              <ToolsBar
-                connectMode={connectMode}
-                setConnectMode={setConnectMode as any}
-                setConnectAnchorId={setConnectAnchorId}
-                canUndo={!!canUndo}
-                canRedo={!!canRedo}
-                undo={undo}
-                redo={redo}
-                connectAnchorId={connectAnchorId}
-                readOnly={!canEdit}
-                grabMode={grabMode}
-                setGrabMode={setGrabMode}
-                selectMode={effectiveSelectMode}
-              />
+              {!shareDialogOpen && (
+                <ToolsBar
+                  connectMode={connectMode}
+                  setConnectMode={setConnectMode as any}
+                  setConnectAnchorId={setConnectAnchorId}
+                  canUndo={!!canUndo}
+                  canRedo={!!canRedo}
+                  undo={undo}
+                  redo={redo}
+                  connectAnchorId={connectAnchorId}
+                  readOnly={!canEdit}
+                  grabMode={grabMode}
+                  setGrabMode={setGrabMode}
+                  selectMode={effectiveSelectMode}
+                />
+              )}
             </div>
             <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} documentId={resolvedId || ''} centerQueueVersion={centerQueueVersion} consumeCenterQueue={consumeCenterQueue} connectMode={connectMode} />
           </GraphProvider>

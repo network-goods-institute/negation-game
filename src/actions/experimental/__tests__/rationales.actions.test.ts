@@ -55,13 +55,23 @@ const chainInsert = () => {
   const chain: any = {
     values: jest.fn(() => chain),
     onConflictDoNothing: jest.fn(() => Promise.resolve()),
+    onConflictDoUpdate: jest.fn(() => ({
+      returning: jest.fn(() => Promise.resolve([{ id: "test-id" }])),
+    })),
+    returning: jest.fn(() => Promise.resolve([{ id: "test-id" }])),
   };
   return chain;
 };
 
 const chainUpdate = () => {
   const chain: any = {
-    set: jest.fn(() => ({ where: jest.fn(() => Promise.resolve()) })),
+    set: jest.fn(() => ({
+      where: jest.fn(() => ({
+        returning: jest.fn(() => Promise.resolve([{ id: "test-id" }])),
+        then: (resolve: any) => resolve([{ id: "test-id" }]),
+      })),
+      then: (resolve: any) => resolve(),
+    })),
   };
   return chain;
 };
@@ -217,8 +227,11 @@ describe("rationales actions", () => {
         values: (obj: any) => {
           insertCall++;
           if (insertCall === 1) insertedDocs.push(obj);
-          if (insertCall === 2) insertedAccess.push(obj);
-          return { onConflictDoNothing: jest.fn(() => Promise.resolve()) };
+          if (insertCall === 2 || insertCall === 3) insertedAccess.push(obj);
+          return {
+            onConflictDoNothing: jest.fn(() => Promise.resolve()),
+            onConflictDoUpdate: jest.fn(() => Promise.resolve()),
+          };
         },
       })),
       update: jest.fn(() => ({ where: jest.fn(() => Promise.resolve()) })),
@@ -242,9 +255,13 @@ describe("rationales actions", () => {
       expect.objectContaining({ ownerId: "anon-123" })
     );
 
-    expect(insertedAccess.length).toBe(1);
+    // Expect 2 access entries: one for mp_doc_access, one for mp_doc_permissions
+    expect(insertedAccess.length).toBe(2);
     expect(insertedAccess[0]).toEqual(
       expect.objectContaining({ userId: "anon-123" })
+    );
+    expect(insertedAccess[1]).toEqual(
+      expect.objectContaining({ userId: "anon-123", role: "owner" })
     );
   });
 

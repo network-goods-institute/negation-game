@@ -51,7 +51,7 @@ describe("resolveDocAccess share links", () => {
     ]);
     const { resolveDocAccess } = require("@/services/mpAccess");
 
-    const res = await resolveDocAccess("doc-1", { userId: null, shareToken: "token-abc" });
+    const res = await resolveDocAccess("doc-1", { userId: null, shareToken: "sl-abc1234567890123" });
     expect(res).toEqual({
       status: "ok",
       docId: "doc-1",

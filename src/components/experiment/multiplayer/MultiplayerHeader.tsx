@@ -40,6 +40,7 @@ interface MultiplayerHeaderProps {
   debugShowAllStates?: boolean;
   accessRole?: DocAccessRole | null;
   slug?: string | null;
+  onShareDialogChange?: (open: boolean) => void;
 }
 
 // DEBUG: Set to true to see all error states rendered at once
@@ -107,6 +108,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   debugShowAllStates = DEBUG_SHOW_ALL_STATES,
   accessRole = null,
   slug = null,
+  onShareDialogChange,
 }) => {
   const { safeJson } = useSafeJson();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -124,6 +126,10 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   const [pendingLocal, setPendingLocal] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const canShare = accessRole === 'owner';
+
+  useEffect(() => {
+    onShareDialogChange?.(shareOpen);
+  }, [shareOpen, onShareDialogChange]);
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -320,7 +326,8 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   };
   return (
     <>
-      <div className="absolute top-4 left-4 z-[60] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 w-80">
+      {!shareOpen && (
+        <div className="absolute top-4 left-4 z-[60] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 w-80">
         {/* Header with Back button */}
         <div className="px-4 py-3 border-b border-stone-100">
           <div className="flex items-center justify-between">
@@ -619,7 +626,9 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           })()}
         </div>
       </div>
-      <div className="absolute top-4 right-4 z-[60] flex flex-col items-end gap-2">
+      )}
+      {!shareOpen && (
+        <div className="absolute top-4 right-4 z-[60] flex flex-col items-end gap-2">
         <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
           {proxyMode ? (
             <>
@@ -759,7 +768,8 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
             </TooltipProvider>
           </div>
         )}
-      </div >
+      </div>
+      )}
       <ShareBoardDialog
         docId={documentId || ''}
         slug={slug || null}

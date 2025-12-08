@@ -57,6 +57,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
   const [userInputValue, setUserInputValue] = useState("");
   const [roleUpdating, setRoleUpdating] = useState<Record<string, boolean>>({});
   const [pending, startTransition] = useTransition();
+  const [loading, setLoading] = useState(false);
   const isOwner = accessRole === "owner";
 
   const refresh = useMemo(
@@ -67,6 +68,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
         setCollaborators([]);
         return;
       }
+      setLoading(true);
       try {
         const [ls, cs] = await Promise.all([listShareLinks(docId), listCollaborators(docId)]);
         const normalizedLinks = (ls as Array<any>).map((link) => ({
@@ -92,6 +94,8 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
         })));
       } catch (error: any) {
         toast.error(error?.message || "Failed to load sharing state");
+      } finally {
+        setLoading(false);
       }
     },
     [docId, open, isOwner]
@@ -338,12 +342,24 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                 </span>
               </div>
               <div className="space-y-1 max-h-32 overflow-y-auto overflow-x-hidden pr-1">
-                {links.length === 0 && (
+                {loading ? (
+                  <div className="space-y-1">
+                    <div className="animate-pulse p-2 rounded border border-stone-200 bg-stone-50">
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-full bg-stone-200"></div>
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 bg-stone-200 rounded w-24"></div>
+                          <div className="h-2 bg-stone-200 rounded w-full"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : links.length === 0 ? (
                   <div className="text-xs text-stone-500 px-1 py-1.5 rounded bg-stone-50 border border-dashed border-stone-200">
                     No active links yet. Create a link to share.
                   </div>
-                )}
-                {links.map((link) => {
+                ) : null}
+                {!loading && links.map((link) => {
                   const url = buildShareUrl(link.token);
                   const isPublic = !link.requireLogin;
                   const label = link.role === "editor" ? "Edit" : "View";
@@ -477,7 +493,24 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                   </Button>
                 </div>
 
-                {visibleCollaborators.length > 0 && (
+                {loading ? (
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="h-3 bg-stone-200 rounded w-32 animate-pulse"></div>
+                    </div>
+                    <div className="space-y-0.5">
+                      {[1, 2].map((i) => (
+                        <div key={i} className="animate-pulse p-1 rounded">
+                          <div className="flex items-center gap-2">
+                            <div className="h-5 w-5 rounded-full bg-stone-200"></div>
+                            <div className="flex-1 h-3 bg-stone-200 rounded"></div>
+                            <div className="h-7 w-24 bg-stone-200 rounded"></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : visibleCollaborators.length > 0 ? (
                   <div className="pt-2 border-t">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs text-stone-500">
@@ -525,7 +558,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                       ))}
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             </>
           )}
