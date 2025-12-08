@@ -1,7 +1,18 @@
 import { GET as stateGET } from "@/app/api/experimental/rationales/[id]/state/route";
 
-jest.mock("@/actions/users/getUserId", () => ({
-  getUserId: jest.fn(async () => "user-1"),
+jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
+  getUserIdOrAnonymous: jest.fn(async () => "user-1"),
+}));
+
+jest.mock("@/services/mpAccess", () => ({
+  resolveDocAccess: jest.fn(async (id: string) => ({
+    status: "ok",
+    docId: id,
+    ownerId: "user-1",
+    slug: null,
+    role: "owner",
+    source: "owner",
+  })),
 }));
 
 jest.mock("@/services/db", () => {

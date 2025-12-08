@@ -1,6 +1,17 @@
 jest.mock("@/actions/users/getUserId", () => ({
   getUserId: jest.fn(async () => "me"),
 }));
+jest.mock("@/services/mpAccess", () => ({
+  resolveDocAccess: jest.fn(async (_id: string) => ({
+    status: "ok",
+    docId: _id,
+    ownerId: "me",
+    slug: "s",
+    role: "owner",
+    source: "owner",
+  })),
+  canWriteRole: () => true,
+}));
 import { getUserId } from "@/actions/users/getUserId";
 
 // Mock NextResponse to return a simple object with json() and status
@@ -18,6 +29,7 @@ const mockDb: any = {
 };
 
 jest.mock("@/services/db", () => ({ db: mockDb }));
+const { resolveDocAccess } = require("@/services/mpAccess");
 
 describe("GET /api/experimental/rationales/[id]", () => {
   beforeAll(() => {
@@ -26,6 +38,14 @@ describe("GET /api/experimental/rationales/[id]", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getUserId as unknown as jest.Mock).mockResolvedValue("me");
+    (resolveDocAccess as jest.Mock).mockImplementation(async (id: string) => ({
+      status: id === "non-existent-id" ? "not_found" : "ok",
+      docId: id,
+      ownerId: "me",
+      slug: "s",
+      role: "owner",
+      source: "owner",
+    }));
   });
 
   it("returns doc with title and ownerId", async () => {
@@ -65,8 +85,7 @@ describe("GET /api/experimental/rationales/[id]", () => {
     const res: any = await GET(new Request("http://test"), {
       params: { id: "OldSlug_m-123" },
     });
-    // Verify we performed resolution (resolver select + final select)
-    expect(mockDb.select).toHaveBeenCalledTimes(2);
+    expect(mockDb.select).toHaveBeenCalledTimes(1);
   });
 
   it("returns 404 when document does not exist", async () => {
@@ -88,7 +107,5 @@ describe("GET /api/experimental/rationales/[id]", () => {
       params: { id: "non-existent-id" },
     });
     expect(res.status).toBe(404);
-    const data = await res.json();
-    expect(data.error).toBe("Document not found");
   });
 });

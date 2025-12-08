@@ -3,8 +3,18 @@ export type YjsAuth = {
   expiresAt: number; // ms epoch
 };
 
-export const fetchYjsAuthToken = async (): Promise<YjsAuth> => {
-  const res = await fetch("/api/yjs/token", { method: "POST" });
+export const fetchYjsAuthToken = async (params: {
+  docId: string;
+  shareToken?: string | null;
+}): Promise<YjsAuth> => {
+  const res = await fetch("/api/yjs/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      docId: params.docId,
+      shareToken: params.shareToken || null,
+    }),
+  });
   if (!res.ok) {
     if (res.status === 401) {
       const err: any = new Error("AUTH_EXPIRED");

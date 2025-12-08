@@ -42,6 +42,7 @@ import { logger } from '@/lib/logger';
 import { MarketPanel } from './market/MarketPanel';
 import { MarketErrorBoundary } from './market/MarketErrorBoundary';
 import { BoardLoading } from './BoardLoading';
+import { DocAccessRole } from '@/services/mpAccess';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -52,12 +53,15 @@ interface MultiplayerBoardContentProps {
   userColor: string;
   roomName: string;
   resolvedId: string;
+  resolvedSlug?: string | null;
   routeParams: any;
   grabMode: boolean;
   setGrabMode: (value: boolean) => void;
   perfBoost: boolean;
   setPerfBoost: (value: boolean) => void;
   selectMode: boolean;
+  accessRole?: DocAccessRole | null;
+  shareToken?: string | null;
 }
 
 type MarketPanelState = {
@@ -85,12 +89,15 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   userColor,
   roomName,
   resolvedId,
+  resolvedSlug = null,
   routeParams,
   grabMode,
   setGrabMode,
   perfBoost,
   setPerfBoost,
   selectMode,
+  accessRole = null,
+  shareToken = null,
 }) => {
   const routeId = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
   const {
@@ -112,6 +119,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const lastAddRef = useRef<Record<string, number>>({});
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [marketPanelState, setMarketPanelState] = useState<MarketPanelState>({
     nodeId: null,
     edgeId: null,
@@ -172,6 +180,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const initialGraph = useInitialGraph();
 
   const isProdHost = typeof window !== 'undefined' ? isProductionRequest(window.location.hostname) : false;
+  const allowedByRole = accessRole ? (accessRole === 'owner' || accessRole === 'editor') : true;
+  const allowPersistence = allowedByRole && !(isProdHost && !authenticated);
   const lastMarketStructSigRef = useRef<string | null>(null);
   const nodesRef = useRef<any[]>([]);
   const edgesRef = useRef<any[]>([]);
@@ -210,9 +220,12 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     initialNodes: initialGraph?.nodes || [],
     initialEdges: initialGraph?.edges || [],
     enabled: Boolean(initialGraph) && Boolean(resolvedId),
-    allowPersistence: !(isProdHost && !authenticated),
+    allowPersistence,
     localOrigin: localOriginRef.current,
     currentUserId: userId,
+    shareToken,
+    docId: resolvedId || routeId,
+    accessRole,
     onRemoteNodesAdded: (ids: string[]) => {
       if (!connectMode) {
         for (const id of ids) markNodeCenterOnce(id);
@@ -389,7 +402,9 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         const path = buildRationaleDetailPath(docIdForUrl, host, slug);
         if (path && typeof window !== 'undefined' && window.location.pathname !== path) {
           if (window.history && typeof window.history.replaceState === 'function') {
-            window.history.replaceState(null, '', path);
+            const search = typeof window !== 'undefined' ? window.location.search || '' : '';
+            const hash = typeof window !== 'undefined' ? window.location.hash || '' : '';
+            window.history.replaceState(null, '', `${path}${search}${hash}`);
           }
         }
       } catch (error) {
@@ -419,6 +434,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     ydoc,
     provider,
     localOrigin: localOriginRef.current,
+    shareToken,
   });
 
   useEffect(() => {
@@ -431,7 +447,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
 
   const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
   const { canWrite } = useWriteAccess(provider, userId, { authenticated });
-  const canEdit = Boolean(canWrite && (isConnected || connectedWithGrace));
+  const canEdit = Boolean(canWrite && allowedByRole && (isConnected || connectedWithGrace));
 
   useEffect(() => {
     if (!connectMode) return;
@@ -936,6 +952,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         userId={userId}
         title={dbTitle || 'Untitled'}
         documentId={resolvedId || ''}
+        slug={resolvedSlug || null}
         onTitleChange={handleTitleChange}
         onTitleEditingStart={handleTitleEditingStart}
         onTitleEditingStop={handleTitleEditingStop}
@@ -946,6 +963,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         titleEditingUser={titleEditingUser}
         onResyncNow={resyncNow}
         onRetryConnection={restartProviderWithNewToken}
+        accessRole={accessRole}
+        onShareDialogChange={setShareDialogOpen}
         onUrlUpdate={(id, slug) => {
           try {
             if (ydoc && yMetaMap) {
@@ -1084,20 +1103,22 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                   }, 50);
                 }}
               />
-              <ToolsBar
-                connectMode={connectMode}
-                setConnectMode={setConnectMode as any}
-                setConnectAnchorId={setConnectAnchorId}
-                canUndo={!!canUndo}
-                canRedo={!!canRedo}
-                undo={undo}
-                redo={redo}
-                connectAnchorId={connectAnchorId}
-                readOnly={!canEdit}
-                grabMode={grabMode}
-                setGrabMode={setGrabMode}
-                selectMode={effectiveSelectMode}
-              />
+              {!shareDialogOpen && (
+                <ToolsBar
+                  connectMode={connectMode}
+                  setConnectMode={setConnectMode as any}
+                  setConnectAnchorId={setConnectAnchorId}
+                  canUndo={!!canUndo}
+                  canRedo={!!canRedo}
+                  undo={undo}
+                  redo={redo}
+                  connectAnchorId={connectAnchorId}
+                  readOnly={!canEdit}
+                  grabMode={grabMode}
+                  setGrabMode={setGrabMode}
+                  selectMode={effectiveSelectMode}
+                />
+              )}
             </div>
             <GraphUpdater nodes={nodes} edges={edges} setNodes={setNodes} documentId={resolvedId || ''} centerQueueVersion={centerQueueVersion} consumeCenterQueue={consumeCenterQueue} connectMode={connectMode} />
           </GraphProvider>

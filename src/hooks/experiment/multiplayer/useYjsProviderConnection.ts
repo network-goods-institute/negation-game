@@ -29,6 +29,8 @@ interface UseYjsProviderConnectionProps {
     state: "initializing" | "connecting" | "connected" | "failed"
   ) => void;
   onResyncFromServer: () => Promise<void>;
+  docId: string;
+  shareToken?: string | null;
 }
 
 interface ProviderConnectionApi {
@@ -57,6 +59,8 @@ export const useYjsProviderConnection = ({
   setConnectionError,
   setConnectionState,
   onResyncFromServer,
+  docId,
+  shareToken,
 }: UseYjsProviderConnectionProps): ProviderConnectionApi => {
   const providerRef = useRef<WebsocketProvider | null>(null);
   const refreshTimerRef = useRef<number | null>(null);
@@ -371,7 +375,10 @@ export const useYjsProviderConnection = ({
 
     logger.log("[YJS Provider] createProvider - fetching auth token");
     try {
-      const { token, expiresAt } = await fetchYjsAuthToken();
+      const { token, expiresAt } = await fetchYjsAuthToken({
+        docId,
+        shareToken,
+      });
       logger.log("[YJS Provider] createProvider - auth token received", {
         tokenLength: token?.length || 0,
         expiresAt: new Date(expiresAt).toISOString(),
@@ -411,10 +418,12 @@ export const useYjsProviderConnection = ({
   }, [
     attachProviderListeners,
     didResyncOnConnectRef,
+    docId,
     roomName,
     scheduleRefresh,
     setConnectionError,
     setConnectionState,
+    shareToken,
     wsUrl,
     ydocRef,
   ]);

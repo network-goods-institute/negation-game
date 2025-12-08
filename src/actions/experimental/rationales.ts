@@ -5,6 +5,7 @@ import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
+import { mpDocPermissionsTable } from "@/db/tables/mpDocPermissionsTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -13,9 +14,69 @@ import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 import { logger } from "@/lib/logger";
 import { getDocSnapshotBuffer } from "@/services/yjsCompaction";
 import * as Y from "yjs";
+import { canWriteRole, resolveDocAccess } from "@/services/mpAccess";
 
 const DEFAULT_OWNER = "connormcmk";
 const DEFAULT_TITLE = "Untitled";
+
+const claimOwnershipIfMissing = async (docId: string, userId: string) => {
+  const result = await db
+    .update(mpDocsTable)
+    .set({ ownerId: userId })
+    .where(and(eq(mpDocsTable.id, docId), sql`owner_id IS NULL`))
+    .returning({ id: mpDocsTable.id });
+
+  if (result.length === 0) {
+    logger.warn(
+      `[mpAccess] Failed to claim ownership for ${docId} - already claimed`
+    );
+    return false;
+  }
+
+  try {
+    await db
+      .insert(mpDocPermissionsTable)
+      .values({
+        docId,
+        userId,
+        role: "owner",
+        grantedBy: userId,
+      })
+      .onConflictDoUpdate({
+        target: [mpDocPermissionsTable.docId, mpDocPermissionsTable.userId],
+        set: { role: "owner", updatedAt: new Date(), grantedBy: userId },
+      });
+    return true;
+  } catch (err) {
+    logger.error("[mpAccess] Failed to upsert owner permission", err);
+    return false;
+  }
+};
+
+const assertDocOwnerAccess = async (docId: string, userId: string) => {
+  const access = await resolveDocAccess(docId, { userId });
+  if (access.status === "not_found") throw new Error("Document not found");
+  if (access.status === "ok" && access.ownerId === null) {
+    const claimed = await claimOwnershipIfMissing(docId, userId);
+    if (claimed) {
+      return {
+        ...access,
+        role: "owner" as const,
+        ownerId: userId,
+        source: "owner" as const,
+      };
+    }
+    const retryAccess = await resolveDocAccess(docId, { userId });
+    if (retryAccess.status !== "ok" || retryAccess.role !== "owner") {
+      throw new Error("Forbidden");
+    }
+    return retryAccess;
+  }
+  if (access.status !== "ok" || access.role !== "owner") {
+    throw new Error("Forbidden");
+  }
+  return access;
+};
 
 export async function listMyRationales() {
   const userId = await getUserId();
@@ -107,9 +168,11 @@ export async function listVisitedRationales() {
            d.updated_at AS "updatedAt",
            a.last_open_at AS "lastOpenAt"
     FROM mp_docs d
-    JOIN mp_doc_access a ON a.doc_id = d.id AND a.user_id = ${userId}
+    LEFT JOIN mp_doc_access a ON a.doc_id = d.id AND a.user_id = ${userId}
+    LEFT JOIN mp_doc_permissions p ON p.doc_id = d.id AND p.user_id = ${userId}
     LEFT JOIN users u ON u.id = d.owner_id
     WHERE d.owner_id IS NOT NULL AND d.owner_id <> ${userId}
+      AND (a.user_id IS NOT NULL OR p.user_id IS NOT NULL)
     ORDER BY a.last_open_at DESC NULLS LAST, d.updated_at DESC
     LIMIT 200
   `)) as unknown as Array<{
@@ -133,6 +196,10 @@ export async function recordOpen(docId: string) {
   // Resolve slug to canonical id if needed
   const canonicalId = await resolveSlugToId(docId);
 
+  const access = await resolveDocAccess(canonicalId, { userId });
+  if (access.status === "not_found") throw new Error("Document not found");
+  if (access.status !== "ok") throw new Error("Forbidden");
+
   const row = (
     await db
       .select()
@@ -147,7 +214,7 @@ export async function recordOpen(docId: string) {
     await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
-      .where(eq(mpDocsTable.id, canonicalId));
+      .where(and(eq(mpDocsTable.id, canonicalId), sql`owner_id IS NULL`));
   }
   const existing = await db
     .select({ id: mpDocAccessTable.id })
@@ -225,6 +292,24 @@ export async function createRationale(params?: {
         err
       );
     }
+
+    try {
+      await tx
+        .insert(mpDocPermissionsTable)
+        .values({
+          docId: id,
+          userId: ownerId,
+          role: "owner",
+          grantedBy: ownerId,
+        })
+        .onConflictDoUpdate({
+          target: [mpDocPermissionsTable.docId, mpDocPermissionsTable.userId],
+          set: { role: "owner", updatedAt: new Date(), grantedBy: ownerId },
+        });
+    } catch (err) {
+      logger.error("[Create Rationale] Failed to upsert owner permission", err);
+      throw err;
+    }
   });
 
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -239,24 +324,44 @@ export async function renameRationale(id: string, title: string) {
   const t = (title || "").trim();
   if (!t) throw new Error("Empty title");
 
-  // Resolve slug to canonical id if needed
   const canonicalId = await resolveSlugToId(id);
-
-  const row = await db
-    .select({ ownerId: mpDocsTable.ownerId })
-    .from(mpDocsTable)
-    .where(eq(mpDocsTable.id, canonicalId))
-    .limit(1);
-
-  if (row.length === 0) throw new Error("Document not found");
-  const ownerId = row[0].ownerId;
-
-  if (ownerId && ownerId !== userId) throw new Error("Forbidden");
-  if (!ownerId) {
-    await db
+  const access = await resolveDocAccess(canonicalId, { userId });
+  if (access.status === "not_found") throw new Error("Document not found");
+  if (access.status !== "ok") throw new Error("Forbidden");
+  if (access.ownerId && access.ownerId !== userId) throw new Error("Forbidden");
+  if (!access.ownerId) {
+    const result = await db
       .update(mpDocsTable)
       .set({ ownerId: userId })
-      .where(eq(mpDocsTable.id, canonicalId));
+      .where(and(eq(mpDocsTable.id, canonicalId), sql`owner_id IS NULL`))
+      .returning({ id: mpDocsTable.id });
+
+    if (result.length === 0) {
+      logger.warn(
+        `[Rename] Failed to claim ownership for ${canonicalId} - already claimed`
+      );
+      throw new Error("Forbidden");
+    }
+
+    try {
+      await db
+        .insert(mpDocPermissionsTable)
+        .values({
+          docId: canonicalId,
+          userId,
+          role: "owner",
+          grantedBy: userId,
+        })
+        .onConflictDoUpdate({
+          target: [mpDocPermissionsTable.docId, mpDocPermissionsTable.userId],
+          set: { role: "owner", updatedAt: new Date(), grantedBy: userId },
+        });
+    } catch (err) {
+      logger.error("[Rename Rationale] Failed to upsert owner permission", err);
+      throw err;
+    }
+  } else if (access.role !== "owner") {
+    throw new Error("Forbidden");
   }
 
   await db
@@ -306,14 +411,11 @@ export async function updateNodeTitle(id: string, nodeTitle: string) {
   // Resolve slug to canonical id if needed
   const canonicalId = await resolveSlugToId(id);
 
-  const can = await db.execute(sql`
-    SELECT 1
-    FROM mp_docs d
-    LEFT JOIN mp_doc_access a ON a.doc_id = d.id AND a.user_id = ${userId}
-    WHERE d.id = ${canonicalId} AND (d.owner_id = ${userId} OR a.user_id = ${userId})
-    LIMIT 1
-  `);
-  if ((can as any[]).length === 0) throw new Error("Forbidden");
+  const access = await resolveDocAccess(canonicalId, { userId });
+  if (access.status === "not_found") throw new Error("Document not found");
+  if (access.status !== "ok" || !canWriteRole(access.role)) {
+    throw new Error("Forbidden");
+  }
 
   // Get current board title to check if we should sync
   const current = await db.execute(sql`
@@ -366,22 +468,7 @@ export async function deleteRationale(id: string) {
   // Resolve slug to canonical id if needed
   const canonicalId = await resolveSlugToId(id);
 
-  const row = await db
-    .select({ ownerId: mpDocsTable.ownerId })
-    .from(mpDocsTable)
-    .where(eq(mpDocsTable.id, canonicalId))
-    .limit(1);
-  if (row.length === 0) throw new Error("Document not found");
-
-  const currentOwner = row[0].ownerId;
-  if (!currentOwner) {
-    await db
-      .update(mpDocsTable)
-      .set({ ownerId: userId })
-      .where(eq(mpDocsTable.id, canonicalId));
-  } else if (currentOwner !== userId) {
-    throw new Error("Forbidden");
-  }
+  await assertDocOwnerAccess(canonicalId, userId);
 
   await db
     .delete(mpDocUpdatesTable)
@@ -412,15 +499,9 @@ export async function duplicateRationale(
 
   const canonicalSourceId = await resolveSlugToId(sourceId);
 
-  const canRead = await db.execute(sql`
-    SELECT 1
-    FROM mp_docs d
-    LEFT JOIN mp_doc_access a ON a.doc_id = d.id AND a.user_id = ${userId}
-    WHERE d.id = ${canonicalSourceId}
-      AND (d.owner_id = ${userId} OR a.user_id = ${userId})
-    LIMIT 1
-  `);
-  if ((canRead as any[]).length === 0) throw new Error("Forbidden");
+  const access = await resolveDocAccess(canonicalSourceId, { userId });
+  if (access.status === "not_found") throw new Error("Document not found");
+  if (access.status !== "ok") throw new Error("Forbidden");
 
   try {
     logger.log(
@@ -625,6 +706,26 @@ export async function duplicateRationale(
       .insert(mpDocAccessTable)
       .values({ docId: newId, userId })
       .onConflictDoNothing();
+
+    try {
+      await tx
+        .insert(mpDocPermissionsTable)
+        .values({
+          docId: newId,
+          userId,
+          role: "owner",
+          grantedBy: userId,
+        })
+        .onConflictDoUpdate({
+          target: [mpDocPermissionsTable.docId, mpDocPermissionsTable.userId],
+          set: { role: "owner", updatedAt: new Date(), grantedBy: userId },
+        });
+    } catch (err) {
+      logger.error(
+        "[Duplicate Rationale] Failed to upsert owner permission",
+        err
+      );
+    }
 
     try {
       const slug = slugify(newTitleBase);

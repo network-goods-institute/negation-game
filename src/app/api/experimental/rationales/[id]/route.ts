@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { isProductionRequest } from "@/utils/hosts";
 import { slugify } from "@/utils/slugify";
-import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";import { logger } from "@/lib/logger";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
+import { logger } from "@/lib/logger";
+import { resolveDocAccess, canWriteRole } from "@/services/mpAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +19,10 @@ export async function GET(_req: Request, ctx: any) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const raw = ctx?.params;
+  const url = new URL(_req.url);
+  const shareToken = url.searchParams.get("share");
+
+  const userId = await getUserIdOrAnonymous();
   const { id } =
     raw && typeof raw.then === "function" ? await raw : (raw as { id: string });
 
@@ -27,25 +33,32 @@ export async function GET(_req: Request, ctx: any) {
     );
   }
 
-  // Support combined slug_id ("slug_m-123"): try to resolve via helper first
-  const canonicalId = await resolveSlugToId(id);
+  const access = await resolveDocAccess(id, { userId, shareToken });
+  if (access.status === "not_found") {
+    return NextResponse.json({ error: "Document not found" }, { status: 404 });
+  }
+  if (access.status !== "ok") {
+    return NextResponse.json(
+      { error: "Forbidden", requiresAuth: access.requiresAuth ?? false },
+      { status: 403 }
+    );
+  }
+
+  const canonicalId = access.docId;
   const rows = await db
     .select()
     .from(mpDocsTable)
-    .where(or(eq(mpDocsTable.id, canonicalId), eq(mpDocsTable.slug, id)))
+    .where(eq(mpDocsTable.id, canonicalId))
     .limit(1);
   const doc = rows[0] as any;
-  if (!doc) {
-    return NextResponse.json(
-      { error: "Document not found" },
-      { status: 404 }
-    );
-  }
   return NextResponse.json({
-    id: doc.id,
-    title: doc.title || null,
-    ownerId: doc.ownerId || null,
-    slug: doc.slug || null,
+    id: doc?.id || canonicalId,
+    title: doc?.title || null,
+    ownerId: doc?.ownerId || null,
+    slug: doc?.slug || access.slug || null,
+    role: access.role,
+    canWrite: canWriteRole(access.role) && !(access.requiresAuthForWrite ?? false),
+    source: access.source,
   });
 }
 
@@ -70,35 +83,21 @@ export async function DELETE(_req: Request, ctx: any) {
     );
   }
 
-  // Resolve slug to canonical id if needed
   const canonicalId = await resolveSlugToId(id);
 
   try {
-    const ownerRow = await db
-      .select({ ownerId: mpDocsTable.ownerId })
-      .from(mpDocsTable)
-      .where(eq(mpDocsTable.id, canonicalId))
-      .limit(1);
-    if (ownerRow.length === 0)
+    const access = await resolveDocAccess(canonicalId, { userId });
+    if (access.status === "not_found")
       return NextResponse.json(
         { error: "Document not found" },
         { status: 404 }
       );
-    const ownerId = ownerRow[0].ownerId || "connormcmk";
-    if (!ownerRow[0].ownerId) {
-      await db
-        .update(mpDocsTable)
-        .set({ ownerId: userId })
-        .where(eq(mpDocsTable.id, canonicalId));
-    }
-    if (ownerId !== userId)
+    if (access.status !== "ok" || access.role !== "owner")
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // Delete all updates first
+
     await db
       .delete(mpDocUpdatesTable)
       .where(eq(mpDocUpdatesTable.docId, canonicalId));
-
-    // Delete the document
     await db.delete(mpDocsTable).where(eq(mpDocsTable.id, canonicalId));
 
     return NextResponse.json({ success: true });
@@ -137,6 +136,14 @@ export async function PATCH(req: Request, ctx: any) {
   } catch {}
   const title = json?.title || "";
   try {
+    const access = await resolveDocAccess(canonicalId, { userId });
+    if (access.status === "not_found") {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+    if (access.status !== "ok" || access.role !== "owner") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     await db
       .insert(mpDocsTable)
       .values({ id: canonicalId, ownerId: userId || null })

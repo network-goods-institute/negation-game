@@ -8,6 +8,7 @@ interface UseMultiplayerTitleProps {
   ydoc: Y.Doc | null;
   provider: WebsocketProvider | null;
   localOrigin: object;
+  shareToken?: string | null;
 }
 
 /**
@@ -29,6 +30,7 @@ export const useMultiplayerTitle = ({
   ydoc,
   provider,
   localOrigin,
+  shareToken = null,
 }: UseMultiplayerTitleProps) => {
   const [dbTitle, setDbTitle] = useState<string | null>(null);
   const [ownerId, setOwnerId] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export const useMultiplayerTitle = ({
           ? routeParams.id
           : String(routeParams.id);
       const res = await fetch(
-        `/api/experimental/rationales/${encodeURIComponent(rid)}`
+        `/api/experimental/rationales/${encodeURIComponent(rid)}${shareToken ? `?share=${encodeURIComponent(shareToken)}` : ""}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -55,7 +57,7 @@ export const useMultiplayerTitle = ({
     } catch (e) {
       logger.error("[title] Failed to load DB title:", e);
     }
-  }, [routeParams?.id]);
+  }, [routeParams?.id, shareToken]);
 
   useEffect(() => {
     loadDbTitle();
@@ -69,7 +71,7 @@ export const useMultiplayerTitle = ({
           ? routeParams.id
           : String(routeParams.id);
       const res = await fetch(
-        `/api/experimental/rationales/${encodeURIComponent(rid)}`
+        `/api/experimental/rationales/${encodeURIComponent(rid)}${shareToken ? `?share=${encodeURIComponent(shareToken)}` : ""}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -90,7 +92,7 @@ export const useMultiplayerTitle = ({
     } catch (e) {
       logger.error("[title] Failed to load DB title:", e);
     }
-  }, [routeParams?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [routeParams?.id, shareToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (yMetaMap && ydoc) {

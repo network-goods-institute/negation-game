@@ -1,6 +1,7 @@
 import { MutableRefObject, useCallback } from "react";
 import * as Y from "yjs";
-import { Edge, Node } from "@xyflow/react";import { logger } from "@/lib/logger";
+import { Edge, Node } from "@xyflow/react";
+import { logger } from "@/lib/logger";
 
 interface UseYjsDocumentHydrationProps {
   persistId: string;
@@ -10,6 +11,7 @@ interface UseYjsDocumentHydrationProps {
   serverVectorRef: React.MutableRefObject<Uint8Array | null>;
   shouldSeedOnConnectRef: React.MutableRefObject<boolean>;
   hydrationStatusRef: MutableRefObject<HydrationStatus>;
+  shareToken?: string | null;
   setConnectionError: (error: string | null) => void;
   setConnectionState: (
     state: "initializing" | "connecting" | "connected" | "failed"
@@ -44,9 +46,20 @@ export const useYjsDocumentHydration = ({
   serverVectorRef,
   shouldSeedOnConnectRef,
   hydrationStatusRef,
+  shareToken = null,
   setConnectionError,
   setConnectionState,
 }: UseYjsDocumentHydrationProps) => {
+  const withShare = useCallback(
+    (url: string) => {
+      if (!shareToken) return url;
+      return url.includes("?")
+        ? `${url}&share=${encodeURIComponent(shareToken)}`
+        : `${url}?share=${encodeURIComponent(shareToken)}`;
+    },
+    [shareToken]
+  );
+
   const updateLocalStateVector = useCallback(() => {
     try {
       if (typeof window === "undefined" || !serverVectorRef.current) return;
@@ -116,7 +129,11 @@ export const useYjsDocumentHydration = ({
         if (cachedSv && fresh) {
           hadContent = await loadDiffFromServer(
             doc,
-            `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(cachedSv)}`
+            withShare(
+              `/api/experimental/rationales/${encodeURIComponent(
+                persistId
+              )}/state?sv=${encodeURIComponent(cachedSv)}`
+            )
           );
         } else if (cachedSv && !fresh) {
           try {
@@ -128,7 +145,11 @@ export const useYjsDocumentHydration = ({
 
       if (!hadContent) {
         let res = await fetch(
-          `/api/experimental/rationales/${encodeURIComponent(persistId)}/state`
+          withShare(
+            `/api/experimental/rationales/${encodeURIComponent(
+              persistId
+            )}/state`
+          )
         );
 
         if (res.status === 401) {
@@ -139,7 +160,11 @@ export const useYjsDocumentHydration = ({
 
         if (!res.ok && res.status !== 304) {
           res = await fetch(
-            `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?t=${Date.now()}`,
+            withShare(
+              `/api/experimental/rationales/${encodeURIComponent(
+                persistId
+              )}/state?t=${Date.now()}`
+            ),
             { cache: "no-store" as RequestCache }
           );
         }
@@ -225,6 +250,7 @@ export const useYjsDocumentHydration = ({
     shouldSeedOnConnectRef,
     hydrationStatusRef,
     updateLocalStateVector,
+    withShare,
     yEdgesMapRef,
     yNodesMapRef,
     ydocRef,
@@ -238,7 +264,11 @@ export const useYjsDocumentHydration = ({
       const sv = Y.encodeStateVector(doc);
       const encoded = encodeStateVector(sv);
       const res = await fetch(
-        `/api/experimental/rationales/${encodeURIComponent(persistId)}/state?sv=${encodeURIComponent(encoded)}&t=${Date.now()}`,
+        withShare(
+          `/api/experimental/rationales/${encodeURIComponent(
+            persistId
+          )}/state?sv=${encodeURIComponent(encoded)}&t=${Date.now()}`
+        ),
         { cache: "no-store" as RequestCache }
       );
 
@@ -258,7 +288,7 @@ export const useYjsDocumentHydration = ({
         }
       }
     } catch {}
-  }, [persistId, serverVectorRef, updateLocalStateVector, ydocRef]);
+  }, [persistId, serverVectorRef, updateLocalStateVector, withShare, ydocRef]);
 
   return {
     hydrateFromServer,

@@ -14,6 +14,7 @@ jest.mock("@/components/auth/AuthGate", () => ({
 jest.mock("next/navigation", () => ({
   useParams: () => ({ id: "abc" }),
   useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+  useSearchParams: () => ({ get: () => null }),
 }));
 
 jest.mock("@xyflow/react", () => ({

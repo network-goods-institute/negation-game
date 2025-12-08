@@ -123,15 +123,62 @@ if (typeof global.Request === 'undefined') {
       this._method = init.method || 'GET';
       this._headers = new Map(Object.entries(init.headers || {}));
       this._signal = init.signal;
+      this._body = init.body;
     }
     _headers;
     _method;
     _url;
     _signal;
+    _body;
     get headers() { return this._headers; }
     get method() { return this._method; }
     get url() { return this._url; }
     get signal() { return this._signal; }
+    async json() {
+      if (this._body === undefined || this._body === null) return {};
+      if (typeof this._body === 'string') {
+        try {
+          return JSON.parse(this._body);
+        } catch {
+          return {};
+        }
+      }
+      if (ArrayBuffer.isView(this._body)) {
+        try {
+          return JSON.parse(Buffer.from(this._body).toString());
+        } catch {
+          return {};
+        }
+      }
+      return this._body;
+    }
+    async text() {
+      if (this._body === undefined || this._body === null) return '';
+      if (typeof this._body === 'string') return this._body;
+      if (ArrayBuffer.isView(this._body)) return Buffer.from(this._body).toString();
+      return String(this._body);
+    }
+  };
+} else if (!(Request.prototype || {}).json) {
+  // Ensure json/text helpers exist in environments with a minimal Request polyfill
+  if (!(Request.prototype || {}).text) {
+    Request.prototype.text = async function () {
+      const body = this && this._body !== undefined ? this._body : '';
+      if (typeof body === 'string') return body;
+      if (ArrayBuffer.isView(body)) return Buffer.from(body).toString();
+      return body ? String(body) : '';
+    };
+  }
+  Request.prototype.json = async function () {
+    if (typeof this.text === 'function') {
+      try {
+        const t = await this.text();
+        return t ? JSON.parse(t) : {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
   };
 }
 if (typeof global.Response === 'undefined') {
@@ -171,6 +218,7 @@ jest.mock('@privy-io/react-auth', () => ({
 // Mock @radix-ui/react-slot
 jest.mock('@radix-ui/react-slot', () => ({
   Slot: ({ children, ...props }) => <div {...props}>{children}</div>,
+  createSlot: () => ({ children, ...props }) => <div {...props}>{children}</div>,
 }))
 
 // Mock @/lib/cn

@@ -190,6 +190,52 @@ describe("useYjsDocumentHydration seeding decisions", () => {
     });
     (globalThis as any).fetch = originalFetch;
   });
+
+  it("appends share token to all state requests", async () => {
+    const harness = createHydrationHarness();
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    (globalThis as any).fetch = jest.fn(async (input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof Request
+          ? input.url
+          : String(input);
+      requests.push(url);
+      return new Response(new Uint8Array([1, 2, 3]).buffer, {
+        status: 200,
+        headers: { "content-type": "application/octet-stream" },
+      });
+    });
+
+    const { result } = renderHook(() =>
+      useYjsDocumentHydration({
+        persistId: "doc-share",
+        ydocRef: harness.ydocRef,
+        yNodesMapRef: harness.yNodesMapRef,
+        yEdgesMapRef: harness.yEdgesMapRef,
+        serverVectorRef: harness.serverVectorRef,
+        shouldSeedOnConnectRef: harness.shouldSeedOnConnectRef,
+        hydrationStatusRef: harness.hydrationStatusRef,
+        shareToken: "token-xyz",
+        setConnectionError: harness.setConnectionError,
+        setConnectionState: harness.setConnectionState,
+      })
+    );
+
+    await act(async () => {
+      await result.current.hydrateFromServer();
+      await result.current.resyncFromServer();
+    });
+
+    expect(requests).not.toHaveLength(0);
+    for (const url of requests) {
+      expect(url).toContain("share=token-xyz");
+    }
+
+    (globalThis as any).fetch = originalFetch;
+  });
 });
 
 
