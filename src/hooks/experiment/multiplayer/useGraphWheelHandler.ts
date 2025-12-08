@@ -47,6 +47,11 @@ export const useGraphWheelHandler = ({
         event.clientY
       ) as HTMLElement | null;
 
+      // Skip when pointer is over a modal dialog
+      if (topEl && topEl.closest('[role="dialog"]')) {
+        return;
+      }
+
       // Skip when pointer is over the market side panel
       if (topEl && topEl.closest(".market-panel-base")) {
         return;

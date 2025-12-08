@@ -7,8 +7,11 @@ import {
   getDocSnapshotBase64,
   getDocSnapshotBuffer,
 } from "@/services/yjsCompaction";
-import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
-import * as Y from "yjs";import { logger } from "@/lib/logger";
+import { isValidSlugOrId } from "@/utils/slugResolver";
+import * as Y from "yjs";
+import { logger } from "@/lib/logger";
+import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
+import { resolveDocAccess } from "@/services/mpAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,15 +28,17 @@ export async function GET(req: Request, ctx: any) {
     return NextResponse.json({ error: "Invalid doc id or slug" }, { status: 400 });
   }
 
-  // Resolve slug to canonical id if it exists
-  const canonicalId = await resolveSlugToId(id);
-  await db
-    .insert(mpDocsTable)
-    .values({ id: canonicalId })
-    .onConflictDoNothing();
-
   const url = new URL(req.url);
   const mode = url.searchParams.get("mode");
+  const shareToken = url.searchParams.get("share") || null;
+  const userId = await getUserIdOrAnonymous();
+  const access = await resolveDocAccess(id, { userId, shareToken });
+  if (access.status !== "ok") {
+    const status =
+      access.status === "not_found" ? 404 : access.requiresAuth ? 401 : 403;
+    return NextResponse.json({ error: "Forbidden" }, { status });
+  }
+  const canonicalId = access.docId;
 
   if (mode === "updates") {
     const rows = (await db.execute(

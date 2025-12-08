@@ -24,6 +24,7 @@ jest.mock('@privy-io/react-auth', () => ({
 jest.mock('next/navigation', () => ({
   useParams: () => ({ id: 'm-123' }),
   useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+  useSearchParams: () => ({ get: () => null }),
 }));
 
 jest.mock('@xyflow/react', () => ({
@@ -196,6 +197,16 @@ describe('URL updates when slug changes via peers', () => {
 
   it('rewrites URL when yMetaMap slug changes', async () => {
     const yMap = makeYMapStub();
+    // Preserve existing query params (e.g., share tokens) on rewrite
+    Object.defineProperty(window, 'location', {
+      value: {
+        pathname: '/experiment/rationale/multiplayer/m-123',
+        search: '?share=token-xyz&foo=bar',
+        hash: '#section',
+        host: 'example.com',
+      },
+      writable: true,
+    });
     jest.doMock('@/hooks/experiment/multiplayer/useYjsMultiplayer', () => ({
       useYjsMultiplayer: () => ({
         nodes: [{ id: 'n1' }],
@@ -244,6 +255,9 @@ describe('URL updates when slug changes via peers', () => {
       expect(window.history.replaceState).toHaveBeenCalled();
       const last = spy.mock.calls.at(-1) as any[];
       expect(last?.[2]).toContain('peer-slug');
+      expect(last?.[2]).toContain('share=token-xyz');
+      expect(last?.[2]).toContain('foo=bar');
+      expect(last?.[2]).toContain('#section');
     });
   });
 });

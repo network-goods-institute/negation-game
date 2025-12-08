@@ -6,9 +6,32 @@ jest.mock("@/actions/users/getUserId", () => ({
 jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
   getUserIdOrAnonymous: jest.fn(async () => "anon-123"),
 }));
+jest.mock("@/services/mpAccess", () => ({
+  resolveDocAccess: jest.fn(async () => ({
+    status: "ok",
+    docId: "doc-1",
+    ownerId: "user-1",
+    slug: null,
+    role: "editor",
+    source: "owner",
+  })),
+  canWriteRole: jest.fn(() => true),
+}));
 
 describe("yjs token endpoint", () => {
   const getUserId = require("@/actions/users/getUserId").getUserId as jest.Mock;
+  const mockResolve = require("@/services/mpAccess").resolveDocAccess as jest.Mock;
+
+  beforeEach(() => {
+    mockResolve.mockResolvedValue({
+      status: "ok",
+      docId: "doc-1",
+      ownerId: "user-1",
+      slug: null,
+      role: "editor",
+      source: "owner",
+    });
+  });
 
   const withEnv = (env: Record<string, string | undefined>, fn: () => Promise<void>) => {
     const prev: Record<string, string | undefined> = {};
@@ -24,7 +47,7 @@ describe("yjs token endpoint", () => {
 
   it("404s when experiment flag is disabled", async () => {
     await withEnv({ NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "false" }, async () => {
-      const req = new Request("http://test/api/yjs/token", { method: "POST" });
+      const req = new Request("http://test/api/yjs/token", { method: "POST", body: JSON.stringify({ docId: "doc-1" }) });
       const res = (await tokenPOST(req)) as Response;
       expect(res.status).toBe(404);
     });
@@ -33,7 +56,7 @@ describe("yjs token endpoint", () => {
   it("allows anonymous token on production for read-only viewing", async () => {
     getUserId.mockResolvedValueOnce(null);
     await withEnv({ NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "true", YJS_AUTH_SECRET: "test-secret" }, async () => {
-      const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST" });
+      const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST", body: JSON.stringify({ docId: "doc-1" }), headers: { "content-type": "application/json" } });
       const res = (await tokenPOST(req)) as Response;
       expect(res.status).toBe(200);
     });
@@ -43,7 +66,7 @@ describe("yjs token endpoint", () => {
     getUserId.mockResolvedValueOnce("user-2");
     await withEnv({ NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "true" }, async () => {
       delete process.env.YJS_AUTH_SECRET;
-      const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST" });
+      const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST", body: JSON.stringify({ docId: "doc-1" }), headers: { "content-type": "application/json" } });
       const res = (await tokenPOST(req)) as Response;
       expect(res.status).toBe(500);
     });
@@ -54,7 +77,7 @@ describe("yjs token endpoint", () => {
     await withEnv(
       { NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED: "true", YJS_AUTH_SECRET: "test-secret" },
       async () => {
-        const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST" });
+        const req = new Request("https://negationgame.com/api/yjs/token", { method: "POST", body: JSON.stringify({ docId: "doc-1" }), headers: { "content-type": "application/json" } });
         const res = (await tokenPOST(req)) as Response;
         expect(res.status).toBe(200);
       }

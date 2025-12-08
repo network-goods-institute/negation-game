@@ -3,6 +3,8 @@ import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { isProductionRequest } from "@/utils/hosts";
 import { createHash } from "crypto";
 import { logger } from "@/lib/logger";
+import { resolveDocAccess, canWriteRole } from "@/services/mpAccess";
+import { isValidSlugOrId } from "@/utils/slugResolver";
 
 export async function POST(req: Request) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
@@ -11,9 +13,19 @@ export async function POST(req: Request) {
 
   const url = new URL(req.url);
   const hostname = url.hostname;
+
+  let body: any = null;
+  try {
+    body = await req.json();
+  } catch {}
+
+  const docId = body?.docId as string | undefined;
+  const shareToken = body?.shareToken as string | undefined;
+  if (!docId || !isValidSlugOrId(docId)) {
+    return NextResponse.json({ error: "Invalid document" }, { status: 400 });
+  }
+
   const userId = await getUserIdOrAnonymous();
-  const isProd = isProductionRequest(hostname);
-  const readonly = isProd && (!userId || userId.startsWith("anon"));
 
   const secret = process.env.YJS_AUTH_SECRET;
   if (!secret) {
@@ -25,8 +37,19 @@ export async function POST(req: Request) {
   }
   const timestamp = Math.floor(Date.now() / 1000);
   const expiry = timestamp + 60 * 60 * 8;
+  const access = await resolveDocAccess(docId, { userId, shareToken });
+  if (access.status !== "ok") {
+    const status =
+      access.status === "not_found" ? 404 : access.requiresAuth ? 401 : 403;
+    return NextResponse.json({ error: "Forbidden" }, { status });
+  }
+  const readonly = access.requiresAuthForWrite
+    ? true
+    : !canWriteRole(access.role);
+
   const payload = JSON.stringify({
     userId: userId || "anon",
+    docId: access.docId,
     expiry,
     mode: readonly ? "readonly" : "rw",
   });

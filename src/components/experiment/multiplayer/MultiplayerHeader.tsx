@@ -6,6 +6,8 @@ import { buildRationaleIndexPath } from '@/utils/hosts/syncPaths';
 import { useSafeJson } from '@/hooks/network/useSafeJson';
 import { logger } from "@/lib/logger";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { ShareBoardDialog } from './ShareBoardDialog';
+import { DocAccessRole } from '@/services/mpAccess';
 
 type YProvider = WebsocketProvider | null;
 
@@ -36,6 +38,8 @@ interface MultiplayerHeaderProps {
   onResyncNow?: () => void;
   onRetryConnection?: () => Promise<void>;
   debugShowAllStates?: boolean;
+  accessRole?: DocAccessRole | null;
+  slug?: string | null;
 }
 
 // DEBUG: Set to true to see all error states rendered at once
@@ -101,6 +105,8 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   onResyncNow,
   onRetryConnection,
   debugShowAllStates = DEBUG_SHOW_ALL_STATES,
+  accessRole = null,
+  slug = null,
 }) => {
   const { safeJson } = useSafeJson();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -116,6 +122,8 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
   const marketEnabled = process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
   const [pendingTrades, setPendingTrades] = useState(0);
   const [pendingLocal, setPendingLocal] = useState(0);
+  const [shareOpen, setShareOpen] = useState(false);
+  const canShare = accessRole === 'owner';
 
   useEffect(() => {
     if (!marketEnabled) return;
@@ -315,20 +323,38 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
       <div className="absolute top-4 left-4 z-[60] bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 w-80">
         {/* Header with Back button */}
         <div className="px-4 py-3 border-b border-stone-100">
-          <Link
-            href={buildRationaleIndexPath(typeof window !== 'undefined' ? window.location.host : null)}
-            className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-700 transition-colors group w-fit"
-          >
-            <svg
-              className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex items-center justify-between">
+            <Link
+              href={buildRationaleIndexPath(typeof window !== 'undefined' ? window.location.host : null)}
+              className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-700 transition-colors group w-fit"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back</span>
-          </Link>
+              <svg
+                className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>Back</span>
+            </Link>
+            {canShare && documentId && (
+              <button
+                onClick={() => setShareOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-700 transition-colors group w-fit"
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                <span>Share</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Title Section */}
@@ -734,6 +760,15 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
           </div>
         )}
       </div >
+      <ShareBoardDialog
+        docId={documentId || ''}
+        slug={slug || null}
+        accessRole={accessRole}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        currentUserId={userId}
+        currentUsername={username}
+      />
     </>
   );
 };

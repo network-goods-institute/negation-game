@@ -4,6 +4,17 @@ jest.mock("@/actions/users/getUserId", () => ({
 jest.mock("@/actions/users/getUserIdOrAnonymous", () => ({
   getUserIdOrAnonymous: jest.fn(async () => "me"),
 }));
+jest.mock("@/services/mpAccess", () => ({
+  resolveDocAccess: jest.fn(async (_id: string, { userId }: any = {}) => ({
+    status: "ok",
+    docId: _id,
+    ownerId: userId || "me",
+    slug: null,
+    role: "owner",
+    source: "owner",
+  })),
+  canWriteRole: jest.fn(() => true),
+}));
 import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 
@@ -19,6 +30,7 @@ const mockDb: any = {
 jest.mock("@/services/db", () => ({
   db: mockDb,
 }));
+const { resolveDocAccess, canWriteRole } = require("@/services/mpAccess");
 
 jest.mock("@/utils/slugify", () => ({
   slugify: jest.fn(
@@ -68,6 +80,15 @@ describe("rationales actions", () => {
     (getUserId as unknown as jest.Mock).mockResolvedValue("me");
     (getUserIdOrAnonymous as unknown as jest.Mock).mockResolvedValue("me");
     mockGetDocSnapshotBuffer.mockReset();
+    (resolveDocAccess as jest.Mock).mockResolvedValue({
+      status: "ok",
+      docId: "doc1",
+      ownerId: "me",
+      slug: null,
+      role: "owner",
+      source: "owner",
+    });
+    (canWriteRole as jest.Mock).mockReturnValue(true);
   });
 
   it("listMyRationales returns rows from db.execute", async () => {
@@ -153,6 +174,14 @@ describe("rationales actions", () => {
 
   it("deleteRationale forbids non-owner", async () => {
     mockDb.select.mockImplementation(() => ownerSelectChain("other"));
+    (resolveDocAccess as jest.Mock).mockResolvedValueOnce({
+      status: "forbidden",
+      docId: "doc1",
+      ownerId: "other",
+      slug: null,
+      role: "viewer",
+      source: "permission",
+    });
     const { deleteRationale } = await import(
       "@/actions/experimental/rationales"
     );
@@ -272,6 +301,11 @@ describe("rationales actions", () => {
 
   it("duplicateRationale forbids when no access", async () => {
     mockDb.execute.mockResolvedValueOnce([]);
+    (resolveDocAccess as jest.Mock).mockResolvedValueOnce({
+      status: "forbidden",
+      docId: "doc-1",
+      requiresAuth: true,
+    });
     const { duplicateRationale } = await import(
       "@/actions/experimental/rationales"
     );

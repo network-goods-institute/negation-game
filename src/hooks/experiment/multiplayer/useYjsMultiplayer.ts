@@ -22,6 +22,9 @@ interface UseYjsMultiplayerProps {
   onSaveComplete?: () => void;
   onRemoteNodesAdded?: (ids: string[]) => void;
   currentUserId?: string;
+  shareToken?: string | null;
+  docId?: string;
+  accessRole?: "owner" | "editor" | "viewer" | null;
 }
 
 export const useYjsMultiplayer = ({
@@ -35,6 +38,9 @@ export const useYjsMultiplayer = ({
   onSaveComplete,
   onRemoteNodesAdded,
   currentUserId,
+  shareToken = null,
+  docId,
+  accessRole = null,
 }: UseYjsMultiplayerProps) => {
   const [nodes, setNodes] = useNodesState(initialNodes);
   const [edges, setEdges] = useEdgesState(initialEdges);
@@ -136,6 +142,7 @@ export const useYjsMultiplayer = ({
       serverVectorRef,
       shouldSeedOnConnectRef,
       hydrationStatusRef,
+      shareToken,
       setConnectionError,
       setConnectionState,
     });
@@ -197,6 +204,8 @@ export const useYjsMultiplayer = ({
   } = useYjsProviderConnection({
     roomName,
     wsUrl: process.env.NEXT_PUBLIC_YJS_WS_URL || "",
+    docId: docId || persistId,
+    shareToken,
     ydocRef,
     yNodesMapRef,
     yEdgesMapRef,
@@ -235,6 +244,7 @@ export const useYjsMultiplayer = ({
       enabled,
       persistId,
       roomName,
+      shareToken,
     });
 
     if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
@@ -320,8 +330,59 @@ export const useYjsMultiplayer = ({
       yTextMapRef.current = null;
       yMetaMapRef.current = null;
     };
+    // This effect initializes the entire Yjs document and provider lifecycle.
+    // It should only re-run when the room (persistId) or auth context (shareToken) changes.
+    // The functions from child hooks (setupObservers, initializeProvider, etc.) are stable
+    // references but including them as dependencies causes infinite re-render loops because fuck me i guess.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, persistId]);
+  }, [enabled, persistId, shareToken]);
+
+  const lastAuthStateRef = useRef<{
+    accessRole: typeof accessRole;
+    currentUserId?: string;
+    shareToken: string | null;
+    allowPersistence: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (!providerRef.current) {
+      lastAuthStateRef.current = {
+        accessRole,
+        currentUserId,
+        shareToken,
+        allowPersistence,
+      };
+      return;
+    }
+
+    const prev = lastAuthStateRef.current;
+    const nextState = {
+      accessRole,
+      currentUserId,
+      shareToken,
+      allowPersistence,
+    };
+    lastAuthStateRef.current = nextState;
+
+    if (!prev) return;
+    const changed =
+      prev.accessRole !== accessRole ||
+      prev.currentUserId !== currentUserId ||
+      prev.shareToken !== shareToken ||
+      prev.allowPersistence !== allowPersistence;
+    if (!changed) return;
+
+    restartProviderWithNewToken()?.catch(() => undefined);
+  }, [
+    enabled,
+    accessRole,
+    currentUserId,
+    shareToken,
+    allowPersistence,
+    restartProviderWithNewToken,
+    providerRef,
+  ]);
 
   const syncYMapFromArray = useCallback(
     <T extends { id: string }>(ymap: Y.Map<T>, arr: T[]) =>

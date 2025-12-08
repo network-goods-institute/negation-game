@@ -173,7 +173,7 @@ export default function MultiplayerRationaleIndexPage() {
 
           let token: string | null = null;
           try {
-            const auth = await fetchYjsAuthToken();
+            const auth = await fetchYjsAuthToken({ docId });
             token = auth?.token || null;
             logger.log(
               JSON.stringify({

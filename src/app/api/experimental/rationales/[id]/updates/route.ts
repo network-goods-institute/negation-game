@@ -7,7 +7,9 @@ import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 import { getUserId } from "@/actions/users/getUserId";
 import { isProductionRequest } from "@/utils/hosts";
 import { compactDocUpdates } from "@/services/yjsCompaction";
-import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";import { logger } from "@/lib/logger";
+import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
+import { logger } from "@/lib/logger";
+import { resolveDocAccess, canWriteRole } from "@/services/mpAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +34,40 @@ export async function POST(req: Request, ctx: any) {
     );
   }
 
+  const shareToken = url.searchParams.get("share") || null;
+  const canonicalId = await resolveSlugToId(id);
+
+  let access = await resolveDocAccess(canonicalId, { userId, shareToken });
+
+  if (access.status === "not_found") {
+    if (shareToken) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+    try {
+      await db
+        .insert(mpDocsTable)
+        .values({ id: canonicalId, ownerId: userId || null })
+        .onConflictDoNothing();
+      access = await resolveDocAccess(canonicalId, { userId, shareToken });
+    } catch (error) {
+      logger.error("[YJS Updates] failed to seed doc row", error);
+      return NextResponse.json({ error: "Failed to create document" }, { status: 500 });
+    }
+  }
+
+  if (access.status !== "ok") {
+    const status =
+      access.status === "not_found" ? 404 : access.requiresAuth ? 401 : 403;
+    return NextResponse.json({ error: "Forbidden" }, { status });
+  }
+
+  if (!canWriteRole(access.role)) {
+    return NextResponse.json(
+      { error: "Write permission required" },
+      { status: 403 }
+    );
+  }
+
   const body = await req.arrayBuffer();
   const updateBuf = Buffer.from(body);
 
@@ -39,9 +75,6 @@ export async function POST(req: Request, ctx: any) {
   if (updateBuf.byteLength > 1_000_000) {
     return NextResponse.json({ error: "Payload too large" }, { status: 413 });
   }
-
-  // Resolve slug to canonical id if needed
-  const canonicalId = await resolveSlugToId(id);
   await db
     .insert(mpDocsTable)
     .values({ id: canonicalId })

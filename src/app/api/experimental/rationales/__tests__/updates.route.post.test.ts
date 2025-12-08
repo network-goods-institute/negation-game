@@ -15,6 +15,23 @@ jest.mock("@/utils/slugResolver", () => ({
 jest.mock("@/services/yjsCompaction", () => ({
   compactDocUpdates: jest.fn(async () => {}),
 }));
+jest.mock("@/services/mpAccess", () => ({
+  resolveDocAccess: jest.fn(async () => ({
+    status: "ok",
+    docId: "doc-1",
+    ownerId: "u1",
+    slug: null,
+    role: "owner",
+    source: "owner",
+  })),
+  canWriteRole: jest.fn(() => true),
+}));
+jest.mock("@/lib/logger", () => ({
+  logger: {
+    log: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 const recordedSets: any[] = [];
 const mockDb: any = {

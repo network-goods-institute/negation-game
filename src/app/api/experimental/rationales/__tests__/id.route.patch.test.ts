@@ -1,6 +1,17 @@
 jest.mock("@/actions/users/getUserId", () => ({
   getUserId: jest.fn(async () => "me"),
 }));
+jest.mock("@/services/mpAccess", () => ({
+  resolveDocAccess: jest.fn(async (_id: string) => ({
+    status: "ok",
+    docId: _id,
+    ownerId: "other",
+    slug: null,
+    role: "owner",
+    source: "owner",
+  })),
+  canWriteRole: () => true,
+}));
 import { getUserId } from "@/actions/users/getUserId";
 
 const mockDb: any = {
@@ -12,6 +23,7 @@ const mockDb: any = {
 };
 
 jest.mock("@/services/db", () => ({ db: mockDb }));
+const { resolveDocAccess } = require("@/services/mpAccess");
 
 describe("PATCH /api/experimental/rationales/[id]", () => {
   beforeAll(() => {
@@ -20,6 +32,14 @@ describe("PATCH /api/experimental/rationales/[id]", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     (getUserId as unknown as jest.Mock).mockResolvedValue("me");
+    (resolveDocAccess as jest.Mock).mockResolvedValue({
+      status: "ok",
+      docId: "doc1",
+      ownerId: "other",
+      slug: null,
+      role: "owner",
+      source: "owner",
+    });
     mockDb.insert.mockReturnValue({
       values: () => ({ onConflictDoNothing: jest.fn(async () => ({})) }),
     });

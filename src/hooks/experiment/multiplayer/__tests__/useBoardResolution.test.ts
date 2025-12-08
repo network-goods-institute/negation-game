@@ -1,10 +1,11 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { useBoardResolution } from '../useBoardResolution';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 jest.mock('next/navigation', () => ({
   useParams: jest.fn(),
   useRouter: jest.fn(),
+  useSearchParams: jest.fn(),
 }));
 
 global.fetch = jest.fn();
@@ -12,6 +13,7 @@ global.fetch = jest.fn();
 describe('useBoardResolution', () => {
   const mockUseParams = useParams as jest.MockedFunction<typeof useParams>;
   const mockUseRouter = useRouter as jest.MockedFunction<typeof useRouter>;
+  const mockUseSearchParams = useSearchParams as jest.MockedFunction<typeof useSearchParams>;
   const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
   const mockReplace = jest.fn();
 
@@ -19,6 +21,9 @@ describe('useBoardResolution', () => {
     jest.clearAllMocks();
     mockUseRouter.mockReturnValue({
       replace: mockReplace,
+    } as any);
+    mockUseSearchParams.mockReturnValue({
+      get: () => null,
     } as any);
 
     // Mock window.location
@@ -77,6 +82,23 @@ describe('useBoardResolution', () => {
     });
   });
 
+  it('marks forbidden state when API returns 403', async () => {
+    mockUseParams.mockReturnValue({ id: 'locked' } as any);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ requiresAuth: true }),
+    } as Response);
+
+    const { result } = renderHook(() => useBoardResolution());
+
+    await waitFor(() => {
+      expect(result.current.forbidden).toBe(true);
+      expect(result.current.requiresAuth).toBe(true);
+    });
+  });
+
   it('uses raw ID if API request fails', async () => {
     mockUseParams.mockReturnValue({ id: 'board789' } as any);
 
@@ -97,17 +119,68 @@ describe('useBoardResolution', () => {
       json: async () => ({ id: 'board999', slug: 'new-slug' }),
     } as Response);
 
-    // Mock buildRationaleDetailPath to return a different path
-    jest.mock('@/utils/hosts/syncPaths', () => ({
-      buildRationaleDetailPath: () => '/new/canonical/path',
-    }));
+    renderHook(() => useBoardResolution());
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(
+        '/experiment/rationale/multiplayer/new-slug_board999'
+      );
+    });
+  });
+
+  it('preserves share token when redirecting to canonical path', async () => {
+    mockUseParams.mockReturnValue({ id: 'board-old' } as any);
+    mockUseSearchParams.mockReturnValue({
+      get: (key: string) => (key === 'share' ? 'token-xyz' : null),
+    } as any);
+    Object.defineProperty(window, 'location', {
+      value: {
+        host: 'example.com',
+        pathname: '/current/path',
+        search: '?share=token-xyz&node=node-1',
+        hash: '#section',
+      },
+      writable: true,
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'board-new', slug: 'fresh-slug' }),
+    } as Response);
 
     renderHook(() => useBoardResolution());
 
     await waitFor(() => {
-      // Note: The actual redirect might not be testable without more complex setup
-      // but we can verify the fetch was called
-      expect(mockFetch).toHaveBeenCalledWith('/api/experimental/rationales/old-slug');
+      expect(mockReplace).toHaveBeenCalledWith(
+        '/experiment/rationale/multiplayer/fresh-slug_board-new?share=token-xyz&node=node-1#section'
+      );
+    });
+  });
+
+  it('preserves other query params when redirecting to canonical path without share token', async () => {
+    mockUseParams.mockReturnValue({ id: 'board-old' } as any);
+    mockUseSearchParams.mockReturnValue({
+      get: () => null,
+    } as any);
+    Object.defineProperty(window, 'location', {
+      value: {
+        host: 'example.com',
+        pathname: '/current/path',
+        search: '?node=node-1&edge=edge-2',
+        hash: '#focus',
+      },
+      writable: true,
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'board-new', slug: 'fresh-slug' }),
+    } as Response);
+
+    renderHook(() => useBoardResolution());
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(
+        '/experiment/rationale/multiplayer/fresh-slug_board-new?node=node-1&edge=edge-2#focus'
+      );
     });
   });
 
@@ -174,6 +247,40 @@ describe('useBoardResolution', () => {
     await waitFor(() => {
       expect(result.current.notFound).toBe(false);
       expect(result.current.resolvedId).toBe('valid-board');
+    });
+  });
+
+  it('retries resolution when auth state changes after forbidden', async () => {
+    mockUseParams.mockReturnValue({ id: 'locked-board' } as any);
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ requiresAuth: true }),
+    } as Response);
+
+    type AuthProps = { authKey: string | null };
+    const { result, rerender } = renderHook(
+      (props: AuthProps) => useBoardResolution(props.authKey),
+      { initialProps: { authKey: null } as AuthProps }
+    );
+
+    await waitFor(() => {
+      expect(result.current.forbidden).toBe(true);
+      expect(result.current.requiresAuth).toBe(true);
+    });
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'locked-board', slug: 'locked-board' }),
+    } as Response);
+
+    rerender({ authKey: 'user-123' });
+
+    await waitFor(() => {
+      expect(result.current.resolvedId).toBe('locked-board');
+      expect(result.current.forbidden).toBe(false);
+      expect(result.current.requiresAuth).toBe(false);
     });
   });
 });
