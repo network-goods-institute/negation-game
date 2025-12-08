@@ -290,6 +290,7 @@ export async function createRationale(params?: {
         });
     } catch (err) {
       logger.error("[Create Rationale] Failed to upsert owner permission", err);
+      throw err;
     }
   });
 
@@ -330,6 +331,7 @@ export async function renameRationale(id: string, title: string) {
         });
     } catch (err) {
       logger.error("[Rename Rationale] Failed to upsert owner permission", err);
+      throw err;
     }
   } else if (access.role !== "owner") {
     throw new Error("Forbidden");

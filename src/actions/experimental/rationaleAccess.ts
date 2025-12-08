@@ -11,7 +11,7 @@ import { and, desc, eq } from "drizzle-orm";
 
 type ShareRole = "viewer" | "editor";
 
-const assertOwner = async (docId: string, userId: string) => {
+const assertOwnerAccess = async (docId: string, userId: string) => {
   const access = await resolveDocAccess(docId, { userId });
   if (access.status === "not_found") throw new Error("Document not found");
   if (access.status !== "ok" || access.role !== "owner") {
@@ -33,10 +33,19 @@ export const createShareLink = async (
   if (!isValidSlugOrId(docId)) throw new Error("Invalid doc id or slug");
 
   const canonicalId = await resolveSlugToId(docId);
-  await assertOwner(canonicalId, userId);
+  await assertOwnerAccess(canonicalId, userId);
 
   const token = `sl-${nanoid(16)}`;
-  const expiresAtDate = opts.expiresAt ? new Date(opts.expiresAt) : null;
+  let expiresAtDate: Date | null = null;
+  if (opts.expiresAt) {
+    expiresAtDate = new Date(opts.expiresAt);
+    if (isNaN(expiresAtDate.getTime())) {
+      throw new Error("Invalid expiry date");
+    }
+    if (expiresAtDate <= new Date()) {
+      throw new Error("Expiry must be in the future");
+    }
+  }
 
   const [row] = await db
     .insert(mpDocShareLinksTable)
@@ -66,7 +75,7 @@ export const listShareLinks = async (docId: string) => {
   if (!isValidSlugOrId(docId)) throw new Error("Invalid doc id or slug");
 
   const canonicalId = await resolveSlugToId(docId);
-  await assertOwner(canonicalId, userId);
+  await assertOwnerAccess(canonicalId, userId);
 
   const now = new Date();
   const rows = await db
@@ -96,7 +105,7 @@ export const revokeShareLink = async (docId: string, linkId: string) => {
   if (!isValidSlugOrId(docId)) throw new Error("Invalid doc id or slug");
 
   const canonicalId = await resolveSlugToId(docId);
-  await assertOwner(canonicalId, userId);
+  await assertOwnerAccess(canonicalId, userId);
 
   await db
     .update(mpDocShareLinksTable)
@@ -117,7 +126,7 @@ export const setUserAccess = async (
   if (!targetUserId) throw new Error("Target user required");
 
   const canonicalId = await resolveSlugToId(docId);
-  await assertOwner(canonicalId, userId);
+  await assertOwnerAccess(canonicalId, userId);
 
   const [row] = await db
     .insert(mpDocPermissionsTable)
@@ -147,7 +156,7 @@ export const removeUserAccess = async (docId: string, targetUserId: string) => {
   if (!targetUserId) throw new Error("Target user required");
 
   const canonicalId = await resolveSlugToId(docId);
-  await assertOwner(canonicalId, userId);
+  await assertOwnerAccess(canonicalId, userId);
 
   await db
     .delete(mpDocPermissionsTable)

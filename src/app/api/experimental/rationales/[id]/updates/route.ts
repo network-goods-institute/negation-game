@@ -19,8 +19,9 @@ export async function POST(req: Request, ctx: any) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const url = new URL(req.url);
+  const shareToken = url.searchParams.get("share") || null;
   const nonProd = !isProductionRequest(url.hostname);
-  const userId = nonProd ? await getUserIdOrAnonymous() : await getUserId();
+  const userId = nonProd || shareToken ? await getUserIdOrAnonymous() : await getUserId();
   if (!userId)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const raw = ctx?.params;
@@ -34,7 +35,6 @@ export async function POST(req: Request, ctx: any) {
     );
   }
 
-  const shareToken = url.searchParams.get("share") || null;
   const canonicalId = await resolveSlugToId(id);
 
   let access = await resolveDocAccess(canonicalId, { userId, shareToken });
