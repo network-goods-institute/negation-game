@@ -78,16 +78,8 @@ jest.mock('../common/NodeWithMarket', () => ({
   useInlineMarketDisplay: jest.requireActual('../common/NodeWithMarket').useInlineMarketDisplay,
 }));
 
-jest.mock('../common/useFavorOpacity', () => ({
-  useFavorOpacity: () => 1,
-}));
-
 jest.mock('../PerformanceContext', () => ({
   usePerformanceMode: () => ({ perfMode: false, setPerfMode: jest.fn() }),
-}));
-
-jest.mock('../common/FavorSelector', () => ({
-  FavorSelector: () => <div data-testid="favor" />,
 }));
 
 jest.mock('../common/NodeActionPill', () => ({

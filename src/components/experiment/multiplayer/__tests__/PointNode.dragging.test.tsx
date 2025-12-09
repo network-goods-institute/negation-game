@@ -79,10 +79,6 @@ jest.mock('../common/useNodeChrome', () => ({
   }),
 }));
 
-jest.mock('../common/useFavorOpacity', () => ({
-  useFavorOpacity: () => 1,
-}));
-
 jest.mock('../common/useContextMenuHandler', () => ({
   useContextMenuHandler: () => jest.fn(),
 }));
@@ -93,10 +89,6 @@ jest.mock('../common/useForceHidePills', () => ({
 
 jest.mock('../PerformanceContext', () => ({
   usePerformanceMode: () => ({ perfMode: false, setPerfMode: jest.fn() }),
-}));
-
-jest.mock('../common/FavorSelector', () => ({
-  FavorSelector: () => <div data-testid="favor" />,
 }));
 
 jest.mock('../common/NodeActionPill', () => ({
@@ -143,7 +135,7 @@ describe('PointNode dragging UI behavior', () => {
 
     const { rerender } = render(
       <PointNode
-        data={{ content: 'C', createdAt: Date.now(), favor: 3, hidden: false }}
+        data={{ content: 'C', createdAt: Date.now(), hidden: false }}
         id="node-1"
         selected={true}
       />
@@ -152,7 +144,7 @@ describe('PointNode dragging UI behavior', () => {
     // Re-render to pass the initial just-selected suppression frame
     rerender(
       <PointNode
-        data={{ content: 'C', createdAt: Date.now(), favor: 3, hidden: false }}
+        data={{ content: 'C', createdAt: Date.now(), hidden: false }}
         id="node-1"
         selected={true}
       />
@@ -171,7 +163,7 @@ describe('PointNode dragging UI behavior', () => {
 
     const { rerender } = render(
       <PointNode
-        data={{ content: 'C', createdAt: Date.now(), favor: 3, hidden: false }}
+        data={{ content: 'C', createdAt: Date.now(), hidden: false }}
         id="node-1"
         selected={true}
       />
@@ -179,7 +171,7 @@ describe('PointNode dragging UI behavior', () => {
     // Extra render for parity with first test
     rerender(
       <PointNode
-        data={{ content: 'C', createdAt: Date.now(), favor: 3, hidden: false }}
+        data={{ content: 'C', createdAt: Date.now(), hidden: false }}
         id="node-1"
         selected={true}
       />

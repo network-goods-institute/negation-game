@@ -52,7 +52,6 @@ export const createAddObjectionForEdge = (
         content: "New mitigation",
         parentEdgeId: edgeId,
         createdAt: Date.now(),
-        favor: 5,
       },
       selected: true, // Auto-select newly created objection nodes
     };

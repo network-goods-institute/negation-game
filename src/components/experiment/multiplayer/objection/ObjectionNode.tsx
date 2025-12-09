@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
 import { usePerformanceMode } from '../PerformanceContext';
 import { useNodeChrome } from '../common/useNodeChrome';
-import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 import { useForceHidePills } from '../common/useForceHidePills';
 import { NodeVoting } from '../common/NodeVoting';
@@ -26,7 +25,6 @@ interface ObjectionNodeProps {
     data: {
         content: string;
         parentEdgeId: string;
-        favor?: number;
         hidden?: boolean;
         votes?: Array<string | { id: string; name?: string }>;
     };
@@ -38,7 +36,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const graph = useGraphActions() as any;
     const {
         updateNodeContent,
-        updateNodeFavor,
         toggleNodeVote,
         addPointBelow,
         startEditingNode,
@@ -175,14 +172,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
         }
     }, [value, contentRef, wrapperRef]);
-
-    const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 5));
-
-    const favorOpacity = useFavorOpacity({
-        favor,
-        selected: !!selected,
-        hovered,
-    });
 
     const extras = useNodeExtrasVisibility({
         id,
@@ -327,7 +316,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                     ...innerScaleStyle,
                     opacity: hidden
                         ? undefined
-                        : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
+                        : (overlayActive && !selected && !hovered && !isEditing ? 0 : 1),
                 } as any}
                 wrapperProps={wrapperProps as any}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}

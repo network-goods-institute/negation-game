@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
 import { usePerformanceMode } from './PerformanceContext';
 import { useNodeChrome } from './common/useNodeChrome';
-import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { NodeVoting } from './common/NodeVoting';
@@ -27,7 +26,6 @@ interface PointNodeProps {
     editedBy?: string;
     createdAt?: number;
     closingAnimation?: boolean;
-    favor?: number;
     hidden?: boolean;
     votes?: Array<string | { id: string; name?: string }>;
   };
@@ -40,7 +38,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const graphCtx = useGraphActions() as any;
   const {
     updateNodeContent,
-    updateNodeFavor,
     toggleNodeVote,
     addPointBelow,
     isConnectingFromNodeId,
@@ -125,14 +122,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   });
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const favor = Math.max(1, Math.min(5, data.favor ?? 5));
   const isInContainer = Boolean(parentId);
-
-  const favorOpacity = useFavorOpacity({
-    favor,
-    selected: !!selected,
-    hovered,
-  });
 
   const extras = useNodeExtrasVisibility({
     id,
@@ -284,7 +274,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           ...innerScaleStyle,
           opacity: hidden
             ? undefined
-            : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
+            : (overlayActive && !selected && !hovered && !isEditing ? 0 : 1),
         }}
         wrapperProps={wrapperProps as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
