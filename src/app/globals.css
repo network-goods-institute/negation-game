@@ -97,6 +97,14 @@
     }
   }
 
+  .sync-primary {
+    --primary: 217.2 91.2% 59.8%;
+
+    &.dark {
+      --primary: 217.2 91.2% 59.8%;
+    }
+  }
+
   .container-margin {
     @apply mx-md sm:mx-lg md:mx-xl xl:mx-2xl;
   }
