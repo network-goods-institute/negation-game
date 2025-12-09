@@ -368,7 +368,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 nodeId={id}
                                 votes={data.votes || []}
                                 onToggleVote={toggleNodeVote}
-                                variant="orange"
+                                variant={pointLike ? "blue" : "orange"}
                             />
                         </div>
                     )}
