@@ -77,6 +77,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   const [overlayOpen, setOverlayOpen] = React.useState<boolean>(Boolean(selected || overlayActiveId === edgeId));
   const [anchorHover, setAnchorHover] = React.useState<boolean>(false);
   const [isNearOverlay, setIsNearOverlay] = React.useState<boolean>(false);
+  const isTogglingRef = React.useRef<boolean>(false);
   const { grabMode = false, connectMode = false } = useGraphActions();
 
   const {
@@ -264,17 +265,36 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     } catch { }
   }, [showHUD, edgeId, setOverlayActive, overlayActiveId]);
 
+  // Wrapped toggle handler that prevents overlay from closing during the toggle
+  const handleToggleEdgeType = React.useCallback(() => {
+    if (!onToggleEdgeType) return;
+    // Mark edge as selected to keep overlay open during and after toggle
+    try { (graph as any)?.clearNodeSelection?.(); } catch { }
+    try { (graph as any)?.setSelectedEdge?.(edgeId); } catch { }
+    isTogglingRef.current = true;
+    onToggleEdgeType();
+    // Keep the flag set for a short duration to allow the re-render to complete
+    setTimeout(() => {
+      isTogglingRef.current = false;
+    }, 100);
+  }, [onToggleEdgeType, graph, edgeId]);
+
   // When conditions request opening, claim active edge id immediately
   React.useEffect(() => {
     if (suppress) return;
     if (selected || isHovered || anchorHover || isNearOverlay) {
       setOverlayOpen(true);
       try { setOverlayActive?.(edgeId); } catch { }
-    } else {
+      // If hovering over a different edge, clear the selection to prevent multiple overlays
+      if ((isHovered || anchorHover) && !selected) {
+        try { (graph as any)?.setSelectedEdge?.(null); } catch { }
+      }
+    } else if (!isTogglingRef.current) {
+      // Don't close overlay while toggling edge type
       setOverlayOpen(false);
       try { if (overlayActiveId === edgeId) setOverlayActive?.(null); } catch { }
     }
-  }, [selected, isHovered, anchorHover, isNearOverlay, suppress, edgeId, setOverlayActive, overlayActiveId]);
+  }, [selected, isHovered, anchorHover, isNearOverlay, suppress, edgeId, setOverlayActive, overlayActiveId, graph]);
 
 
   React.useEffect(() => {
@@ -282,6 +302,8 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     if (selected) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (isHovered) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
     if (anchorHover) { setOverlayOpen(true); try { setOverlayActive?.(edgeId); } catch { }; return; }
+    // Don't close overlay while toggling edge type
+    if (isTogglingRef.current) return;
     if (!isNearOverlay) setOverlayOpen(false);
   }, [selected, isHovered, anchorHover, isNearOverlay, graph, edgeId, suppress, setOverlayActive]);
 
@@ -386,7 +408,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
                   {(edgeType === "support" || edgeType === "negation") && onToggleEdgeType && (
                     <EdgeTypeToggle
                       edgeType={edgeType}
-                      onToggle={onToggleEdgeType}
+                      onToggle={handleToggleEdgeType}
                       onMouseEnter={() => setIsNearOverlay(true)}
                       onMouseLeave={() => setIsNearOverlay(false)}
                     />
