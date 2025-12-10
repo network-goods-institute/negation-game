@@ -262,8 +262,18 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     return [(fLabelX + bLabelX) / 2, (fLabelY + bLabelY) / 2];
   }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, sourceX, sourceY, targetX, targetY, sourceNode, targetNode, props]);
 
-  const actualLabelX = (bidirectionalLabelX ?? midXBetweenBorders ?? labelX ?? cx) as number;
-  const actualLabelY = (bidirectionalLabelY ?? midYBetweenBorders ?? labelY ?? cy) as number;
+  const actualLabelX = (
+    bidirectionalLabelX
+    ?? (props.edgeType === 'objection' ? labelX : midXBetweenBorders)
+    ?? labelX
+    ?? cx
+  ) as number;
+  const actualLabelY = (
+    bidirectionalLabelY
+    ?? (props.edgeType === 'objection' ? labelY : midYBetweenBorders)
+    ?? labelY
+    ?? cy
+  ) as number;
 
   const edgeStyles = useMemo(() => {
     const width = visual.strokeWidth(relevance);
