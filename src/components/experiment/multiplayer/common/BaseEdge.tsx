@@ -542,7 +542,19 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           const extendToSource = edgeHasMyVote && sourceHasMyVote;
           const extendToTarget = edgeHasMyVote && targetHasMyVote;
           const isObjection = props.edgeType === 'objection';
+
+          let dashArray;
+          if (props.edgeType === 'negation') {
+            dashArray = '6,6';
+          } else if (isObjection) {
+            const useDotted = edgeIsObjectionStyle(targetNode?.type);
+            if (useDotted) {
+              dashArray = '8,4';
+            }
+          }
+
           const emeraldStyle = { filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.7))' };
+          const dashedEmeraldStyle = dashArray ? { ...emeraldStyle, strokeDasharray: dashArray, strokeLinecap: 'butt' as const } : emeraldStyle;
 
           const emeraldHalfPaths = isObjection && visual.useBezier && pathD ? getHalfBezierPaths(pathD) : null;
           const emeraldSourceHalfBezier = emeraldHalfPaths?.firstHalf ?? '';
@@ -557,10 +569,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                     stroke="#10b981"
                     strokeWidth={8}
                     fill="none"
-                    strokeLinecap="round"
                     opacity={0.9}
                     className="pointer-events-none"
-                    style={emeraldStyle}
+                    style={dashedEmeraldStyle}
                   />
                 ) : (
                   <line
@@ -570,10 +581,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                     y2={centerY}
                     stroke="#10b981"
                     strokeWidth={8}
-                    strokeLinecap="round"
                     opacity={0.9}
                     className="pointer-events-none"
-                    style={emeraldStyle}
+                    style={dashedEmeraldStyle}
                   />
                 )
               )}
@@ -584,10 +594,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                     stroke="#10b981"
                     strokeWidth={8}
                     fill="none"
-                    strokeLinecap="round"
                     opacity={0.9}
                     className="pointer-events-none"
-                    style={emeraldStyle}
+                    style={dashedEmeraldStyle}
                   />
                 ) : (
                   <line
@@ -597,10 +606,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                     y2={targetY}
                     stroke="#10b981"
                     strokeWidth={8}
-                    strokeLinecap="round"
                     opacity={0.9}
                     className="pointer-events-none"
-                    style={emeraldStyle}
+                    style={dashedEmeraldStyle}
                   />
                 )
               )}
