@@ -388,16 +388,16 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
         {edgeHasOthersVotes && (() => {
           const centerX = actualLabelX;
           const centerY = actualLabelY;
-          const intensity = Math.min(1, 0.5 + edgeOthersVotes.length * 0.15);
-          const size = edgeHasMyVote ? 20 : 16;
-          const strokeWidth = edgeHasMyVote ? 12 : 10;
+          const intensity = Math.min(0.85, 0.4 + edgeOthersVotes.length * 0.15);
+          const size = edgeHasMyVote ? 18 : 14;
+          const strokeWidth = edgeHasMyVote ? 10 : 8;
           const extendToSource = edgeHasOthersVotes && sourceHasOthersVotes;
           const extendToTarget = edgeHasOthersVotes && targetHasOthersVotes;
           const isObjection = props.edgeType === 'objection';
 
           const color = '#78716c';
           const strokeStyle = `url(#edge-hatch-${props.id})`;
-          const lineOpacity = intensity * 0.9;
+          const lineOpacity = intensity * 0.85;
 
           const halfPaths = isObjection && visual.useBezier && pathD ? getHalfBezierPaths(pathD) : null;
           const sourceHalfBezier = halfPaths?.firstHalf ?? '';
@@ -409,11 +409,11 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                 <pattern
                   id={`edge-hatch-${props.id}`}
                   patternUnits="userSpaceOnUse"
-                  width="3"
-                  height="3"
-                  patternTransform="rotate(45)"
+                  width="4"
+                  height="4"
+                  patternTransform="rotate(60)"
                 >
-                  <line x1="0" y1="0" x2="0" y2="3" stroke={color} strokeWidth={edgeHasMyVote ? "1.5" : "1.2"} />
+                  <line x1="0" y1="0" x2="0" y2="4" stroke={color} strokeWidth="1" />
                 </pattern>
               </defs>
 
@@ -553,7 +553,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             }
           }
 
-          const emeraldStyle = { filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.7))' };
+          const emeraldStyle = { filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.5))' };
           const dashedEmeraldStyle = dashArray ? { ...emeraldStyle, strokeDasharray: dashArray, strokeLinecap: 'butt' as const } : emeraldStyle;
 
           const emeraldHalfPaths = isObjection && visual.useBezier && pathD ? getHalfBezierPaths(pathD) : null;
@@ -567,9 +567,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                   <path
                     d={emeraldSourceHalfBezier}
                     stroke="#10b981"
-                    strokeWidth={5}
+                    strokeWidth={4}
                     fill="none"
-                    opacity={0.9}
+                    opacity={0.75}
                     className="pointer-events-none"
                     style={dashedEmeraldStyle}
                   />
@@ -580,8 +580,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                     x2={centerX}
                     y2={centerY}
                     stroke="#10b981"
-                    strokeWidth={5}
-                    opacity={0.9}
+                    strokeWidth={4}
+                    opacity={0.75}
                     className="pointer-events-none"
                     style={dashedEmeraldStyle}
                   />
@@ -592,9 +592,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                   <path
                     d={emeraldTargetHalfBezier}
                     stroke="#10b981"
-                    strokeWidth={5}
+                    strokeWidth={4}
                     fill="none"
-                    opacity={0.9}
+                    opacity={0.75}
                     className="pointer-events-none"
                     style={dashedEmeraldStyle}
                   />
@@ -605,8 +605,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                     x2={targetX}
                     y2={targetY}
                     stroke="#10b981"
-                    strokeWidth={5}
-                    opacity={0.9}
+                    strokeWidth={4}
+                    opacity={0.75}
                     className="pointer-events-none"
                     style={dashedEmeraldStyle}
                   />
@@ -615,9 +615,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
               <circle
                 cx={centerX}
                 cy={centerY}
-                r={12}
+                r={11}
                 fill="#10b981"
-                opacity={0.9}
+                opacity={0.8}
                 className="pointer-events-none"
                 style={emeraldStyle}
               />
