@@ -16,44 +16,16 @@ const getNodeDimension = (
     | undefined;
   const style = node.style as { width?: number; height?: number } | undefined;
 
-  if (typeof (node as any)[dimension] === "number")
+  if (typeof (node as any)[dimension] === "number") {
     return (node as any)[dimension];
-  if (typeof measured?.[dimension] === "number") return measured[dimension];
-  if (typeof style?.[dimension] === "number") return style[dimension];
+  }
+  if (typeof measured?.[dimension] === "number") {
+    return measured[dimension];
+  }
+  if (typeof style?.[dimension] === "number") {
+    return style[dimension];
+  }
   return 0;
-};
-
-const getHandlePosition = (
-  node: Node,
-  position: Position
-): { x: number; y: number } | null => {
-  const width = getNodeDimension(node, "width");
-  const height = getNodeDimension(node, "height");
-  const base = (node as any).position || { x: 0, y: 0 };
-  const x0 = typeof base.x === "number" ? base.x : 0;
-  const y0 = typeof base.y === "number" ? base.y : 0;
-
-  if (
-    !Number.isFinite(width) ||
-    !Number.isFinite(height) ||
-    width <= 0 ||
-    height <= 0
-  ) {
-    return null;
-  }
-
-  switch (position) {
-    case Position.Top:
-      return { x: x0 + width / 2, y: y0 };
-    case Position.Bottom:
-      return { x: x0 + width / 2, y: y0 + height };
-    case Position.Left:
-      return { x: x0, y: y0 + height / 2 };
-    case Position.Right:
-      return { x: x0 + width, y: y0 + height / 2 };
-    default:
-      return { x: x0 + width / 2, y: y0 + height / 2 };
-  }
 };
 
 export const useNodeHelpers = ({ nodes, edges }: UseNodeHelpersProps) => {
@@ -87,39 +59,26 @@ export const useNodeHelpers = ({ nodes, edges }: UseNodeHelpersProps) => {
       if (!sourceNode || !targetNode) return null;
 
       if ((edge as any).type === "objection") {
+        const sourceCenter = getNodeCenter(edge.source);
+        const targetCenter = getNodeCenter(edge.target);
+        if (!sourceCenter || !targetCenter) return null;
+
         const sourcePosition =
-          sourceNode.position.y < targetNode.position.y
-            ? Position.Bottom
-            : Position.Top;
+          sourceCenter.y < targetCenter.y ? Position.Bottom : Position.Top;
         const targetPosition =
-          sourceNode.position.y > targetNode.position.y
-            ? Position.Bottom
-            : Position.Top;
+          sourceCenter.y > targetCenter.y ? Position.Bottom : Position.Top;
 
-        const sourceHandle = getHandlePosition(sourceNode, sourcePosition);
-        const targetHandle = getHandlePosition(targetNode, targetPosition);
-
-        if (sourceHandle && targetHandle) {
-          const curvature = 0.35;
-          const [, labelX, labelY] = getBezierPath({
-            sourceX: sourceHandle.x,
-            sourceY: sourceHandle.y,
-            sourcePosition,
-            targetX: targetHandle.x,
-            targetY: targetHandle.y,
-            targetPosition,
-            curvature,
-          });
-          return { x: labelX, y: labelY };
-        }
-
-        const sourceCenterFallback = getNodeCenter(edge.source);
-        const targetCenterFallback = getNodeCenter(edge.target);
-        if (!sourceCenterFallback || !targetCenterFallback) return null;
-        return {
-          x: (sourceCenterFallback.x + targetCenterFallback.x) / 2,
-          y: (sourceCenterFallback.y + targetCenterFallback.y) / 2,
-        };
+        const curvature = 0.35;
+        const [, labelX, labelY] = getBezierPath({
+          sourceX: sourceCenter.x,
+          sourceY: sourceCenter.y,
+          sourcePosition,
+          targetX: targetCenter.x,
+          targetY: targetCenter.y,
+          targetPosition,
+          curvature,
+        });
+        return { x: labelX, y: labelY };
       }
 
       const sourceCenter = getNodeCenter(edge.source);
