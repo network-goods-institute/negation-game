@@ -172,11 +172,20 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   );
 
   const wrapperClassName = useMemo(() => {
-    const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
-    const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
-    const myVoteBorder = hasMyVote ? 'border-l-[6px] border-l-emerald-500 shadow-[-3px_0_8px_rgba(16,185,129,0.3)]' : '';
+    const base = hidden
+      ? 'bg-gray-200 text-gray-600 border-gray-300'
+      : (isInContainer
+        ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md'
+        : 'bg-white text-gray-900 border-stone-200');
+    const ringConnect =
+      isConnectingFromNodeId === id
+        ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md'
+        : '';
+    const myVoteBorder = hasMyVote && !selected
+      ? 'border-l-[6px] border-l-emerald-500 shadow-[-3px_0_8px_rgba(16,185,129,0.3)]'
+      : '';
     return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${myVoteBorder} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, hasMyVote]);
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, hasMyVote, selected]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
