@@ -16,6 +16,8 @@ import { getHalfBezierPaths } from '@/utils/experiment/multiplayer/bezierSplit';
 import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
 import { MainEdgeRenderer } from './MainEdgeRenderer';
 import { getMarkerIdForEdgeType } from './EdgeArrowMarkers';
+import { getTargetVoteIds, normalizeVoteIds } from './edgeVotes';
+import { computeDashOffset } from './dashUtils';
 import { useAtomValue } from 'jotai';
 import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
@@ -23,6 +25,16 @@ import { isMarketEnabled } from '@/utils/market/marketUtils';
 export interface BaseEdgeProps extends EdgeProps {
   edgeType: EdgeType;
 }
+
+const votesEqual = (a?: any[] | null, b?: any[] | null) => {
+  if (a === b) return true;
+  if (!a || !b) return (!a || a.length === 0) && (!b || b.length === 0);
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
 
 const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const config = EDGE_CONFIGURATIONS[props.edgeType];
@@ -84,15 +96,39 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const effectiveUserId = currentUserId || '';
 
+  const parentEdgeId = props.edgeType === 'objection'
+    ? String(((targetNode as any)?.data?.parentEdgeId) || '')
+    : '';
+
+  const parentEdgeVotes = useStore(
+    useMemo(
+      () => (state: any) => {
+        if (!parentEdgeId) return [] as any[];
+        const parentEdge = (state.edges as Edge[] | undefined)?.find(
+          (edge: Edge) => String((edge as any).id) === parentEdgeId
+        );
+        return ((parentEdge as any)?.data?.votes as any[]) || [];
+      },
+      [parentEdgeId]
+    ),
+    votesEqual
+  );
+
   const sourceVotes = ((sourceNode as any)?.data?.votes) || [];
-  const targetVotes = ((targetNode as any)?.data?.votes) || [];
   const edgeVotes = ((props as any).data?.votes) || [];
-  const sourceNormalizedVotes = sourceVotes.map((v: any) => typeof v === 'string' ? v : v.id);
-  const targetNormalizedVotes = targetVotes.map((v: any) => typeof v === 'string' ? v : v.id);
-  const edgeNormalizedVotes = edgeVotes.map((v: any) => typeof v === 'string' ? v : v.id);
-  const sourceHasMyVote = effectiveUserId && sourceNormalizedVotes.includes(effectiveUserId);
-  const targetHasMyVote = effectiveUserId && targetNormalizedVotes.includes(effectiveUserId);
-  const edgeHasMyVote = effectiveUserId && edgeNormalizedVotes.includes(effectiveUserId);
+  const sourceNormalizedVotes = normalizeVoteIds(sourceVotes);
+  const targetNormalizedVotes = useMemo(() => {
+    const votes = ((targetNode as any)?.data?.votes) || [];
+    return getTargetVoteIds({
+      edgeType: props.edgeType,
+      targetVotes: votes,
+      parentEdgeVotes,
+    });
+  }, [props.edgeType, targetNode, parentEdgeVotes]);
+  const edgeNormalizedVotes = normalizeVoteIds(edgeVotes);
+  const sourceHasMyVote = effectiveUserId ? sourceNormalizedVotes.includes(effectiveUserId) : false;
+  const targetHasMyVote = effectiveUserId ? targetNormalizedVotes.includes(effectiveUserId) : false;
+  const edgeHasMyVote = effectiveUserId ? edgeNormalizedVotes.includes(effectiveUserId) : false;
   const edgeOthersVotes = effectiveUserId
     ? edgeNormalizedVotes.filter((v: string) => v !== effectiveUserId)
     : edgeNormalizedVotes;
@@ -178,6 +214,32 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       return [path, x, y];
     }
   }, [sourceX, sourceY, targetX, targetY, visual.useBezier, visual.curvature, behavior.simplifyDuringDrag, isHighFrequencyUpdates, props, sourceNode, targetNode]);
+
+  const halfBezierPaths = useMemo(() => {
+    if (props.edgeType !== 'objection' || !visual.useBezier || !pathD) return null;
+    return getHalfBezierPaths(pathD);
+  }, [props.edgeType, visual.useBezier, pathD]);
+
+  const halfBezierLengths = useMemo(() => {
+    if (!halfBezierPaths) return { first: null as number | null, second: null as number | null };
+    if (typeof document === 'undefined') return { first: null as number | null, second: null as number | null };
+    const measure = (d: string) => {
+      try {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        return path.getTotalLength();
+      } catch {
+        return null;
+      }
+    };
+    return {
+      first: measure(halfBezierPaths.firstHalf),
+      second: measure(halfBezierPaths.secondHalf),
+    };
+  }, [halfBezierPaths]);
+
+  const sourceHalfBezierPath = halfBezierPaths?.firstHalf ?? '';
+  const targetHalfBezierPath = halfBezierPaths?.secondHalf ?? '';
 
   const [midXBetweenBorders, midYBetweenBorders] = useMemo(() => {
     return computeMidpointBetweenBorders(sourceNode, targetNode, labelX, labelY);
@@ -399,10 +461,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           const strokeStyle = `url(#edge-hatch-${props.id})`;
           const lineOpacity = intensity * 0.85;
 
-          const halfPaths = isObjection && visual.useBezier && pathD ? getHalfBezierPaths(pathD) : null;
-          const sourceHalfBezier = halfPaths?.firstHalf ?? '';
-          const targetHalfBezier = halfPaths?.secondHalf ?? '';
-
           return (
             <>
               <defs>
@@ -420,7 +478,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
               {extendToSource && (
                 isObjection && visual.useBezier ? (
                   <path
-                    d={sourceHalfBezier}
+                    d={sourceHalfBezierPath}
                     stroke={strokeStyle}
                     strokeWidth={strokeWidth}
                     fill="none"
@@ -446,7 +504,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
               {extendToTarget && (
                 isObjection && visual.useBezier ? (
                   <path
-                    d={targetHalfBezier}
+                    d={targetHalfBezierPath}
                     stroke={strokeStyle}
                     strokeWidth={strokeWidth}
                     fill="none"
@@ -556,16 +614,19 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           const emeraldStyle = { filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.5))' };
           const dashedEmeraldStyle = dashArray ? { ...emeraldStyle, strokeDasharray: dashArray, strokeLinecap: 'butt' as const } : emeraldStyle;
 
-          const emeraldHalfPaths = isObjection && visual.useBezier && pathD ? getHalfBezierPaths(pathD) : null;
-          const emeraldSourceHalfBezier = emeraldHalfPaths?.firstHalf ?? '';
-          const emeraldTargetHalfBezier = emeraldHalfPaths?.secondHalf ?? '';
+          const emeraldDashOffset = dashArray
+            ? computeDashOffset(halfBezierLengths.first, dashArray)
+            : undefined;
+          const emeraldTargetStyle = emeraldDashOffset != null
+            ? { ...dashedEmeraldStyle, strokeDashoffset: emeraldDashOffset }
+            : dashedEmeraldStyle;
 
           return (
             <>
               {extendToSource && (
-                isObjection && visual.useBezier && emeraldSourceHalfBezier ? (
+                isObjection && visual.useBezier && sourceHalfBezierPath ? (
                   <path
-                    d={emeraldSourceHalfBezier}
+                    d={sourceHalfBezierPath}
                     stroke="#10b981"
                     strokeWidth={4}
                     fill="none"
@@ -588,15 +649,15 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                 )
               )}
               {extendToTarget && (
-                isObjection && visual.useBezier && emeraldTargetHalfBezier ? (
+                isObjection && visual.useBezier && targetHalfBezierPath ? (
                   <path
-                    d={emeraldTargetHalfBezier}
+                    d={targetHalfBezierPath}
                     stroke="#10b981"
                     strokeWidth={4}
                     fill="none"
                     opacity={0.75}
                     className="pointer-events-none"
-                    style={dashedEmeraldStyle}
+                    style={emeraldTargetStyle}
                   />
                 ) : (
                   <line
