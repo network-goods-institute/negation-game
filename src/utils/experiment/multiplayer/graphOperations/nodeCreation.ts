@@ -59,13 +59,11 @@ export const createAddNodeAtPosition = (
       type === "statement" ? { statement: initial } : { content: initial };
     const baseData: any =
       type === "statement" ? { statement: initial } : { content: initial };
-    const withFavor = (t: typeof type) =>
-      t === "point" || t === "objection" ? { favor: 5 } : {};
     const node: any = {
       id,
       type,
       position: { x, y },
-      data: { ...baseData, ...withFavor(type), createdAt: Date.now() },
+      data: { ...baseData, createdAt: Date.now() },
       selected: true,
     };
 
@@ -137,7 +135,7 @@ export const createAddNegationBelow = (
       id: newId,
       type: "point",
       position: { x: newPos.x, y: newPos.y + 32 },
-      data: { content: "New point", favor: 5, createdAt: Date.now() },
+      data: { content: "New point", createdAt: Date.now() },
       selected: true,
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
@@ -218,7 +216,7 @@ export const createAddSupportBelow = (
       id: newId,
       type: "point",
       position: { x: newPos.x, y: newPos.y + 32 },
-      data: { content: "New Support", favor: 5, createdAt: Date.now() },
+      data: { content: "New Support", createdAt: Date.now() },
       selected: true,
     };
     const newEdge: any = {
@@ -409,7 +407,7 @@ export const createAddPointBelow = (
         x: newPos.x,
         y: newPos.y,
       },
-      data: { content: defaultContent, favor: 5, createdAt: Date.now() },
+      data: { content: defaultContent, createdAt: Date.now() },
       selected: true,
     };
 

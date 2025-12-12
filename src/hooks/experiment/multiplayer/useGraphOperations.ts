@@ -277,31 +277,6 @@ export const useGraphOperations = ({
     [yNodesMap, yTextMap, ydoc, canWrite, localOrigin, setNodes]
   );
 
-  const updateNodeFavor = useCallback(
-    (nodeId: string, favor: 1 | 2 | 3 | 4 | 5) => {
-      if (!canWrite) {
-        try { (require('@/utils/readonlyToast') as any).showReadOnlyToast?.(); } catch {}
-        return;
-      }
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...(n.data || {}), favor } } : n
-        )
-      );
-      if (yNodesMap && ydoc && canWrite) {
-        ydoc.transact(() => {
-          const base = yNodesMap.get(nodeId);
-          if (base)
-            yNodesMap.set(nodeId, {
-              ...base,
-              data: { ...(base.data || {}), favor },
-            });
-        }, localOrigin);
-      }
-    },
-    [setNodes, yNodesMap, ydoc, canWrite, localOrigin]
-  );
-
   const normalizeVotes = useCallback(
     (raw: any): Array<{ id: string; name?: string }> => {
       if (!Array.isArray(raw)) return [];
@@ -443,7 +418,6 @@ export const useGraphOperations = ({
     updateNodeContent,
     updateNodeHidden,
     updateNodePosition,
-    updateNodeFavor,
     toggleNodeVote,
     toggleEdgeVote,
     updateEdgeRelevance,

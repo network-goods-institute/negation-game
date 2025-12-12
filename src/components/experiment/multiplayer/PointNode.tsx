@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
 import { usePerformanceMode } from './PerformanceContext';
 import { useNodeChrome } from './common/useNodeChrome';
-import { useFavorOpacity } from './common/useFavorOpacity';
 import { NodeShell } from './common/NodeShell';
 import { useForceHidePills } from './common/useForceHidePills';
 import { NodeVoting } from './common/NodeVoting';
@@ -16,6 +15,8 @@ import { useSelectionPayload } from './common/useSelectionPayload';
 import { useNodeExtrasVisibility } from './common/useNodeExtrasVisibility';
 import { LockIndicator } from './common/LockIndicator';
 import { usePillHandlers } from './common/usePillHandlers';
+import { useVoteVisuals } from './common/useVoteVisuals';
+import { VoteGlow } from './common/VoteGlow';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -25,7 +26,6 @@ interface PointNodeProps {
     editedBy?: string;
     createdAt?: number;
     closingAnimation?: boolean;
-    favor?: number;
     hidden?: boolean;
     votes?: Array<string | { id: string; name?: string }>;
   };
@@ -38,7 +38,6 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   const graphCtx = useGraphActions() as any;
   const {
     updateNodeContent,
-    updateNodeFavor,
     toggleNodeVote,
     addPointBelow,
     isConnectingFromNodeId,
@@ -48,11 +47,17 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
     getLockOwner,
     setPairNodeHeight,
     grabMode,
+    currentUserId,
   } = graphCtx;
 
   const locked = isLockedForMe?.(id) || false;
   const lockOwner = getLockOwner?.(id) || null;
   const hidden = data.hidden === true;
+
+  const { hasMyVote, hasOthersVotes, othersVoteCount } = useVoteVisuals({
+    votes: data.votes || [],
+    currentUserId,
+  });
   const { zoom } = useViewport();
   const overlayState = useAtomValue(marketOverlayStateAtom);
   const overlayThreshold = useAtomValue(marketOverlayZoomThresholdAtom);
@@ -117,14 +122,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   });
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const favor = Math.max(1, Math.min(5, data.favor ?? 5));
   const isInContainer = Boolean(parentId);
-
-  const favorOpacity = useFavorOpacity({
-    favor,
-    selected: !!selected,
-    hovered,
-  });
 
   const extras = useNodeExtrasVisibility({
     id,
@@ -174,10 +172,20 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   );
 
   const wrapperClassName = useMemo(() => {
-    const base = hidden ? 'bg-gray-200 text-gray-600 border-gray-300' : (isInContainer ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md' : 'bg-white text-gray-900 border-stone-200');
-    const ringConnect = isConnectingFromNodeId === id ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md' : '';
-    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive]);
+    const base = hidden
+      ? 'bg-gray-200 text-gray-600 border-gray-300'
+      : (isInContainer
+        ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md'
+        : 'bg-white text-gray-900 border-stone-200');
+    const ringConnect =
+      isConnectingFromNodeId === id
+        ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md'
+        : '';
+    const myVoteBorder = hasMyVote && !selected
+      ? 'border-l-[6px] border-l-emerald-500 shadow-[-3px_0_8px_rgba(16,185,129,0.3)]'
+      : '';
+    return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${myVoteBorder} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
+  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, hasMyVote, selected]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
@@ -275,10 +283,11 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           ...innerScaleStyle,
           opacity: hidden
             ? undefined
-            : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
+            : (overlayActive && !selected && !hovered && !isEditing ? 0 : 1),
         }}
         wrapperProps={wrapperProps as any}
         highlightClassName={`pointer-events-none absolute -inset-1 rounded-lg border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
+        beforeWrapper={hasOthersVotes && <VoteGlow voteCount={othersVoteCount} />}
       >
         <LockIndicator locked={locked} lockOwner={lockOwner} />
         {isConnectingFromNodeId === id && (

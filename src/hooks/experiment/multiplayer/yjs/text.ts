@@ -84,7 +84,6 @@ const pickComparable = (node: Node) => {
       statement: (data as any).statement,
       title: titleNormalized,
       hidden: (data as any).hidden,
-      favor: (data as any).favor,
       votes,
     },
   };

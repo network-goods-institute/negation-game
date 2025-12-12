@@ -27,7 +27,8 @@ import { useRouter, usePathname } from "next/navigation";
 import { setPrivyToken } from "@/lib/privy/setPrivyToken";
 import { useEnsureUser } from "@/hooks/auth/useEnsureUser";
 import { UsernameSignupDialog } from "@/components/dialogs/UsernameSignupDialog";
-import { isFeatureEnabled } from "@/lib/featureFlags";import { logger } from "@/lib/logger";
+import { isFeatureEnabled } from "@/lib/featureFlags"; import { logger } from "@/lib/logger";
+import { isSyncHost } from "@/utils/hosts/syncPaths";
 
 export const ConnectButton = () => {
   const { ready, login, logout, user: privyUser, authenticated } = usePrivy();
@@ -50,6 +51,15 @@ export const ConnectButton = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const useSyncColor = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const isOnSyncSubdomain = isSyncHost(window.location.hostname);
+    // Root path, /board/:id, and /experiment/rationale/multiplayer are all multiplayer rationale pages
+    const isOnMultiplayerRationales = pathname === '/' || pathname.startsWith('/experiment/rationale/multiplayer') || pathname.startsWith('/board/');
+    const result = isOnSyncSubdomain || isOnMultiplayerRationales;
+    return result;
+  }, [pathname]);
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
@@ -146,7 +156,7 @@ export const ConnectButton = () => {
     return (
       <Button
         key="connect"
-        className="w-28 sm:w-36 rounded-full text-sm"
+        className={`w-28 sm:w-36 rounded-full text-sm ${useSyncColor ? 'sync-primary' : ''}`}
         size={"sm"}
         onClick={handleLogin}
         disabled={isLoggingIn}

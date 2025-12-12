@@ -182,9 +182,7 @@ describe("GraphUpdater nested objection anchor creation", () => {
     expect(anchorBaseEdge?.data?.parentEdgeId).toBe("base-edge");
 
     const anchorObjEdgeA = latestNodes.find((n) => n.id === "anchor:obj-edge-a");
-    expect(anchorObjEdgeA).toBeDefined();
-    expect(anchorObjEdgeA?.type).toBe("edge_anchor");
-    expect(anchorObjEdgeA?.data?.parentEdgeId).toBe("obj-edge-a");
+    expect(anchorObjEdgeA).toBeUndefined();
   });
 
   test("handles triple-nested objection edges", async () => {
@@ -262,13 +260,13 @@ describe("GraphUpdater nested objection anchor creation", () => {
 
     expect(setNodesSpy).toHaveBeenCalled();
 
-    expect(latestNodes.find((n) => n.id === "anchor:e-base")).toBeDefined();
-    expect(latestNodes.find((n) => n.id === "anchor:e-obj-a")).toBeDefined();
-    expect(latestNodes.find((n) => n.id === "anchor:e-obj-b")).toBeDefined();
+    const anchorBase = latestNodes.find((n) => n.id === "anchor:e-base");
+    expect(anchorBase).toBeDefined();
+    expect(anchorBase?.type).toBe("edge_anchor");
+    expect(anchorBase?.data?.parentEdgeId).toBe("e-base");
 
-    expect(latestNodes.find((n) => n.id === "anchor:e-base")?.type).toBe("edge_anchor");
-    expect(latestNodes.find((n) => n.id === "anchor:e-obj-a")?.type).toBe("edge_anchor");
-    expect(latestNodes.find((n) => n.id === "anchor:e-obj-b")?.type).toBe("edge_anchor");
+    expect(latestNodes.find((n) => n.id === "anchor:e-obj-a")).toBeUndefined();
+    expect(latestNodes.find((n) => n.id === "anchor:e-obj-b")).toBeUndefined();
   });
 
   test("does not create anchors while in connect mode", async () => {

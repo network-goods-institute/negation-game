@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { NodeActionPill } from '../common/NodeActionPill';
 import { usePerformanceMode } from '../PerformanceContext';
 import { useNodeChrome } from '../common/useNodeChrome';
-import { useFavorOpacity } from '../common/useFavorOpacity';
 import { NodeShell } from '../common/NodeShell';
 import { useForceHidePills } from '../common/useForceHidePills';
 import { NodeVoting } from '../common/NodeVoting';
@@ -17,6 +16,8 @@ import { LockIndicator } from '../common/LockIndicator';
 import { useNodeExtrasVisibility } from '../common/useNodeExtrasVisibility';
 import { useSelectionPayload } from '../common/useSelectionPayload';
 import { usePillHandlers } from '../common/usePillHandlers';
+import { useVoteVisuals } from '../common/useVoteVisuals';
+import { VoteGlow } from '../common/VoteGlow';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -24,7 +25,6 @@ interface ObjectionNodeProps {
     data: {
         content: string;
         parentEdgeId: string;
-        favor?: number;
         hidden?: boolean;
         votes?: Array<string | { id: string; name?: string }>;
     };
@@ -36,7 +36,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const graph = useGraphActions() as any;
     const {
         updateNodeContent,
-        updateNodeFavor,
         toggleNodeVote,
         addPointBelow,
         startEditingNode,
@@ -50,6 +49,12 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
     const locked = isLockedForMe?.(id) || false;
     const lockOwner = getLockOwner?.(id) || null;
     const hidden = (data as any)?.hidden === true;
+
+    const { hasMyVote, hasOthersVotes, othersVoteCount } = useVoteVisuals({
+        votes: data.votes || [],
+        currentUserId: graph.currentUserId,
+    });
+
     const { zoom } = useViewport();
     const overlayState = useAtomValue(marketOverlayStateAtom);
     const overlayThreshold = useAtomValue(marketOverlayZoomThresholdAtom);
@@ -167,14 +172,6 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
             wrapperRef.current.style.minHeight = `${contentRef.current.scrollHeight}px`;
         }
     }, [value, contentRef, wrapperRef]);
-
-    const favor = Math.max(1, Math.min(5, (data as any)?.favor ?? 5));
-
-    const favorOpacity = useFavorOpacity({
-        favor,
-        selected: !!selected,
-        hovered,
-    });
 
     const extras = useNodeExtrasVisibility({
         id,
@@ -313,16 +310,17 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                 }}
                 containerRef={containerRef}
                 wrapperRef={wrapperRef}
-                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-all duration-300 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}
+                wrapperClassName={`px-4 py-3 ${pointLike ? 'rounded-lg' : 'rounded-xl'} ${hidden ? (pointLike ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-amber-50 text-amber-900 border-amber-200') : (pointLike ? 'bg-white text-gray-900 border-stone-200' : 'bg-amber-100 text-amber-900 border-amber-300')} border-2 ${cursorClass} min-w-[220px] max-w-[340px] relative z-10 transition-all duration-300 ease-out origin-center group ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''} ${mindchangeHighlight ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white' : ''} ${hasMyVote && !selected ? 'border-l-[6px] border-l-emerald-500 shadow-[-3px_0_8px_rgba(16,185,129,0.3)]' : ''}
             data-[selected=true]:ring-2 data-[selected=true]:ring-black data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-white`}
                 wrapperStyle={{
                     ...innerScaleStyle,
                     opacity: hidden
                         ? undefined
-                        : (overlayActive && !selected && !hovered && !isEditing ? 0 : favorOpacity),
+                        : (overlayActive && !selected && !hovered && !isEditing ? 0 : 1),
                 } as any}
                 wrapperProps={wrapperProps as any}
                 highlightClassName={`pointer-events-none absolute -inset-1 rounded-xl border-4 ${isActive ? 'border-black opacity-100 scale-100' : 'border-transparent opacity-0 scale-95'} transition-[opacity,transform] duration-300 ease-out z-0`}
+                beforeWrapper={hasOthersVotes && <VoteGlow voteCount={othersVoteCount} />}
             >
                 <LockIndicator locked={locked} lockOwner={lockOwner} className="absolute -top-2 -right-2 z-20" />
                 <div
@@ -359,7 +357,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
                                 nodeId={id}
                                 votes={data.votes || []}
                                 onToggleVote={toggleNodeVote}
-                                variant="orange"
+                                variant={pointLike ? "blue" : "orange"}
                             />
                         </div>
                     )}

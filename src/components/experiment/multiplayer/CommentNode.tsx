@@ -16,7 +16,6 @@ interface CommentNodeProps {
     editedBy?: string;
     createdAt?: number;
     closingAnimation?: boolean;
-    favor?: number;
     directInverse?: boolean;
     hidden?: boolean;
   };

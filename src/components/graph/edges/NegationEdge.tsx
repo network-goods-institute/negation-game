@@ -64,9 +64,9 @@ export const NegationEdge = (props: NegationEdgeProps) => {
       {...props}
       style={{
         strokeWidth: isAffected ? 3 : 2,
-        strokeDasharray: isObjectionEdge ? "8,4" : undefined,
+        strokeDasharray: isAffected || isObjectionEdge ? "8,4" : undefined,
         stroke: isAffected
-          ? "hsl(0 80% 60%)" // Red for affected edges
+          ? "hsl(140 80% 60%)" // Green for affected edges
           : (isObjectionEdge ? "hsl(25 95% 53%)" : "#6b7280"),
         animation: isAffected ? "pulse 2s infinite" : undefined,
       }}
@@ -81,7 +81,7 @@ export const NegationEdge = (props: NegationEdgeProps) => {
         fontSize: isObjectionEdge ? 36 : 36,
         fontWeight: 600,
         fill: isAffected
-          ? "hsl(0 80% 60%)" // Red for affected edge labels
+          ? "hsl(140 80% 60%)" // Green for affected edge labels
           : (isObjectionEdge ? "hsl(25 95% 53%)" : "#374151"),
       }}
       pathOptions={{
