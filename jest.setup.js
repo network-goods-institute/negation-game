@@ -194,13 +194,6 @@ jest.mock('sonner', () => ({
   Toaster: () => <div data-testid="toaster" />,
 }))
 
-// Mock global fetch
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({ userId: null }),
-  })
-)
 
 // Stub react-markdown globally in tests that don't override it
 jest.mock('react-markdown', () => ({
@@ -256,17 +249,23 @@ if (typeof global.ResizeObserver === 'undefined') {
   }
 }
 
-// Polyfill fetch for tests
 if (typeof global.fetch === 'undefined') {
-  global.fetch = jest.fn(() =>
-    Promise.resolve({
+  global.fetch = jest.fn((url, options) => {
+    console.warn(
+      `Unmocked fetch called with ${url}. Consider mocking fetch in your test for predictable results.`
+    );
+    return Promise.resolve({
       ok: true,
-      json: async () => ({}),
-      text: async () => '',
-      headers: new Map(),
       status: 200,
       statusText: 'OK',
-    })
-  );
+      headers: new Map(),
+      url: typeof url === 'string' ? url : url.toString(),
+      json: async () => ({}),
+      text: async () => '',
+      blob: async () => new Blob(),
+      arrayBuffer: async () => new ArrayBuffer(0),
+      clone: function() { return this; },
+    });
+  });
 }
 
