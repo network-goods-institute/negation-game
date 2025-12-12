@@ -45,6 +45,16 @@ describe("auth", () => {
       expect(await isVercelPreviewDomain()).toBe(true);
     });
 
+    it("returns true for vercel.app domains with port", async () => {
+      mockHeaders.get.mockReturnValue("preview-branch-abc123.vercel.app:443");
+      expect(await isVercelPreviewDomain()).toBe(true);
+    });
+
+    it("returns true for uppercase vercel.app hosts", async () => {
+      mockHeaders.get.mockReturnValue("PREVIEW-BRANCH-ABC123.VERCEL.APP");
+      expect(await isVercelPreviewDomain()).toBe(true);
+    });
+
     it("returns false for production domain", async () => {
       mockHeaders.get.mockReturnValue("negationgame.com");
       expect(await isVercelPreviewDomain()).toBe(false);
@@ -67,6 +77,11 @@ describe("auth", () => {
 
     it("returns false for domains containing but not ending with vercel.app", async () => {
       mockHeaders.get.mockReturnValue("vercel.app.evil.com");
+      expect(await isVercelPreviewDomain()).toBe(false);
+    });
+
+    it("returns false for invalid vercel.app label characters", async () => {
+      mockHeaders.get.mockReturnValue("my_app.vercel.app");
       expect(await isVercelPreviewDomain()).toBe(false);
     });
 

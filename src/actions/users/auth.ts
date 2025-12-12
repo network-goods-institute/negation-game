@@ -12,12 +12,19 @@ import { getPrivyClient } from "@/lib/privy/getPrivyClient";
 export async function isVercelPreviewDomain(): Promise<boolean> {
   const headersList = await headers();
   const host = headersList.get("host");
+  const vercelPreviewPattern = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+vercel\.app$/;
 
   if (!host) {
     return false;
   }
 
-  return host.endsWith(".vercel.app");
+  const normalizedHost = host.split(":")[0]?.toLowerCase().trim();
+
+  if (!normalizedHost) {
+    return false;
+  }
+
+  return vercelPreviewPattern.test(normalizedHost);
 }
 
 /**
