@@ -17,6 +17,7 @@ export const createAddObjectionForEdge = (
   setEdges: (updater: (edges: any[]) => any[]) => void,
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
+  creator?: { userId?: string | null; username?: string | null },
   onNodeAdded?: (id: string) => void
 ) => {
   return (edgeId: string, overrideMidX?: number, overrideMidY?: number) => {
@@ -52,6 +53,8 @@ export const createAddObjectionForEdge = (
         content: "New mitigation",
         parentEdgeId: edgeId,
         createdAt: Date.now(),
+        createdBy: creator?.userId || null,
+        createdByName: creator?.username || null,
       },
       selected: true, // Auto-select newly created objection nodes
     };
@@ -61,6 +64,10 @@ export const createAddObjectionForEdge = (
       type: "objection",
       source: objectionId,
       target: anchorId,
+      data: {
+        createdBy: creator?.userId || null,
+        createdByName: creator?.username || null,
+      },
     };
     // Always update local state immediately for responsiveness
     // Batch updates but avoid recursive setState chains
@@ -75,7 +82,9 @@ export const createAddObjectionForEdge = (
       const newEdges = [...eds, objectionEdge];
       return newEdges;
     });
-    try { onNodeAdded?.(objectionId); } catch {}
+    try {
+      onNodeAdded?.(objectionId);
+    } catch {}
 
     // Sync objection node/edge to Yjs (anchor nodes are local-only)
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
@@ -143,12 +152,12 @@ export const createEnsureEdgeAnchor = (
   setNodes: (updater: (nodes: any[]) => any[]) => void
 ) => {
   return (anchorId: string, parentEdgeId: string, x: number, y: number) => {
-    if (typeof anchorId !== 'string' || !anchorId) return;
+    if (typeof anchorId !== "string" || !anchorId) return;
     setNodes((nds) => {
       if (nds.some((n: any) => n.id === anchorId)) return nds;
       const anchorNode = {
         id: anchorId,
-        type: 'edge_anchor',
+        type: "edge_anchor",
         position: { x, y },
         data: { parentEdgeId },
       };
@@ -170,7 +179,12 @@ export const createUpdateEdgeAnchorPosition = (
   const eps = 0.01;
   return (edgeId: string, x: number, y: number, force?: boolean) => {
     const prev = lastPos.get(edgeId);
-    if (!force && prev && Math.abs(prev.x - x) < eps && Math.abs(prev.y - y) < eps) {
+    if (
+      !force &&
+      prev &&
+      Math.abs(prev.x - x) < eps &&
+      Math.abs(prev.y - y) < eps
+    ) {
       return;
     }
     lastPos.set(edgeId, { x, y });
@@ -181,7 +195,12 @@ export const createUpdateEdgeAnchorPosition = (
     setNodes((nds) => {
       let changed = false;
       const updated = nds.map((n: any) => {
-        if (!(n.type === "edge_anchor" && (n.data?.parentEdgeId === edgeId || n.id === anchorId))) {
+        if (
+          !(
+            n.type === "edge_anchor" &&
+            (n.data?.parentEdgeId === edgeId || n.id === anchorId)
+          )
+        ) {
           return n;
         }
         const px = n.position?.x ?? 0;
@@ -231,15 +250,22 @@ export const createUpdateEdgeRelevance = (
 ) => {
   return (edgeId: string, relevance: number) => {
     const rel = Math.max(1, Math.min(5, Math.round(Number(relevance) || 0)));
-    setEdges((eds) => eds.map((e: any) => (
-      e.id === edgeId ? { ...e, data: { ...(e.data || {}), relevance: rel } } : e
-    )));
+    setEdges((eds) =>
+      eds.map((e: any) =>
+        e.id === edgeId
+          ? { ...e, data: { ...(e.data || {}), relevance: rel } }
+          : e
+      )
+    );
     if (!canWrite || !yEdgesMap || !ydoc) return;
     try {
       (ydoc as any).transact(() => {
         const base = (yEdgesMap as any).get(edgeId);
         if (base) {
-          (yEdgesMap as any).set(edgeId, { ...base, data: { ...(base.data || {}), relevance: rel } });
+          (yEdgesMap as any).set(edgeId, {
+            ...base,
+            data: { ...(base.data || {}), relevance: rel },
+          });
         }
       }, localOrigin);
     } catch {}

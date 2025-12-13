@@ -60,6 +60,8 @@ interface UseGraphOperationsProps {
   onClearSelections?: () => void;
   onNodeAddedCenterOnce?: (id: string) => void;
   connectMode?: boolean;
+  currentUserId?: string | null;
+  currentUsername?: string | null;
 }
 
 export const useGraphOperations = ({
@@ -86,7 +88,16 @@ export const useGraphOperations = ({
   onClearSelections,
   onNodeAddedCenterOnce,
   connectMode,
+  currentUserId,
+  currentUsername,
 }: UseGraphOperationsProps) => {
+  const creatorInfo = useMemo(
+    () => ({
+      userId: currentUserId || null,
+      username: currentUsername || null,
+    }),
+    [currentUserId, currentUsername]
+  );
   const updateNodeContent = useMemo(
     () =>
       createUpdateNodeContent(yTextMap, ydoc, canWrite, localOrigin, setNodes),
@@ -166,6 +177,7 @@ export const useGraphOperations = ({
         isLockedForMe,
         getLockOwner,
         getViewportOffset,
+        creatorInfo,
         {
           getPreferredEdgeType: getPreferredEdgeType || (() => "support"),
           onEdgeCreated,
@@ -191,6 +203,7 @@ export const useGraphOperations = ({
       onEdgeCreated,
       onClearSelections,
       onNodeAddedCenterOnce,
+      creatorInfo,
     ]
   );
 
@@ -209,6 +222,7 @@ export const useGraphOperations = ({
         setEdges,
         isLockedForMe,
         getLockOwner,
+        creatorInfo,
         undefined
       ),
     [
@@ -224,6 +238,7 @@ export const useGraphOperations = ({
       setEdges,
       isLockedForMe,
       getLockOwner,
+      creatorInfo,
     ]
   );
 
@@ -249,6 +264,7 @@ export const useGraphOperations = ({
         canWrite,
         localOrigin,
         setNodes,
+        creatorInfo,
         onClearSelections,
         onNodeAddedCenterOnce
       ),
@@ -259,6 +275,7 @@ export const useGraphOperations = ({
       canWrite,
       localOrigin,
       setNodes,
+      creatorInfo,
       onClearSelections,
       onNodeAddedCenterOnce,
     ]

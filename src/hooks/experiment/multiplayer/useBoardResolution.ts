@@ -15,6 +15,7 @@ export const useBoardResolution = (authFingerprint?: string | null) => {
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [forbidden, setForbidden] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(shareParam);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
   const authKey = authFingerprint ?? null;
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export const useBoardResolution = (authFingerprint?: string | null) => {
     setAccessRole(null);
     setRequiresAuth(false);
     setForbidden(false);
+    setOwnerId(null);
 
     (async () => {
       try {
@@ -45,6 +47,7 @@ export const useBoardResolution = (authFingerprint?: string | null) => {
             setAccessRole(data.role || null);
             setRequiresAuth(false);
             setForbidden(false);
+            setOwnerId(data.ownerId || null);
             try {
               const host = typeof window !== 'undefined' ? window.location.host : '';
               const canonical = buildRationaleDetailPath(data.id, host, data.slug || undefined);
@@ -108,5 +111,6 @@ export const useBoardResolution = (authFingerprint?: string | null) => {
     requiresAuth,
     forbidden,
     shareToken,
+    ownerId,
   };
 };

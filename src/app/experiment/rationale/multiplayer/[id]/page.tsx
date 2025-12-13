@@ -14,7 +14,7 @@ export default function MultiplayerBoardDetailPage() {
     () => (authenticated ? userId || "authenticated" : "anonymous"),
     [authenticated, userId]
   );
-  const { routeParams, resolvedId, resolvedSlug, notFound, roomName, accessRole, requiresAuth, forbidden, shareToken } = useBoardResolution(authFingerprint);
+  const { routeParams, resolvedId, resolvedSlug, notFound, roomName, accessRole, requiresAuth, forbidden, shareToken, ownerId } = useBoardResolution(authFingerprint);
 
   const {
     grabMode,
@@ -72,6 +72,7 @@ export default function MultiplayerBoardDetailPage() {
       accessRole={accessRole}
       shareToken={shareToken}
       resolvedSlug={resolvedSlug}
+      ownerId={ownerId}
     />
   );
 }
