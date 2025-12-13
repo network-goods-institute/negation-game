@@ -52,7 +52,7 @@ describe("ShareBoardDialog", () => {
       expect(screen.getByText(/Only the owner can manage sharing/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /Copy link/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Copy/i })).toBeDisabled();
   });
 
   it("hides the current user from the collaborator list", async () => {
@@ -128,10 +128,10 @@ describe("ShareBoardDialog", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/No login/i)).toBeInTheDocument();
+      expect(screen.getByText(/Public/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Works logged out/i)).toBeInTheDocument();
+    expect(screen.getByText(/No sign-in needed/i)).toBeInTheDocument();
     expect(screen.getByText(/token-1/)).toBeInTheDocument();
   });
 
@@ -181,5 +181,46 @@ describe("ShareBoardDialog", () => {
 
     expect(setUserAccess).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  it("keeps revoke controls revealable for active links", async () => {
+    (listShareLinks as jest.Mock).mockResolvedValue([
+      { id: "link-1", token: "token-1", role: "editor", requireLogin: true, grantPermanentAccess: false, expiresAt: null, createdAt: new Date().toISOString() },
+    ]);
+
+    render(
+      <ShareBoardDialog
+        docId="doc-1"
+        slug="doc-1"
+        open={true}
+        onOpenChange={() => {}}
+        accessRole="owner"
+        currentUserId="me"
+      />
+    );
+
+    const revokeButton = await screen.findByRole("button", { name: /Revoke link/i });
+
+    expect(revokeButton.parentElement?.className).toContain("group");
+  });
+
+  it("supports closing via the top-right control", async () => {
+    const handleOpenChange = jest.fn();
+    const user = userEvent.setup();
+
+    render(
+      <ShareBoardDialog
+        docId="doc-1"
+        slug="doc-1"
+        open={true}
+        onOpenChange={handleOpenChange}
+        accessRole="owner"
+        currentUserId="me"
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: /Close sharing dialog/i }));
+
+    expect(handleOpenChange).toHaveBeenCalledWith(false);
   });
 });
