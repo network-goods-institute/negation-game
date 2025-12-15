@@ -6,7 +6,9 @@ import {
   mpNotificationsTable,
   mpNotificationTypeEnum,
   mpDocsTable,
+  usersTable,
 } from "@/db/schema";
+import { logger } from "@/lib/logger";
 import type {
   InsertMpNotification,
   SelectMpNotification,
@@ -15,6 +17,7 @@ import {
   and,
   desc,
   eq,
+  gte,
   inArray,
   isNull,
 } from "drizzle-orm";
@@ -29,6 +32,7 @@ export interface GetMultiplayerNotificationsOptions {
 
 export type MultiplayerNotificationRecord = SelectMpNotification & {
   docTitle: string | null;
+  actorAvatarUrl: string | null;
 };
 
 export interface MultiplayerNotificationSummary {
@@ -79,6 +83,7 @@ export const getMultiplayerNotifications = async (
       action: mpNotificationsTable.action,
       actorUserId: mpNotificationsTable.actorUserId,
       actorUsername: mpNotificationsTable.actorUsername,
+      actorAvatarUrl: usersTable.avatarUrl,
       title: mpNotificationsTable.title,
       content: mpNotificationsTable.content,
       metadata: mpNotificationsTable.metadata,
@@ -88,6 +93,7 @@ export const getMultiplayerNotifications = async (
     })
     .from(mpNotificationsTable)
     .leftJoin(mpDocsTable, eq(mpNotificationsTable.docId, mpDocsTable.id))
+    .leftJoin(usersTable, eq(usersTable.id, mpNotificationsTable.actorUserId))
     .where(and(...conditions))
     .orderBy(desc(mpNotificationsTable.createdAt))
     .limit(limit);
@@ -106,6 +112,22 @@ export const getMultiplayerNotificationSummaries = async (): Promise<
     return [];
   }
 
+  type SummaryAccumulator = MultiplayerNotificationSummary & {
+    grouped: Map<
+      string,
+      {
+        type: MultiplayerNotificationType;
+        title: string;
+        actionLabel: string;
+        actors: Set<string>;
+        actorCounts: Map<string, number>;
+        count: number;
+        hasUnread: boolean;
+        latestCreatedAt: Date | null;
+      }
+    >;
+  };
+
   const rows = await db
     .select({
       id: mpNotificationsTable.id,
@@ -114,21 +136,51 @@ export const getMultiplayerNotificationSummaries = async (): Promise<
       type: mpNotificationsTable.type,
       action: mpNotificationsTable.action,
       actorUsername: mpNotificationsTable.actorUsername,
+      actorAvatarUrl: usersTable.avatarUrl,
       title: mpNotificationsTable.title,
       readAt: mpNotificationsTable.readAt,
       createdAt: mpNotificationsTable.createdAt,
     })
     .from(mpNotificationsTable)
     .leftJoin(mpDocsTable, eq(mpNotificationsTable.docId, mpDocsTable.id))
+    .leftJoin(usersTable, eq(usersTable.id, mpNotificationsTable.actorUserId))
     .where(eq(mpNotificationsTable.userId, userId))
     .orderBy(desc(mpNotificationsTable.createdAt))
     .limit(120);
 
-  const byDoc = new Map<string, MultiplayerNotificationSummary>();
+  const byDoc = new Map<string, SummaryAccumulator>();
+
+const formatActorSummary = (
+  actors: string[],
+  totalCount: number,
+  actorCounts: Map<string, number>
+) => {
+  const names = actors.filter(Boolean);
+  const actorCount = names.length;
+  if (actorCount === 0) {
+    return totalCount > 1 ? `${totalCount} people` : "Someone";
+  }
+  if (actorCount === 1) {
+    const [name] = names;
+    const repeats = actorCounts.get(name) ?? totalCount;
+    if (repeats > 1) return `${name} (${repeats} times)`;
+    return name;
+  }
+  if (actorCount === 2) {
+    if (totalCount > actorCount) {
+      return `${names[0]} and ${names[1]} (${totalCount} actions)`;
+    }
+    return `${names[0]} and ${names[1]}`;
+  }
+  const remainder = actorCount - 2;
+  const suffix =
+    totalCount > actorCount ? ` (${totalCount} actions)` : "";
+  return `${names[0]}, ${names[1]} and ${remainder} other${remainder === 1 ? "" : "s"}${suffix}`;
+};
 
   for (const row of rows) {
     const existing = byDoc.get(row.docId);
-    const entry: MultiplayerNotificationSummary =
+    const entry =
       existing ??
       {
         docId: row.docId,
@@ -137,6 +189,19 @@ export const getMultiplayerNotificationSummaries = async (): Promise<
         totalCount: 0,
         notifications: [],
         latestCreatedAt: null,
+        grouped: new Map<
+          string,
+          {
+            type: MultiplayerNotificationType;
+            title: string;
+            actionLabel: string;
+            actors: Set<string>;
+            actorCounts: Map<string, number>;
+            count: number;
+            hasUnread: boolean;
+            latestCreatedAt: Date | null;
+          }
+        >(),
       };
 
     entry.totalCount += 1;
@@ -146,21 +211,67 @@ export const getMultiplayerNotificationSummaries = async (): Promise<
     if (!entry.latestCreatedAt || (row.createdAt && row.createdAt > entry.latestCreatedAt)) {
       entry.latestCreatedAt = row.createdAt ?? null;
     }
-    if (entry.notifications.length < 3) {
-      const actionLabel =
-        row.action || defaultActionForType[row.type] || "updated";
-      const actor = row.actorUsername || "Someone";
-      const message = `${actor} ${actionLabel} "${row.title}"`;
-      entry.notifications.push({
+
+    const actionLabel = row.action || defaultActionForType[row.type] || "updated";
+    const groupKey = `${row.type}|${row.title || ""}`;
+    const group =
+      entry.grouped.get(groupKey) ||
+      {
         type: row.type as MultiplayerNotificationType,
-        message,
-      });
+        title: row.title,
+        actionLabel,
+        actors: new Set<string>(),
+        actorCounts: new Map<string, number>(),
+        count: 0,
+        hasUnread: false,
+        latestCreatedAt: null,
+      };
+
+    group.count += 1;
+    if (row.actorUsername) {
+      group.actors.add(row.actorUsername);
+      const prev = group.actorCounts.get(row.actorUsername) ?? 0;
+      group.actorCounts.set(row.actorUsername, prev + 1);
     }
+    if (!row.readAt) {
+      group.hasUnread = true;
+    }
+    if (!group.latestCreatedAt || (row.createdAt && row.createdAt > group.latestCreatedAt)) {
+      group.latestCreatedAt = row.createdAt ?? null;
+    }
+    entry.grouped.set(groupKey, group);
 
     byDoc.set(row.docId, entry);
   }
 
-  return Array.from(byDoc.values()).sort((a, b) => {
+  const summaries = Array.from(byDoc.values()).map(({ grouped, ...entry }) => {
+    const sortedGroups = Array.from(grouped.values()).sort((a, b) => {
+      if (a.hasUnread !== b.hasUnread) {
+        return a.hasUnread ? -1 : 1;
+      }
+      const aTime = a.latestCreatedAt ? a.latestCreatedAt.getTime() : 0;
+      const bTime = b.latestCreatedAt ? b.latestCreatedAt.getTime() : 0;
+      return bTime - aTime;
+    });
+    const notifications = sortedGroups.slice(0, 3).map((group) => {
+      const actorSummary = formatActorSummary(
+        Array.from(group.actors),
+        group.count,
+        group.actorCounts
+      );
+      const message = `${actorSummary} ${group.actionLabel} "${group.title}"`;
+      return {
+        type: group.type,
+        message,
+      };
+    });
+    return {
+      ...entry,
+      notifications,
+    };
+  });
+
+  return summaries.sort((a, b) => {
     const aTime = a.latestCreatedAt ? a.latestCreatedAt.getTime() : 0;
     const bTime = b.latestCreatedAt ? b.latestCreatedAt.getTime() : 0;
     return bTime - aTime;
@@ -179,16 +290,72 @@ export const createMultiplayerNotification = async (
   if (!userId || !docId || !type || !title) {
     throw new Error("Missing required notification fields");
   }
+  const createdAt = input.createdAt ?? new Date();
+  const metadata =
+    input.metadata && typeof input.metadata === "object"
+      ? input.metadata
+      : undefined;
+
+  const dedupeWindowMs = 5 * 60 * 1000;
+  const since = new Date(createdAt.getTime() - dedupeWindowMs);
+
+  const dedupeConditions = [
+    eq(mpNotificationsTable.userId, userId),
+    eq(mpNotificationsTable.docId, docId),
+    eq(mpNotificationsTable.type, type),
+    gte(mpNotificationsTable.createdAt, since),
+  ];
+  if (input.nodeId) {
+    dedupeConditions.push(eq(mpNotificationsTable.nodeId, input.nodeId));
+  }
+  if (input.edgeId) {
+    dedupeConditions.push(eq(mpNotificationsTable.edgeId, input.edgeId));
+  }
+  if (input.actorUserId) {
+    dedupeConditions.push(eq(mpNotificationsTable.actorUserId, input.actorUserId));
+  }
+  if (input.action) {
+    dedupeConditions.push(eq(mpNotificationsTable.action, input.action));
+  }
+
+  try {
+    const recent = await db
+      .select({
+        id: mpNotificationsTable.id,
+        createdAt: mpNotificationsTable.createdAt,
+      })
+      .from(mpNotificationsTable)
+      .where(and(...dedupeConditions))
+      .orderBy(desc(mpNotificationsTable.createdAt))
+      .limit(1);
+    if (recent[0]) {
+      return recent[0];
+    }
+  } catch (error) {
+    logger.error("Notification dedupe check failed", error);
+  }
 
   const values: InsertMpNotification = {
     ...input,
-    createdAt: input.createdAt ?? new Date(),
+    metadata,
+    createdAt,
   };
 
-  const [row] = await db
-    .insert(mpNotificationsTable)
-    .values(values)
-    .returning();
+  let row;
+  try {
+    [row] = await db.insert(mpNotificationsTable).values(values).returning();
+  } catch (error) {
+    // Retry once without metadata if payload is too large
+    try {
+      const sanitized: InsertMpNotification = {
+        ...values,
+        metadata: undefined,
+      };
+      [row] = await db.insert(mpNotificationsTable).values(sanitized).returning();
+    } catch (inner) {
+      throw inner;
+    }
+  }
 
   return row;
 };

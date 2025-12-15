@@ -16,33 +16,39 @@ jest.mock("@/services/db", () => ({
   },
 }));
 
-const buildSelectChain = (rows: any[]) => ({
-  from: jest.fn(() => ({
-    leftJoin: jest.fn(() => ({
-      where: jest.fn(() => ({
-        orderBy: jest.fn(() => ({
-          limit: jest.fn(async () => rows),
-        })),
-      })),
-    })),
-  })),
-});
+const buildSelectChain = (rows: any[]) => {
+  const chain: any = {};
+  chain.limit = jest.fn(async () => rows);
+  chain.orderBy = jest.fn(() => chain);
+  chain.where = jest.fn(() => chain);
+  chain.leftJoin = jest.fn(() => chain);
+  const from = jest.fn(() => chain);
+  return { from, where: chain.where, orderBy: chain.orderBy, limit: chain.limit };
+};
 
-const buildSummarySelectChain = (rows: any[]) => ({
-  from: jest.fn(() => ({
-    leftJoin: jest.fn(() => ({
-      where: jest.fn(() => ({
-        orderBy: jest.fn(() => ({
-          limit: jest.fn(async () => rows),
-        })),
-      })),
-    })),
-  })),
-});
+const buildSummarySelectChain = (rows: any[]) => {
+  const chain: any = {};
+  chain.limit = jest.fn(async () => rows);
+  chain.orderBy = jest.fn(() => chain);
+  chain.where = jest.fn(() => chain);
+  chain.leftJoin = jest.fn(() => chain);
+  const from = jest.fn(() => chain);
+  return { from, where: chain.where, orderBy: chain.orderBy, limit: chain.limit };
+};
 
 const buildInsertChain = (row: any) => ({
   values: jest.fn(() => ({
     returning: jest.fn(async () => [row]),
+  })),
+});
+
+const buildRecentSelectChain = (rows: any[]) => ({
+  from: jest.fn(() => ({
+    where: jest.fn(() => ({
+      orderBy: jest.fn(() => ({
+        limit: jest.fn(async () => rows),
+      })),
+    })),
   })),
 });
 
@@ -83,6 +89,7 @@ describe("multiplayer notifications actions", () => {
           action: "supported",
           actorUserId: "actor-1",
           actorUsername: "Alex",
+          actorAvatarUrl: null,
           title: "Point title",
           content: null,
           metadata: null,
@@ -110,6 +117,7 @@ describe("multiplayer notifications actions", () => {
           type: "support",
           action: null,
           actorUsername: "Alex",
+          actorAvatarUrl: null,
           title: "Point A",
           readAt: null,
           createdAt: new Date("2024-01-01T00:00:01Z"),
@@ -121,6 +129,7 @@ describe("multiplayer notifications actions", () => {
           type: "objection",
           action: "objected to",
           actorUsername: "Brooke",
+          actorAvatarUrl: null,
           title: "Point B",
           readAt: new Date("2024-01-01T00:00:02Z"),
           createdAt: new Date("2024-01-01T00:00:02Z"),
@@ -132,6 +141,7 @@ describe("multiplayer notifications actions", () => {
           type: "comment",
           action: null,
           actorUsername: "Casey",
+          actorAvatarUrl: null,
           title: "Point C",
           readAt: null,
           createdAt: new Date("2024-01-02T00:00:00Z"),
@@ -151,7 +161,47 @@ describe("multiplayer notifications actions", () => {
     expect(doc2?.totalCount).toBe(1);
   });
 
+  it("aggregates repeated actions on the same point in summaries", async () => {
+    mockSelect.mockReturnValue(
+      buildSummarySelectChain([
+        {
+          id: "n1",
+          docId: "doc-1",
+          docTitle: "Board A",
+          type: "support",
+          action: null,
+          actorUsername: "Alex",
+          actorAvatarUrl: null,
+          title: "Point A",
+          readAt: null,
+          createdAt: new Date("2024-01-01T00:00:01Z"),
+        },
+        {
+          id: "n2",
+          docId: "doc-1",
+          docTitle: "Board A",
+          type: "support",
+          action: "supported",
+          actorUsername: "Blake",
+          actorAvatarUrl: null,
+          title: "Point A",
+          readAt: null,
+          createdAt: new Date("2024-01-01T00:00:02Z"),
+        },
+      ])
+    );
+
+    const { getMultiplayerNotificationSummaries } = await import(
+      "@/actions/experiment/multiplayer/notifications"
+    );
+    const summaries = await getMultiplayerNotificationSummaries();
+    expect(summaries[0]?.notifications[0]?.message).toContain("Alex");
+    expect(summaries[0]?.notifications[0]?.message).toContain("Blake");
+    expect(summaries[0]?.notifications[0]?.message).toContain("supported");
+  });
+
   it("creates a notification with required fields", async () => {
+    mockSelect.mockReturnValue(buildRecentSelectChain([]));
     mockInsert.mockReturnValue(
       buildInsertChain({
         id: "new-id",
@@ -172,6 +222,22 @@ describe("multiplayer notifications actions", () => {
       title: "Point",
     });
     expect(row.id).toBe("new-id");
+  });
+
+  it("dedupes recent notifications", async () => {
+    const existing = { id: "recent-id" };
+    mockSelect.mockReturnValue(buildRecentSelectChain([existing]));
+    const { createMultiplayerNotification } = await import(
+      "@/actions/experiment/multiplayer/notifications"
+    );
+    const row = await createMultiplayerNotification({
+      userId: "user-2",
+      docId: "doc-1",
+      type: "support",
+      title: "Point",
+    });
+    expect(row.id).toBe(existing.id);
+    expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it("marks single notification as read", async () => {

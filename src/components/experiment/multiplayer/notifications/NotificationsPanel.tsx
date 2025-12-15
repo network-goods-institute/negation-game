@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils/cn";
 import {
   MultiplayerBoardNotificationSummary,
   MultiplayerNotificationType,
-} from "./demoData";
+} from "./types";
 
 interface NotificationsPanelProps {
   isOpen: boolean;

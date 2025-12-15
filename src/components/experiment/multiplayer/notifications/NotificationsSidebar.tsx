@@ -4,14 +4,10 @@ import type React from "react";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Bell, X, ChevronRight, EyeOff } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils/cn";
-import {
-  demoNotifications,
-  MultiplayerNotification,
-  MultiplayerNotificationType,
-} from "./demoData";
+import type { MultiplayerNotification } from "./types";
 
 interface NotificationsSidebarProps {
   isOpen: boolean;
@@ -19,47 +15,20 @@ interface NotificationsSidebarProps {
   onNavigateToPoint?: (pointId: string, boardId?: string) => void;
   notifications?: MultiplayerNotification[];
   onNotificationsUpdate?: (notifications: MultiplayerNotification[]) => void;
-  onNotificationRead?: (id: string) => void;
+  onNotificationRead?: (notification: MultiplayerNotification) => void;
   onMarkAllRead?: (ids: string[]) => void;
   isLoading?: boolean;
+  onRefresh?: () => void;
 }
 
-const getNotificationTypeColor = (type: MultiplayerNotificationType) => {
-  switch (type) {
-    case "negation":
-      return "bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800";
-    case "objection":
-      return "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800";
-    case "support":
-      return "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800";
-    case "upvote":
-      return "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800";
-    case "comment":
-      return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400 dark:border-purple-800";
-    default:
-      return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-400 dark:border-gray-800";
-  }
-};
-
-const getNotificationTypeLabel = (type: MultiplayerNotificationType) => {
-  switch (type) {
-    case "negation":
-      return "Negation";
-    case "objection":
-      return "Objection";
-    case "support":
-      return "Support";
-    case "upvote":
-      return "Upvote";
-    case "comment":
-      return "Comment";
-    default:
-      return type;
-  }
-};
-
-const isNegativeValence = (type: MultiplayerNotificationType) => {
+const isNegativeValence = (type: MultiplayerNotification["type"]) => {
   return type === "negation" || type === "objection";
+};
+
+const initials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
 };
 
 export function NotificationsSidebar({
@@ -71,13 +40,15 @@ export function NotificationsSidebar({
   onNotificationRead,
   onMarkAllRead,
   isLoading = false,
+  onRefresh,
 }: NotificationsSidebarProps) {
   const [notifications, setNotifications] = useState<MultiplayerNotification[]>(
-    notificationsProp ?? demoNotifications
+    notificationsProp ?? []
   );
   const [rendered, setRendered] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
   const [showNegative, setShowNegative] = useState(false);
+  const [lastHiddenOpenedAt, setLastHiddenOpenedAt] = useState<Date | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -108,13 +79,41 @@ export function NotificationsSidebar({
     return notifications.filter((n) => !isNegativeValence(n.type));
   }, [notifications, showNegative]);
 
-  const hiddenNegativeCount = useMemo(
-    () => notifications.filter((n) => isNegativeValence(n.type) && !n.isRead).length,
+  const hiddenNegativeUnreadNotifications = useMemo(
+    () => notifications.filter((n) => isNegativeValence(n.type) && !n.isRead),
     [notifications]
   );
 
+  const hiddenNegativeCount = useMemo(
+    () => hiddenNegativeUnreadNotifications.length,
+    [hiddenNegativeUnreadNotifications]
+  );
+
+  const hiddenNegativeNewCount = useMemo(() => {
+    const lastOpenedMs = lastHiddenOpenedAt?.getTime() ?? 0;
+    return hiddenNegativeUnreadNotifications.filter((n) => {
+      const createdAtMs =
+        n.createdAt instanceof Date
+          ? n.createdAt.getTime()
+          : n.createdAt
+            ? new Date(n.createdAt).getTime()
+            : 0;
+      return createdAtMs > lastOpenedMs;
+    }).length;
+  }, [hiddenNegativeUnreadNotifications, lastHiddenOpenedAt]);
+
   const unreadCount = useMemo(
-    () => filteredNotifications.filter((n) => !n.isRead).length,
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
+
+  const unreadNotifications = useMemo(
+    () => filteredNotifications.filter((n) => !n.isRead),
+    [filteredNotifications]
+  );
+
+  const earlierNotifications = useMemo(
+    () => filteredNotifications.filter((n) => n.isRead),
     [filteredNotifications]
   );
 
@@ -133,13 +132,20 @@ export function NotificationsSidebar({
   };
 
   const handleNotificationClick = (notification: MultiplayerNotification) => {
+    const idsToMark = new Set(notification.ids ?? [notification.id]);
     updateNotifications((prev) =>
-      prev.map((n) =>
-        n.id === notification.id ? { ...n, isRead: true } : n
-      )
+      prev.map((n) => {
+        const matches =
+          (n.ids && n.ids.some((id) => idsToMark.has(id))) ||
+          idsToMark.has(n.id);
+        return matches ? { ...n, isRead: true } : n;
+      })
     );
     try {
-      onNotificationRead?.(notification.id);
+      onNotificationRead?.({
+        ...notification,
+        ids: Array.from(idsToMark),
+      });
     } catch {}
 
     if (onNavigateToPoint) {
@@ -154,7 +160,7 @@ export function NotificationsSidebar({
     try {
       const unreadIds = notifications
         .filter((n) => !n.isRead)
-        .map((n) => n.id);
+        .flatMap((n) => n.ids ?? [n.id]);
       if (unreadIds.length > 0) {
         onMarkAllRead?.(unreadIds);
       }
@@ -192,12 +198,23 @@ export function NotificationsSidebar({
             {isLoading ? (
               <div className="ml-2 h-4 w-4 border-2 border-red-300 border-l-transparent rounded-full animate-spin" aria-label="Loading notifications" />
             ) : unreadCount > 0 ? (
-              <Badge variant="destructive" className="ml-1">
-                {unreadCount}
-              </Badge>
+        <span className="ml-1 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-red-600 px-2 text-xs font-semibold text-white">
+          {unreadCount}
+        </span>
             ) : null}
           </div>
           <div className="flex items-center gap-2">
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRefresh}
+                className="text-xs text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+                disabled={isLoading}
+              >
+                {isLoading ? "Refreshing..." : "Refresh"}
+              </Button>
+            )}
             {unreadCount > 0 && (
               <Button
                 variant="ghost"
@@ -228,75 +245,93 @@ export function NotificationsSidebar({
             </div>
           )}
 
-          {!isLoading && !showNegative && hiddenNegativeCount > 0 && (
-            <button
-              onClick={() => setShowNegative(true)}
-              className="w-full p-3 rounded-lg border-2 border-dashed border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-900 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors mb-3"
-            >
-              <div className="flex items-center justify-center gap-2 text-sm text-stone-600 dark:text-stone-400">
-                <EyeOff className="h-4 w-4" />
-                <span>Show {hiddenNegativeCount} negative notification{hiddenNegativeCount !== 1 ? 's' : ''} (negations & objections)</span>
-              </div>
-            </button>
-          )}
-          {!isLoading && showNegative && (
-            <button
-              onClick={() => setShowNegative(false)}
-              className="w-full p-3 rounded-lg border-2 border-dashed border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-900 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors mb-3"
-            >
-              <div className="flex items-center justify-center gap-2 text-sm text-stone-600 dark:text-stone-400">
-                <EyeOff className="h-4 w-4" />
-                <span>Hide negative notifications</span>
-              </div>
-            </button>
-          )}
-
           {!isLoading && filteredNotifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Bell className="h-12 w-12 text-stone-300 dark:text-stone-700 mb-3" />
-              <p className="text-sm text-stone-500 dark:text-stone-400">
-                No notifications yet
-              </p>
-            </div>
+            hiddenNegativeCount > 0 ? (
+              <HiddenNegativeActionsCard
+                hiddenNegativeCount={hiddenNegativeCount}
+                hiddenNegativeNewCount={hiddenNegativeNewCount}
+                isShowing={showNegative}
+                onToggle={() => {
+                    setLastHiddenOpenedAt(new Date());
+                    setShowNegative(true);
+                  }}
+                  className="py-4"
+                />
+              ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Bell className="h-12 w-12 text-stone-300 dark:text-stone-700 mb-3" />
+                <p className="text-sm text-stone-500 dark:text-stone-400">
+                  No notifications yet
+                </p>
+              </div>
+            )
           ) : null}
 
           {!isLoading && filteredNotifications.length > 0 && (
             <>
-              {filteredNotifications.filter((n) => !n.isRead).length > 0 && (
+              {unreadNotifications.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
                     New
                   </h3>
-                  {filteredNotifications
-                    .filter((n) => !n.isRead)
-                    .map((notification) => (
-                      <NotificationItem
-                        key={notification.id}
-                        notification={notification}
-                        onClick={() => handleNotificationClick(notification)}
-                        getTypeColor={getNotificationTypeColor}
-                        getTypeLabel={getNotificationTypeLabel}
-                      />
-                    ))}
+                  {unreadNotifications.map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onClick={() => handleNotificationClick(notification)}
+                    />
+                  ))}
+                  {hiddenNegativeCount > 0 && (
+                    <HiddenNegativeActionsCard
+                      hiddenNegativeCount={hiddenNegativeCount}
+                      hiddenNegativeNewCount={hiddenNegativeNewCount}
+                      isShowing={showNegative}
+                      onToggle={() =>
+                        setShowNegative((prev) => {
+                          const next = !prev;
+                          if (next) {
+                            setLastHiddenOpenedAt(new Date());
+                          }
+                          return next;
+                        })
+                      }
+                      className="mt-2"
+                    />
+                  )}
                 </div>
               )}
 
-              {filteredNotifications.filter((n) => n.isRead).length > 0 && (
+              {unreadNotifications.length === 0 && hiddenNegativeCount > 0 && (
+                <div className="mt-2">
+                  <HiddenNegativeActionsCard
+                    hiddenNegativeCount={hiddenNegativeCount}
+                    hiddenNegativeNewCount={hiddenNegativeNewCount}
+                    isShowing={showNegative}
+                    onToggle={() =>
+                      setShowNegative((prev) => {
+                        const next = !prev;
+                        if (next) {
+                          setLastHiddenOpenedAt(new Date());
+                        }
+                        return next;
+                      })
+                    }
+                  />
+                </div>
+              )}
+
+              {earlierNotifications.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
                     Earlier
                   </h3>
-                  {filteredNotifications
-                    .filter((n) => n.isRead)
-                    .map((notification) => (
-                      <NotificationItem
-                        key={notification.id}
-                        notification={notification}
-                        onClick={() => handleNotificationClick(notification)}
-                        getTypeColor={getNotificationTypeColor}
-                        getTypeLabel={getNotificationTypeLabel}
-                      />
-                    ))}
+                  {earlierNotifications.map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onClick={() => handleNotificationClick(notification)}
+                    />
+                  ))}
                 </div>
               )}
             </>
@@ -312,18 +347,27 @@ export function NotificationsSidebar({
 interface NotificationItemProps {
   notification: MultiplayerNotification;
   onClick: () => void;
-  getTypeColor: (type: MultiplayerNotificationType) => string;
-  getTypeLabel: (type: MultiplayerNotificationType) => string;
 }
 
 function NotificationItem({
   notification,
   onClick,
-  getTypeColor,
-  getTypeLabel,
 }: NotificationItemProps) {
-  const isNegative = isNegativeValence(notification.type);
   const isComment = notification.type === "comment";
+  const actorNames =
+    notification.actorNames && notification.actorNames.length > 0
+      ? notification.actorNames
+      : [notification.userName];
+  const avatarSources =
+    notification.avatarUrls && notification.avatarUrls.length > 0
+      ? notification.avatarUrls
+      : actorNames.map(() => undefined);
+  const avatarItems = avatarSources.slice(0, 3).map((src, idx) => ({
+    src,
+    name: actorNames[idx] ?? notification.userName,
+  }));
+  const actionLabel = notification.action || notification.type;
+  const actionText = actionLabel;
 
   return (
     <button
@@ -335,33 +379,35 @@ function NotificationItem({
           : "bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 shadow-sm"
       )}
     >
-      {/* Point title as primary focus */}
-      <p className="text-base font-semibold text-stone-900 dark:text-stone-100 line-clamp-2 mb-2">
+      <p className="text-base font-semibold text-stone-900 dark:text-stone-100 break-words mb-2">
         {notification.pointTitle}
       </p>
 
-      {/* Comment preview if available */}
       {isComment && notification.commentPreview && (
         <p className="text-sm text-stone-600 dark:text-stone-400 italic line-clamp-2 mb-2 pl-3 border-l-2 border-stone-300 dark:border-stone-700">
           {notification.commentPreview}
         </p>
       )}
 
-      {/* Secondary info: type, person, time */}
-      <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
-        <Badge
-          variant="outline"
-          className={cn("text-[10px] font-medium py-0 px-1.5", getTypeColor(notification.type))}
-        >
-          {getTypeLabel(notification.type)}
-        </Badge>
-        <span aria-hidden="true" className="text-stone-300 dark:text-stone-600">
-          |
-        </span>
-        <span>{notification.userName}</span>
-        <span aria-hidden="true" className="text-stone-300 dark:text-stone-600">
-          |
-        </span>
+      <div className="flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400 flex-wrap">
+        <div className="flex items-center -space-x-2">
+          {avatarItems.map((avatar, idx) => (
+            <Avatar
+              key={`${notification.id}-avatar-${idx}`}
+              className="h-6 w-6 border border-white dark:border-stone-800 shadow-sm"
+            >
+              {avatar.src ? (
+                <AvatarImage src={avatar.src} alt={avatar.name} />
+              ) : (
+                <AvatarFallback>{initials(avatar.name)}</AvatarFallback>
+              )}
+            </Avatar>
+          ))}
+        </div>
+        <span className="font-medium text-stone-700 dark:text-stone-200">{notification.userName}</span>
+        <span className="text-stone-300 dark:text-stone-600">|</span>
+        <span className="text-stone-700 dark:text-stone-200">{actionText}</span>
+        <span className="text-stone-300 dark:text-stone-600">|</span>
         <span className="flex-shrink-0">{notification.timestamp}</span>
       </div>
 
@@ -372,3 +418,46 @@ function NotificationItem({
     </button>
   );
 }
+
+interface HiddenNegativeActionsCardProps {
+  hiddenNegativeCount: number;
+  hiddenNegativeNewCount: number;
+  isShowing: boolean;
+  onToggle: () => void;
+  className?: string;
+}
+
+function HiddenNegativeActionsCard({
+  hiddenNegativeCount,
+  hiddenNegativeNewCount,
+  isShowing,
+  onToggle,
+  className,
+}: HiddenNegativeActionsCardProps) {
+  const newSuffix = hiddenNegativeNewCount > 0 ? ` (${hiddenNegativeNewCount} new)` : "";
+  const label = isShowing
+    ? `Hide negative actions${newSuffix}`
+    : `Show ${hiddenNegativeCount} hidden negative action${hiddenNegativeCount === 1 ? "" : "s"}${newSuffix}`;
+  const helper = isShowing
+    ? "Collapse negative actions."
+    : "Negative actions are hidden by default.";
+
+  return (
+    <button
+      onClick={onToggle}
+      className={cn(
+        "w-full p-3 min-h-[104px] rounded-lg border-2 border-dashed border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-900 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors flex flex-col justify-center gap-2 text-left",
+        className
+      )}
+    >
+      <div className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
+        <EyeOff className="h-4 w-4" />
+        <span>{label}</span>
+      </div>
+      <p className="text-xs text-stone-500 dark:text-stone-400">{helper}</p>
+    </button>
+  );
+}
+
+
+

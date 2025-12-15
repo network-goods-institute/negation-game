@@ -44,7 +44,7 @@ import { MarketErrorBoundary } from './market/MarketErrorBoundary';
 import { BoardLoading } from './BoardLoading';
 import { DocAccessRole } from '@/services/mpAccess';
 import { NotificationsSidebar } from './notifications/NotificationsSidebar';
-import type { MultiplayerNotification } from './notifications/demoData';
+import type { MultiplayerNotification } from './notifications/types';
 import { Bell } from 'lucide-react';
 import { useMultiplayerNotifications } from '@/queries/experiment/multiplayer/useMultiplayerNotifications';
 import {
@@ -208,11 +208,18 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     data: multiplayerNotifications = [],
     isLoading: notificationsLoading,
     isFetching: notificationsFetching,
+    refetch: refetchNotifications,
   } = useMultiplayerNotifications(notificationQueryOptions);
   const notificationsLoadingState = notificationsLoading || notificationsFetching;
   const markNotificationReadMutation = useMarkMultiplayerNotificationRead();
   const markAllNotificationsReadMutation = useMarkAllMultiplayerNotificationsRead();
   const [pendingNavigateId, setPendingNavigateId] = useState<string | null>(null);
+  const getNodeTitle = useCallback((node: any) => {
+    const data = node?.data || {};
+    const content = data.content ?? data.statement;
+    if (typeof content === 'string' && content.trim()) return content.trim();
+    return 'Untitled point';
+  }, []);
 
   useEffect(() => {
     setNotifications((prev) => {
@@ -222,6 +229,9 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           return (
             next &&
             item.id === next.id &&
+            item.userName === next.userName &&
+            item.count === next.count &&
+            item.timestamp === next.timestamp &&
             item.isRead === next.isRead &&
             item.pointTitle === next.pointTitle &&
             item.type === next.type &&
@@ -235,25 +245,39 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   }, [multiplayerNotifications]);
 
   const handleNotificationRead = useCallback(
-    async (notificationId: string) => {
+    async (notification: MultiplayerNotification) => {
+      const targetIds = new Set(notification.ids ?? [notification.id]);
       setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
+        prev.map((n) => {
+          const match =
+            (n.ids && n.ids.some((id) => targetIds.has(id))) ||
+            targetIds.has(n.id);
+          return match ? { ...n, isRead: true } : n;
+        })
       );
       try {
-        await markNotificationReadMutation.mutateAsync(notificationId);
+        if (targetIds.size > 1) {
+          await markAllNotificationsReadMutation.mutateAsync(Array.from(targetIds));
+        } else {
+          const [id] = Array.from(targetIds);
+          await markNotificationReadMutation.mutateAsync(id);
+        }
       } catch (error) {
         logger.error("Failed to mark multiplayer notification read", error);
       }
     },
-    [markNotificationReadMutation]
+    [markNotificationReadMutation, markAllNotificationsReadMutation]
   );
 
   const handleMarkAllNotificationsRead = useCallback(
     async (notificationIds: string[]) => {
       if (!notificationIds.length) return;
+      const targetIds = new Set(notificationIds);
       setNotifications((prev) =>
         prev.map((n) =>
-          notificationIds.includes(n.id) ? { ...n, isRead: true } : n
+          (n.ids && n.ids.some((id) => targetIds.has(id))) || targetIds.has(n.id)
+            ? { ...n, isRead: true }
+            : n
         )
       );
       try {
@@ -267,15 +291,25 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
 
   useEffect(() => {
     if (!missingNotificationId) return;
-    const target = notifications.find((n) => n.id === missingNotificationId);
+    const target = notifications.find(
+      (n) => n.id === missingNotificationId || (n.ids && n.ids.includes(missingNotificationId))
+    );
     setNotifications((prev) =>
-      prev.map((n) => (n.id === missingNotificationId ? { ...n, isRead: true } : n))
+      prev.map((n) =>
+        n.id === missingNotificationId || (n.ids && n.ids.includes(missingNotificationId))
+          ? { ...n, isRead: true }
+          : n
+      )
     );
     if (target && !target.isRead) {
-      void handleNotificationRead(missingNotificationId);
+      void handleNotificationRead(target);
+    } else {
+      markNotificationReadMutation
+        .mutateAsync(missingNotificationId)
+        .catch((error) => logger.error("Failed to mark multiplayer notification read", error));
     }
     setMissingNotificationId(null);
-  }, [missingNotificationId, notifications, handleNotificationRead]);
+  }, [missingNotificationId, notifications, handleNotificationRead, markNotificationReadMutation]);
 
   const isProdHost = typeof window !== 'undefined' ? isProductionRequest(window.location.hostname) : false;
   const allowedByRole = accessRole ? (accessRole === 'owner' || accessRole === 'editor') : true;
@@ -286,6 +320,10 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const notifiedEdgeIdsRef = useRef<Set<string>>(new Set());
   const initializedEdgeNotificationsRef = useRef(false);
   const notifiedEdgeTypesRef = useRef<Map<string, Set<string>>>(new Map());
+  const notifiedCommentIdsRef = useRef<Set<string>>(new Set());
+  const notifiedUpvotesRef = useRef<Map<string, Set<string>>>(new Map());
+  const seededHistoricNotificationsRef = useRef(false);
+  const lastVoteSnapshotRef = useRef<Map<string, Set<string>>>(new Map());
 
   const {
     nodes,
@@ -1277,6 +1315,157 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       return null;
     }
   }, [marketPanelNodeId, nodes]);
+
+  useEffect(() => {
+    // Seed seen maps once after initial graph is loaded to avoid retroactive notifications
+    if (seededHistoricNotificationsRef.current) return;
+    if (!Array.isArray(nodes) || nodes.length === 0) return;
+    seededHistoricNotificationsRef.current = true;
+    nodes.forEach((node: any) => {
+      if (node?.type === 'comment') {
+        notifiedCommentIdsRef.current.add(node.id);
+      }
+      const votes = Array.isArray(node?.data?.votes) ? node.data.votes : [];
+      if (votes.length === 0) return;
+      const set = notifiedUpvotesRef.current.get(node.id) || new Set<string>();
+      votes.forEach((v: any) => {
+        if (v?.id) set.add(String(v.id));
+      });
+      if (set.size > 0) {
+        notifiedUpvotesRef.current.set(node.id, set);
+      }
+    });
+  }, [nodes]);
+
+  useEffect(() => {
+    if (!resolvedId || !Array.isArray(nodes) || !Array.isArray(edges)) return;
+
+    const tasks: Promise<void>[] = [];
+
+    const voteSnapshot = new Map<string, Set<string>>();
+
+    for (const node of nodes as any[]) {
+      // Comment notifications
+      if (node?.type === 'comment' && !notifiedCommentIdsRef.current.has(node.id)) {
+        const actorId = typeof node?.data?.createdBy === 'string' ? node.data.createdBy : null;
+        const actorName = node?.data?.createdByName || username || undefined;
+        if (actorId) {
+          const commentEdge = edges.find((e: any) => e?.type === 'comment' && e?.source === node.id);
+          const targetNodeId = commentEdge?.target || null;
+          const targetNode = nodes.find((n: any) => n.id === targetNodeId);
+          const recipientRaw = targetNode?.data?.createdBy || ownerId || null;
+          const recipientId =
+            typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
+          if (recipientId && recipientId !== actorId) {
+            const title = targetNode ? getNodeTitle(targetNode) : 'Comment';
+            const commentContent =
+              typeof node?.data?.content === 'string' ? node.data.content : undefined;
+            const isReply = targetNode?.type === 'comment';
+            const actionLabel = isReply ? 'replied to your comment' : 'commented on';
+            notifiedCommentIdsRef.current.add(node.id);
+            tasks.push(
+              createMultiplayerNotification({
+                userId: recipientId,
+                docId: resolvedId,
+                nodeId: targetNodeId || node.id,
+                edgeId: commentEdge?.id || null,
+                type: 'comment',
+                action: actionLabel,
+                actorUserId: actorId,
+                actorUsername: actorName,
+                title,
+                content: commentContent,
+                metadata: {
+                  ...(node?.data?.metadata || {}),
+                  isReply,
+                  targetNodeId: targetNodeId || null,
+                },
+              })
+                .then(() => {})
+                .catch((error) => {
+                  logger.error("Failed to create multiplayer notification for comment", error);
+                  // eslint-disable-next-line drizzle/enforce-delete-with-where
+                  notifiedCommentIdsRef.current.delete(node.id);
+                })
+            );
+          }
+        }
+      }
+
+      // Upvote notifications
+      const votes = Array.isArray(node?.data?.votes) ? node.data.votes : [];
+      if (votes.length === 0) continue;
+      const voteSet = new Set<string>();
+      votes.forEach((v: any) => {
+        if (v?.id) voteSet.add(String(v.id));
+      });
+      voteSnapshot.set(node.id, voteSet);
+
+      const seen = notifiedUpvotesRef.current.get(node.id) || new Set<string>();
+      for (const vote of votes) {
+        const voterId = vote?.id ? String(vote.id) : null;
+        if (!voterId || seen.has(voterId)) continue;
+        const recipientRaw = node?.data?.createdBy || ownerId || null;
+        const recipientId =
+          typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
+        if (!recipientId || recipientId === voterId) {
+          seen.add(voterId);
+          continue;
+        }
+        const voterName = typeof vote?.name === 'string' ? vote.name : undefined;
+        const title = getNodeTitle(node);
+        seen.add(voterId);
+        tasks.push(
+          createMultiplayerNotification({
+            userId: recipientId,
+            docId: resolvedId,
+            nodeId: node.id,
+            edgeId: null,
+            type: 'upvote',
+            action: 'upvoted',
+            actorUserId: voterId,
+            actorUsername: voterName,
+            title,
+          })
+            .then(() => {})
+            .catch((error) => {
+              logger.error("Failed to create multiplayer notification for upvote", error);
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              seen.delete(voterId);
+            })
+        );
+      }
+      if (seen.size > 0) {
+        notifiedUpvotesRef.current.set(node.id, seen);
+      }
+    }
+
+    // Remove stale vote entries to allow re-notify on genuine revote after removal
+    notifiedUpvotesRef.current.forEach((set, nodeId) => {
+      const current = voteSnapshot.get(nodeId);
+      if (!current) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedUpvotesRef.current.delete(nodeId);
+        return;
+      }
+      for (const voterId of Array.from(set)) {
+        if (!current.has(voterId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          set.delete(voterId);
+        }
+      }
+      if (set.size === 0) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedUpvotesRef.current.delete(nodeId);
+      }
+    });
+    lastVoteSnapshotRef.current = voteSnapshot;
+
+    if (tasks.length > 0) {
+      void Promise.all(tasks);
+    }
+  }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username]);
+
   const fullyReady = Boolean(initialGraph && resolvedId && (isReady || connectionState === 'failed'));
 
   if (!fullyReady) {
@@ -1553,6 +1742,9 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         onMarkAllRead={handleMarkAllNotificationsRead}
         onNavigateToPoint={handleNavigateToPoint}
         isLoading={notificationsLoading || notificationsFetching}
+        onRefresh={() => {
+          void refetchNotifications();
+        }}
       />
     </div>
   );
