@@ -386,8 +386,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
 
   useEffect(() => {
     if (!resolvedId || !authenticated) return;
-    recordOpen(resolvedId).catch((error) => { logDevError('[market/ui] recordOpen failed', error); });
-  }, [resolvedId, authenticated]);
+    recordOpen(resolvedId, { shareToken }).catch((error) => { logDevError('[market/ui] recordOpen failed', error); });
+  }, [resolvedId, authenticated, shareToken]);
 
   useEffect(() => {
     if (!yMetaMap) return;

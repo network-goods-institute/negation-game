@@ -673,6 +673,13 @@
       "when": 1765008550758,
       "tag": "0095_charming_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1765927525100,
+      "tag": "0096_red_vindicator",
+      "breakpoints": true
     }
   ]
 }

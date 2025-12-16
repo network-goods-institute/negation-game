@@ -1,0 +1,3 @@
+ALTER TABLE "mp_doc_access" ADD COLUMN "share_link_id" uuid;--> statement-breakpoint
+ALTER TABLE "mp_doc_access" ADD CONSTRAINT "mp_doc_access_share_link_id_mp_doc_share_links_id_fk" FOREIGN KEY ("share_link_id") REFERENCES "public"."mp_doc_share_links"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "mp_doc_access_share_link_idx" ON "mp_doc_access" USING btree ("share_link_id");
