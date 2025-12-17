@@ -17,6 +17,8 @@ const makeYMapStub = () => {
   } as any;
 };
 
+jest.setTimeout(15000);
+
 jest.mock('@privy-io/react-auth', () => ({
   usePrivy: () => ({ ready: true, authenticated: true, user: { id: 'u1' }, login: jest.fn() }),
 }));

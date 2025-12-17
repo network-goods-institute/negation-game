@@ -21,7 +21,7 @@ interface NotificationsSidebarProps {
   onRefresh?: () => void;
 }
 
-const isNegativeValence = (type: MultiplayerNotification["type"]) => {
+const isOtherActivity = (type: MultiplayerNotification["type"]) => {
   return type === "negation" || type === "objection";
 };
 
@@ -55,16 +55,26 @@ export function NotificationsSidebar({
     if (isOpen) {
       setRendered(true);
       setIsClosing(false);
-    } else if (rendered) {
+    } else if (rendered && !isClosing) {
       setIsClosing(true);
-      const timer = window.setTimeout(() => {
-        setRendered(false);
-        setIsClosing(false);
-      }, 200);
-      return () => window.clearTimeout(timer);
     }
-    return undefined;
-  }, [isOpen, rendered]);
+  }, [isOpen, rendered, isClosing]);
+
+  useEffect(() => {
+    if (!isClosing) return;
+    const fallbackTimer = window.setTimeout(() => {
+      setRendered(false);
+      setIsClosing(false);
+    }, 300);
+    return () => window.clearTimeout(fallbackTimer);
+  }, [isClosing]);
+
+  const handleAnimationEnd = useCallback((e: React.AnimationEvent) => {
+    if (isClosing && e.animationName.includes("exit")) {
+      setRendered(false);
+      setIsClosing(false);
+    }
+  }, [isClosing]);
 
   useEffect(() => {
     if (notificationsProp) {
@@ -76,11 +86,11 @@ export function NotificationsSidebar({
     if (showNegative) {
       return notifications;
     }
-    return notifications.filter((n) => !isNegativeValence(n.type));
+    return notifications.filter((n) => !isOtherActivity(n.type));
   }, [notifications, showNegative]);
 
   const hiddenNegativeUnreadNotifications = useMemo(
-    () => notifications.filter((n) => isNegativeValence(n.type) && !n.isRead),
+    () => notifications.filter((n) => isOtherActivity(n.type) && !n.isRead),
     [notifications]
   );
 
@@ -177,7 +187,7 @@ export function NotificationsSidebar({
       <div
         className={cn(
           "fixed inset-0 bg-black/20 dark:bg-black/40 z-[2100] duration-200",
-          isClosing ? "animate-out fade-out" : "animate-in fade-in"
+          isClosing ? "animate-out fade-out fill-mode-forwards pointer-events-none" : "animate-in fade-in"
         )}
         onClick={onClose}
       />
@@ -185,8 +195,11 @@ export function NotificationsSidebar({
         ref={sidebarRef}
         className={cn(
           "fixed right-0 top-0 bottom-0 w-96 bg-stone-50 dark:bg-stone-950 border-l border-stone-200 dark:border-stone-800 z-[2101] flex flex-col duration-200 shadow-2xl",
-          isClosing ? "animate-out slide-out-to-right" : "animate-in slide-in-from-right"
+          isClosing
+            ? "animate-out slide-out-to-right fill-mode-forwards pointer-events-none"
+            : "animate-in slide-in-from-right"
         )}
+        onAnimationEnd={handleAnimationEnd}
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
@@ -203,7 +216,7 @@ export function NotificationsSidebar({
         </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {onRefresh && (
               <Button
                 variant="ghost"
@@ -229,7 +242,7 @@ export function NotificationsSidebar({
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+              className="text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 h-8 w-8 shrink-0 -translate-x-3 transform"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -272,7 +285,7 @@ export function NotificationsSidebar({
               {unreadNotifications.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
-                    New
+                    New supporting activity
                   </h3>
                   {unreadNotifications.map((notification) => (
                     <NotificationItem
@@ -436,11 +449,11 @@ function HiddenNegativeActionsCard({
 }: HiddenNegativeActionsCardProps) {
   const newSuffix = hiddenNegativeNewCount > 0 ? ` (${hiddenNegativeNewCount} new)` : "";
   const label = isShowing
-    ? `Hide negative actions${newSuffix}`
-    : `Show ${hiddenNegativeCount} hidden negative action${hiddenNegativeCount === 1 ? "" : "s"}${newSuffix}`;
+    ? `Hide other activity${newSuffix}`
+    : `Show ${hiddenNegativeCount} other hidden update${hiddenNegativeCount === 1 ? "" : "s"}${newSuffix}`;
   const helper = isShowing
-    ? "Collapse negative actions."
-    : "Negative actions are hidden by default.";
+    ? "Collapse other activity."
+    : "Other activity is hidden by default.";
 
   return (
     <button
