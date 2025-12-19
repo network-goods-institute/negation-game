@@ -22,6 +22,8 @@ import {
   isNull,
 } from "drizzle-orm";
 
+const shouldLogMpNotifications = process.env.MP_NOTIFICATIONS_DEBUG === "true";
+
 export type MultiplayerNotificationType = (typeof mpNotificationTypeEnum.enumValues)[number];
 
 export interface GetMultiplayerNotificationsOptions {
@@ -58,12 +60,17 @@ const defaultActionForType: Record<string, string> = {
 export const getMultiplayerNotifications = async (
   options: GetMultiplayerNotificationsOptions = {}
 ): Promise<MultiplayerNotificationRecord[]> => {
+  const { docId, unreadOnly = false, limit = 50 } = options;
   const userId = await getUserId();
   if (!userId) {
+    logger.warn("mp notifications: missing user id for fetch", {
+      docId,
+      unreadOnly,
+      limit,
+    });
     return [];
   }
 
-  const { docId, unreadOnly = false, limit = 50 } = options;
   const conditions = [eq(mpNotificationsTable.userId, userId)];
   if (docId) {
     conditions.push(eq(mpNotificationsTable.docId, docId));
@@ -98,6 +105,29 @@ export const getMultiplayerNotifications = async (
     .orderBy(desc(mpNotificationsTable.createdAt))
     .limit(limit);
 
+  if (shouldLogMpNotifications) {
+    const typeCounts = rows.reduce<Record<string, number>>((acc, row) => {
+      const type = String(row.type);
+      acc[type] = (acc[type] ?? 0) + 1;
+      return acc;
+    }, {});
+    const unreadCount = rows.reduce(
+      (total, row) => total + (row.readAt ? 0 : 1),
+      0
+    );
+    const latestCreatedAt = rows[0]?.createdAt ?? null;
+    logger.info("mp notifications: fetched", {
+      userId,
+      docId: docId ?? null,
+      unreadOnly,
+      limit,
+      count: rows.length,
+      unreadCount,
+      typeCounts,
+      latestCreatedAt,
+    });
+  }
+
   return rows.map((row) => ({
     ...row,
     docTitle: row.docTitle ?? null,
@@ -109,6 +139,7 @@ export const getMultiplayerNotificationSummaries = async (): Promise<
 > => {
   const userId = await getUserId();
   if (!userId) {
+    logger.warn("mp notifications: missing user id for summaries");
     return [];
   }
 
@@ -147,6 +178,13 @@ export const getMultiplayerNotificationSummaries = async (): Promise<
     .where(eq(mpNotificationsTable.userId, userId))
     .orderBy(desc(mpNotificationsTable.createdAt))
     .limit(120);
+
+  if (shouldLogMpNotifications) {
+    logger.info("mp notifications: summary fetch", {
+      userId,
+      count: rows.length,
+    });
+  }
 
   const byDoc = new Map<string, SummaryAccumulator>();
 
@@ -288,6 +326,16 @@ export const createMultiplayerNotification = async (
 ) => {
   const { userId, docId, type, title } = input;
   if (!userId || !docId || !type || !title) {
+    logger.warn("mp notifications: missing fields on create", {
+      hasUserId: Boolean(userId),
+      hasDocId: Boolean(docId),
+      type: type ?? null,
+      hasTitle: Boolean(title),
+      nodeId: input.nodeId ?? null,
+      edgeId: input.edgeId ?? null,
+      actorUserId: input.actorUserId ?? null,
+      action: input.action ?? null,
+    });
     throw new Error("Missing required notification fields");
   }
   const createdAt = input.createdAt ?? new Date();
@@ -329,6 +377,16 @@ export const createMultiplayerNotification = async (
       .orderBy(desc(mpNotificationsTable.createdAt))
       .limit(1);
     if (recent[0]) {
+      logger.info("mp notifications: deduped", {
+        id: recent[0].id,
+        userId,
+        docId,
+        type,
+        nodeId: input.nodeId ?? null,
+        edgeId: input.edgeId ?? null,
+        actorUserId: input.actorUserId ?? null,
+        action: input.action ?? null,
+      });
       return recent[0];
     }
   } catch (error) {
@@ -345,6 +403,16 @@ export const createMultiplayerNotification = async (
   try {
     [row] = await db.insert(mpNotificationsTable).values(values).returning();
   } catch (error) {
+    logger.error("mp notifications: insert failed", {
+      error,
+      userId,
+      docId,
+      type,
+      nodeId: values.nodeId ?? null,
+      edgeId: values.edgeId ?? null,
+      actorUserId: values.actorUserId ?? null,
+      action: values.action ?? null,
+    });
     // Retry once without metadata if payload is too large
     try {
       const sanitized: InsertMpNotification = {
@@ -353,9 +421,30 @@ export const createMultiplayerNotification = async (
       };
       [row] = await db.insert(mpNotificationsTable).values(sanitized).returning();
     } catch (inner) {
+      logger.error("mp notifications: insert failed without metadata", {
+        error: inner,
+        userId,
+        docId,
+        type,
+        nodeId: values.nodeId ?? null,
+        edgeId: values.edgeId ?? null,
+        actorUserId: values.actorUserId ?? null,
+        action: values.action ?? null,
+      });
       throw inner;
     }
   }
+
+  logger.info("mp notifications: created", {
+    id: row?.id ?? null,
+    userId,
+    docId,
+    type,
+    nodeId: values.nodeId ?? null,
+    edgeId: values.edgeId ?? null,
+    actorUserId: values.actorUserId ?? null,
+    action: values.action ?? null,
+  });
 
   return row;
 };

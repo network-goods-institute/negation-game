@@ -53,6 +53,7 @@ import {
 } from '@/mutations/experiment/multiplayer/useMarkMultiplayerNotificationsRead';
 import { stampMissingCreator } from '@/utils/experiment/multiplayer/creatorStamp';
 import { buildEdgeNotificationCandidates } from '@/utils/experiment/multiplayer/notificationRouting';
+import { normalizeNotificationVotes } from '@/utils/experiment/multiplayer/notificationVotes';
 import { createMultiplayerNotification } from '@/actions/experiment/multiplayer/notifications';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
@@ -322,6 +323,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const notifiedEdgeTypesRef = useRef<Map<string, Set<string>>>(new Map());
   const notifiedCommentIdsRef = useRef<Set<string>>(new Set());
   const notifiedUpvotesRef = useRef<Map<string, Set<string>>>(new Map());
+  const notifiedEdgeVotesRef = useRef<Map<string, Set<string>>>(new Map());
   const seededHistoricNotificationsRef = useRef(false);
   const lastVoteSnapshotRef = useRef<Map<string, Set<string>>>(new Map());
 
@@ -1319,23 +1321,35 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   useEffect(() => {
     // Seed seen maps once after initial graph is loaded to avoid retroactive notifications
     if (seededHistoricNotificationsRef.current) return;
-    if (!Array.isArray(nodes) || nodes.length === 0) return;
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
+    if (nodes.length === 0 && edges.length === 0) return;
     seededHistoricNotificationsRef.current = true;
     nodes.forEach((node: any) => {
       if (node?.type === 'comment') {
         notifiedCommentIdsRef.current.add(node.id);
       }
-      const votes = Array.isArray(node?.data?.votes) ? node.data.votes : [];
+      const votes = normalizeNotificationVotes(node?.data?.votes);
       if (votes.length === 0) return;
       const set = notifiedUpvotesRef.current.get(node.id) || new Set<string>();
-      votes.forEach((v: any) => {
-        if (v?.id) set.add(String(v.id));
+      votes.forEach((vote) => {
+        set.add(vote.id);
       });
       if (set.size > 0) {
         notifiedUpvotesRef.current.set(node.id, set);
       }
     });
-  }, [nodes]);
+    edges.forEach((edge: any) => {
+      const votes = normalizeNotificationVotes(edge?.data?.votes);
+      if (votes.length === 0) return;
+      const set = notifiedEdgeVotesRef.current.get(edge.id) || new Set<string>();
+      votes.forEach((vote) => {
+        set.add(vote.id);
+      });
+      if (set.size > 0) {
+        notifiedEdgeVotesRef.current.set(edge.id, set);
+      }
+    });
+  }, [nodes, edges]);
 
   useEffect(() => {
     if (!resolvedId || !Array.isArray(nodes) || !Array.isArray(edges)) return;
@@ -1343,6 +1357,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     const tasks: Promise<void>[] = [];
 
     const voteSnapshot = new Map<string, Set<string>>();
+    const edgeVoteSnapshot = new Map<string, Set<string>>();
 
     for (const node of nodes as any[]) {
       // Comment notifications
@@ -1393,17 +1408,14 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       }
 
       // Upvote notifications
-      const votes = Array.isArray(node?.data?.votes) ? node.data.votes : [];
+      const votes = normalizeNotificationVotes(node?.data?.votes);
       if (votes.length === 0) continue;
-      const voteSet = new Set<string>();
-      votes.forEach((v: any) => {
-        if (v?.id) voteSet.add(String(v.id));
-      });
+      const voteSet = new Set(votes.map((vote) => vote.id));
       voteSnapshot.set(node.id, voteSet);
 
       const seen = notifiedUpvotesRef.current.get(node.id) || new Set<string>();
       for (const vote of votes) {
-        const voterId = vote?.id ? String(vote.id) : null;
+        const voterId = vote.id;
         if (!voterId || seen.has(voterId)) continue;
         const recipientRaw = node?.data?.createdBy || ownerId || null;
         const recipientId =
@@ -1412,7 +1424,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           seen.add(voterId);
           continue;
         }
-        const voterName = typeof vote?.name === 'string' ? vote.name : undefined;
+        const voterName = vote.name;
         const title = getNodeTitle(node);
         seen.add(voterId);
         tasks.push(
@@ -1440,6 +1452,53 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       }
     }
 
+    for (const edge of edges as any[]) {
+      const votes = normalizeNotificationVotes(edge?.data?.votes);
+      if (votes.length === 0) continue;
+      const voteSet = new Set(votes.map((vote) => vote.id));
+      edgeVoteSnapshot.set(edge.id, voteSet);
+
+      const seen = notifiedEdgeVotesRef.current.get(edge.id) || new Set<string>();
+      for (const vote of votes) {
+        const voterId = vote.id;
+        if (!voterId || seen.has(voterId)) continue;
+        const recipientRaw = edge?.data?.createdBy || ownerId || null;
+        const recipientId =
+          typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
+        if (!recipientId || recipientId === voterId) {
+          seen.add(voterId);
+          continue;
+        }
+        const targetNodeId = typeof edge?.target === 'string' ? edge.target : null;
+        const targetNode = targetNodeId ? nodes.find((n: any) => n.id === targetNodeId) : null;
+        const title = targetNode ? getNodeTitle(targetNode) : 'Edge';
+        const voterName = vote.name;
+        seen.add(voterId);
+        tasks.push(
+          createMultiplayerNotification({
+            userId: recipientId,
+            docId: resolvedId,
+            nodeId: null,
+            edgeId: edge.id,
+            type: 'upvote',
+            action: 'upvoted',
+            actorUserId: voterId,
+            actorUsername: voterName,
+            title,
+          })
+            .then(() => {})
+            .catch((error) => {
+              logger.error("Failed to create multiplayer notification for edge upvote", error);
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              seen.delete(voterId);
+            })
+        );
+      }
+      if (seen.size > 0) {
+        notifiedEdgeVotesRef.current.set(edge.id, seen);
+      }
+    }
+
     // Remove stale vote entries to allow re-notify on genuine revote after removal
     notifiedUpvotesRef.current.forEach((set, nodeId) => {
       const current = voteSnapshot.get(nodeId);
@@ -1460,6 +1519,25 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       }
     });
     lastVoteSnapshotRef.current = voteSnapshot;
+
+    notifiedEdgeVotesRef.current.forEach((set, edgeId) => {
+      const current = edgeVoteSnapshot.get(edgeId);
+      if (!current) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedEdgeVotesRef.current.delete(edgeId);
+        return;
+      }
+      for (const voterId of Array.from(set)) {
+        if (!current.has(voterId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          set.delete(voterId);
+        }
+      }
+      if (set.size === 0) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedEdgeVotesRef.current.delete(edgeId);
+      }
+    });
 
     if (tasks.length > 0) {
       void Promise.all(tasks);

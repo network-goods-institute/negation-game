@@ -21,8 +21,12 @@ interface NotificationsSidebarProps {
   onRefresh?: () => void;
 }
 
-const isOtherActivity = (type: MultiplayerNotification["type"]) => {
+const isNegativeActivity = (type: MultiplayerNotification["type"]) => {
   return type === "negation" || type === "objection";
+};
+
+const isSupportActivity = (type: MultiplayerNotification["type"]) => {
+  return type === "support" || type === "upvote";
 };
 
 const initials = (name: string) => {
@@ -82,17 +86,49 @@ export function NotificationsSidebar({
     }
   }, [notificationsProp]);
 
-  const filteredNotifications = useMemo(() => {
-    if (showNegative) {
-      return notifications;
-    }
-    return notifications.filter((n) => !isOtherActivity(n.type));
-  }, [notifications, showNegative]);
-
-  const hiddenNegativeUnreadNotifications = useMemo(
-    () => notifications.filter((n) => isOtherActivity(n.type) && !n.isRead),
+  const supportNotifications = useMemo(
+    () => notifications.filter((n) => isSupportActivity(n.type)),
     [notifications]
   );
+  const negativeNotifications = useMemo(
+    () => notifications.filter((n) => isNegativeActivity(n.type)),
+    [notifications]
+  );
+  const otherNotifications = useMemo(
+    () =>
+      notifications.filter(
+        (n) => !isNegativeActivity(n.type) && !isSupportActivity(n.type)
+      ),
+    [notifications]
+  );
+
+  const unreadSupportNotifications = useMemo(
+    () => supportNotifications.filter((n) => !n.isRead),
+    [supportNotifications]
+  );
+  const unreadOtherNotifications = useMemo(
+    () => otherNotifications.filter((n) => !n.isRead),
+    [otherNotifications]
+  );
+  const unreadNegativeNotifications = useMemo(
+    () => negativeNotifications.filter((n) => !n.isRead),
+    [negativeNotifications]
+  );
+
+  const earlierSupportNotifications = useMemo(
+    () => supportNotifications.filter((n) => n.isRead),
+    [supportNotifications]
+  );
+  const earlierOtherNotifications = useMemo(
+    () => otherNotifications.filter((n) => n.isRead),
+    [otherNotifications]
+  );
+  const earlierNegativeNotifications = useMemo(
+    () => negativeNotifications.filter((n) => n.isRead),
+    [negativeNotifications]
+  );
+
+  const hiddenNegativeUnreadNotifications = unreadNegativeNotifications;
 
   const hiddenNegativeCount = useMemo(
     () => hiddenNegativeUnreadNotifications.length,
@@ -117,15 +153,12 @@ export function NotificationsSidebar({
     [notifications]
   );
 
-  const unreadNotifications = useMemo(
-    () => filteredNotifications.filter((n) => !n.isRead),
-    [filteredNotifications]
-  );
-
-  const earlierNotifications = useMemo(
-    () => filteredNotifications.filter((n) => n.isRead),
-    [filteredNotifications]
-  );
+  const visibleNotificationCount =
+    supportNotifications.length +
+    otherNotifications.length +
+    (showNegative ? negativeNotifications.length : 0);
+  const showHiddenNegativeToggle =
+    (hiddenNegativeCount > 0 || showNegative) && visibleNotificationCount > 0;
 
   const handleSidebarWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -258,7 +291,7 @@ export function NotificationsSidebar({
             </div>
           )}
 
-          {!isLoading && filteredNotifications.length === 0 ? (
+          {!isLoading && visibleNotificationCount === 0 ? (
             hiddenNegativeCount > 0 ? (
               <HiddenNegativeActionsCard
                 hiddenNegativeCount={hiddenNegativeCount}
@@ -280,65 +313,133 @@ export function NotificationsSidebar({
             )
           ) : null}
 
-          {!isLoading && filteredNotifications.length > 0 && (
+          {!isLoading && visibleNotificationCount > 0 && (
             <>
-              {unreadNotifications.length > 0 && (
-                <div>
+              {unreadSupportNotifications.length > 0 && (
+                <div data-testid="notifications-supporting-new">
                   <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
                     New supporting activity
                   </h3>
-                  {unreadNotifications.map((notification) => (
+                  {unreadSupportNotifications.map((notification) => (
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
                       onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
-                  {hiddenNegativeCount > 0 && (
-                    <HiddenNegativeActionsCard
-                      hiddenNegativeCount={hiddenNegativeCount}
-                      hiddenNegativeNewCount={hiddenNegativeNewCount}
-                      isShowing={showNegative}
-                      onToggle={() =>
-                        setShowNegative((prev) => {
-                          const next = !prev;
-                          if (next) {
-                            setLastHiddenOpenedAt(new Date());
-                          }
-                          return next;
-                        })
-                      }
-                      className="mt-2"
-                    />
-                  )}
                 </div>
               )}
 
-              {unreadNotifications.length === 0 && hiddenNegativeCount > 0 && (
-                <div className="mt-2">
-                  <HiddenNegativeActionsCard
-                    hiddenNegativeCount={hiddenNegativeCount}
-                    hiddenNegativeNewCount={hiddenNegativeNewCount}
-                    isShowing={showNegative}
-                    onToggle={() =>
-                      setShowNegative((prev) => {
-                        const next = !prev;
-                        if (next) {
-                          setLastHiddenOpenedAt(new Date());
-                        }
-                        return next;
-                      })
-                    }
-                  />
-                </div>
-              )}
-
-              {earlierNotifications.length > 0 && (
-                <div className="mt-4">
+              {unreadOtherNotifications.length > 0 && (
+                <div
+                  data-testid="notifications-activity-new"
+                  className={unreadSupportNotifications.length > 0 ? "mt-4" : undefined}
+                >
                   <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
-                    Earlier
+                    New activity
                   </h3>
-                  {earlierNotifications.map((notification) => (
+                  {unreadOtherNotifications.map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onClick={() => handleNotificationClick(notification)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {showHiddenNegativeToggle && (
+                <HiddenNegativeActionsCard
+                  hiddenNegativeCount={hiddenNegativeCount}
+                  hiddenNegativeNewCount={hiddenNegativeNewCount}
+                  isShowing={showNegative}
+                  onToggle={() =>
+                    setShowNegative((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        setLastHiddenOpenedAt(new Date());
+                      }
+                      return next;
+                    })
+                  }
+                  className={
+                    unreadSupportNotifications.length > 0 ||
+                    unreadOtherNotifications.length > 0
+                      ? "mt-2"
+                      : undefined
+                  }
+                />
+              )}
+
+              {showNegative && unreadNegativeNotifications.length > 0 && (
+                <div
+                  data-testid="notifications-negative-new"
+                  className={
+                    unreadSupportNotifications.length > 0 ||
+                    unreadOtherNotifications.length > 0 ||
+                    showHiddenNegativeToggle
+                      ? "mt-4"
+                      : undefined
+                  }
+                >
+                  <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
+                    New negative activity
+                  </h3>
+                  {unreadNegativeNotifications.map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onClick={() => handleNotificationClick(notification)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {earlierSupportNotifications.length > 0 && (
+                <div
+                  data-testid="notifications-supporting-earlier"
+                  className="mt-4"
+                >
+                  <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
+                    Earlier supporting activity
+                  </h3>
+                  {earlierSupportNotifications.map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onClick={() => handleNotificationClick(notification)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {earlierOtherNotifications.length > 0 && (
+                <div
+                  data-testid="notifications-activity-earlier"
+                  className="mt-4"
+                >
+                  <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
+                    Earlier activity
+                  </h3>
+                  {earlierOtherNotifications.map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onClick={() => handleNotificationClick(notification)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {showNegative && earlierNegativeNotifications.length > 0 && (
+                <div
+                  data-testid="notifications-negative-earlier"
+                  className="mt-4"
+                >
+                  <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
+                    Earlier negative activity
+                  </h3>
+                  {earlierNegativeNotifications.map((notification) => (
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
@@ -471,6 +572,3 @@ function HiddenNegativeActionsCard({
     </button>
   );
 }
-
-
-

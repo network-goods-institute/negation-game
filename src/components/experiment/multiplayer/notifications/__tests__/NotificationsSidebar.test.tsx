@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import React from 'react';
 import { NotificationsSidebar } from '@/components/experiment/multiplayer/notifications/NotificationsSidebar';
 import type { MultiplayerNotification } from '@/components/experiment/multiplayer/notifications/types';
@@ -115,6 +115,32 @@ describe('NotificationsSidebar', () => {
     expect(handleRead).toHaveBeenCalled();
     const notified = handleRead.mock.calls[0][0] as typeof customNotifications[number];
     expect(notified.ids).toContain(customNotifications[0].id);
+  });
+
+  it('splits supporting, activity, and negative notifications', () => {
+    render(
+      <NotificationsSidebar
+        isOpen
+        notifications={baseNotifications}
+        onClose={() => {}}
+      />
+    );
+
+    const supportSection = screen.getByTestId('notifications-supporting-new');
+    expect(within(supportSection).getByText(baseNotifications[1].pointTitle)).toBeInTheDocument();
+    expect(within(supportSection).queryByText(baseNotifications[2].pointTitle)).not.toBeInTheDocument();
+
+    const activitySection = screen.getByTestId('notifications-activity-new');
+    expect(within(activitySection).getByText(baseNotifications[2].pointTitle)).toBeInTheDocument();
+    expect(within(activitySection).queryByText(baseNotifications[1].pointTitle)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(/Show \d+ other hidden update/));
+
+    const negativeSection = screen.getByTestId('notifications-negative-new');
+    expect(within(negativeSection).getByText(baseNotifications[0].pointTitle)).toBeInTheDocument();
+
+    const supportingEarlier = screen.getByTestId('notifications-supporting-earlier');
+    expect(within(supportingEarlier).getByText(baseNotifications[4].pointTitle)).toBeInTheDocument();
   });
 
   it('shows new count for hidden negative actions until opened', () => {
