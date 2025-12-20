@@ -3,7 +3,17 @@
 import type React from "react";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Bell, X, ChevronRight, EyeOff } from "lucide-react";
+import {
+  Bell,
+  X,
+  ChevronRight,
+  EyeOff,
+  ArrowUp,
+  Plus,
+  Minus,
+  Slash,
+  MessageCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils/cn";
@@ -129,11 +139,19 @@ export function NotificationsSidebar({
   );
 
   const hiddenNegativeUnreadNotifications = unreadNegativeNotifications;
+  const hiddenNegativeNotifications = negativeNotifications;
 
   const hiddenNegativeCount = useMemo(
-    () => hiddenNegativeUnreadNotifications.length,
-    [hiddenNegativeUnreadNotifications]
+    () => hiddenNegativeNotifications.length,
+    [hiddenNegativeNotifications]
   );
+
+  const hiddenNegativeBlockHeight = useMemo(() => {
+    if (hiddenNegativeCount <= 0) return 0;
+    const itemHeight = 104;
+    const verticalPadding = 16;
+    return hiddenNegativeCount * itemHeight + verticalPadding;
+  }, [hiddenNegativeCount]);
 
   const hiddenNegativeNewCount = useMemo(() => {
     const lastOpenedMs = lastHiddenOpenedAt?.getTime() ?? 0;
@@ -189,7 +207,7 @@ export function NotificationsSidebar({
         ...notification,
         ids: Array.from(idsToMark),
       });
-    } catch {}
+    } catch { }
 
     if (onNavigateToPoint) {
       onNavigateToPoint(notification.pointId, notification.boardId);
@@ -207,7 +225,7 @@ export function NotificationsSidebar({
       if (unreadIds.length > 0) {
         onMarkAllRead?.(unreadIds);
       }
-    } catch {}
+    } catch { }
   };
 
   if (!rendered) return null;
@@ -244,9 +262,9 @@ export function NotificationsSidebar({
             {isLoading ? (
               <div className="ml-2 h-4 w-4 border-2 border-red-300 border-l-transparent rounded-full animate-spin" aria-label="Loading notifications" />
             ) : unreadCount > 0 ? (
-        <span className="ml-1 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-red-600 px-2 text-xs font-semibold text-white">
-          {unreadCount}
-        </span>
+              <span className="ml-1 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-red-600 px-2 text-xs font-semibold text-white">
+                {unreadCount}
+              </span>
             ) : null}
           </div>
           <div className="flex items-center gap-1.5">
@@ -298,12 +316,12 @@ export function NotificationsSidebar({
                 hiddenNegativeNewCount={hiddenNegativeNewCount}
                 isShowing={showNegative}
                 onToggle={() => {
-                    setLastHiddenOpenedAt(new Date());
-                    setShowNegative(true);
-                  }}
-                  className="py-4"
-                />
-              ) : (
+                  setLastHiddenOpenedAt(new Date());
+                  setShowNegative(true);
+                }}
+                blockHeight={showNegative ? undefined : hiddenNegativeBlockHeight}
+              />
+            ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Bell className="h-12 w-12 text-stone-300 dark:text-stone-700 mb-3" />
                 <p className="text-sm text-stone-500 dark:text-stone-400">
@@ -364,10 +382,11 @@ export function NotificationsSidebar({
                   }
                   className={
                     unreadSupportNotifications.length > 0 ||
-                    unreadOtherNotifications.length > 0
+                      unreadOtherNotifications.length > 0
                       ? "mt-2"
                       : undefined
                   }
+                  blockHeight={showNegative ? undefined : hiddenNegativeBlockHeight}
                 />
               )}
 
@@ -376,8 +395,8 @@ export function NotificationsSidebar({
                   data-testid="notifications-negative-new"
                   className={
                     unreadSupportNotifications.length > 0 ||
-                    unreadOtherNotifications.length > 0 ||
-                    showHiddenNegativeToggle
+                      unreadOtherNotifications.length > 0 ||
+                      showHiddenNegativeToggle
                       ? "mt-4"
                       : undefined
                   }
@@ -468,6 +487,8 @@ function NotificationItem({
   onClick,
 }: NotificationItemProps) {
   const isComment = notification.type === "comment";
+  const headline = getNotificationHeadline(notification);
+  const badge = getNotificationBadge(notification.type);
   const actorNames =
     notification.actorNames && notification.actorNames.length > 0
       ? notification.actorNames
@@ -480,30 +501,42 @@ function NotificationItem({
     src,
     name: actorNames[idx] ?? notification.userName,
   }));
-  const actionLabel = notification.action || notification.type;
-  const actionText = actionLabel;
-
   return (
     <button
       onClick={onClick}
       className={cn(
-        "w-full text-left p-3 rounded-lg border transition-all duration-200 hover:bg-white dark:hover:bg-stone-900 group",
+        "relative w-full text-left p-3 pl-12 rounded-lg border transition-all duration-200 hover:bg-white dark:hover:bg-stone-900 group",
         notification.isRead
           ? "bg-stone-100 dark:bg-stone-900 border-stone-200 dark:border-stone-800 opacity-70"
           : "bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 shadow-sm"
       )}
     >
-      <p className="text-base font-semibold text-stone-900 dark:text-stone-100 break-words mb-2">
-        {notification.pointTitle}
-      </p>
+      {badge ? (
+        <span
+          className={cn(
+            "absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm",
+            badge.className
+          )}
+        >
+          <badge.Icon className="h-4 w-4" />
+        </span>
+      ) : null}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-semibold text-stone-900 dark:text-stone-100 break-words">
+          {headline}
+        </p>
+        <span className="text-xs text-stone-400 dark:text-stone-500 whitespace-nowrap">
+          {notification.timestamp}
+        </span>
+      </div>
 
       {isComment && notification.commentPreview && (
-        <p className="text-sm text-stone-600 dark:text-stone-400 italic line-clamp-2 mb-2 pl-3 border-l-2 border-stone-300 dark:border-stone-700">
+        <p className="text-sm text-stone-600 dark:text-stone-400 italic line-clamp-2 mt-2 mb-2 pl-3 border-l-2 border-stone-300 dark:border-stone-700">
           {notification.commentPreview}
         </p>
       )}
 
-      <div className="flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400 flex-wrap">
+      <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400 mt-2">
         <div className="flex items-center -space-x-2">
           {avatarItems.map((avatar, idx) => (
             <Avatar
@@ -518,11 +551,6 @@ function NotificationItem({
             </Avatar>
           ))}
         </div>
-        <span className="font-medium text-stone-700 dark:text-stone-200">{notification.userName}</span>
-        <span className="text-stone-300 dark:text-stone-600">|</span>
-        <span className="text-stone-700 dark:text-stone-200">{actionText}</span>
-        <span className="text-stone-300 dark:text-stone-600">|</span>
-        <span className="flex-shrink-0">{notification.timestamp}</span>
       </div>
 
       <div className="flex items-center text-xs text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform mt-2">
@@ -539,6 +567,7 @@ interface HiddenNegativeActionsCardProps {
   isShowing: boolean;
   onToggle: () => void;
   className?: string;
+  blockHeight?: number;
 }
 
 function HiddenNegativeActionsCard({
@@ -547,6 +576,7 @@ function HiddenNegativeActionsCard({
   isShowing,
   onToggle,
   className,
+  blockHeight,
 }: HiddenNegativeActionsCardProps) {
   const newSuffix = hiddenNegativeNewCount > 0 ? ` (${hiddenNegativeNewCount} new)` : "";
   const label = isShowing
@@ -560,15 +590,99 @@ function HiddenNegativeActionsCard({
     <button
       onClick={onToggle}
       className={cn(
-        "w-full p-3 min-h-[104px] rounded-lg border-2 border-dashed border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-900 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors flex flex-col justify-center gap-2 text-left",
+        "relative w-full p-3 rounded-lg border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors flex flex-col justify-center gap-2 text-left overflow-hidden",
         className
       )}
+      style={blockHeight ? { minHeight: blockHeight } : undefined}
     >
-      <div className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
-        <EyeOff className="h-4 w-4" />
-        <span>{label}</span>
+      {/* Semi-transparent notification skeletons */}
+      {!isShowing && blockHeight && hiddenNegativeCount > 0 && (
+        <div className="absolute inset-x-3 inset-y-3 pointer-events-none overflow-hidden opacity-15">
+          <div className="space-y-2">
+            {Array.from({ length: hiddenNegativeCount }).map((_, idx) => (
+              <div
+                key={idx}
+                className="relative w-full p-3 pl-12 rounded-lg border border-stone-400 dark:border-stone-600 bg-white dark:bg-stone-900"
+              >
+                {/* Badge icon */}
+                <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-stone-400 dark:border-stone-600 bg-stone-200 dark:bg-stone-700" />
+
+                {/* Headline and timestamp */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="h-4 flex-1 bg-stone-300 dark:bg-stone-700 rounded" />
+                  <div className="h-3 w-12 bg-stone-300 dark:bg-stone-700 rounded" />
+                </div>
+
+                {/* Avatars */}
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center -space-x-2">
+                    <div className="h-6 w-6 rounded-full border border-stone-400 dark:border-stone-600 bg-stone-300 dark:bg-stone-700" />
+                    <div className="h-6 w-6 rounded-full border border-stone-400 dark:border-stone-600 bg-stone-300 dark:bg-stone-700" />
+                  </div>
+                </div>
+
+                {/* View point link */}
+                <div className="flex items-center gap-1 mt-2">
+                  <div className="h-3 w-16 bg-stone-300 dark:bg-stone-700 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Content layer */}
+      <div className="relative z-10">
+        <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-100">
+          <EyeOff className="h-4 w-4" />
+          <span>{label}</span>
+        </div>
+        <p className="text-xs text-amber-800/80 dark:text-amber-200/80">{helper}</p>
       </div>
-      <p className="text-xs text-stone-500 dark:text-stone-400">{helper}</p>
     </button>
   );
 }
+
+const getNotificationHeadline = (notification: MultiplayerNotification) => {
+  const title = notification.pointTitle ? `"${notification.pointTitle}"` : "this";
+  if (notification.type === "upvote") {
+    const count = notification.count ?? notification.ids?.length ?? 1;
+    const label = count === 1 ? "upvote" : "upvotes";
+    return `${count} ${label} on ${title}`;
+  }
+  const actor = notification.userName || "Someone";
+  const action = notification.action || notification.type;
+  return `${actor} ${action} ${title}`;
+};
+
+const getNotificationBadge = (type: MultiplayerNotification["type"]) => {
+  switch (type) {
+    case "support":
+      return {
+        Icon: Plus,
+        className: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800",
+      };
+    case "negation":
+      return {
+        Icon: Minus,
+        className: "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950 dark:text-rose-400 dark:border-rose-800",
+      };
+    case "objection":
+      return {
+        Icon: Slash,
+        className: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800",
+      };
+    case "upvote":
+      return {
+        Icon: ArrowUp,
+        className: "bg-sky-50 text-sky-600 border-sky-200 dark:bg-sky-950 dark:text-sky-400 dark:border-sky-800",
+      };
+    case "comment":
+      return {
+        Icon: MessageCircle,
+        className: "bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-900 dark:text-stone-300 dark:border-stone-700",
+      };
+    default:
+      return null;
+  }
+};

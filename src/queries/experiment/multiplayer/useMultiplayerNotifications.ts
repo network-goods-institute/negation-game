@@ -59,18 +59,18 @@ const formatActorSummary = (
   if (actorCount === 1) {
     const [name] = names;
     const repeats = actorCounts.get(name) ?? totalCount;
-    if (repeats > 1) return `${name} (${repeats} times)`;
+    if (repeats > 1) return `${name} (${repeats}x)`;
     return name;
   }
   if (actorCount === 2) {
     if (totalCount > actorCount) {
-      return `${names[0]} and ${names[1]} (${totalCount} actions)`;
+      return `${names[0]} and ${names[1]} (${totalCount}x)`;
     }
     return `${names[0]} and ${names[1]}`;
   }
   const remainder = actorCount - 2;
   const suffix =
-    totalCount > actorCount ? ` (${totalCount} actions)` : "";
+    totalCount > actorCount ? ` (${totalCount}x)` : "";
   return `${names[0]}, ${names[1]} and ${remainder} other${remainder === 1 ? "" : "s"}${suffix}`;
 };
 

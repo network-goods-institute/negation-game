@@ -82,7 +82,17 @@ describe('NotificationsSidebar', () => {
 
     expect(screen.getByText('Notifications')).toBeInTheDocument();
     baseNotifications.forEach((notification) => {
-      expect(screen.getByText(notification.userName)).toBeInTheDocument();
+      if (notification.type === 'upvote') {
+        expect(
+          screen.getByText(
+            new RegExp(`\\b\\d+\\s+upvote.*${notification.pointTitle}`)
+          )
+        ).toBeInTheDocument();
+        return;
+      }
+      expect(
+        screen.getByText(new RegExp(notification.userName))
+      ).toBeInTheDocument();
     });
   });
 
@@ -106,7 +116,7 @@ describe('NotificationsSidebar', () => {
 
     fireEvent.click(screen.getByText(/Show \d+ other hidden update/));
 
-    const unread = screen.getByText(customNotifications[0].pointTitle);
+    const unread = screen.getByText(new RegExp(customNotifications[0].pointTitle));
     fireEvent.click(unread.closest('button') as HTMLButtonElement);
 
     expect(handleUpdate).toHaveBeenCalled();
@@ -127,20 +137,32 @@ describe('NotificationsSidebar', () => {
     );
 
     const supportSection = screen.getByTestId('notifications-supporting-new');
-    expect(within(supportSection).getByText(baseNotifications[1].pointTitle)).toBeInTheDocument();
-    expect(within(supportSection).queryByText(baseNotifications[2].pointTitle)).not.toBeInTheDocument();
+    expect(
+      within(supportSection).getByText(new RegExp(baseNotifications[1].pointTitle))
+    ).toBeInTheDocument();
+    expect(
+      within(supportSection).queryByText(new RegExp(baseNotifications[2].pointTitle))
+    ).not.toBeInTheDocument();
 
     const activitySection = screen.getByTestId('notifications-activity-new');
-    expect(within(activitySection).getByText(baseNotifications[2].pointTitle)).toBeInTheDocument();
-    expect(within(activitySection).queryByText(baseNotifications[1].pointTitle)).not.toBeInTheDocument();
+    expect(
+      within(activitySection).getByText(new RegExp(baseNotifications[2].pointTitle))
+    ).toBeInTheDocument();
+    expect(
+      within(activitySection).queryByText(new RegExp(baseNotifications[1].pointTitle))
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText(/Show \d+ other hidden update/));
 
     const negativeSection = screen.getByTestId('notifications-negative-new');
-    expect(within(negativeSection).getByText(baseNotifications[0].pointTitle)).toBeInTheDocument();
+    expect(
+      within(negativeSection).getByText(new RegExp(baseNotifications[0].pointTitle))
+    ).toBeInTheDocument();
 
     const supportingEarlier = screen.getByTestId('notifications-supporting-earlier');
-    expect(within(supportingEarlier).getByText(baseNotifications[4].pointTitle)).toBeInTheDocument();
+    expect(
+      within(supportingEarlier).getByText(new RegExp(baseNotifications[4].pointTitle))
+    ).toBeInTheDocument();
   });
 
   it('shows new count for hidden negative actions until opened', () => {
