@@ -578,13 +578,12 @@ function HiddenNegativeActionsCard({
   className,
   blockHeight,
 }: HiddenNegativeActionsCardProps) {
-  const newSuffix = hiddenNegativeNewCount > 0 ? ` (${hiddenNegativeNewCount} new)` : "";
   const label = isShowing
-    ? `Hide other activity${newSuffix}`
-    : `Show ${hiddenNegativeCount} other hidden update${hiddenNegativeCount === 1 ? "" : "s"}${newSuffix}`;
+    ? "Hide other activity"
+    : `Show ${hiddenNegativeCount} other update${hiddenNegativeCount === 1 ? "" : "s"}`;
   const helper = isShowing
-    ? "Collapse other activity."
-    : "Other activity is hidden by default.";
+    ? "Click to hide other activity"
+    : "Click to show other activity";
 
   return (
     <button

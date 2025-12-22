@@ -78,7 +78,7 @@ describe('NotificationsSidebar', () => {
       />
     );
 
-    fireEvent.click(screen.getByText(/Show \d+ other hidden update/));
+    fireEvent.click(screen.getByText(/Show \d+ other update/));
 
     expect(screen.getByText('Notifications')).toBeInTheDocument();
     baseNotifications.forEach((notification) => {
@@ -114,7 +114,7 @@ describe('NotificationsSidebar', () => {
       />
     );
 
-    fireEvent.click(screen.getByText(/Show \d+ other hidden update/));
+    fireEvent.click(screen.getByText(/Show \d+ other update/));
 
     const unread = screen.getByText(new RegExp(customNotifications[0].pointTitle));
     fireEvent.click(unread.closest('button') as HTMLButtonElement);
@@ -152,7 +152,7 @@ describe('NotificationsSidebar', () => {
       within(activitySection).queryByText(new RegExp(baseNotifications[1].pointTitle))
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText(/Show \d+ other hidden update/));
+    fireEvent.click(screen.getByText(/Show \d+ other update/));
 
     const negativeSection = screen.getByTestId('notifications-negative-new');
     expect(
@@ -191,13 +191,11 @@ describe('NotificationsSidebar', () => {
       />
     );
 
-    const toggle = screen.getByRole('button', { name: /Show .*other hidden update/ });
+    const toggle = screen.getByRole('button', { name: /Show .*other update/ });
     expect(toggle).toBeInTheDocument();
-    expect(screen.getByText(/\(\d+ new\)/)).toBeInTheDocument();
 
     fireEvent.click(toggle);
 
     expect(screen.getByText(/Hide other activity/)).toBeInTheDocument();
-    expect(screen.queryByText(/\(.*new\)/i)).not.toBeInTheDocument();
   });
 });
