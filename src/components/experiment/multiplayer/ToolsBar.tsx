@@ -2,11 +2,12 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2, HelpCircle } from 'lucide-react';
+import { Pointer as PointerIcon, Link as LinkIcon, Hand as HandIcon, Undo2, Redo2, HelpCircle, BookOpen } from 'lucide-react';
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ToolbarButton } from "./ToolbarButton";
 import { MarketModeControls } from "./MarketModeControls";
 import { isMarketEnabled } from "@/utils/market/marketUtils";
+import { TutorialPanel } from "./TutorialPanel";
 
 interface ToolsBarProps {
   connectMode: boolean;
@@ -39,6 +40,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
 }) => {
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
   const toolbarRef = React.useRef<HTMLDivElement | null>(null);
+  const [isTutorialOpen, setIsTutorialOpen] = React.useState(false);
 
   React.useEffect(() => {
     const el = toolbarRef.current;
@@ -58,40 +60,37 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
 
 
   // Focused (connect) mode UI
-  if (connectMode) {
-    const content = (
-      <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
-        <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
-          <div className="flex items-center gap-2 px-1 text-blue-700">
-            <LinkIcon className="h-5 w-5" />
-            <span className="text-sm font-medium">Connecting</span>
-          </div>
-          <span className="text-sm text-stone-700">
-            {connectAnchorId
-              ? 'Click target point or connecting line for mitigation'
-              : 'Click on a point or a connecting line to start connection'}
-          </span>
-          <div className="h-5 w-px bg-stone-200 mx-2" />
-          <button
-            onClick={() => setConnectAnchorId(null)}
-            className="text-sm rounded-full px-3 py-1 bg-stone-100 text-stone-900 hover:bg-stone-200"
-          >
-            Restart
-          </button>
-          <button
-            onClick={() => { setConnectMode(false); setConnectAnchorId(null); }}
-            className="text-sm rounded-full px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
-          >
-            Done (Esc)
-          </button>
+  const connectModeContent = connectMode && !isTutorialOpen ? (
+    <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
+      <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
+        <div className="flex items-center gap-2 px-1 text-blue-700">
+          <LinkIcon className="h-5 w-5" />
+          <span className="text-sm font-medium">Connecting</span>
         </div>
+        <span className="text-sm text-stone-700">
+          {connectAnchorId
+            ? 'Click target point or connecting line for mitigation'
+            : 'Click on a point or a connecting line to start connection'}
+        </span>
+        <div className="h-5 w-px bg-stone-200 mx-2" />
+        <button
+          onClick={() => setConnectAnchorId(null)}
+          className="text-sm rounded-full px-3 py-1 bg-stone-100 text-stone-900 hover:bg-stone-200"
+        >
+          Restart
+        </button>
+        <button
+          onClick={() => { setConnectMode(false); setConnectAnchorId(null); }}
+          className="text-sm rounded-full px-3 py-1 bg-blue-600 text-white hover:bg-blue-700"
+        >
+          Done (Esc)
+        </button>
       </div>
-    );
-    return portalTarget ? createPortal(content, portalTarget) : content;
-  }
+    </div>
+  ) : null;
 
-  // Default toolbar (idle)
-  const content = (
+  // Default toolbar (idle) - hide when tutorial is open
+  const defaultContent = !isTutorialOpen && !connectMode ? (
     <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
       <TooltipProvider>
         <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-2 transition-all">
@@ -160,6 +159,21 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
           )}
 
           <div className="h-6 w-px bg-stone-200 mx-2" />
+
+          {/* Tutorial */}
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setIsTutorialOpen(true)}
+                className="h-10 w-10 inline-flex items-center justify-center rounded-full text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+              >
+                <BookOpen className="h-5 w-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="z-[1100]">
+              <div className="text-sm">Quick Start Guide</div>
+            </TooltipContent>
+          </Tooltip>
 
           {/* Help */}
           <Tooltip delayDuration={150}>
@@ -339,6 +353,14 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
         </div>
       </TooltipProvider>
     </div>
+  ) : null;
+
+  const toolbarContent = connectModeContent || defaultContent;
+
+  return (
+    <>
+      {toolbarContent && (portalTarget ? createPortal(toolbarContent, portalTarget) : toolbarContent)}
+      <TutorialPanel isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
+    </>
   );
-  return portalTarget ? createPortal(content, portalTarget) : content;
 };
