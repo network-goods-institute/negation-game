@@ -49,6 +49,7 @@ export function ConnectionModeAnimation() {
       timer = setTimeout(() => setPhase(3), 1000);
     } else if (phase === 3) {
       // Click Point A
+      setConnectAnchorId('1');
       timer = setTimeout(() => setPhase(4), 300);
     } else if (phase === 4) {
       // Cursor moves to Point B, show preview line
@@ -62,11 +63,13 @@ export function ConnectionModeAnimation() {
           target: '2',
           type: 'support',
         }]);
+        setConnectAnchorId(null); // Reset anchor after completing connection
+        setConnectionMode(false); // Exit connect mode after completing connection
         setPreviewLine(null);
         setPhase(6);
       }, 300);
     } else if (phase === 6) {
-      // Hold completed state
+      // Hold completed state - connection mode stays active
       timer = setTimeout(() => {
         // Reset
         setPhase(0);
@@ -74,6 +77,7 @@ export function ConnectionModeAnimation() {
         setCursorX(50);
         setCursorY(30);
         setConnectionMode(false);
+        setConnectAnchorId(null);
         setPreviewLine(null);
       }, 2000);
     }
