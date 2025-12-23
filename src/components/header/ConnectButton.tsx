@@ -203,6 +203,20 @@ export const ConnectButton = () => {
       </>
     );
 
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    try {
+      await clearPrivyCookie();
+    } catch (error) {
+      logger.error("Failed to clear Privy cookie during logout", error);
+    }
+    try {
+      await logout();
+    } catch (error) {
+      logger.error("Failed to complete Privy logout", error);
+    }
+  };
+
   if (user)
     return (
       <>
@@ -331,7 +345,7 @@ export const ConnectButton = () => {
                 </Link>
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={async () => { await clearPrivyCookie(); logout(); }} className="gap-2">
+            <DropdownMenuItem onClick={() => { void handleLogout(); }} className="gap-2">
               <LogOutIcon className="size-4" />
               Sign out
             </DropdownMenuItem>

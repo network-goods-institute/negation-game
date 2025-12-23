@@ -15,7 +15,7 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
 
         <p className="mx-auto mb-9 max-w-[760px] text-[#5a6370] text-xl leading-[1.55]">
           Regular meetings waste time when opinions diverge and no one can see the whole picture.
-          Negation Game is a decision-aid tool for project managers to analyse ideas, identify constraints,
+          Negation Game is a decision-aid tool for product managers to analyse ideas, identify constraints,
           discover solutions, and make better decisions with their teams and stakeholders.
         </p>
 
