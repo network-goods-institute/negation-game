@@ -148,8 +148,8 @@ export function SupportNegationAnimation() {
       // Move to node center
       const nodeCenterFlowX = 250 + 100;
       const nodeCenterFlowY = 100 + 25; // node center
-      const targetX = 50 + nodeCenterFlowX * 0.55;
-      const targetY = -20 + nodeCenterFlowY * 0.55;
+      const targetX = 50 + nodeCenterFlowX * 0.6;
+      const targetY = -20 + nodeCenterFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -160,8 +160,8 @@ export function SupportNegationAnimation() {
       // Move to pill button
       const nodeCenterFlowX = 250 + 100;
       const nodeCenterFlowY = 100 + 50 + 40; // node y + node height + pill offset
-      const targetX = 50 + nodeCenterFlowX * 0.55;
-      const targetY = -20 + nodeCenterFlowY * 0.55;
+      const targetX = 50 + nodeCenterFlowX * 0.6;
+      const targetY = -20 + nodeCenterFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -172,8 +172,8 @@ export function SupportNegationAnimation() {
       // Move to support node
       const supportNodeFlowX = 100 + 100; // node x + half width
       const supportNodeFlowY = 280 + 25; // node y + half height
-      const targetX = 50 + supportNodeFlowX * 0.55;
-      const targetY = -20 + supportNodeFlowY * 0.55;
+      const targetX = 50 + supportNodeFlowX * 0.6;
+      const targetY = -20 + supportNodeFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -184,8 +184,8 @@ export function SupportNegationAnimation() {
       // Move back to main node center
       const nodeCenterFlowX = 250 + 100;
       const nodeCenterFlowY = 100 + 25;
-      const targetX = 50 + nodeCenterFlowX * 0.55;
-      const targetY = -20 + nodeCenterFlowY * 0.55;
+      const targetX = 50 + nodeCenterFlowX * 0.6;
+      const targetY = -20 + nodeCenterFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -196,8 +196,8 @@ export function SupportNegationAnimation() {
       // Move to pill button
       const nodeCenterFlowX = 250 + 100;
       const nodeCenterFlowY = 100 + 50 + 40;
-      const targetX = 50 + nodeCenterFlowX * 0.55;
-      const targetY = -20 + nodeCenterFlowY * 0.55;
+      const targetX = 50 + nodeCenterFlowX * 0.6;
+      const targetY = -20 + nodeCenterFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -208,8 +208,8 @@ export function SupportNegationAnimation() {
       // Move to negation node
       const negationNodeFlowX = 400 + 100;
       const negationNodeFlowY = 280 + 25;
-      const targetX = 50 + negationNodeFlowX * 0.55;
-      const targetY = -20 + negationNodeFlowY * 0.55;
+      const targetX = 50 + negationNodeFlowX * 0.6;
+      const targetY = -20 + negationNodeFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -220,9 +220,9 @@ export function SupportNegationAnimation() {
       // Move to edge label position (between node 1 and node 2)
       // Node 1 center: (350, 125), Node 2 center: (200, 305)
       // Edge midpoint: (275, 215)
-      // With viewport (x: 50, y: -20, zoom: 0.55)
-      const targetX = 50 + 275 * 0.55 + 10; // ~211 (slightly right)
-      const targetY = -20 + 215 * 0.55 - 6; // ~92 (slightly up)
+      // With viewport (x: 50, y: -20, zoom: 0.6)
+      const targetX = 50 + 275 * 0.6 + 10; // ~225 (slightly right)
+      const targetY = -20 + 215 * 0.6 - 6; // ~103 (slightly up)
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -233,8 +233,8 @@ export function SupportNegationAnimation() {
       // Move back to support node
       const supportNodeFlowX = 100 + 100; // node x + half width
       const supportNodeFlowY = 280 + 25; // node y + half height
-      const targetX = 50 + supportNodeFlowX * 0.55;
-      const targetY = -20 + supportNodeFlowY * 0.55;
+      const targetX = 50 + supportNodeFlowX * 0.6;
+      const targetY = -20 + supportNodeFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -360,7 +360,7 @@ export function SupportNegationAnimation() {
             edges={edges}
             nodeTypes={tutorialNodeTypes}
             edgeTypes={edgeTypes}
-            defaultViewport={{ x: 50, y: -20, zoom: 0.55 }}
+            defaultViewport={{ x: 50, y: -20, zoom: 0.6 }}
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable={false}
@@ -369,8 +369,8 @@ export function SupportNegationAnimation() {
             zoomOnPinch={false}
             zoomOnDoubleClick={false}
             proOptions={{ hideAttribution: true }}
-            minZoom={0.55}
-            maxZoom={0.55}
+            minZoom={0.6}
+            maxZoom={0.6}
           >
             <Background />
           </ReactFlow>
@@ -427,8 +427,8 @@ export function SupportNegationAnimation() {
         <div
           className="absolute"
           style={{
-            left: `${50 + 275 * 0.55}px`,
-            top: `${-20 + 215 * 0.55}px`,
+            left: `${50 + 275 * 0.6}px`,
+            top: `${-20 + 215 * 0.6}px`,
             transform: 'translate(-50%, -50%)',
             zIndex: 2000,
           }}

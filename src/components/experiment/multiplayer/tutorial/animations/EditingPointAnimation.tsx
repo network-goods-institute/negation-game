@@ -92,14 +92,14 @@ export function EditingPointAnimation() {
   useEffect(() => {
     if (phase === 0) {
       // Target node screen position (accounting for viewport transform)
-      // viewport: x: 100, y: 0, zoom: 0.5
+      // viewport: x: 100, y: 0, zoom: 0.56
       // target node flow position: x: 150, y: 200
       // node approximate size: 200w x 50h
       // center of node in flow: x: 150 + 100, y: 200 + 25 = (250, 225)
       const nodeCenterFlowX = 150 + 100; // node x + half width
       const nodeCenterFlowY = 200 + 25;  // node y + half height
-      const targetX = 100 + nodeCenterFlowX * 0.5; // viewport offset + scaled position
-      const targetY = 0 + nodeCenterFlowY * 0.5;
+      const targetX = 100 + nodeCenterFlowX * 0.56; // viewport offset + scaled position
+      const targetY = 0 + nodeCenterFlowY * 0.56;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -128,7 +128,7 @@ export function EditingPointAnimation() {
             edges={edges}
             nodeTypes={tutorialNodeTypes}
             edgeTypes={edgeTypes}
-            defaultViewport={{ x: 100, y: 0, zoom: 0.5 }}
+            defaultViewport={{ x: 100, y: 0, zoom: 0.56 }}
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable={false}
@@ -137,8 +137,8 @@ export function EditingPointAnimation() {
             zoomOnPinch={false}
             zoomOnDoubleClick={false}
             proOptions={{ hideAttribution: true }}
-            minZoom={0.5}
-            maxZoom={0.5}
+            minZoom={0.56}
+            maxZoom={0.56}
           >
             <Background />
           </ReactFlow>

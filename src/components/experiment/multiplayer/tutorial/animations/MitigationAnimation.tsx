@@ -28,7 +28,7 @@ export function MitigationAnimation() {
   const [typingPos, setTypingPos] = useState(0);
   const [edgeType, setEdgeType] = useState<'support' | 'negation'>('support');
 
-  const viewport = useMemo(() => ({ x: 30, y: -10, zoom: 0.46 }), []);
+  const viewport = useMemo(() => ({ x: 30, y: -10, zoom: 0.52 }), []);
 
   const edgeMidFlow = useMemo(() => {
     const topCenterX = topNodePos.x + nodeWidth / 2;

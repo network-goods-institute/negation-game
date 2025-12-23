@@ -103,8 +103,8 @@ export function ConnectionModeAnimation() {
       // Move to Point A
       const nodeACenterFlowX = 100 + 100; // node x + half width
       const nodeACenterFlowY = 100 + 25; // node y + half height
-      const targetX = 50 + nodeACenterFlowX * 0.55;
-      const targetY = -20 + nodeACenterFlowY * 0.55;
+      const targetX = 50 + nodeACenterFlowX * 0.6;
+      const targetY = -20 + nodeACenterFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -115,8 +115,8 @@ export function ConnectionModeAnimation() {
       // Move to Point B
       const nodeBCenterFlowX = 100 + 100;
       const nodeBCenterFlowY = 280 + 25;
-      const targetX = 50 + nodeBCenterFlowX * 0.55;
-      const targetY = -20 + nodeBCenterFlowY * 0.55;
+      const targetX = 50 + nodeBCenterFlowX * 0.6;
+      const targetY = -20 + nodeBCenterFlowY * 0.6;
       const step = () => {
         setCursorX(x => x + (targetX - x) * 0.12);
         setCursorY(y => y + (targetY - y) * 0.12);
@@ -132,8 +132,8 @@ export function ConnectionModeAnimation() {
       // Point A center in screen coordinates
       const nodeACenterFlowX = 100 + 100;
       const nodeACenterFlowY = 100 + 25;
-      const x1 = 50 + nodeACenterFlowX * 0.55;
-      const y1 = -20 + nodeACenterFlowY * 0.55;
+      const x1 = 50 + nodeACenterFlowX * 0.6;
+      const y1 = -20 + nodeACenterFlowY * 0.6;
 
       setPreviewLine({ x1, y1, x2: cursorX, y2: cursorY });
     } else {
@@ -150,7 +150,7 @@ export function ConnectionModeAnimation() {
             edges={edges}
             nodeTypes={tutorialNodeTypes}
             edgeTypes={edgeTypes}
-            defaultViewport={{ x: 50, y: -20, zoom: 0.55 }}
+            defaultViewport={{ x: 50, y: -20, zoom: 0.6 }}
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable={false}
@@ -159,8 +159,8 @@ export function ConnectionModeAnimation() {
             zoomOnPinch={false}
             zoomOnDoubleClick={false}
             proOptions={{ hideAttribution: true }}
-            minZoom={0.55}
-            maxZoom={0.55}
+            minZoom={0.6}
+            maxZoom={0.6}
           >
             <Background />
           </ReactFlow>
