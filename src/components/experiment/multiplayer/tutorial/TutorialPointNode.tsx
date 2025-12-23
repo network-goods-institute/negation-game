@@ -8,12 +8,18 @@ interface TutorialPointNodeData {
   isEditing?: boolean;
   cursorPos?: number;
   showPill?: boolean;
+  variant?: 'default' | 'mitigation';
 }
 
 export function TutorialPointNode({ data }: { data: TutorialPointNodeData }) {
   const displayText = data.isEditing && data.cursorPos !== undefined
     ? data.label.slice(0, data.cursorPos)
     : data.label;
+  const isMitigation = data.variant === 'mitigation';
+  const containerClass = isMitigation
+    ? 'bg-amber-50 text-amber-900 border-amber-300'
+    : 'bg-white text-gray-900 border-stone-200';
+  const textClass = isMitigation ? 'text-amber-900' : 'text-stone-700';
 
   return (
     <div className="relative">
@@ -29,14 +35,14 @@ export function TutorialPointNode({ data }: { data: TutorialPointNodeData }) {
         style={{ opacity: 0 }}
       />
 
-      <div className="bg-white text-gray-900 border-2 border-stone-200 px-4 py-3 rounded-lg min-w-[180px] max-w-[280px] shadow-sm">
+      <div className={`border-2 px-4 py-3 rounded-lg min-w-[180px] max-w-[280px] shadow-sm ${containerClass}`}>
         {data.isEditing ? (
           <div className="text-sm font-medium leading-snug text-left">
-            <span className="text-stone-700">{displayText}</span>
+            <span className={textClass}>{displayText}</span>
             <span className="animate-pulse text-blue-600">|</span>
           </div>
         ) : (
-          <div className="text-sm font-medium leading-snug text-left text-stone-700">
+          <div className={`text-sm font-medium leading-snug text-left ${textClass}`}>
             {data.label}
           </div>
         )}

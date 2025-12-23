@@ -8,6 +8,7 @@ import { VisuallyHidden } from "@/components/ui/visually-hidden";
 import { EditingPointAnimation } from './tutorial/animations/EditingPointAnimation';
 import { SupportNegationAnimation } from './tutorial/animations/SupportNegationAnimation';
 import { ConnectionModeAnimation } from './tutorial/animations/ConnectionModeAnimation';
+import { MitigationAnimation } from './tutorial/animations/MitigationAnimation';
 import { Loader } from "@/components/ui/loader";
 
 interface TutorialPanelProps {
@@ -44,7 +45,7 @@ const IntroVideo = () => {
 const TUTORIAL_STEPS = [
   {
     title: 'Welcome to Negation Game',
-    subtitle: 'Step 1 of 4',
+    subtitle: 'Step 1 of 5',
     description: 'Watch a quick overview before you start building arguments',
     animation: <IntroVideo />,
     animationHeight: 420,
@@ -56,7 +57,7 @@ const TUTORIAL_STEPS = [
   },
   {
     title: 'Making a Good Point',
-    subtitle: 'Step 2 of 4',
+    subtitle: 'Step 2 of 5',
     description: 'Create clear, specific claims that can be evaluated',
     animation: <EditingPointAnimation />,
     animationHeight: 256,
@@ -75,7 +76,7 @@ const TUTORIAL_STEPS = [
   },
   {
     title: 'Support & Negation',
-    subtitle: 'Step 3 of 4',
+    subtitle: 'Step 3 of 5',
     description: 'Connect points to strengthen or challenge claims',
     animation: <SupportNegationAnimation />,
     animationHeight: 256,
@@ -94,7 +95,7 @@ const TUTORIAL_STEPS = [
   },
   {
     title: 'Connection Mode',
-    subtitle: 'Step 4 of 4',
+    subtitle: 'Step 4 of 5',
     description: 'Link existing points to build argument structure',
     animation: <ConnectionModeAnimation />,
     animationHeight: 256,
@@ -109,6 +110,25 @@ const TUTORIAL_STEPS = [
       goodLabel: 'Efficient',
       bad: 'Creating new points when existing ones already cover the idea',
       good: 'Connecting "30-min exercise releases endorphins" to support "Exercise improves mental health"',
+    },
+  },
+  {
+    title: 'Mitigations',
+    subtitle: 'Step 5 of 5',
+    description: 'Add a mitigation that responds to a specific connection',
+    animation: <MitigationAnimation />,
+    animationHeight: 256,
+    showTips: true,
+    tips: [
+      { label: 'Open', text: 'Hover an edge and click Mitigate to attach a response to that connection' },
+      { label: 'Scope', text: 'Address the relationship between points, not the entire claim' },
+      { label: 'Useful', text: 'Explain when the edge still holds or how the concern is reduced' },
+    ],
+    example: {
+      badLabel: 'Unhelpful',
+      goodLabel: 'Actionable',
+      bad: 'Exercise is still good',
+      good: 'With proper guidance, injury risk drops and the benefit holds',
     },
   },
 ];
@@ -201,11 +221,11 @@ export const TutorialPanel: React.FC<TutorialPanelProps> = ({ isOpen, onClose })
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <div className="text-xs font-semibold text-rose-600 mb-1">❌ {step.example.badLabel}</div>
-                      <div className="text-sm text-stone-600 italic">"{step.example.bad}"</div>
+                      <div className="text-sm text-stone-600 italic">&quot;{step.example.bad}&quot;</div>
                     </div>
                     <div>
                       <div className="text-xs font-semibold text-emerald-600 mb-1">✓ {step.example.goodLabel}</div>
-                      <div className="text-sm text-stone-600 font-medium">"{step.example.good}"</div>
+                      <div className="text-sm text-stone-600 font-medium">&quot;{step.example.good}&quot;</div>
                     </div>
                   </div>
                 </div>
