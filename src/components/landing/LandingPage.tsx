@@ -1,4 +1,5 @@
 import { HeroSection } from "./HeroSection";
+import { BenefitsSection } from "./BenefitsSection";
 import { ShowcaseSection } from "./ShowcaseSection";
 import { ProblemSection } from "./ProblemSection";
 import { ProcessSection } from "./ProcessSection";
@@ -19,6 +20,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <LandingHeader onLogin={onLogin} />
       <main id="top" className="pt-[72px]">
         <HeroSection onLogin={onLogin} />
+        <BenefitsSection />
         <ShowcaseSection />
         <ProblemSection />
         <ProcessSection />
