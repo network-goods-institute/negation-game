@@ -30,6 +30,7 @@ export const toSidebarNotification = (
   return {
     id: row.id,
     boardId: row.docId,
+    boardTitle: row.docTitle ?? null,
     type: row.type as MultiplayerNotification["type"],
     userName: row.actorUsername || "Someone",
     action: row.action || defaultActionForType[row.type] || "updated",
@@ -82,6 +83,7 @@ export const aggregateMultiplayerNotifications = (
     {
       ids: string[];
       docId: string;
+      docTitle: string | null;
       pointId: string;
       title: string;
       type: MultiplayerNotification["type"];
@@ -103,6 +105,7 @@ export const aggregateMultiplayerNotifications = (
       {
         ids: [],
         docId: row.docId,
+        docTitle: row.docTitle ?? null,
         pointId,
         title: row.title,
         type: row.type as MultiplayerNotification["type"],
@@ -133,7 +136,9 @@ export const aggregateMultiplayerNotifications = (
         group.latestComment = row.content;
       }
     }
-
+    if (!group.docTitle && row.docTitle) {
+      group.docTitle = row.docTitle;
+    }
     groups.set(key, group);
   });
 
@@ -159,6 +164,7 @@ export const aggregateMultiplayerNotifications = (
         id: group.ids[0],
         ids: group.ids,
         boardId: group.docId,
+        boardTitle: group.docTitle ?? null,
         type: group.type,
         userName: actorSummary,
         action: group.actionLabel,
@@ -181,6 +187,11 @@ export interface UseMultiplayerNotificationsOptions {
   limit?: number;
 }
 
+export interface UseAllMultiplayerNotificationsOptions {
+  unreadOnly?: boolean;
+  limit?: number;
+}
+
 export const useMultiplayerNotifications = (
   options: UseMultiplayerNotificationsOptions
 ) => {
@@ -197,6 +208,37 @@ export const useMultiplayerNotifications = (
 
   const query = useAuthenticatedQuery({
     queryKey: ["mp-notifications", user?.id, normalizedOptions],
+    queryFn: () => getMultiplayerNotifications(normalizedOptions),
+    enabled,
+    refetchInterval: isVisible ? 30000 : false,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+  });
+
+  const mapped = useMemo(
+    () => aggregateMultiplayerNotifications(query.data || []),
+    [query.data]
+  );
+
+  return { ...query, data: mapped };
+};
+
+export const useAllMultiplayerNotifications = (
+  options: UseAllMultiplayerNotificationsOptions = {}
+) => {
+  const { data: user } = useUser();
+  const isVisible = useAppVisibility();
+  const enabled = Boolean(user?.id);
+  const normalizedOptions = useMemo(
+    () => ({
+      limit: options.limit,
+      unreadOnly: options.unreadOnly,
+    }),
+    [options.limit, options.unreadOnly]
+  );
+
+  const query = useAuthenticatedQuery({
+    queryKey: ["mp-notifications", "all", user?.id, normalizedOptions],
     queryFn: () => getMultiplayerNotifications(normalizedOptions),
     enabled,
     refetchInterval: isVisible ? 30000 : false,

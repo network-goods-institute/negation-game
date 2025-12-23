@@ -29,11 +29,40 @@ jest.mock('@/actions/experimental/rationales', () => ({
   createRationale: jest.fn(async () => ({ id: 'new' })),
 }));
 
+jest.mock('@/queries/experiment/multiplayer/useMultiplayerNotifications', () => ({
+  useAllMultiplayerNotifications: () => ({
+    data: [
+      {
+        id: 'n1',
+        boardId: 'board-1',
+        boardTitle: 'Board One',
+        type: 'support',
+        userName: 'Alex',
+        action: 'supported',
+        pointTitle: 'Test point',
+        pointId: 'p1',
+        timestamp: '2m ago',
+        isRead: false,
+        createdAt: new Date(),
+      },
+    ],
+    isLoading: false,
+    isFetching: false,
+    refetch: jest.fn(),
+  }),
+}));
+
+jest.mock('@/mutations/experiment/multiplayer/useMarkMultiplayerNotificationsRead', () => ({
+  useMarkMultiplayerNotificationRead: () => ({ mutateAsync: jest.fn() }),
+  useMarkAllMultiplayerNotificationsRead: () => ({ mutateAsync: jest.fn() }),
+}));
+
 describe('Multiplayer index page', () => {
   it('renders My Boards and lists docs', async () => {
     render(<Page />);
     expect(await screen.findByText(/My Boards/i)).toBeInTheDocument();
     expect(await screen.findByText('Mine')).toBeInTheDocument();
     expect(await screen.findByText('Theirs')).toBeInTheDocument();
+    expect(await screen.findByText(/NOTIFY/i)).toBeInTheDocument();
   });
 });

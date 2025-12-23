@@ -20,6 +20,7 @@ export interface MultiplayerNotification {
   id: string;
   ids?: string[];
   boardId: string;
+  boardTitle?: string | null;
   type: MultiplayerNotificationType;
   userName: string;
   action: string;

@@ -29,6 +29,8 @@ interface NotificationsSidebarProps {
   onMarkAllRead?: (ids: string[]) => void;
   isLoading?: boolean;
   onRefresh?: () => void;
+  showBoardContext?: boolean;
+  linkLabel?: string;
 }
 
 const isNegativeActivity = (type: MultiplayerNotification["type"]) => {
@@ -55,6 +57,8 @@ export function NotificationsSidebar({
   onMarkAllRead,
   isLoading = false,
   onRefresh,
+  showBoardContext = false,
+  linkLabel,
 }: NotificationsSidebarProps) {
   const [notifications, setNotifications] = useState<MultiplayerNotification[]>(
     notificationsProp ?? []
@@ -342,6 +346,8 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      showBoardContext={showBoardContext}
+                      linkLabel={linkLabel}
                       onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
@@ -360,6 +366,8 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      showBoardContext={showBoardContext}
+                      linkLabel={linkLabel}
                       onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
@@ -408,6 +416,8 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      showBoardContext={showBoardContext}
+                      linkLabel={linkLabel}
                       onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
@@ -426,6 +436,8 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      showBoardContext={showBoardContext}
+                      linkLabel={linkLabel}
                       onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
@@ -444,6 +456,8 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      showBoardContext={showBoardContext}
+                      linkLabel={linkLabel}
                       onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
@@ -462,6 +476,8 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      showBoardContext={showBoardContext}
+                      linkLabel={linkLabel}
                       onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
@@ -480,15 +496,20 @@ export function NotificationsSidebar({
 interface NotificationItemProps {
   notification: MultiplayerNotification;
   onClick: () => void;
+  showBoardContext?: boolean;
+  linkLabel?: string;
 }
 
 function NotificationItem({
   notification,
   onClick,
+  showBoardContext = false,
+  linkLabel,
 }: NotificationItemProps) {
   const isComment = notification.type === "comment";
   const headline = getNotificationHeadline(notification);
   const badge = getNotificationBadge(notification.type);
+  const boardLabel = notification.boardTitle || notification.boardId;
   const actorNames =
     notification.actorNames && notification.actorNames.length > 0
       ? notification.actorNames
@@ -536,6 +557,15 @@ function NotificationItem({
         </p>
       )}
 
+      {showBoardContext && (
+        <div className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+          <span className="uppercase tracking-wide text-[10px] text-stone-400 dark:text-stone-500">Board</span>
+          <span className="ml-2 font-medium text-stone-700 dark:text-stone-300">
+            {boardLabel}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400 mt-2">
         <div className="flex items-center -space-x-2">
           {avatarItems.map((avatar, idx) => (
@@ -554,7 +584,7 @@ function NotificationItem({
       </div>
 
       <div className="flex items-center text-xs text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform mt-2">
-        View point
+        {linkLabel ?? "View point"}
         <ChevronRight className="h-3 w-3 ml-1" />
       </div>
     </button>
