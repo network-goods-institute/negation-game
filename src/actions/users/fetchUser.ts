@@ -43,6 +43,7 @@ export const fetchUser = async (idOrUsername: string) => {
         showReadReceipts: usersTable.showReadReceipts,
         receiveReadReceipts: usersTable.receiveReadReceipts,
         createdAt: usersTable.createdAt,
+        tutorialVideoSeenAt: usersTable.tutorialVideoSeenAt,
         avatarUrl: usersTable.avatarUrl,
         avatarUpdatedAt: usersTable.avatarUpdatedAt,
       })
@@ -69,6 +70,15 @@ export const fetchUser = async (idOrUsername: string) => {
       error
     );
     return null;
+  }
+};
+
+export const invalidateUserCache = async (idOrUsername?: string | null) => {
+  if (!idOrUsername) return;
+  try {
+    userCache.delete(idOrUsername);
+  } catch {
+    return;
   }
 };
 

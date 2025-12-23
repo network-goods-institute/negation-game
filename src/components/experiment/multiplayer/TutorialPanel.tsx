@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
@@ -14,6 +14,9 @@ import { Loader } from "@/components/ui/loader";
 interface TutorialPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  lockIntro?: boolean;
+  introDurationMs?: number;
+  onIntroComplete?: () => void;
 }
 
 const IntroVideo = () => {
@@ -133,12 +136,22 @@ const TUTORIAL_STEPS = [
   },
 ];
 
-export const TutorialPanel: React.FC<TutorialPanelProps> = ({ isOpen, onClose }) => {
+export const TutorialPanel: React.FC<TutorialPanelProps> = ({
+  isOpen,
+  onClose,
+  lockIntro = false,
+  introDurationMs = 15000,
+  onIntroComplete,
+}) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [introRemainingMs, setIntroRemainingMs] = useState(introDurationMs);
+  const [introCompleted, setIntroCompleted] = useState(false);
 
   const step = TUTORIAL_STEPS[currentStep];
   const isFirst = currentStep === 0;
   const isLast = currentStep === TUTORIAL_STEPS.length - 1;
+  const isIntroLocked = lockIntro && isFirst && !introCompleted;
+  const introSeconds = Math.ceil(introRemainingMs / 1000);
   const defaultAnimationHeight = 256;
   const tipsBlockHeight = 260;
   const sectionGap = 24;
@@ -149,7 +162,34 @@ export const TutorialPanel: React.FC<TutorialPanelProps> = ({ isOpen, onClose })
     ? tipsBlockHeight
     : Math.max(0, defaultTotalHeight - animationHeight - sectionGap);
 
+  useEffect(() => {
+    if (!isIntroLocked) return;
+    setIntroRemainingMs(introDurationMs);
+  }, [introDurationMs, isIntroLocked]);
+
+  useEffect(() => {
+    if (!isIntroLocked) return;
+    const interval = setInterval(() => {
+      setIntroRemainingMs((prev) => {
+        const next = Math.max(0, prev - 1000);
+        if (next === 0) {
+          clearInterval(interval);
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isIntroLocked]);
+
+  useEffect(() => {
+    if (!isIntroLocked) return;
+    if (introRemainingMs > 0) return;
+    setIntroCompleted(true);
+    onIntroComplete?.();
+  }, [introRemainingMs, isIntroLocked, onIntroComplete]);
+
   const handleNext = () => {
+    if (isIntroLocked) return;
     if (!isLast) {
       setCurrentStep(currentStep + 1);
     }
@@ -162,12 +202,21 @@ export const TutorialPanel: React.FC<TutorialPanelProps> = ({ isOpen, onClose })
   };
 
   const handleClose = () => {
+    if (isIntroLocked) return;
     setCurrentStep(0);
     onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog
+      open={isOpen || isIntroLocked}
+      onOpenChange={(open) => {
+        if (!open) {
+          if (isIntroLocked) return;
+          handleClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-2xl p-0 gap-0 overflow-hidden">
         <VisuallyHidden>
           <DialogTitle>Tutorial - {step.title}</DialogTitle>
@@ -184,6 +233,7 @@ export const TutorialPanel: React.FC<TutorialPanelProps> = ({ isOpen, onClose })
           </div>
           <button
             onClick={handleClose}
+            disabled={isIntroLocked}
             className="absolute top-4 right-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-stone-950 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-stone-100 data-[state=open]:text-stone-500"
           >
             <X className="h-4 w-4" />
@@ -270,8 +320,12 @@ export const TutorialPanel: React.FC<TutorialPanelProps> = ({ isOpen, onClose })
                 Get Started
               </Button>
             ) : (
-              <Button onClick={handleNext} className="gap-1 bg-blue-600 hover:bg-blue-700">
-                Next
+              <Button
+                onClick={handleNext}
+                disabled={isIntroLocked}
+                className="gap-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isIntroLocked ? `Next (${introSeconds}s)` : 'Next'}
                 <ChevronRight className="h-4 w-4" />
               </Button>
             )}

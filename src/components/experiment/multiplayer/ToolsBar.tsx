@@ -8,6 +8,11 @@ import { ToolbarButton } from "./ToolbarButton";
 import { MarketModeControls } from "./MarketModeControls";
 import { isMarketEnabled } from "@/utils/market/marketUtils";
 import { TutorialPanel } from "./TutorialPanel";
+import { usePrivy } from "@privy-io/react-auth";
+import { useUser, userQueryKey } from "@/queries/users/useUser";
+import { useQueryClient } from "@tanstack/react-query";
+import { markTutorialVideoSeen } from "@/actions/users/markTutorialVideoSeen";
+import { logger } from "@/lib/logger";
 
 interface ToolsBarProps {
   connectMode: boolean;
@@ -41,6 +46,31 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
   const toolbarRef = React.useRef<HTMLDivElement | null>(null);
   const [isTutorialOpen, setIsTutorialOpen] = React.useState(false);
+  const [introOverride, setIntroOverride] = React.useState(false);
+  const queryClient = useQueryClient();
+  const { user: privyUser } = usePrivy();
+  const { data: appUser } = useUser(privyUser?.id);
+  const shouldLockIntro = Boolean(privyUser && appUser && !appUser.tutorialVideoSeenAt && !introOverride);
+  const isTutorialVisible = isTutorialOpen || shouldLockIntro;
+
+  const handleIntroComplete = React.useCallback(async () => {
+    setIntroOverride(true);
+    try {
+      const result = await markTutorialVideoSeen();
+      if (!result.ok) {
+        logger.warn("[ToolsBar] Failed to persist tutorial video seen state", result);
+      }
+    } catch (error) {
+      logger.error("[ToolsBar] Failed to mark tutorial video as seen", error);
+    }
+    queryClient.invalidateQueries({ queryKey: userQueryKey(privyUser?.id) });
+  }, [queryClient, privyUser?.id]);
+
+  React.useEffect(() => {
+    if (shouldLockIntro) {
+      setIsTutorialOpen(true);
+    }
+  }, [shouldLockIntro]);
 
   React.useEffect(() => {
     const el = toolbarRef.current;
@@ -60,7 +90,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
 
 
   // Focused (connect) mode UI
-  const connectModeContent = connectMode && !isTutorialOpen ? (
+  const connectModeContent = connectMode && !isTutorialVisible ? (
     <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
       <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-3 transition-all">
         <div className="flex items-center gap-2 px-1 text-blue-700">
@@ -90,7 +120,7 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   ) : null;
 
   // Default toolbar (idle) - hide when tutorial is open
-  const defaultContent = !isTutorialOpen && !connectMode ? (
+  const defaultContent = !isTutorialVisible && !connectMode ? (
     <div ref={toolbarRef} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
       <TooltipProvider>
         <div className="bg-white/90 backdrop-blur border-2 border-blue-200 shadow-xl rounded-full px-4 py-2 flex items-center gap-2 transition-all">
@@ -360,7 +390,13 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   return (
     <>
       {toolbarContent && (portalTarget ? createPortal(toolbarContent, portalTarget) : toolbarContent)}
-      <TutorialPanel isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
+      <TutorialPanel
+        isOpen={isTutorialVisible}
+        onClose={() => setIsTutorialOpen(false)}
+        lockIntro={shouldLockIntro}
+        introDurationMs={15000}
+        onIntroComplete={handleIntroComplete}
+      />
     </>
   );
 };

@@ -680,6 +680,13 @@
       "when": 1765927525100,
       "tag": "0096_red_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1766470032214,
+      "tag": "0097_confused_gauntlet",
+      "breakpoints": true
     }
   ]
 }

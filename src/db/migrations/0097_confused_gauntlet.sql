@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "tutorial_video_seen_at" timestamp;
