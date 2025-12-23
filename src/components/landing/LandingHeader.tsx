@@ -28,23 +28,29 @@ export function LandingHeader({ onLogin }: LandingHeaderProps) {
           </Link>
 
           <div className="hidden lg:flex items-center gap-2 flex-1 justify-center">
+            <Link href="#benefits" className="text-[#5a6370] text-[15px] font-medium px-4 py-2 rounded-lg hover:text-[#1a1d21] hover:bg-black/5 transition">
+              Benefits
+            </Link>
             <Link href="#how" className="text-[#5a6370] text-[15px] font-medium px-4 py-2 rounded-lg hover:text-[#1a1d21] hover:bg-black/5 transition">
               How it works
             </Link>
-            <Link href="#demo" className="text-[#5a6370] text-[15px] font-medium px-4 py-2 rounded-lg hover:text-[#1a1d21] hover:bg-black/5 transition">
-              See it in action
+            <Link href="#problem" className="text-[#5a6370] text-[15px] font-medium px-4 py-2 rounded-lg hover:text-[#1a1d21] hover:bg-black/5 transition">
+              The problem
+            </Link>
+            <Link href="#process" className="text-[#5a6370] text-[15px] font-medium px-4 py-2 rounded-lg hover:text-[#1a1d21] hover:bg-black/5 transition">
+              Process
             </Link>
             <Link href="#who" className="text-[#5a6370] text-[15px] font-medium px-4 py-2 rounded-lg hover:text-[#1a1d21] hover:bg-black/5 transition">
               Who {"it's"} for
             </Link>
-            <Link href="#not" className="text-[#5a6370] text-[15px] font-medium px-4 py-2 rounded-lg hover:text-[#1a1d21] hover:bg-black/5 transition">
-              What {"it's"} not
+            <Link href="#what" className="text-[#5a6370] text-[15px] font-medium px-4 py-2 rounded-lg hover:text-[#1a1d21] hover:bg-black/5 transition">
+              What it is
             </Link>
           </div>
 
           <div className="flex items-center gap-3">
             <Button asChild variant="outline" className="text-[15px] font-semibold rounded-lg">
-              <Link href="#demo">See it in action</Link>
+              <Link href="#how">See it in action</Link>
             </Button>
             <Button onClick={onLogin} className="bg-[#4285f4] hover:bg-[#3367d6] text-white text-[15px] font-semibold rounded-lg">
               Log in

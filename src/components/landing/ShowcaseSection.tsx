@@ -73,6 +73,8 @@ const edgeTypes = {
   objection: ObjectionEdge,
 };
 
+const howItWorksVideoSrc = "https://www.youtube-nocookie.com/embed/h81ED2ybWaQ?rel=0&modestbranding=1&playsinline=1";
+
 const supportEdgeId = 'support-edge';
 const supportAnchorId = `anchor:${supportEdgeId}`;
 
@@ -134,6 +136,19 @@ export function ShowcaseSection() {
           <p className="mx-auto max-w-[680px] text-lg text-[#5a6370]">
             Claims are explicit. Objections attach to specific points. Six months later, you can see what mattered and why.
           </p>
+        </div>
+
+        <div className="mx-auto mb-16 max-w-[980px]">
+          <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-[#e1e4e8] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+            <iframe
+              className="absolute inset-0 h-full w-full"
+              src={howItWorksVideoSrc}
+              title="Negation Game overview"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
         </div>
 
         <div className="grid gap-12 sm:grid-cols-2 mt-14">
@@ -235,6 +250,7 @@ export function ShowcaseSection() {
                   nodesDraggable={false}
                   nodesConnectable={false}
                   elementsSelectable={false}
+                  preventScrolling={false}
                   panOnDrag={false}
                   zoomOnScroll={false}
                   zoomOnPinch={false}

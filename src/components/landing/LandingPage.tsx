@@ -3,7 +3,6 @@ import { BenefitsSection } from "./BenefitsSection";
 import { ShowcaseSection } from "./ShowcaseSection";
 import { ProblemSection } from "./ProblemSection";
 import { ProcessSection } from "./ProcessSection";
-import { DemoSection } from "./DemoSection";
 import { WhoSection } from "./WhoSection";
 import { WhatItIsNotSection } from "./WhatItIsNotSection";
 import { CTASection } from "./CTASection";
@@ -24,7 +23,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <ShowcaseSection />
         <ProblemSection />
         <ProcessSection />
-        <DemoSection />
         <WhoSection />
         <WhatItIsNotSection />
         <CTASection onLogin={onLogin} />

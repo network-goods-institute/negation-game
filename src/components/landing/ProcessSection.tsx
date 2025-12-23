@@ -1,19 +1,19 @@
 const steps = [
   {
     number: 1,
-    title: "Frame the decision",
+    title: "Set the question",
     description: "Write the proposal, success criteria, and irreversibility horizon in plain language.",
     color: "bg-[#4285f4]/10",
   },
   {
     number: 2,
-    title: "Raise objections",
+    title: "Invite your team",
     description: "What might break, under what conditions, and why the downside matters.",
     color: "bg-[#34a853]/10",
   },
   {
     number: 3,
-    title: "Commit to concerns",
+    title: "Add considerations",
     description: "Serious objections persist. Low-effort noise doesn't dominate. Signal becomes visible.",
     color: "bg-[#ff9466]/15",
   },
@@ -27,7 +27,7 @@ const steps = [
 
 export function ProcessSection() {
   return (
-    <section id="how" className="px-8 py-20">
+    <section id="process" className="px-8 py-20">
       <div className="mx-auto max-w-[1200px]">
         <div className="text-center mb-16">
           <div className="inline-block mb-4 text-sm font-bold uppercase tracking-[0.6px] text-[#4285f4]">
@@ -53,9 +53,6 @@ export function ProcessSection() {
                     <h3 className="mb-2 text-[19px] font-[750] tracking-[-0.2px]">
                       {step.title}
                     </h3>
-                    <p className="text-[#5a6370] text-[15px] leading-[1.6]">
-                      {step.description}
-                    </p>
                   </div>
                 </div>
                 {index < steps.length - 1 && <div className="mt-8 h-px bg-[#e1e4e8]"></div>}

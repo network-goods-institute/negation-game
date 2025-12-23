@@ -23,9 +23,9 @@ export function CTASection({ onLogin }: CTASectionProps) {
             <Button onClick={onLogin} size="lg" className="bg-[#4285f4] hover:bg-[#3367d6] text-white text-base font-semibold px-7 rounded-lg">
               Get started free
             </Button>
-            <Button asChild variant="outline" size="lg" className="text-base font-semibold px-7 rounded-lg">
-              <Link href="#demo">See the example</Link>
-            </Button>
+          <Button asChild variant="outline" size="lg" className="text-base font-semibold px-7 rounded-lg">
+            <Link href="#how">See the example</Link>
+          </Button>
           </div>
         </div>
       </div>

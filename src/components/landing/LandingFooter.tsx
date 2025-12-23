@@ -11,9 +11,6 @@ export function LandingFooter() {
             <Link href="#how" className="hover:text-[#1a1d21] transition-colors">
               How it works
             </Link>
-            <Link href="#demo" className="hover:text-[#1a1d21] transition-colors">
-              See it in action
-            </Link>
             <Link href="#who" className="hover:text-[#1a1d21] transition-colors">
               Who {"it's"} for
             </Link>

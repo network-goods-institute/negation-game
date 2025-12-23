@@ -24,7 +24,7 @@ export function HeroSection({ onLogin }: HeroSectionProps) {
             Try it free
           </Button>
           <Button asChild variant="outline" size="lg" className="text-base font-semibold px-5 h-11 rounded-lg">
-            <Link href="#demo">See it in action</Link>
+            <Link href="#how">See it in action</Link>
           </Button>
         </div>
       </div>
