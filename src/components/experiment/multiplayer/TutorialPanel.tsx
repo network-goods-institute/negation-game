@@ -8,18 +8,59 @@ import { VisuallyHidden } from "@/components/ui/visually-hidden";
 import { EditingPointAnimation } from './tutorial/animations/EditingPointAnimation';
 import { SupportNegationAnimation } from './tutorial/animations/SupportNegationAnimation';
 import { ConnectionModeAnimation } from './tutorial/animations/ConnectionModeAnimation';
+import { Loader } from "@/components/ui/loader";
 
 interface TutorialPanelProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const IntroVideo = () => {
+  const [loaded, setLoaded] = useState(false);
+  const videoSrc = 'https://www.youtube-nocookie.com/embed/h81ED2ybWaQ?rel=0&modestbranding=1&playsinline=1';
+
+  return (
+    <div className="w-full h-full rounded-xl overflow-hidden border border-stone-200 bg-background">
+      <div className="relative w-full h-full">
+        {!loaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background">
+            <Loader />
+          </div>
+        )}
+        <iframe
+          className="absolute inset-0 w-full h-full"
+          src={videoSrc}
+          title="Negation Game overview"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          onLoad={() => setLoaded(true)}
+        />
+      </div>
+    </div>
+  );
+};
+
 const TUTORIAL_STEPS = [
   {
+    title: 'Welcome to Negation Game',
+    subtitle: 'Step 1 of 4',
+    description: 'Watch a quick overview before you start building arguments',
+    animation: <IntroVideo />,
+    animationHeight: 420,
+    showTips: false,
+    tips: [
+      { label: 'Watch', text: 'This short video explains the core loop: add points, connect them, refine.' },
+      { label: 'Goal', text: 'Build clear support and negation chains to stress-test ideas.' },
+    ],
+  },
+  {
     title: 'Making a Good Point',
-    subtitle: 'Step 1 of 3',
+    subtitle: 'Step 2 of 4',
     description: 'Create clear, specific claims that can be evaluated',
     animation: <EditingPointAnimation />,
+    animationHeight: 256,
+    showTips: true,
     tips: [
       { label: 'Atomic', text: 'Make ONE claim per point - split complex ideas into separate points' },
       { label: 'Specific', text: 'Include numbers, facts, or concrete details - avoid vague language' },
@@ -34,9 +75,11 @@ const TUTORIAL_STEPS = [
   },
   {
     title: 'Support & Negation',
-    subtitle: 'Step 2 of 3',
+    subtitle: 'Step 3 of 4',
     description: 'Connect points to strengthen or challenge claims',
     animation: <SupportNegationAnimation />,
+    animationHeight: 256,
+    showTips: true,
     tips: [
       { label: 'Support', text: 'Add evidence, examples, or data that strengthens the parent claim' },
       { label: 'Negation', text: 'Challenge a claim with contradicting evidence or identify limitations' },
@@ -51,9 +94,11 @@ const TUTORIAL_STEPS = [
   },
   {
     title: 'Connection Mode',
-    subtitle: 'Step 3 of 3',
+    subtitle: 'Step 4 of 4',
     description: 'Link existing points to build argument structure',
     animation: <ConnectionModeAnimation />,
+    animationHeight: 256,
+    showTips: true,
     tips: [
       { label: 'Activate', text: 'Click the Connect button in toolbar or press A to enter connection mode' },
       { label: 'Draw edge', text: 'Click source point first, then target point to create a relationship' },
@@ -74,6 +119,15 @@ export const TutorialPanel: React.FC<TutorialPanelProps> = ({ isOpen, onClose })
   const step = TUTORIAL_STEPS[currentStep];
   const isFirst = currentStep === 0;
   const isLast = currentStep === TUTORIAL_STEPS.length - 1;
+  const defaultAnimationHeight = 256;
+  const tipsBlockHeight = 260;
+  const sectionGap = 24;
+  const defaultTotalHeight = defaultAnimationHeight + tipsBlockHeight + sectionGap;
+  const showTips = step.showTips !== false;
+  const animationHeight = step.animationHeight ?? defaultAnimationHeight;
+  const tipsMinHeight = showTips
+    ? tipsBlockHeight
+    : Math.max(0, defaultTotalHeight - animationHeight - sectionGap);
 
   const handleNext = () => {
     if (!isLast) {
@@ -120,42 +174,46 @@ export const TutorialPanel: React.FC<TutorialPanelProps> = ({ isOpen, onClose })
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Animation */}
-          <div style={{ minHeight: '256px', maxHeight: '256px', height: '256px' }}>
+          <div style={{ minHeight: `${animationHeight}px`, maxHeight: `${animationHeight}px`, height: `${animationHeight}px` }}>
             {step.animation}
           </div>
 
           {/* Tips */}
-          <div style={{ minHeight: '260px' }}>
-            <h3 className="text-sm font-semibold text-stone-900 mb-3">Key Points</h3>
-            <div className="space-y-3">
-              {step.tips.map((tip, idx) => (
-                <div key={idx} className="flex gap-3">
-                  <div className="flex-shrink-0 w-20">
-                    <span className="inline-block text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      {tip.label}
-                    </span>
+          {showTips ? (
+            <div style={{ minHeight: `${tipsMinHeight}px` }}>
+              <h3 className="text-sm font-semibold text-stone-900 mb-3">Key Points</h3>
+              <div className="space-y-3">
+                {step.tips.map((tip, idx) => (
+                  <div key={idx} className="flex gap-3">
+                    <div className="flex-shrink-0 w-20">
+                      <span className="inline-block text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                        {tip.label}
+                      </span>
+                    </div>
+                    <p className="text-sm text-stone-600 leading-relaxed">{tip.text}</p>
                   </div>
-                  <p className="text-sm text-stone-600 leading-relaxed">{tip.text}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Example */}
-            {step.example && (
-              <div className="mt-4 pt-4 border-t border-stone-200">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-xs font-semibold text-rose-600 mb-1">❌ {step.example.badLabel}</div>
-                    <div className="text-sm text-stone-600 italic">"{step.example.bad}"</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold text-emerald-600 mb-1">✓ {step.example.goodLabel}</div>
-                    <div className="text-sm text-stone-600 font-medium">"{step.example.good}"</div>
-                  </div>
-                </div>
+                ))}
               </div>
-            )}
-          </div>
+
+              {/* Example */}
+              {step.example && (
+                <div className="mt-4 pt-4 border-t border-stone-200">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs font-semibold text-rose-600 mb-1">❌ {step.example.badLabel}</div>
+                      <div className="text-sm text-stone-600 italic">"{step.example.bad}"</div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-emerald-600 mb-1">✓ {step.example.goodLabel}</div>
+                      <div className="text-sm text-stone-600 font-medium">"{step.example.good}"</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ minHeight: `${tipsMinHeight}px` }} />
+          )}
         </div>
 
         {/* Footer */}
