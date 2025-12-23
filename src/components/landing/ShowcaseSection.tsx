@@ -129,7 +129,7 @@ export function ShowcaseSection() {
             How it works
           </div>
           <h2 className="mb-4 text-[clamp(32px,4vw,48px)] font-[750] tracking-[-0.6px]">
-            Keep a defensible record of what was considered
+            Map a decision live or asynchronously. On your own or with your team and stakeholders.
           </h2>
           <p className="mx-auto max-w-[680px] text-lg text-[#5a6370]">
             Claims are explicit. Objections attach to specific points. Six months later, you can see what mattered and why.
