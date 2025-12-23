@@ -76,6 +76,7 @@ export const fetchUser = async (idOrUsername: string) => {
 export const invalidateUserCache = async (idOrUsername?: string | null) => {
   if (!idOrUsername) return;
   try {
+    // eslint-disable-next-line drizzle/enforce-delete-with-where
     userCache.delete(idOrUsername);
   } catch {
     return;
