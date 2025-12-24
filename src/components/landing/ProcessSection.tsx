@@ -41,21 +41,21 @@ export function ProcessSection() {
           </p>
         </div>
 
-        <div className="bg-white border border-[#e1e4e8] rounded-2xl p-12 shadow-[0_4px_16px_rgba(0,0,0,0.08)] max-w-[900px] mx-auto">
-          <div className="space-y-8">
+        <div className="bg-white border border-[#e1e4e8] rounded-2xl px-10 py-8 shadow-[0_4px_16px_rgba(0,0,0,0.08)] max-w-[760px] mx-auto">
+          <div className="space-y-6">
             {steps.map((step, index) => (
               <div key={step.number}>
-                <div className="grid grid-cols-[60px_1fr] gap-5 items-start">
-                  <div className={`w-14 h-14 rounded-[14px] ${step.color} flex items-center justify-center text-[22px] font-bold`}>
+                <div className="grid grid-cols-[52px_1fr] gap-4 items-center">
+                  <div className={`w-12 h-12 rounded-[12px] ${step.color} flex items-center justify-center text-[20px] font-bold`}>
                     {step.number}
                   </div>
                   <div>
-                    <h3 className="mb-2 text-[19px] font-[750] tracking-[-0.2px]">
+                    <h3 className="text-[19px] font-[750] tracking-[-0.2px] leading-tight">
                       {step.title}
                     </h3>
                   </div>
                 </div>
-                {index < steps.length - 1 && <div className="mt-8 h-px bg-[#e1e4e8]"></div>}
+                {index < steps.length - 1 && <div className="mt-6 h-px bg-[#e1e4e8]"></div>}
               </div>
             ))}
           </div>
