@@ -92,8 +92,8 @@ const TUTORIAL_STEPS = [
     example: {
       badLabel: 'Mismatched',
       goodLabel: 'Aligned',
-      bad: 'Support edge with irrelevant claim: "Some people don\'t like exercise"',
-      good: 'Negation edge with specific counter-evidence: "Exercise can worsen injuries without proper guidance"',
+      bad: "Support edge with irrelevant claim: Some people don't like exercise",
+      good: 'Negation edge with specific counter-evidence: Exercise can worsen injuries without proper guidance',
     },
   },
   {
@@ -112,7 +112,7 @@ const TUTORIAL_STEPS = [
       badLabel: 'Redundant',
       goodLabel: 'Efficient',
       bad: 'Creating new points when existing ones already cover the idea',
-      good: 'Connecting "30-min exercise releases endorphins" to support "Exercise improves mental health"',
+      good: 'Connecting 30-min exercise releases endorphins to support Exercise improves mental health',
     },
   },
   {
@@ -251,7 +251,7 @@ export const TutorialPanel: React.FC<TutorialPanelProps> = ({
           {/* Tips */}
           {showTips ? (
             <div style={{ minHeight: `${tipsMinHeight}px` }}>
-              <h3 className="text-sm font-semibold text-stone-900 mb-3">Key Points</h3>
+              <h3 className="text-sm font-semibold text-stone-900 mb-3">Key Ideas</h3>
               <div className="space-y-3">
                 {step.tips.map((tip, idx) => (
                   <div key={idx} className="flex gap-3">

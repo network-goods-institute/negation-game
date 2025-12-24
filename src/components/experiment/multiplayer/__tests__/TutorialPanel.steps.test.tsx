@@ -21,7 +21,7 @@ describe('TutorialPanel steps', () => {
     render(<TutorialPanel isOpen={true} onClose={() => {}} />);
 
     expect(screen.getByText('Welcome to Negation Game')).toBeInTheDocument();
-    expect(screen.queryByText('Key Points')).not.toBeInTheDocument();
+    expect(screen.queryByText('Key Ideas')).not.toBeInTheDocument();
   });
 
   it('navigates to the mitigation step', async () => {
