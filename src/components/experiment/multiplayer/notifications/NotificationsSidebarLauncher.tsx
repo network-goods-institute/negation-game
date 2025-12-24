@@ -133,7 +133,6 @@ export function NotificationsSidebarLauncher({
                 <span className="text-white text-[10px] font-bold">{unreadCount}</span>
               </div>
             ) : null}
-            <div className="text-[9px] text-stone-500 [writing-mode:vertical-lr] rotate-180">NOTIFY</div>
           </div>
         </button>
       )}
