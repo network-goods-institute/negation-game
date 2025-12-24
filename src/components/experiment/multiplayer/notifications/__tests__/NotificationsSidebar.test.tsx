@@ -116,8 +116,8 @@ describe('NotificationsSidebar', () => {
 
     fireEvent.click(screen.getByText(/Show \d+ other update/));
 
-    const unread = screen.getByText(new RegExp(customNotifications[0].pointTitle));
-    fireEvent.click(unread.closest('button') as HTMLButtonElement);
+    const unread = screen.getByTestId(`notification-item-${customNotifications[0].id}`);
+    fireEvent.click(unread);
 
     expect(handleUpdate).toHaveBeenCalled();
     const updated = handleUpdate.mock.calls[0][0] as typeof customNotifications;
@@ -125,6 +125,29 @@ describe('NotificationsSidebar', () => {
     expect(handleRead).toHaveBeenCalled();
     const notified = handleRead.mock.calls[0][0] as typeof customNotifications[number];
     expect(notified.ids).toContain(customNotifications[0].id);
+  });
+
+  it('does not mark notifications as read when viewing', () => {
+    const handleRead = jest.fn();
+    const handleNavigate = jest.fn();
+
+    render(
+      <NotificationsSidebar
+        isOpen
+        notifications={baseNotifications}
+        onNotificationRead={handleRead}
+        onNavigateToPoint={handleNavigate}
+        onClose={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByText(/Show \d+ other update/));
+
+    const viewButton = screen.getByTestId(`notification-view-${baseNotifications[0].id}`);
+    fireEvent.click(viewButton);
+
+    expect(handleRead).not.toHaveBeenCalled();
+    expect(handleNavigate).toHaveBeenCalled();
   });
 
   it('splits supporting, activity, and negative notifications', () => {

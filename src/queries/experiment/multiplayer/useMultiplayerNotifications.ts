@@ -185,11 +185,13 @@ export interface UseMultiplayerNotificationsOptions {
   docId?: string | null;
   unreadOnly?: boolean;
   limit?: number;
+  pauseAutoRefresh?: boolean;
 }
 
 export interface UseAllMultiplayerNotificationsOptions {
   unreadOnly?: boolean;
   limit?: number;
+  pauseAutoRefresh?: boolean;
 }
 
 export const useMultiplayerNotifications = (
@@ -198,19 +200,23 @@ export const useMultiplayerNotifications = (
   const { data: user } = useUser();
   const isVisible = useAppVisibility();
   const enabled = Boolean(user?.id && options.docId);
+  const pauseAutoRefresh = Boolean(options.pauseAutoRefresh);
   const normalizedOptions = useMemo(
     () => ({
-      ...options,
       docId: options.docId || undefined,
+      unreadOnly: options.unreadOnly,
+      limit: options.limit,
     }),
-    [options]
+    [options.docId, options.unreadOnly, options.limit]
   );
 
   const query = useAuthenticatedQuery({
     queryKey: ["mp-notifications", user?.id, normalizedOptions],
     queryFn: () => getMultiplayerNotifications(normalizedOptions),
     enabled,
-    refetchInterval: isVisible ? 30000 : false,
+    refetchInterval: isVisible && !pauseAutoRefresh ? 30000 : false,
+    refetchOnWindowFocus: !pauseAutoRefresh,
+    refetchOnReconnect: !pauseAutoRefresh,
     staleTime: 30_000,
     gcTime: 5 * 60_000,
   });
@@ -229,6 +235,7 @@ export const useAllMultiplayerNotifications = (
   const { data: user } = useUser();
   const isVisible = useAppVisibility();
   const enabled = Boolean(user?.id);
+  const pauseAutoRefresh = Boolean(options.pauseAutoRefresh);
   const normalizedOptions = useMemo(
     () => ({
       limit: options.limit,
@@ -241,7 +248,9 @@ export const useAllMultiplayerNotifications = (
     queryKey: ["mp-notifications", "all", user?.id, normalizedOptions],
     queryFn: () => getMultiplayerNotifications(normalizedOptions),
     enabled,
-    refetchInterval: isVisible ? 30000 : false,
+    refetchInterval: isVisible && !pauseAutoRefresh ? 30000 : false,
+    refetchOnWindowFocus: !pauseAutoRefresh,
+    refetchOnReconnect: !pauseAutoRefresh,
     staleTime: 30_000,
     gcTime: 5 * 60_000,
   });

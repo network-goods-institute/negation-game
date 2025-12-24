@@ -18,14 +18,14 @@ export function NotificationsSidebarLauncher({
   enabled = true,
 }: NotificationsSidebarLauncherProps) {
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
   const {
     data: multiplayerNotifications = [],
     isLoading,
     isFetching,
     refetch,
-  } = useAllMultiplayerNotifications({ limit: 50 });
+  } = useAllMultiplayerNotifications({ limit: 50, pauseAutoRefresh: isOpen });
   const [notifications, setNotifications] = useState<MultiplayerNotification[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
   const isLoadingState = isLoading || isFetching;
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.isRead).length,

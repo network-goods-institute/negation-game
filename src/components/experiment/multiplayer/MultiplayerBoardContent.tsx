@@ -140,6 +140,11 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     () => notifications.filter((n) => !n.isRead).length,
     [notifications]
   );
+  const [focusTarget, setFocusTarget] = useState<{
+    id: string;
+    kind?: "node" | "edge";
+    nonce: number;
+  } | null>(null);
   const [missingNotificationId, setMissingNotificationId] = useState<string | null>(null);
   const [marketPanelState, setMarketPanelState] = useState<MarketPanelState>({
     nodeId: null,
@@ -174,6 +179,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const [overlayActiveEdgeId, setOverlayActiveEdgeId] = useState<string | null>(null);
   const [forceBlurNodes, setForceBlurNodes] = useState(0);
   const centerOnceIdsRef = useRef<Set<string>>(new Set());
+  const focusNonceRef = useRef(0);
   const [centerQueueVersion, setCenterQueueVersion] = useState(0);
   const {
     nodeId: marketPanelNodeId,
@@ -194,6 +200,12 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     return out;
   }, []);
 
+  const requestFocusTarget = useCallback((id: string, kind?: "node" | "edge") => {
+    if (!id) return;
+    focusNonceRef.current += 1;
+    setFocusTarget({ id, kind, nonce: focusNonceRef.current });
+  }, []);
+
   const blurNodesImmediately = useCallback(() => {
     setForceBlurNodes((v) => v + 1);
   }, []);
@@ -202,8 +214,12 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
 
   const notificationDocId = resolvedId || routeId || '';
   const notificationQueryOptions = useMemo(
-    () => ({ docId: notificationDocId, limit: 50 }),
-    [notificationDocId]
+    () => ({
+      docId: notificationDocId,
+      limit: 50,
+      pauseAutoRefresh: notificationsSidebarOpen,
+    }),
+    [notificationDocId, notificationsSidebarOpen]
   );
   const {
     data: multiplayerNotifications = [],
@@ -417,14 +433,15 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             n.id === pointId ? { ...n, selected: true } : { ...n, selected: false }
           )
         );
-        markNodeCenterOnce(pointId);
+        requestFocusTarget(pointId, "node");
       } else if (targetEdge) {
         setMarketPanelSelection(null, pointId);
         setSelectedEdgeId(pointId);
         setHoveredEdgeId(pointId);
+        requestFocusTarget(pointId, "edge");
       }
     },
-    [resolvedId, setSelectedEdgeId, setHoveredEdgeId, setMarketPanelSelection, setNodes, markNodeCenterOnce, nodes, edges, notifications]
+    [resolvedId, setSelectedEdgeId, setHoveredEdgeId, setMarketPanelSelection, setNodes, requestFocusTarget, nodes, edges, notifications]
   );
 
   useEffect(() => {
@@ -832,12 +849,14 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           n.id === nodeParam ? { ...n, selected: true } : { ...n, selected: false }
         )
       );
+      requestFocusTarget(nodeParam!, "node");
     } else if (hasEdge) {
       setMarketPanelSelection(null, edgeParam!);
       setSelectedEdgeId(edgeParam!);
       setNodes((nds: any[]) =>
         nds.map((n: any) => (n.selected ? { ...n, selected: false } : n))
       );
+      requestFocusTarget(edgeParam!, "edge");
     }
 
     // Consume the URL parameters so they don't linger once applied
@@ -857,7 +876,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     }
 
     markShareParamsApplied();
-  }, [shareParamsApplied, isConnected, nodes, edges, setNodes, setSelectedEdgeId, setMarketPanelSelection, markShareParamsApplied]);
+  }, [shareParamsApplied, isConnected, nodes, edges, setNodes, setSelectedEdgeId, setMarketPanelSelection, markShareParamsApplied, requestFocusTarget]);
 
   // Track node selection changes to open/switch market panel (but not close - panel is "sticky")
   useEffect(() => {
@@ -1704,6 +1723,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                 forceSave={forceSave}
                 yMetaMap={yMetaMap as any}
                 isMarketPanelVisible={!!(marketPanelNodeId || marketPanelEdgeId)}
+                focusTarget={focusTarget}
                 onFlowMouseMove={(x, y) => {
                   if (!connectAnchorRef.current) return;
                   setConnectCursor({ x, y });

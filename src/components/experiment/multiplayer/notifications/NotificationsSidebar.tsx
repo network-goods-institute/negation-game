@@ -196,7 +196,7 @@ export function NotificationsSidebar({
     });
   };
 
-  const handleNotificationClick = (notification: MultiplayerNotification) => {
+  const handleNotificationMarkRead = (notification: MultiplayerNotification) => {
     const idsToMark = new Set(notification.ids ?? [notification.id]);
     updateNotifications((prev) =>
       prev.map((n) => {
@@ -212,11 +212,12 @@ export function NotificationsSidebar({
         ids: Array.from(idsToMark),
       });
     } catch { }
+  };
 
+  const handleNotificationNavigate = (notification: MultiplayerNotification) => {
     if (onNavigateToPoint) {
       onNavigateToPoint(notification.pointId, notification.boardId);
     }
-
     onClose();
   };
 
@@ -346,9 +347,10 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      onMarkRead={() => handleNotificationMarkRead(notification)}
+                      onNavigate={() => handleNotificationNavigate(notification)}
                       showBoardContext={showBoardContext}
                       linkLabel={linkLabel}
-                      onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
                 </div>
@@ -366,9 +368,10 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      onMarkRead={() => handleNotificationMarkRead(notification)}
+                      onNavigate={() => handleNotificationNavigate(notification)}
                       showBoardContext={showBoardContext}
                       linkLabel={linkLabel}
-                      onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
                 </div>
@@ -416,9 +419,10 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      onMarkRead={() => handleNotificationMarkRead(notification)}
+                      onNavigate={() => handleNotificationNavigate(notification)}
                       showBoardContext={showBoardContext}
                       linkLabel={linkLabel}
-                      onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
                 </div>
@@ -436,9 +440,10 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      onMarkRead={() => handleNotificationMarkRead(notification)}
+                      onNavigate={() => handleNotificationNavigate(notification)}
                       showBoardContext={showBoardContext}
                       linkLabel={linkLabel}
-                      onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
                 </div>
@@ -456,9 +461,10 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      onMarkRead={() => handleNotificationMarkRead(notification)}
+                      onNavigate={() => handleNotificationNavigate(notification)}
                       showBoardContext={showBoardContext}
                       linkLabel={linkLabel}
-                      onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
                 </div>
@@ -476,9 +482,10 @@ export function NotificationsSidebar({
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
+                      onMarkRead={() => handleNotificationMarkRead(notification)}
+                      onNavigate={() => handleNotificationNavigate(notification)}
                       showBoardContext={showBoardContext}
                       linkLabel={linkLabel}
-                      onClick={() => handleNotificationClick(notification)}
                     />
                   ))}
                 </div>
@@ -495,14 +502,16 @@ export function NotificationsSidebar({
 
 interface NotificationItemProps {
   notification: MultiplayerNotification;
-  onClick: () => void;
+  onMarkRead: () => void;
+  onNavigate: () => void;
   showBoardContext?: boolean;
   linkLabel?: string;
 }
 
 function NotificationItem({
   notification,
-  onClick,
+  onMarkRead,
+  onNavigate,
   showBoardContext = false,
   linkLabel,
 }: NotificationItemProps) {
@@ -523,10 +532,19 @@ function NotificationItem({
     name: actorNames[idx] ?? notification.userName,
   }));
   return (
-    <button
-      onClick={onClick}
+    <div
+      role="button"
+      tabIndex={0}
+      data-testid={`notification-item-${notification.id}`}
+      onClick={onMarkRead}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onMarkRead();
+        }
+      }}
       className={cn(
-        "relative w-full text-left p-3 pl-12 rounded-lg border transition-all duration-200 hover:bg-white dark:hover:bg-stone-900 group",
+        "relative w-full text-left p-3 pl-12 rounded-lg border transition-all duration-200 hover:bg-white dark:hover:bg-stone-900 group cursor-pointer",
         notification.isRead
           ? "bg-stone-100 dark:bg-stone-900 border-stone-200 dark:border-stone-800 opacity-70"
           : "bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 shadow-sm"
@@ -583,11 +601,24 @@ function NotificationItem({
         </div>
       </div>
 
-      <div className="flex items-center text-xs text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform mt-2">
+      <button
+        type="button"
+        data-testid={`notification-view-${notification.id}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onNavigate();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.stopPropagation();
+          }
+        }}
+        className="flex items-center text-xs text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform mt-2"
+      >
         {linkLabel ?? "View point"}
         <ChevronRight className="h-3 w-3 ml-1" />
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 

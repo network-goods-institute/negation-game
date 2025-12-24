@@ -24,6 +24,7 @@ import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
 import { useMarketMetaVersion } from '@/hooks/market/useMarketMetaVersion';
 import { SnapLines } from './SnapLines';
 import { Plus, Trash2 } from 'lucide-react';
+import { useNodeHelpers } from '@/hooks/experiment/multiplayer/useNodeHelpers';
 
 type YProvider = WebsocketProvider | null;
 
@@ -60,6 +61,7 @@ interface GraphCanvasProps {
   forceSave?: () => Promise<void> | void;
   yMetaMap?: any;
   isMarketPanelVisible?: boolean;
+  focusTarget?: { id: string; kind?: "node" | "edge"; nonce: number } | null;
 }
 
 type MarketNode = Node<{ market?: { price?: number; mine?: number; total?: number } }>;
@@ -97,10 +99,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   forceSave,
   yMetaMap,
   isMarketPanelVisible = false,
+  focusTarget,
 }) => {
   const rf = useReactFlow();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const graph = useGraphActions();
+  const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
   const [docId, setDocId] = React.useState<string | null>(null);
   React.useEffect(() => { try { setDocId(getDocIdFromURL() || null); } catch { setDocId(null); } }, []);
   const marketEnabled = process.env.NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED === 'true';
@@ -113,6 +117,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   const { setPerfMode } = usePerformanceMode();
   const midPanRef = React.useRef(false);
   const copiedNodeIdRef = React.useRef<string | null>(null);
+  const lastFocusNonceRef = React.useRef<number | null>(null);
+  const focusRetryRef = React.useRef<{ nonce: number; attempts: number; timeoutId?: number | null } | null>(null);
+  const [focusRetryTick, setFocusRetryTick] = React.useState(0);
   const altCloneMapRef = React.useRef<Map<string, { dupId: string; origin: { x: number; y: number } }>>(new Map());
   const { origin, snappedPosition, snappedTarget: componentSnappedTarget } = useConnectionSnapping({
     connectMode: !!connectMode,
@@ -121,6 +128,67 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     edgesLayer,
     containerRef,
   });
+
+  React.useEffect(() => {
+    return () => {
+      const retry = focusRetryRef.current;
+      if (retry?.timeoutId) {
+        try {
+          window.clearTimeout(retry.timeoutId);
+        } catch {}
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!focusTarget) return;
+    if (lastFocusNonceRef.current === focusTarget.nonce) return;
+    if (focusRetryRef.current?.nonce !== focusTarget.nonce) {
+      const retry = focusRetryRef.current;
+      if (retry?.timeoutId) {
+        try {
+          window.clearTimeout(retry.timeoutId);
+        } catch {}
+      }
+      focusRetryRef.current = { nonce: focusTarget.nonce, attempts: 0, timeoutId: null };
+    }
+    const container = containerRef.current;
+    if (!container) return;
+    const center =
+      focusTarget.kind === "edge"
+        ? getEdgeMidpoint(focusTarget.id)
+        : focusTarget.kind === "node"
+          ? getNodeCenter(focusTarget.id)
+          : getNodeCenter(focusTarget.id) || getEdgeMidpoint(focusTarget.id);
+    if (!center) {
+      const retry = focusRetryRef.current;
+      if (retry && retry.attempts < 8 && !retry.timeoutId) {
+        retry.attempts += 1;
+        retry.timeoutId = window.setTimeout(() => {
+          retry.timeoutId = null;
+          setFocusRetryTick((tick) => tick + 1);
+        }, 250);
+      }
+      return;
+    }
+    const rect = container.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const viewport = rf.getViewport();
+    const zoom = viewport.zoom || 1;
+    const nextViewport = {
+      x: rect.width / 2 - center.x * zoom,
+      y: rect.height / 2 - center.y * zoom,
+      zoom,
+    };
+    lastFocusNonceRef.current = focusTarget.nonce;
+    if (focusRetryRef.current?.timeoutId) {
+      try {
+        window.clearTimeout(focusRetryRef.current.timeoutId);
+      } catch {}
+      if (focusRetryRef.current) focusRetryRef.current.timeoutId = null;
+    }
+    rf.setViewport(nextViewport, { duration: 350 });
+  }, [focusTarget, focusRetryTick, getEdgeMidpoint, getNodeCenter, rf]);
 
   const edgesForRender = React.useMemo(() => {
     try {
