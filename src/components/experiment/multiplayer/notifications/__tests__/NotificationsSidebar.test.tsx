@@ -224,6 +224,6 @@ describe('NotificationsSidebar', () => {
 
     fireEvent.click(toggle);
 
-    expect(screen.getByText(/Hide other activity/)).toBeInTheDocument();
+    expect(within(visible).getByText(/Hide other activity/)).toBeInTheDocument();
   });
 });

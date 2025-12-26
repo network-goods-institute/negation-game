@@ -64,7 +64,7 @@ describe('NotificationsSidebarLauncher', () => {
       linkLabel?: string;
     };
     expect(props.showBoardContext).toBe(true);
-    expect(props.linkLabel).toBe('View board');
+    expect(props.linkLabel).toBe('Go to board');
   });
 
   it('navigates to board when clicking a global notification', () => {

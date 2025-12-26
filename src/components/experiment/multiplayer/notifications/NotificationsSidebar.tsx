@@ -194,45 +194,109 @@ export function NotificationsSidebar({
   useLayoutEffect(() => {
     const measureEl = hiddenNegativeMeasureRef.current;
     if (!measureEl) return;
+    let rafId: number | null = null;
+    let attempts = 0;
+
+    const getHeight = (el: HTMLElement) => {
+      const rectHeight = el.getBoundingClientRect().height;
+      return Math.max(rectHeight, el.scrollHeight, el.offsetHeight);
+    };
+
+    const measure = () => {
+      const contentEl = measureEl.querySelector(
+        "[data-negative-measure-content]"
+      ) as HTMLElement | null;
+      const targetEl = contentEl || measureEl;
+      const nextHeight = getHeight(targetEl);
+      if (nextHeight > 0) {
+        setHiddenNegativeBlockHeight((prev) =>
+          Math.abs(prev - nextHeight) > 1 ? nextHeight : prev
+        );
+      }
+
+      const toggleEl = measureEl.querySelector(
+        "[data-negative-measure-toggle]"
+      ) as HTMLElement | null;
+      if (toggleEl) {
+        const toggleHeight = getHeight(toggleEl);
+        setHiddenNegativeToggleHeight((prev) =>
+          Math.abs(prev - toggleHeight) > 1 ? toggleHeight : prev
+        );
+      } else {
+        setHiddenNegativeToggleHeight(0);
+      }
+
+      const itemEls = Array.from(
+        measureEl.querySelectorAll("[data-negative-measure-item]")
+      ) as HTMLElement[];
+      if (itemEls.length > 0) {
+        const heights = itemEls.map((el) => getHeight(el));
+        setHiddenNegativeItemHeights((prev) => {
+          if (
+            prev.length === heights.length &&
+            prev.every((val, idx) => Math.abs(val - heights[idx]) <= 1)
+          ) {
+            return prev;
+          }
+          return heights;
+        });
+      } else {
+        setHiddenNegativeItemHeights([]);
+      }
+
+      return nextHeight > 0;
+    };
+
+    const scheduleMeasure = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        const hasHeight = measure();
+        if (!hasHeight && attempts < 5) {
+          attempts += 1;
+          scheduleMeasure();
+        }
+      });
+    };
+
+    measure();
+    scheduleMeasure();
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+        }
+      };
+    }
+
+    const observer = new ResizeObserver(() => {
+      attempts = 0;
+      scheduleMeasure();
+    });
+    observer.observe(measureEl);
     const contentEl = measureEl.querySelector(
       "[data-negative-measure-content]"
     ) as HTMLElement | null;
-    const nextHeight = (contentEl || measureEl).getBoundingClientRect().height;
-    if (!nextHeight) return;
-    setHiddenNegativeBlockHeight((prev) =>
-      Math.abs(prev - nextHeight) > 1 ? nextHeight : prev
-    );
-    const toggleEl = measureEl.querySelector(
-      "[data-negative-measure-toggle]"
-    ) as HTMLElement | null;
-    if (toggleEl) {
-      const toggleHeight = toggleEl.getBoundingClientRect().height;
-      setHiddenNegativeToggleHeight((prev) =>
-        Math.abs(prev - toggleHeight) > 1 ? toggleHeight : prev
-      );
-    } else {
-      setHiddenNegativeToggleHeight(0);
+    if (contentEl) {
+      observer.observe(contentEl);
     }
-    const itemEls = Array.from(
-      measureEl.querySelectorAll("[data-negative-measure-item]")
-    ) as HTMLElement[];
-    if (itemEls.length > 0) {
-      const heights = itemEls.map((el) => el.getBoundingClientRect().height);
-      setHiddenNegativeItemHeights((prev) => {
-        if (prev.length === heights.length && prev.every((val, idx) => Math.abs(val - heights[idx]) <= 1)) {
-          return prev;
-        }
-        return heights;
-      });
-    } else {
-      setHiddenNegativeItemHeights([]);
-    }
+
+    return () => {
+      observer.disconnect();
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
   }, [
+    hiddenNegativeCount,
     hiddenNegativeNotifications,
     unreadNegativeNotifications,
     earlierNegativeNotifications,
     showBoardContext,
     linkLabel,
+    rendered,
   ]);
 
   const handleSidebarWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
@@ -643,7 +707,9 @@ function NotificationItem({
   linkLabel,
 }: NotificationItemProps) {
   const isComment = notification.type === "comment";
-  const headline = getNotificationHeadline(notification);
+  const headline = showBoardContext
+    ? getGlobalNotificationHeadline(notification)
+    : getNotificationHeadline(notification);
   const badge = getNotificationBadge(notification.type);
   const boardLabel = notification.boardTitle || notification.boardId;
   const actorNames =
@@ -696,7 +762,7 @@ function NotificationItem({
         </span>
       </div>
 
-      {isComment && notification.commentPreview && (
+      {!showBoardContext && isComment && notification.commentPreview && (
         <p className="text-sm text-stone-600 dark:text-stone-400 italic line-clamp-2 mt-2 mb-2 pl-3 border-l-2 border-stone-300 dark:border-stone-700">
           {notification.commentPreview}
         </p>
@@ -783,7 +849,8 @@ function HiddenNegativeActionsCard({
     <button
       onClick={onToggle}
       className={cn(
-        "relative w-full p-3 rounded-lg border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors flex flex-col justify-center gap-2 text-left overflow-hidden",
+        "relative w-full p-3 rounded-lg border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors flex flex-col gap-2 text-left overflow-hidden",
+        !isShowing && blockHeight ? "justify-start" : "justify-center",
         className
       )}
       style={blockHeight ? { minHeight: blockHeight } : undefined}
@@ -880,6 +947,16 @@ const getNotificationHeadline = (notification: MultiplayerNotification) => {
   const actor = notification.userName || "Someone";
   const action = notification.action || notification.type;
   return `${actor} ${action} ${title}`;
+};
+
+const getGlobalNotificationHeadline = (notification: MultiplayerNotification) => {
+  const count = notification.count ?? notification.ids?.length ?? 1;
+  const label = count === 1 ? "update" : "updates";
+  const actorSummary =
+    notification.actorNames && notification.actorNames.length > 0
+      ? notification.actorNames.join(", ")
+      : notification.userName || "Someone";
+  return `${count} ${label} from ${actorSummary}`;
 };
 
 const getNotificationBadge = (type: MultiplayerNotification["type"]) => {

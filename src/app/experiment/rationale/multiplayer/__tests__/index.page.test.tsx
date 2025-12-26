@@ -63,6 +63,6 @@ describe('Multiplayer index page', () => {
     expect(await screen.findByText(/My Boards/i)).toBeInTheDocument();
     expect(await screen.findByText('Mine')).toBeInTheDocument();
     expect(await screen.findByText('Theirs')).toBeInTheDocument();
-    expect(await screen.findByText(/NOTIFY/i)).toBeInTheDocument();
+    expect(await screen.findByTitle(/Notifications/i)).toBeInTheDocument();
   });
 });

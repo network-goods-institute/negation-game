@@ -153,7 +153,7 @@ export function NotificationsSidebarLauncher({
         isLoading={isLoadingState}
         onRefresh={() => refetch()}
         showBoardContext
-        linkLabel="View board"
+        linkLabel="Go to board"
       />
     </>
   );
