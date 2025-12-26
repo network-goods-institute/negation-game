@@ -1,12 +1,16 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { useAuthSetup } from '@/hooks/experiment/multiplayer/useAuthSetup';
 import { useModeState } from '@/hooks/experiment/multiplayer/useModeState';
 import { useBoardResolution } from '@/hooks/experiment/multiplayer/useBoardResolution';
 import { BoardNotFound } from '@/components/experiment/multiplayer/BoardNotFound';
 import { BoardLoading } from '@/components/experiment/multiplayer/BoardLoading';
 import { MultiplayerBoardContent } from '@/components/experiment/multiplayer/MultiplayerBoardContent';
+import {
+  trackMpBoardAccessDenied,
+  trackMpBoardViewed,
+} from '@/lib/analytics/trackers';
 
 export default function MultiplayerBoardDetailPage() {
   const { authenticated, privyReady, login, userId, username, userColor } = useAuthSetup();
@@ -23,6 +27,31 @@ export default function MultiplayerBoardDetailPage() {
     setPerfBoost,
     selectMode,
   } = useModeState();
+  const lastViewedIdRef = useRef<string | null>(null);
+  const lastDeniedIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const boardId = resolvedId || routeParams?.id || null;
+    if (!forbidden || !boardId || lastDeniedIdRef.current === boardId) return;
+    lastDeniedIdRef.current = boardId;
+    trackMpBoardAccessDenied({
+      boardId,
+      requiresAuth,
+      authenticated,
+    });
+  }, [forbidden, requiresAuth, authenticated, resolvedId, routeParams?.id]);
+
+  useEffect(() => {
+    if (!privyReady || !resolvedId || forbidden || notFound) return;
+    if (lastViewedIdRef.current === resolvedId) return;
+    lastViewedIdRef.current = resolvedId;
+    trackMpBoardViewed({
+      boardId: resolvedId,
+      accessRole,
+      resolvedSlug,
+      shareToken,
+    });
+  }, [privyReady, resolvedId, forbidden, notFound, accessRole, resolvedSlug, shareToken]);
 
   if (notFound) {
     return <BoardNotFound />;

@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useOnboarding } from '@/components/contexts/OnboardingContext';
 import { useState, useEffect } from 'react';
 import { Loader } from '@/components/ui/loader';
+import { trackVideoLoaded } from '@/lib/analytics/trackers';
+import { usePathname } from 'next/navigation';
 
 export interface VideoIntroDialogProps {
     open?: boolean;
@@ -16,6 +18,7 @@ export const VideoIntroDialog: React.FC<VideoIntroDialogProps> = ({ open, onOpen
     const { openDialog: openOnboarding } = useOnboarding();
     const [loaded, setLoaded] = useState(false);
     const videoSrc = 'https://www.youtube-nocookie.com/embed/h81ED2ybWaQ?rel=0&modestbranding=1&playsinline=1';
+    const pathname = usePathname();
 
     useEffect(() => {
         if (open) {
@@ -41,7 +44,10 @@ export const VideoIntroDialog: React.FC<VideoIntroDialogProps> = ({ open, onOpen
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         className="absolute top-0 left-0 w-full h-full"
                         allowFullScreen
-                        onLoad={() => setLoaded(true)}
+                        onLoad={() => {
+                            setLoaded(true);
+                            trackVideoLoaded({ pathname });
+                        }}
                     />
                 </div>
                 <DialogFooter className="flex justify-end space-x-2 pt-4">

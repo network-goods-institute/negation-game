@@ -26,6 +26,11 @@ import { usePathname } from 'next/navigation';
 import { usePrivy } from "@privy-io/react-auth";
 import { useUser } from "@/queries/users/useUser";
 import { isSyncHost } from "@/utils/hosts/syncPaths";
+import {
+    trackOnboardingDismissed,
+    trackOnboardingOpened,
+    trackVideoOpened,
+} from '@/lib/analytics/trackers';
 
 const LOCAL_STORAGE_KEY = 'onboardingDismissed';
 const LAST_SHOWN_KEY = 'onboardingLastShown';
@@ -154,6 +159,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
             const now = Date.now();
             if (!lastShown || now - parseInt(lastShown, 10) > ONE_DAY_MS) {
                 setIsOpen(true);
+                trackOnboardingOpened({ pathname, trigger: "auto" });
                 localStorage.setItem(LAST_SHOWN_KEY, now.toString());
             }
         }
@@ -161,24 +167,29 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }, [pathname, suppressOnboarding]);
 
     const openDialog = useCallback(() => {
-        if (isInitialized && !suppressOnboarding) setIsOpen(true);
-    }, [isInitialized, suppressOnboarding]);
+        if (isInitialized && !suppressOnboarding) {
+            setIsOpen(true);
+            trackOnboardingOpened({ pathname, trigger: "manual" });
+        }
+    }, [isInitialized, suppressOnboarding, pathname]);
 
     const closeDialog = useCallback(
         (permanently = false) => {
             setIsOpen(false);
+            trackOnboardingDismissed({ pathname, permanent: permanently });
             if (permanently && isInitialized) {
                 localStorage.setItem(LOCAL_STORAGE_KEY, 'true');
                 setIsPermanentlyDismissed(true);
                 localStorage.setItem(LAST_SHOWN_KEY, Date.now().toString());
             }
         },
-        [isInitialized]
+        [isInitialized, pathname]
     );
 
     const showVideo = useCallback(() => {
         setIsVideoOpen(true);
-    }, []);
+        trackVideoOpened({ pathname });
+    }, [pathname]);
 
     const closeVideo = useCallback(() => {
         setIsVideoOpen(false);

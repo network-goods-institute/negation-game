@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@/components/providers/QueryClientProvider";
 import { ThemedPrivyProvider } from "@/components/providers/ThemedPrivyProvider";
+import { PostHogAuthTracker } from "@/components/analytics/PostHogAuthTracker";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils/cn";
@@ -193,6 +194,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <ThemedPrivyProvider>
+            <PostHogAuthTracker />
             <QueryClientProvider
               initialUserData={clientUser}
               initialUserId={serverUser?.id}

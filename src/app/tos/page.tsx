@@ -12,7 +12,7 @@ export default function TermsOfService() {
                 <div className="prose prose-lg dark:prose-invert max-w-none">
                     <h1 className="text-4xl font-bold text-center mb-2">Terms of Service</h1>
                     <p className="text-center text-muted-foreground mb-12">
-                        Last updated: September 13, 2025
+                        Last updated: December 25, 2025
                     </p>
 
                     <div className="space-y-8">
@@ -71,6 +71,7 @@ export default function TermsOfService() {
                                 <li><strong>Google (Gemini AI)</strong>: AI content generation - <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a></li>
                                 <li><strong>OpenAI</strong>: AI assistance features - <a href="https://openai.com/policies/terms-of-use/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a></li>
                                 <li><strong>Vercel</strong>: Hosting and analytics - <a href="https://vercel.com/legal/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a></li>
+                                <li><strong>PostHog</strong>: Product analytics - <a href="https://posthog.com/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a></li>
                                 <li><strong>Supabase</strong>: Database services - <a href="https://supabase.com/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a></li>
                             </ul>
                         </section>

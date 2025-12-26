@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { Roboto_Slab } from 'next/font/google';
 import { listOwnedRationales, listVisitedRationales, deleteRationale, renameRationale, createRationale, recordOpen, duplicateRationale } from "@/actions/experimental/rationales";
@@ -37,6 +37,15 @@ import { WebsocketProvider } from "y-websocket";
 import { fetchYjsAuthToken } from "@/hooks/experiment/multiplayer/yjs/auth";
 import { logger } from "@/lib/logger";
 import { LandingPage } from "@/components/landing/LandingPage";
+import {
+  trackMpBoardCreated,
+  trackMpBoardDeleted,
+  trackMpBoardDuplicated,
+  trackMpBoardLinkCopied,
+  trackMpBoardListViewed,
+  trackMpBoardOpened,
+  trackMpBoardRenamed,
+} from "@/lib/analytics/trackers";
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -67,10 +76,12 @@ export default function MultiplayerRationaleIndexPage() {
   const [owned, setOwned] = useState<MpDoc[]>([]);
   const [visited, setVisited] = useState<MpDoc[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const myId = (user as any)?.id || (user as any)?.sub || (user as any)?.userId || null;
   const [query, setQuery] = useState("");
   const { isCopyingUrl, handleCopyUrl } = useCopyUrl();
+  const listViewedRef = useRef(false);
 
   const load = async () => {
     try {
@@ -86,6 +97,7 @@ export default function MultiplayerRationaleIndexPage() {
       setError(e?.message || "Failed to load");
     } finally {
       setLoading(false);
+      setHasLoaded(true);
     }
   };
 
@@ -102,6 +114,7 @@ export default function MultiplayerRationaleIndexPage() {
     setCreating(true);
     try {
       const { id, slug } = await createRationale({});
+      trackMpBoardCreated({ boardId: id });
       const host = typeof window !== 'undefined' ? window.location.host : '';
       window.location.href = buildRationaleDetailPath(id, host, slug || undefined);
     } catch (e: any) {
@@ -122,6 +135,7 @@ export default function MultiplayerRationaleIndexPage() {
       await deleteRationale(docId);
       setOwned((d) => d.filter((x) => x.id !== docId));
       setVisited((d) => d.filter((x) => x.id !== docId));
+      trackMpBoardDeleted({ boardId: docId });
       setDeletingId(null);
       toast.success('Board deleted successfully');
     } catch (e: any) {
@@ -299,6 +313,7 @@ export default function MultiplayerRationaleIndexPage() {
       } catch { }
 
       const res = await duplicateRationale(docId, { title: nextTitle, snapshotBase64: snapshotBase64 || undefined });
+      trackMpBoardDuplicated({ boardId: res.id, sourceBoardId: docId });
       const host = typeof window !== 'undefined' ? window.location.host : '';
       toast.success('Board duplicated');
       try {
@@ -330,6 +345,7 @@ export default function MultiplayerRationaleIndexPage() {
     setRenameLoading(true);
     try {
       await renameRationale(renamingId, title);
+      trackMpBoardRenamed({ boardId: renamingId, titleLength: title.length });
       setOwned((prev) => prev.map((d) => d.id === renamingId ? { ...d, title } : d));
       setVisited((prev) => prev.map((d) => d.id === renamingId ? { ...d, title } : d));
       setRenamingId(null);
@@ -345,6 +361,11 @@ export default function MultiplayerRationaleIndexPage() {
   };
 
   useEffect(() => { if (ready && authenticated) { load(); } }, [ready, authenticated]);
+  useEffect(() => {
+    if (!ready || !authenticated || loading || !hasLoaded || listViewedRef.current) return;
+    listViewedRef.current = true;
+    trackMpBoardListViewed({ ownedCount: owned.length, sharedCount: visited.length });
+  }, [ready, authenticated, loading, hasLoaded, owned.length, visited.length]);
 
   // Wait for Privy to initialize before checking authentication
   if (!ready) {
@@ -492,6 +513,7 @@ export default function MultiplayerRationaleIndexPage() {
                           onClick={async () => {
                             if (openingId) return;
                             setOpeningId(d.id);
+                            trackMpBoardOpened({ boardId: d.id, source: "owned" });
                             try {
                               try { await recordOpen(d.id); } catch (err: any) {
                                 const msg = (err?.message || "").toLowerCase();
@@ -539,6 +561,7 @@ export default function MultiplayerRationaleIndexPage() {
                                     const host = typeof window !== 'undefined' ? window.location.host : '';
                                     const url = buildRationaleDetailPath(d.id, host, slug);
                                     const fullUrl = `${window.location.protocol}//${host}${url}`;
+                                    trackMpBoardLinkCopied({ boardId: d.id, source: "owned" });
                                     handleCopyUrl(fullUrl);
                                   }}
                                 >
@@ -625,12 +648,13 @@ export default function MultiplayerRationaleIndexPage() {
                             <Card
                               key={d.id}
                               className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${(openingId === d.id || duplicatingId === d.id) ? 'opacity-60 pointer-events-none' : ''}`}
-                              onClick={async () => {
-                                if (openingId) return;
-                                setOpeningId(d.id);
-                                try {
-                                  try { await recordOpen(d.id); } catch (err: any) {
-                                    const msg = (err?.message || "").toLowerCase();
+                                  onClick={async () => {
+                                    if (openingId) return;
+                                    setOpeningId(d.id);
+                                    trackMpBoardOpened({ boardId: d.id, source: "shared" });
+                                    try {
+                                      try { await recordOpen(d.id); } catch (err: any) {
+                                        const msg = (err?.message || "").toLowerCase();
                                     if (msg.includes("not found")) {
                                       toast.error("Board no longer exists.");
                                       setOpeningId(null);
@@ -675,6 +699,7 @@ export default function MultiplayerRationaleIndexPage() {
                                         const host = typeof window !== 'undefined' ? window.location.host : '';
                                         const url = buildRationaleDetailPath(d.id, host, slug);
                                         const fullUrl = `${window.location.protocol}//${host}${url}`;
+                                        trackMpBoardLinkCopied({ boardId: d.id, source: "shared" });
                                         handleCopyUrl(fullUrl);
                                       }}
                                     >

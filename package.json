@@ -87,6 +87,7 @@
     "next-themes": "^0.3.0",
     "node-html-parser": "^7.0.1",
     "postgres": "^3.4.5",
+    "posthog-js": "^1.310.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-error-boundary": "^6.0.0",

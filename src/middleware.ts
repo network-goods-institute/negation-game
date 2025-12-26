@@ -53,6 +53,18 @@ const SENSITIVE_PATTERNS = [
   /\/install\.(php|aspx)$/i, // Install scripts
 ];
 
+const POSTHOG_HOST =
+  process.env.NEXT_PUBLIC_POSTHOG_HOST ||
+  process.env.POSTHOG_HOST ||
+  "https://app.posthog.com";
+const posthogOrigin = (() => {
+  try {
+    return new URL(POSTHOG_HOST).origin;
+  } catch {
+    return POSTHOG_HOST;
+  }
+})();
+
 export const config = {
   matcher: [
     "/",
@@ -426,7 +438,7 @@ export default async function middleware(req: NextRequest) {
     ].join(" ");
     response.headers.set(
       "Content-Security-Policy",
-      `frame-ancestors ${embedAncestors}; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; img-src 'self' data: blob: https: https://cdn.tldraw.com; frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://privy.negationgame.com https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://privy.negationgame.com https://www.googletagmanager.com https://www.google-analytics.com https://va.vercel-analytics.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://cdn.tldraw.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;`
+      `frame-ancestors ${embedAncestors}; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; img-src 'self' data: blob: https: https://cdn.tldraw.com; frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://privy.negationgame.com https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://privy.negationgame.com https://www.googletagmanager.com https://www.google-analytics.com https://va.vercel-analytics.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://cdn.tldraw.com ${posthogOrigin} wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;`
     );
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("X-XSS-Protection", "1; mode=block");
@@ -465,7 +477,7 @@ export default async function middleware(req: NextRequest) {
     ].join(" ");
     response.headers.set(
       "Content-Security-Policy",
-      `frame-ancestors ${embedAncestors2}; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; img-src 'self' data: blob: https: https://cdn.tldraw.com; frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://privy.negationgame.com https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://privy.negationgame.com https://www.googletagmanager.com https://www.google-analytics.com https://va.vercel-analytics.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://cdn.tldraw.com wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;`
+      `frame-ancestors ${embedAncestors2}; default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.tldraw.com; img-src 'self' data: blob: https: https://cdn.tldraw.com; frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://privy.negationgame.com https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://explorer-api.walletconnect.com https://api.web3modal.org https://pulse.walletconnect.org https://privy.play.negationgame.com https://privy.negationgame.com https://www.googletagmanager.com https://www.google-analytics.com https://va.vercel-analytics.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://cdn.tldraw.com ${posthogOrigin} wss://relay.walletconnect.com wss://relay.walletconnect.org wss://www.walletlink.org;`
     );
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("X-XSS-Protection", "1; mode=block");
