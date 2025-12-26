@@ -78,20 +78,21 @@ describe('NotificationsSidebar', () => {
       />
     );
 
-    fireEvent.click(screen.getByText(/Show \d+ other update/));
+    const visible = screen.getByTestId('notifications-visible');
+    fireEvent.click(within(visible).getByText(/Show \d+ other update/));
 
     expect(screen.getByText('Notifications')).toBeInTheDocument();
     baseNotifications.forEach((notification) => {
       if (notification.type === 'upvote') {
         expect(
-          screen.getByText(
+          within(visible).getByText(
             new RegExp(`\\b\\d+\\s+upvote.*${notification.pointTitle}`)
           )
         ).toBeInTheDocument();
         return;
       }
       expect(
-        screen.getByText(new RegExp(notification.userName))
+        within(visible).getByText(new RegExp(notification.userName))
       ).toBeInTheDocument();
     });
   });
@@ -114,9 +115,10 @@ describe('NotificationsSidebar', () => {
       />
     );
 
-    fireEvent.click(screen.getByText(/Show \d+ other update/));
+    const visible = screen.getByTestId('notifications-visible');
+    fireEvent.click(within(visible).getByText(/Show \d+ other update/));
 
-    const unread = screen.getByTestId(`notification-item-${customNotifications[0].id}`);
+    const unread = within(visible).getByTestId(`notification-item-${customNotifications[0].id}`);
     fireEvent.click(unread);
 
     expect(handleUpdate).toHaveBeenCalled();
@@ -141,9 +143,10 @@ describe('NotificationsSidebar', () => {
       />
     );
 
-    fireEvent.click(screen.getByText(/Show \d+ other update/));
+    const visible = screen.getByTestId('notifications-visible');
+    fireEvent.click(within(visible).getByText(/Show \d+ other update/));
 
-    const viewButton = screen.getByTestId(`notification-view-${baseNotifications[0].id}`);
+    const viewButton = within(visible).getByTestId(`notification-view-${baseNotifications[0].id}`);
     fireEvent.click(viewButton);
 
     expect(handleRead).not.toHaveBeenCalled();
@@ -175,7 +178,8 @@ describe('NotificationsSidebar', () => {
       within(activitySection).queryByText(new RegExp(baseNotifications[1].pointTitle))
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText(/Show \d+ other update/));
+    const visible = screen.getByTestId('notifications-visible');
+    fireEvent.click(within(visible).getByText(/Show \d+ other update/));
 
     const negativeSection = screen.getByTestId('notifications-negative-new');
     expect(
@@ -214,7 +218,8 @@ describe('NotificationsSidebar', () => {
       />
     );
 
-    const toggle = screen.getByRole('button', { name: /Show .*other update/ });
+    const visible = screen.getByTestId('notifications-visible');
+    const toggle = within(visible).getByRole('button', { name: /Show .*other update/ });
     expect(toggle).toBeInTheDocument();
 
     fireEvent.click(toggle);

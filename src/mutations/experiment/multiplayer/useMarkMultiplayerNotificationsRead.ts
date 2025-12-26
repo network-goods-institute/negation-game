@@ -23,10 +23,13 @@ export const useMarkAllMultiplayerNotificationsRead = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (ids: string[]) => markMultiplayerNotificationsRead(ids),
-    onSuccess: () => {
+    mutationFn: ({ ids, showToast = true }: { ids: string[]; showToast?: boolean }) =>
+      markMultiplayerNotificationsRead(ids),
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["mp-notifications"] });
-      toast.success("All notifications marked as read");
+      if (variables?.showToast !== false && variables?.ids?.length) {
+        toast.success("All notifications marked as read");
+      }
     },
     onError: () => {
       toast.error("Failed to mark notifications as read");

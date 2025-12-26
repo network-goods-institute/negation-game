@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   Bell,
@@ -68,6 +68,10 @@ export function NotificationsSidebar({
   const [showNegative, setShowNegative] = useState(false);
   const [lastHiddenOpenedAt, setLastHiddenOpenedAt] = useState<Date | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const hiddenNegativeMeasureRef = useRef<HTMLDivElement>(null);
+  const [hiddenNegativeBlockHeight, setHiddenNegativeBlockHeight] = useState(0);
+  const [hiddenNegativeItemHeights, setHiddenNegativeItemHeights] = useState<number[]>([]);
+  const [hiddenNegativeToggleHeight, setHiddenNegativeToggleHeight] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -150,13 +154,6 @@ export function NotificationsSidebar({
     [hiddenNegativeNotifications]
   );
 
-  const hiddenNegativeBlockHeight = useMemo(() => {
-    if (hiddenNegativeCount <= 0) return 0;
-    const itemHeight = 104;
-    const verticalPadding = 16;
-    return hiddenNegativeCount * itemHeight + verticalPadding;
-  }, [hiddenNegativeCount]);
-
   const hiddenNegativeNewCount = useMemo(() => {
     const lastOpenedMs = lastHiddenOpenedAt?.getTime() ?? 0;
     return hiddenNegativeUnreadNotifications.filter((n) => {
@@ -179,8 +176,64 @@ export function NotificationsSidebar({
     supportNotifications.length +
     otherNotifications.length +
     (showNegative ? negativeNotifications.length : 0);
-  const showHiddenNegativeToggle =
-    (hiddenNegativeCount > 0 || showNegative) && visibleNotificationCount > 0;
+  const showHiddenNegativeToggle = hiddenNegativeCount > 0;
+
+  const previewFallbackHeight = 104;
+  const hiddenNegativeUnreadHeights = useMemo(() => {
+    return unreadNegativeNotifications.map((_, idx) =>
+      hiddenNegativeItemHeights[idx] ?? previewFallbackHeight
+    );
+  }, [unreadNegativeNotifications, hiddenNegativeItemHeights]);
+  const hiddenNegativeEarlierHeights = useMemo(() => {
+    const offset = unreadNegativeNotifications.length;
+    return earlierNegativeNotifications.map((_, idx) =>
+      hiddenNegativeItemHeights[offset + idx] ?? previewFallbackHeight
+    );
+  }, [earlierNegativeNotifications, unreadNegativeNotifications.length, hiddenNegativeItemHeights]);
+
+  useLayoutEffect(() => {
+    const measureEl = hiddenNegativeMeasureRef.current;
+    if (!measureEl) return;
+    const contentEl = measureEl.querySelector(
+      "[data-negative-measure-content]"
+    ) as HTMLElement | null;
+    const nextHeight = (contentEl || measureEl).getBoundingClientRect().height;
+    if (!nextHeight) return;
+    setHiddenNegativeBlockHeight((prev) =>
+      Math.abs(prev - nextHeight) > 1 ? nextHeight : prev
+    );
+    const toggleEl = measureEl.querySelector(
+      "[data-negative-measure-toggle]"
+    ) as HTMLElement | null;
+    if (toggleEl) {
+      const toggleHeight = toggleEl.getBoundingClientRect().height;
+      setHiddenNegativeToggleHeight((prev) =>
+        Math.abs(prev - toggleHeight) > 1 ? toggleHeight : prev
+      );
+    } else {
+      setHiddenNegativeToggleHeight(0);
+    }
+    const itemEls = Array.from(
+      measureEl.querySelectorAll("[data-negative-measure-item]")
+    ) as HTMLElement[];
+    if (itemEls.length > 0) {
+      const heights = itemEls.map((el) => el.getBoundingClientRect().height);
+      setHiddenNegativeItemHeights((prev) => {
+        if (prev.length === heights.length && prev.every((val, idx) => Math.abs(val - heights[idx]) <= 1)) {
+          return prev;
+        }
+        return heights;
+      });
+    } else {
+      setHiddenNegativeItemHeights([]);
+    }
+  }, [
+    hiddenNegativeNotifications,
+    unreadNegativeNotifications,
+    earlierNegativeNotifications,
+    showBoardContext,
+    linkLabel,
+  ]);
 
   const handleSidebarWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -305,7 +358,8 @@ export function NotificationsSidebar({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-2" onWheel={handleSidebarWheel}>
+        <div className="flex-1 overflow-y-auto relative" onWheel={handleSidebarWheel}>
+          <div className="p-3 space-y-2" data-testid="notifications-visible">
           {isLoading && (
             <div className="flex flex-col gap-3 p-3">
               <div className="h-4 w-24 bg-stone-200 dark:bg-stone-800 animate-pulse rounded" />
@@ -325,6 +379,9 @@ export function NotificationsSidebar({
                   setShowNegative(true);
                 }}
                 blockHeight={showNegative ? undefined : hiddenNegativeBlockHeight}
+                previewToggleHeight={hiddenNegativeToggleHeight}
+                previewUnreadHeights={hiddenNegativeUnreadHeights}
+                previewEarlierHeights={hiddenNegativeEarlierHeights}
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -397,9 +454,12 @@ export function NotificationsSidebar({
                       ? "mt-2"
                       : undefined
                   }
-                  blockHeight={showNegative ? undefined : hiddenNegativeBlockHeight}
-                />
-              )}
+                blockHeight={showNegative ? undefined : hiddenNegativeBlockHeight}
+                previewToggleHeight={hiddenNegativeToggleHeight}
+                previewUnreadHeights={hiddenNegativeUnreadHeights}
+                previewEarlierHeights={hiddenNegativeEarlierHeights}
+              />
+            )}
 
               {showNegative && unreadNegativeNotifications.length > 0 && (
                 <div
@@ -491,6 +551,73 @@ export function NotificationsSidebar({
                 </div>
               )}
             </>
+          )}
+          </div>
+          {hiddenNegativeCount > 0 && (
+            <div
+              ref={hiddenNegativeMeasureRef}
+              aria-hidden="true"
+              className="absolute left-0 top-0 w-full pointer-events-none opacity-0"
+            >
+              <div className="p-3">
+                <div className="space-y-2" data-negative-measure-content>
+                  <div data-negative-measure-toggle>
+                    <HiddenNegativeActionsCard
+                      hiddenNegativeCount={hiddenNegativeCount}
+                      hiddenNegativeNewCount={hiddenNegativeNewCount}
+                      isShowing
+                      onToggle={() => {}}
+                    />
+                  </div>
+                  {unreadNegativeNotifications.length > 0 && (
+                    <div
+                      className={
+                        hiddenNegativeCount > 0 ? "mt-4" : undefined
+                      }
+                    >
+                      <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
+                        New negative activity
+                      </h3>
+                      {unreadNegativeNotifications.map((notification) => (
+                        <div
+                          key={`measure-negative-${notification.id}`}
+                          data-negative-measure-item
+                        >
+                          <NotificationItem
+                            notification={notification}
+                            onMarkRead={() => {}}
+                            onNavigate={() => {}}
+                            showBoardContext={showBoardContext}
+                            linkLabel={linkLabel}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {earlierNegativeNotifications.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
+                        Earlier negative activity
+                      </h3>
+                      {earlierNegativeNotifications.map((notification) => (
+                        <div
+                          key={`measure-negative-earlier-${notification.id}`}
+                          data-negative-measure-item
+                        >
+                          <NotificationItem
+                            notification={notification}
+                            onMarkRead={() => {}}
+                            onNavigate={() => {}}
+                            showBoardContext={showBoardContext}
+                            linkLabel={linkLabel}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -629,6 +756,9 @@ interface HiddenNegativeActionsCardProps {
   onToggle: () => void;
   className?: string;
   blockHeight?: number;
+  previewToggleHeight?: number;
+  previewUnreadHeights?: number[];
+  previewEarlierHeights?: number[];
 }
 
 function HiddenNegativeActionsCard({
@@ -638,6 +768,9 @@ function HiddenNegativeActionsCard({
   onToggle,
   className,
   blockHeight,
+  previewToggleHeight = 0,
+  previewUnreadHeights = [],
+  previewEarlierHeights = [],
 }: HiddenNegativeActionsCardProps) {
   const label = isShowing
     ? "Hide other activity"
@@ -655,43 +788,77 @@ function HiddenNegativeActionsCard({
       )}
       style={blockHeight ? { minHeight: blockHeight } : undefined}
     >
-      {/* Semi-transparent notification skeletons */}
       {!isShowing && blockHeight && hiddenNegativeCount > 0 && (
         <div className="absolute inset-x-3 inset-y-3 pointer-events-none overflow-hidden opacity-15">
           <div className="space-y-2">
-            {Array.from({ length: hiddenNegativeCount }).map((_, idx) => (
+            {previewToggleHeight > 0 && (
               <div
-                key={idx}
-                className="relative w-full p-3 pl-12 rounded-lg border border-stone-400 dark:border-stone-600 bg-white dark:bg-stone-900"
-              >
-                {/* Badge icon */}
-                <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-stone-400 dark:border-stone-600 bg-stone-200 dark:bg-stone-700" />
-
-                {/* Headline and timestamp */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="h-4 flex-1 bg-stone-300 dark:bg-stone-700 rounded" />
-                  <div className="h-3 w-12 bg-stone-300 dark:bg-stone-700 rounded" />
-                </div>
-
-                {/* Avatars */}
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="flex items-center -space-x-2">
-                    <div className="h-6 w-6 rounded-full border border-stone-400 dark:border-stone-600 bg-stone-300 dark:bg-stone-700" />
-                    <div className="h-6 w-6 rounded-full border border-stone-400 dark:border-stone-600 bg-stone-300 dark:bg-stone-700" />
-                  </div>
-                </div>
-
-                {/* View point link */}
-                <div className="flex items-center gap-1 mt-2">
-                  <div className="h-3 w-16 bg-stone-300 dark:bg-stone-700 rounded" />
+                className="rounded-lg border border-stone-400 dark:border-stone-600 bg-white dark:bg-stone-900"
+                style={{ minHeight: previewToggleHeight }}
+              />
+            )}
+            {previewUnreadHeights.length > 0 && (
+              <div className={previewToggleHeight > 0 ? "mt-4" : undefined}>
+                <div className="h-3 w-40 bg-stone-300 dark:bg-stone-700 rounded mb-2" />
+                <div className="space-y-2">
+                  {previewUnreadHeights.map((height, idx) => (
+                    <div
+                      key={`preview-unread-${idx}`}
+                      className="relative w-full p-3 pl-12 rounded-lg border border-stone-400 dark:border-stone-600 bg-white dark:bg-stone-900"
+                      style={{ minHeight: height }}
+                    >
+                      <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-stone-400 dark:border-stone-600 bg-stone-200 dark:bg-stone-700" />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="h-4 flex-1 bg-stone-300 dark:bg-stone-700 rounded" />
+                        <div className="h-3 w-12 bg-stone-300 dark:bg-stone-700 rounded" />
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center -space-x-2">
+                          <div className="h-6 w-6 rounded-full border border-stone-400 dark:border-stone-600 bg-stone-300 dark:bg-stone-700" />
+                          <div className="h-6 w-6 rounded-full border border-stone-400 dark:border-stone-600 bg-stone-300 dark:bg-stone-700" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 mt-2">
+                        <div className="h-3 w-16 bg-stone-300 dark:bg-stone-700 rounded" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+            {previewEarlierHeights.length > 0 && (
+              <div className={previewUnreadHeights.length > 0 ? "mt-4" : undefined}>
+                <div className="h-3 w-40 bg-stone-300 dark:bg-stone-700 rounded mb-2" />
+                <div className="space-y-2">
+                  {previewEarlierHeights.map((height, idx) => (
+                    <div
+                      key={`preview-earlier-${idx}`}
+                      className="relative w-full p-3 pl-12 rounded-lg border border-stone-400 dark:border-stone-600 bg-white dark:bg-stone-900"
+                      style={{ minHeight: height }}
+                    >
+                      <span className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border border-stone-400 dark:border-stone-600 bg-stone-200 dark:bg-stone-700" />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="h-4 flex-1 bg-stone-300 dark:bg-stone-700 rounded" />
+                        <div className="h-3 w-12 bg-stone-300 dark:bg-stone-700 rounded" />
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center -space-x-2">
+                          <div className="h-6 w-6 rounded-full border border-stone-400 dark:border-stone-600 bg-stone-300 dark:bg-stone-700" />
+                          <div className="h-6 w-6 rounded-full border border-stone-400 dark:border-stone-600 bg-stone-300 dark:bg-stone-700" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 mt-2">
+                        <div className="h-3 w-16 bg-stone-300 dark:bg-stone-700 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Content layer */}
       <div className="relative z-10">
         <div className="flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-100">
           <EyeOff className="h-4 w-4" />

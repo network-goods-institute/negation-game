@@ -72,7 +72,10 @@ export function NotificationsSidebarLauncher({
       );
       try {
         if (targetIds.size > 1) {
-          await markAllNotificationsReadMutation.mutateAsync(Array.from(targetIds));
+          await markAllNotificationsReadMutation.mutateAsync({
+            ids: Array.from(targetIds),
+            showToast: false,
+          });
         } else {
           const [id] = Array.from(targetIds);
           await markNotificationReadMutation.mutateAsync(id);
@@ -96,7 +99,10 @@ export function NotificationsSidebarLauncher({
         )
       );
       try {
-        await markAllNotificationsReadMutation.mutateAsync(notificationIds);
+        await markAllNotificationsReadMutation.mutateAsync({
+          ids: notificationIds,
+          showToast: true,
+        });
       } catch (error) {
         logger.error("Failed to mark multiplayer notifications read", error);
       }
