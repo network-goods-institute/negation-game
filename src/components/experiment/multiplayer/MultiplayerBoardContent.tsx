@@ -218,10 +218,11 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const notificationQueryOptions = useMemo(
     () => ({
       docId: notificationDocId,
+      shareToken: shareToken ?? null,
       limit: 50,
       pauseAutoRefresh: notificationsSidebarOpen,
     }),
-    [notificationDocId, notificationsSidebarOpen]
+    [notificationDocId, notificationsSidebarOpen, shareToken]
   );
   const {
     data: multiplayerNotifications = [],

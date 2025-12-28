@@ -128,6 +128,18 @@ describe("multiplayer notifications actions", () => {
     expect(mockSelect).toHaveBeenCalled();
   });
 
+  it("returns empty when board access is forbidden", async () => {
+    (resolveDocAccess as jest.Mock).mockResolvedValueOnce({
+      status: "forbidden",
+    });
+    const { getMultiplayerNotifications } = await import(
+      "@/actions/experiment/multiplayer/notifications"
+    );
+    const res = await getMultiplayerNotifications({ docId: "doc-1" });
+    expect(res).toEqual([]);
+    expect(mockSelect).not.toHaveBeenCalled();
+  });
+
   it("builds summaries with counts and messages", async () => {
     mockSelect.mockReturnValue(
       buildSummarySelectChain([

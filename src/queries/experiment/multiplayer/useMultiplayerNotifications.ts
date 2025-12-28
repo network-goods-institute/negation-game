@@ -184,6 +184,7 @@ export const aggregateMultiplayerNotifications = (
 
 export interface UseMultiplayerNotificationsOptions {
   docId?: string | null;
+  shareToken?: string | null;
   unreadOnly?: boolean;
   limit?: number;
   pauseAutoRefresh?: boolean;
@@ -206,10 +207,11 @@ export const useMultiplayerNotifications = (
   const normalizedOptions = useMemo(
     () => ({
       docId: options.docId || undefined,
+      shareToken: options.shareToken || undefined,
       unreadOnly: options.unreadOnly,
       limit: options.limit,
     }),
-    [options.docId, options.unreadOnly, options.limit]
+    [options.docId, options.shareToken, options.unreadOnly, options.limit]
   );
 
   const query = useAuthenticatedQuery({

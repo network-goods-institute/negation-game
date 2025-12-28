@@ -31,6 +31,7 @@ export type MultiplayerNotificationType = (typeof mpNotificationTypeEnum.enumVal
 
 export interface GetMultiplayerNotificationsOptions {
   docId?: string;
+  shareToken?: string | null;
   unreadOnly?: boolean;
   limit?: number;
 }
@@ -63,18 +64,32 @@ const defaultActionForType: Record<string, string> = {
 export const getMultiplayerNotifications = async (
   options: GetMultiplayerNotificationsOptions = {}
 ): Promise<MultiplayerNotificationRecord[]> => {
-  const { docId, unreadOnly = false, limit = 50 } = options;
+  const { docId: rawDocId, shareToken = null, unreadOnly = false, limit = 50 } = options;
   if (!mpNotificationsEnabled) {
     return [];
   }
   const userId = await getUserId();
   if (!userId) {
     logger.warn("mp notifications: missing user id for fetch", {
-      docId,
+      docId: rawDocId,
       unreadOnly,
       limit,
     });
     return [];
+  }
+
+  let docId = rawDocId;
+  if (docId) {
+    const access = await resolveDocAccess(docId, { userId, shareToken });
+    if (access.status !== "ok") {
+      logger.warn("mp notifications: forbidden fetch", {
+        userId,
+        docId,
+        status: access.status,
+      });
+      return [];
+    }
+    docId = access.docId;
   }
 
   const conditions = [eq(mpNotificationsTable.userId, userId)];
