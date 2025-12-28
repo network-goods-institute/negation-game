@@ -6,6 +6,14 @@ import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
+/**
+ * Cutoff date for legacy public boards.
+ * Boards created before this date (Dec 8, 2025 12:57:38 UTC - when permissions were added)
+ * are permanently public to everyone including anonymous users.
+ * This is a fixed historical launch timestamp; moving it forward would reopen public write access.
+ */
+const PERMISSIONS_SYSTEM_CUTOFF = new Date("2025-12-08T12:57:38Z");
+
 export type DocAccessRole = "owner" | "editor" | "viewer";
 
 export type DocAccessResult =
@@ -102,6 +110,7 @@ export const resolveDocAccess = async (
         id: mpDocsTable.id,
         ownerId: mpDocsTable.ownerId,
         slug: mpDocsTable.slug,
+        createdAt: mpDocsTable.createdAt,
       })
       .from(mpDocsTable)
       .where(eq(mpDocsTable.id, canonicalId))
@@ -112,6 +121,34 @@ export const resolveDocAccess = async (
 
   const userId = opts.userId || null;
   const anonymous = isAnonymousId(userId);
+
+  // Legacy public boards: boards created before the permissions system
+  // are permanently public to everyone (including anonymous users)
+  const isLegacyPublicBoard = doc.createdAt < PERMISSIONS_SYSTEM_CUTOFF;
+
+  if (isLegacyPublicBoard) {
+    // If user is the actual owner, give them owner access
+    if (userId && doc.ownerId && doc.ownerId === userId) {
+      return {
+        status: "ok",
+        docId: canonicalId,
+        ownerId: doc.ownerId,
+        slug: doc.slug || null,
+        role: "owner",
+        source: "owner",
+      };
+    }
+
+    // Otherwise, everyone (including anon) gets editor access to legacy boards
+    return {
+      status: "ok",
+      docId: canonicalId,
+      ownerId: doc.ownerId,
+      slug: doc.slug || null,
+      role: "editor",
+      source: "share", // Use "share" source to indicate public access
+    };
+  }
 
   if (!doc.ownerId) {
     if (!anonymous) {

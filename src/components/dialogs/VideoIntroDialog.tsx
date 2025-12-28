@@ -15,7 +15,7 @@ export interface VideoIntroDialogProps {
 export const VideoIntroDialog: React.FC<VideoIntroDialogProps> = ({ open, onOpenChange, showBack }) => {
     const { openDialog: openOnboarding } = useOnboarding();
     const [loaded, setLoaded] = useState(false);
-    const videoSrc = 'https://www.youtube.com/embed/h81ED2ybWaQ';
+    const videoSrc = 'https://www.youtube-nocookie.com/embed/h81ED2ybWaQ?rel=0&modestbranding=1&playsinline=1';
 
     useEffect(() => {
         if (open) {

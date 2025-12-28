@@ -37,6 +37,7 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { fetchYjsAuthToken } from "@/hooks/experiment/multiplayer/yjs/auth";
 import { logger } from "@/lib/logger";
+import { LandingPage } from "@/components/landing/LandingPage";
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -358,19 +359,16 @@ export default function MultiplayerRationaleIndexPage() {
     );
   }
 
+  // Show landing page for unauthenticated users
+  if (!authenticated) {
+    return <LandingPage onLogin={login as any} />;
+  }
+
   return (
     <div className={`fixed inset-0 top-16 ${robotoSlab.className} overflow-y-auto bg-white`}>
 
       <TooltipProvider>
         <div className="relative max-w-7xl mx-auto p-8 pb-16 pt-12">
-          {ready && !authenticated && (
-            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 flex items-center justify-between" role="status" aria-live="polite">
-              <div className="pr-4">
-                You&apos;re not logged in. Login to see your own boards and boards shared with you. You can still create a new board.
-              </div>
-              <Button onClick={login as any} className="bg-sync hover:bg-sync-hover">Login</Button>
-            </div>
-          )}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-stone-800">My Boards</h1>

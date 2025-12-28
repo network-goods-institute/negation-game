@@ -41,6 +41,7 @@ export const usersTable = pgTable(
     isActive: boolean("is_active").notNull().default(true),
     deletedAt: timestamp("deleted_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    tutorialVideoSeenAt: timestamp("tutorial_video_seen_at"),
     avatarUrl: varchar("avatar_url", { length: 1024 }),
     avatarUpdatedAt: timestamp("avatar_updated_at"),
   },
@@ -110,6 +111,7 @@ export function createUserData(userData: {
     receiveReadReceipts: true,
     isActive: true,
     deletedAt: null,
+    tutorialVideoSeenAt: null,
     avatarUrl: null,
     avatarUpdatedAt: null,
   };

@@ -18,6 +18,7 @@ import { canWriteRole, resolveDocAccess } from "@/services/mpAccess";
 
 const DEFAULT_OWNER = "connormcmk";
 const DEFAULT_TITLE = "Untitled";
+const PERMISSIONS_SYSTEM_CUTOFF_ISO = "2025-12-08T12:57:38Z";
 
 const claimOwnershipIfMissing = async (docId: string, userId: string) => {
   const result = await db
@@ -169,10 +170,18 @@ export async function listVisitedRationales() {
            a.last_open_at AS "lastOpenAt"
     FROM mp_docs d
     LEFT JOIN mp_doc_access a ON a.doc_id = d.id AND a.user_id = ${userId}
+    LEFT JOIN mp_doc_share_links s
+      ON s.id = a.share_link_id
+     AND s.disabled_at IS NULL
+     AND (s.expires_at IS NULL OR s.expires_at > NOW())
     LEFT JOIN mp_doc_permissions p ON p.doc_id = d.id AND p.user_id = ${userId}
     LEFT JOIN users u ON u.id = d.owner_id
     WHERE d.owner_id IS NOT NULL AND d.owner_id <> ${userId}
-      AND (a.user_id IS NOT NULL OR p.user_id IS NOT NULL)
+      AND (
+        (d.created_at < ${PERMISSIONS_SYSTEM_CUTOFF_ISO} AND (a.user_id IS NOT NULL OR p.user_id IS NOT NULL))
+        OR
+        (d.created_at >= ${PERMISSIONS_SYSTEM_CUTOFF_ISO} AND (p.user_id IS NOT NULL OR (a.user_id IS NOT NULL AND s.id IS NOT NULL)))
+      )
     ORDER BY a.last_open_at DESC NULLS LAST, d.updated_at DESC
     LIMIT 200
   `)) as unknown as Array<{
@@ -188,7 +197,7 @@ export async function listVisitedRationales() {
   return rows;
 }
 
-export async function recordOpen(docId: string) {
+export async function recordOpen(docId: string, opts?: { shareToken?: string | null }) {
   const userId = await getUserId();
   if (!userId) throw new Error("Unauthorized");
   if (!isValidSlugOrId(docId)) throw new Error("Invalid doc id or slug");
@@ -196,7 +205,8 @@ export async function recordOpen(docId: string) {
   // Resolve slug to canonical id if needed
   const canonicalId = await resolveSlugToId(docId);
 
-  const access = await resolveDocAccess(canonicalId, { userId });
+  const shareToken = opts?.shareToken || null;
+  const access = await resolveDocAccess(canonicalId, { userId, shareToken });
   if (access.status === "not_found") throw new Error("Document not found");
   if (access.status !== "ok") throw new Error("Forbidden");
 
@@ -227,11 +237,17 @@ export async function recordOpen(docId: string) {
     )
     .limit(1);
   if (existing.length === 0) {
-    await db.insert(mpDocAccessTable).values({ docId: canonicalId, userId });
+    await db
+      .insert(mpDocAccessTable)
+      .values({ docId: canonicalId, userId, shareLinkId: access.shareLinkId || null });
   } else {
+    const accessUpdate: Record<string, any> = { lastOpenAt: new Date() };
+    if (access.shareLinkId) {
+      accessUpdate.shareLinkId = access.shareLinkId;
+    }
     await db
       .update(mpDocAccessTable)
-      .set({ lastOpenAt: new Date() })
+      .set(accessUpdate)
       .where(
         and(
           eq(mpDocAccessTable.docId, canonicalId),

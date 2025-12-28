@@ -90,6 +90,8 @@ describe("rationales actions", () => {
     (getUserId as unknown as jest.Mock).mockResolvedValue("me");
     (getUserIdOrAnonymous as unknown as jest.Mock).mockResolvedValue("me");
     mockGetDocSnapshotBuffer.mockReset();
+    const { resolveSlugToId } = require("@/utils/slugResolver");
+    (resolveSlugToId as jest.Mock).mockImplementation(async (v: string) => v);
     (resolveDocAccess as jest.Mock).mockResolvedValue({
       status: "ok",
       docId: "doc1",
@@ -159,6 +161,29 @@ describe("rationales actions", () => {
     const res = await listVisitedRationales();
     expect(res).toEqual(rows);
     expect(mockDb.execute).toHaveBeenCalled();
+  });
+
+  it("listVisitedRationales filters share link visits through active links", async () => {
+    mockDb.execute.mockResolvedValueOnce([]);
+    const { listVisitedRationales } = await import(
+      "@/actions/experimental/rationales"
+    );
+    const res = await listVisitedRationales();
+    const query = mockDb.execute.mock.calls[0]?.[0];
+    const text = Array.isArray(query?.queryChunks)
+      ? query.queryChunks
+          .map((chunk: any) => {
+            if (Array.isArray(chunk?.value)) return chunk.value.join(" ");
+            if (typeof chunk?.value === "string") return chunk.value;
+            return String(chunk?.value ?? "");
+          })
+          .join(" ")
+      : query?.sql || query?.text || String(query);
+    expect(text).toContain("mp_doc_share_links");
+    expect(text).toContain("share_link_id");
+    expect(text).toContain("disabled_at");
+    expect(text).toContain("expires_at");
+    expect(res).toEqual([]);
   });
 
   it("renameRationale allows owner", async () => {
@@ -554,5 +579,53 @@ describe("rationales actions", () => {
     }));
     const { recordOpen } = await import("@/actions/experimental/rationales");
     await expect(recordOpen("missing-doc")).rejects.toThrow(/not found/i);
+  });
+
+  it("recordOpen stores shareLinkId when accessed via share token", async () => {
+    let selectCall = 0;
+    mockDb.select.mockImplementation(() => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            selectCall++;
+            if (selectCall === 1) {
+              return [
+                { id: "doc-share", ownerId: "owner-1", title: "Board" },
+              ];
+            }
+            if (selectCall === 2) return [];
+            return [
+              { id: "doc-share", ownerId: "owner-1", title: "Board" },
+            ];
+          },
+        }),
+      }),
+    }));
+    const inserts: any[] = [];
+    mockDb.insert.mockImplementation(() => ({
+      values: (vals: any) => {
+        inserts.push(vals);
+        return {
+          onConflictDoNothing: jest.fn(() => Promise.resolve()),
+          returning: jest.fn(() => Promise.resolve([{ id: "mpa-1" }])),
+        };
+      },
+    }));
+    (resolveDocAccess as jest.Mock).mockResolvedValue({
+      status: "ok",
+      docId: "doc-share",
+      ownerId: "owner-1",
+      slug: null,
+      role: "editor",
+      source: "share",
+      shareLinkId: "link-123",
+    });
+    const { recordOpen } = await import("@/actions/experimental/rationales");
+    await recordOpen("doc-share", { shareToken: "sl-token" });
+    expect(inserts[0]).toMatchObject({
+      docId: "doc-share",
+      userId: "me",
+      shareLinkId: "link-123",
+    });
   });
 });

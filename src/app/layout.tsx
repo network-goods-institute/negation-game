@@ -23,6 +23,7 @@ import { getCurrentUser } from "@/lib/privy/auth";
 import { headers } from "next/headers";
 import { Analytics } from "@vercel/analytics/react";
 import { LoginRedirectHandler } from "@/components/LoginRedirectHandler";
+import { PrivyLoginErrorLogger } from "@/components/PrivyLoginErrorLogger";
 import { ConsoleSilencer } from "@/components/ConsoleSilencer";
 import { logger } from "@/lib/logger";
 
@@ -197,6 +198,7 @@ export default async function RootLayout({
               initialUserId={serverUser?.id}
             >
               <LoginRedirectHandler />
+              <PrivyLoginErrorLogger />
               <KnowledgeBaseProvider>
                 <WriteupProvider>
                   <OnboardingProvider>
