@@ -677,8 +677,15 @@
     {
       "idx": 96,
       "version": "7",
+      "when": 1765927525100,
+      "tag": "0096_red_vindicator",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
       "when": 1765608071373,
-      "tag": "0096_cool_vampiro",
+      "tag": "0097_cool_vampiro",
       "breakpoints": true
     }
   ]
