@@ -802,6 +802,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       void createMultiplayerNotification({
         userId: candidate.recipientUserId,
         docId: resolvedId,
+        shareToken: shareToken ?? null,
         nodeId: candidate.targetNodeId,
         edgeId: candidate.edgeId,
         type: candidate.type,
@@ -815,7 +816,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         logger.error("Failed to create multiplayer notification", error);
       });
     });
-  }, [edges, nodes, userId, resolvedId, ownerId, username, canEdit, mpNotificationsEnabled]);
+  }, [edges, nodes, userId, resolvedId, ownerId, username, shareToken, canEdit, mpNotificationsEnabled]);
 
   useEffect(() => {
     if (!connectMode) return;
@@ -969,6 +970,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           void createMultiplayerNotification({
             userId: candidate.recipientUserId,
             docId: resolvedId,
+            shareToken: shareToken ?? null,
             nodeId: candidate.targetNodeId,
             edgeId: candidate.edgeId,
             type: candidate.type,
@@ -986,7 +988,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     } catch (error) {
       logDevError('[edge/ui] edge type effect failed', error);
     }
-  }, [edges, updateEdgeType, userId, ownerId, username, resolvedId, nodes, mpNotificationsEnabled]);
+  }, [edges, updateEdgeType, userId, ownerId, username, resolvedId, nodes, shareToken, mpNotificationsEnabled]);
 
   const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
 
@@ -1417,6 +1419,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             createMultiplayerNotification({
               userId: recipientId,
               docId: resolvedId,
+              shareToken: shareToken ?? null,
               nodeId: targetNodeId || node.id,
               edgeId: commentEdge?.id || null,
               type: 'comment',
@@ -1469,6 +1472,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           createMultiplayerNotification({
             userId: recipientId,
             docId: resolvedId,
+            shareToken: shareToken ?? null,
             nodeId: node.id,
             edgeId: null,
             type: 'upvote',
@@ -1520,6 +1524,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           createMultiplayerNotification({
             userId: recipientId,
             docId: resolvedId,
+            shareToken: shareToken ?? null,
             nodeId: null,
             edgeId: edge.id,
             type: 'upvote',
@@ -1584,7 +1589,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     if (tasks.length > 0) {
       void Promise.all(tasks);
     }
-  }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username, mpNotificationsEnabled, userId]);
+  }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username, shareToken, mpNotificationsEnabled, userId]);
 
   const fullyReady = Boolean(initialGraph && resolvedId && (isReady || connectionState === 'failed'));
 

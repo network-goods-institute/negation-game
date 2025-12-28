@@ -248,6 +248,36 @@ describe("multiplayer notifications actions", () => {
     expect(row.id).toBe("new-id");
   });
 
+  it("passes share token to access resolution", async () => {
+    mockSelect
+      .mockImplementationOnce(() => buildSelectChain([{ username: "Alex" }]))
+      .mockImplementationOnce(() => buildRecentSelectChain([]));
+    mockInsert.mockReturnValue(
+      buildInsertChain({
+        id: "new-id",
+        userId: "user-2",
+        docId: "doc-1",
+        type: "support",
+        title: "Point",
+        createdAt: new Date(),
+      })
+    );
+    const { createMultiplayerNotification } = await import(
+      "@/actions/experiment/multiplayer/notifications"
+    );
+    await createMultiplayerNotification({
+      userId: "user-2",
+      docId: "doc-1",
+      type: "support",
+      title: "Point",
+      shareToken: "sl-abc123456789012345678",
+    });
+    expect(resolveDocAccess).toHaveBeenCalledWith("doc-1", {
+      userId: "user-1",
+      shareToken: "sl-abc123456789012345678",
+    });
+  });
+
   it("dedupes recent notifications", async () => {
     const existing = { id: "recent-id" };
     mockSelect

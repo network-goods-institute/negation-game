@@ -328,6 +328,7 @@ const formatActorSummary = (
 export interface CreateMultiplayerNotificationInput
   extends Omit<InsertMpNotification, "id" | "createdAt" | "readAt"> {
   createdAt?: Date;
+  shareToken?: string | null;
 }
 
 export const createMultiplayerNotification = async (
@@ -354,7 +355,10 @@ export const createMultiplayerNotification = async (
     });
     throw new Error("Unauthorized");
   }
-  const access = await resolveDocAccess(input.docId, { userId: sessionUserId });
+  const access = await resolveDocAccess(input.docId, {
+    userId: sessionUserId,
+    shareToken: input.shareToken ?? null,
+  });
   if (access.status !== "ok" || !canWriteRole(access.role)) {
     logger.warn("mp notifications: forbidden create attempt", {
       sessionUserId,
@@ -390,6 +394,7 @@ export const createMultiplayerNotification = async (
     input.metadata && typeof input.metadata === "object"
       ? input.metadata
       : undefined;
+  const { shareToken: _shareToken, ...inputValues } = input;
 
   const dedupeWindowMs = 5 * 60 * 1000;
   const since = new Date(createdAt.getTime() - dedupeWindowMs);
@@ -439,7 +444,7 @@ export const createMultiplayerNotification = async (
   }
 
   const values: InsertMpNotification = {
-    ...input,
+    ...inputValues,
     docId,
     metadata,
     createdAt,
