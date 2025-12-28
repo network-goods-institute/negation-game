@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { logger } from "@/lib/logger";
 import { isFeatureEnabled } from "@/lib/featureFlags";
+import { canWriteRole, resolveDocAccess } from "@/services/mpAccess";
 import type {
   InsertMpNotification,
   SelectMpNotification,
@@ -335,7 +336,36 @@ export const createMultiplayerNotification = async (
   if (!mpNotificationsEnabled) {
     return null;
   }
-  const { userId, docId, type, title } = input;
+  const sessionUserId = await getUserId();
+  if (!sessionUserId) {
+    logger.warn("mp notifications: unauthenticated create attempt", {
+      docId: input.docId ?? null,
+      type: input.type ?? null,
+      userId: input.userId ?? null,
+    });
+    throw new Error("Unauthorized");
+  }
+  if (input.actorUserId && input.actorUserId !== sessionUserId) {
+    logger.warn("mp notifications: actor mismatch on create", {
+      sessionUserId,
+      actorUserId: input.actorUserId,
+      docId: input.docId ?? null,
+      type: input.type ?? null,
+    });
+    throw new Error("Unauthorized");
+  }
+  const access = await resolveDocAccess(input.docId, { userId: sessionUserId });
+  if (access.status !== "ok" || !canWriteRole(access.role)) {
+    logger.warn("mp notifications: forbidden create attempt", {
+      sessionUserId,
+      docId: input.docId ?? null,
+      status: access.status,
+      role: access.status === "ok" ? access.role : null,
+    });
+    throw new Error("Forbidden");
+  }
+  const { userId, type, title } = input;
+  const docId = access.docId;
   if (!userId || !docId || !type || !title) {
     logger.warn("mp notifications: missing fields on create", {
       hasUserId: Boolean(userId),
@@ -349,6 +379,12 @@ export const createMultiplayerNotification = async (
     });
     throw new Error("Missing required notification fields");
   }
+  const actorRow = await db
+    .select({ username: usersTable.username })
+    .from(usersTable)
+    .where(eq(usersTable.id, sessionUserId))
+    .limit(1);
+  const actorUsername = actorRow[0]?.username ?? null;
   const createdAt = input.createdAt ?? new Date();
   const metadata =
     input.metadata && typeof input.metadata === "object"
@@ -370,9 +406,7 @@ export const createMultiplayerNotification = async (
   if (input.edgeId) {
     dedupeConditions.push(eq(mpNotificationsTable.edgeId, input.edgeId));
   }
-  if (input.actorUserId) {
-    dedupeConditions.push(eq(mpNotificationsTable.actorUserId, input.actorUserId));
-  }
+  dedupeConditions.push(eq(mpNotificationsTable.actorUserId, sessionUserId));
   if (input.action) {
     dedupeConditions.push(eq(mpNotificationsTable.action, input.action));
   }
@@ -395,7 +429,7 @@ export const createMultiplayerNotification = async (
         type,
         nodeId: input.nodeId ?? null,
         edgeId: input.edgeId ?? null,
-        actorUserId: input.actorUserId ?? null,
+        actorUserId: sessionUserId,
         action: input.action ?? null,
       });
       return recent[0];
@@ -406,8 +440,11 @@ export const createMultiplayerNotification = async (
 
   const values: InsertMpNotification = {
     ...input,
+    docId,
     metadata,
     createdAt,
+    actorUserId: sessionUserId,
+    actorUsername,
   };
 
   let row;

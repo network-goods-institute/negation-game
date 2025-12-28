@@ -41,6 +41,8 @@ export const buildEdgeNotificationCandidates = (
 
   const nodesById = new Map<string, Node>();
   nodes.forEach((node) => nodesById.set(node.id, node));
+  const edgesById = new Map<string, Edge>();
+  edges.forEach((edge) => edgesById.set(edge.id, edge));
 
   const candidates: EdgeNotificationCandidate[] = [];
 
@@ -51,13 +53,25 @@ export const buildEdgeNotificationCandidates = (
     const data = (edge as any)?.data || {};
     if (requireCreatorMatch && data.createdBy !== actorUserId) continue;
 
-    const targetId = (edge as any)?.target as string | undefined;
+    let targetId = (edge as any)?.target as string | undefined;
     if (!targetId) continue;
     const targetNode = nodesById.get(targetId);
-    if (!targetNode) continue;
-    if (String(targetNode.type) === "edge_anchor") continue;
+    if (targetNode && String(targetNode.type) === "edge_anchor") {
+      const parentEdgeId = (targetNode as any)?.data?.parentEdgeId;
+      if (typeof parentEdgeId === "string") {
+        const parentEdge = edgesById.get(parentEdgeId);
+        const parentTargetId = (parentEdge as any)?.target;
+        if (typeof parentTargetId === "string") {
+          targetId = parentTargetId;
+        }
+      }
+    }
+    if (!targetId) continue;
+    const resolvedTarget = nodesById.get(targetId);
+    if (!resolvedTarget) continue;
+    if (String(resolvedTarget.type) === "edge_anchor") continue;
 
-    const targetData = (targetNode as any)?.data || {};
+    const targetData = (resolvedTarget as any)?.data || {};
     const rawRecipient = targetData.createdBy || fallbackRecipientId || null;
     const recipientId =
       typeof rawRecipient === "string" && rawRecipient.trim().length > 0
@@ -74,7 +88,7 @@ export const buildEdgeNotificationCandidates = (
         typeof targetData.createdByName === "string"
           ? targetData.createdByName
           : undefined,
-      title: extractTitle(targetNode),
+      title: extractTitle(resolvedTarget),
     });
   }
 

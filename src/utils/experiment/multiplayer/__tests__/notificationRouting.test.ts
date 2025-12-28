@@ -77,4 +77,44 @@ describe("buildEdgeNotificationCandidates", () => {
     expect(results).toHaveLength(1);
     expect(results[0].recipientUserId).toBe("owner-1");
   });
+
+  it("routes objection edges through anchor parent edge targets", () => {
+    const nodes: any[] = [
+      ...baseNodes,
+      {
+        id: "anchor:e-base",
+        type: "edge_anchor",
+        data: { parentEdgeId: "e-base" },
+      },
+    ];
+    const edges: any[] = [
+      {
+        id: "e-base",
+        type: "support",
+        target: "n1",
+        data: { createdBy: "actor-1" },
+      },
+      {
+        id: "e-obj",
+        type: "objection",
+        target: "anchor:e-base",
+        data: { createdBy: "actor-1" },
+      },
+    ];
+
+    const results = buildEdgeNotificationCandidates(
+      edges as any,
+      nodes as any,
+      "actor-1",
+      null
+    );
+
+    const objection = results.find((row) => row.edgeId === "e-obj");
+    expect(objection).toMatchObject({
+      edgeId: "e-obj",
+      targetNodeId: "n1",
+      type: "objection",
+      recipientUserId: "owner-1",
+    });
+  });
 });

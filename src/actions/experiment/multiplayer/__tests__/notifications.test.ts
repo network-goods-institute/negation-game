@@ -1,8 +1,20 @@
 jest.mock("@/actions/users/getUserId", () => ({
   getUserId: jest.fn(async () => "user-1"),
 }));
+jest.mock("@/services/mpAccess", () => ({
+  resolveDocAccess: jest.fn(async (docId: string) => ({
+    status: "ok",
+    docId,
+    ownerId: "user-1",
+    slug: null,
+    role: "owner",
+    source: "owner",
+  })),
+  canWriteRole: jest.fn(() => true),
+}));
 
 import { getUserId } from "@/actions/users/getUserId";
+const { resolveDocAccess, canWriteRole } = require("@/services/mpAccess");
 
 const mockSelect = jest.fn();
 const mockInsert = jest.fn();
@@ -64,6 +76,15 @@ describe("multiplayer notifications actions", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     (getUserId as unknown as jest.Mock).mockResolvedValue("user-1");
+    (resolveDocAccess as jest.Mock).mockResolvedValue({
+      status: "ok",
+      docId: "doc-1",
+      ownerId: "user-1",
+      slug: null,
+      role: "owner",
+      source: "owner",
+    });
+    (canWriteRole as jest.Mock).mockReturnValue(true);
   });
 
   it("returns empty when unauthenticated", async () => {
@@ -201,7 +222,9 @@ describe("multiplayer notifications actions", () => {
   });
 
   it("creates a notification with required fields", async () => {
-    mockSelect.mockReturnValue(buildRecentSelectChain([]));
+    mockSelect
+      .mockImplementationOnce(() => buildSelectChain([{ username: "Alex" }]))
+      .mockImplementationOnce(() => buildRecentSelectChain([]));
     mockInsert.mockReturnValue(
       buildInsertChain({
         id: "new-id",
@@ -227,7 +250,9 @@ describe("multiplayer notifications actions", () => {
 
   it("dedupes recent notifications", async () => {
     const existing = { id: "recent-id" };
-    mockSelect.mockReturnValue(buildRecentSelectChain([existing]));
+    mockSelect
+      .mockImplementationOnce(() => buildSelectChain([{ username: "Alex" }]))
+      .mockImplementationOnce(() => buildRecentSelectChain([existing]));
     const { createMultiplayerNotification } = await import(
       "@/actions/experiment/multiplayer/notifications"
     );
@@ -240,6 +265,44 @@ describe("multiplayer notifications actions", () => {
     if (!row) throw new Error("Expected row");
     expect(row.id).toBe(existing.id);
     expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects create when actor does not match session", async () => {
+    const { createMultiplayerNotification } = await import(
+      "@/actions/experiment/multiplayer/notifications"
+    );
+    await expect(
+      createMultiplayerNotification({
+        userId: "user-2",
+        docId: "doc-1",
+        type: "support",
+        title: "Point",
+        actorUserId: "user-2",
+      })
+    ).rejects.toThrow("Unauthorized");
+  });
+
+  it("rejects create when user lacks write access", async () => {
+    (resolveDocAccess as jest.Mock).mockResolvedValue({
+      status: "ok",
+      docId: "doc-1",
+      ownerId: "user-1",
+      slug: null,
+      role: "viewer",
+      source: "permission",
+    });
+    (canWriteRole as jest.Mock).mockReturnValue(false);
+    const { createMultiplayerNotification } = await import(
+      "@/actions/experiment/multiplayer/notifications"
+    );
+    await expect(
+      createMultiplayerNotification({
+        userId: "user-2",
+        docId: "doc-1",
+        type: "support",
+        title: "Point",
+      })
+    ).rejects.toThrow("Forbidden");
   });
 
   it("marks single notification as read", async () => {
