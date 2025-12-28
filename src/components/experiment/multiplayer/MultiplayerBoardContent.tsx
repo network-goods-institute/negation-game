@@ -1308,6 +1308,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     getNodeCenter,
     getEdgeMidpoint,
     getPreferredEdgeType: () => preferredEdgeTypeRef.current,
+    currentUserId: userId,
+    currentUsername: username,
   });
 
   useKeyboardShortcuts(undo, redo, {

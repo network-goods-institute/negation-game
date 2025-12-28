@@ -24,7 +24,8 @@ export const buildConnectionEdge = (
   nodes: any[],
   parentId: string,
   childId: string,
-  preferredEdgeType?: "support" | "negation"
+  preferredEdgeType?: "support" | "negation",
+  creator?: { userId?: string | null; username?: string | null }
 ) => {
   const parentType = nodes.find((n) => n.id === parentId)?.type;
   const childType = nodes.find((n) => n.id === childId)?.type;
@@ -43,7 +44,10 @@ export const buildConnectionEdge = (
     target: parentId,
     sourceHandle: `${childId}-source-handle`,
     targetHandle: `${parentId}-incoming-handle`,
-    data: {},
+    data: {
+      createdBy: creator?.userId || null,
+      createdByName: creator?.username || null,
+    },
   } as const;
   return { id, edge, edgeType };
 };

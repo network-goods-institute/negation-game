@@ -40,6 +40,8 @@ export const isProductionRequest = (
   if (
     h ===
       "negation-game-git-visual-epistem-5a0d2b-network-goods-institute.vercel.app" ||
+    h ===
+      "negation-game-git-mp-notifications-wip-network-goods-institute.vercel.app" ||
     // Treat market.negationgame.com as non-production (allow anon)
     h === "market.negationgame.com"
   )
