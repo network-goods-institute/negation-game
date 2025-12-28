@@ -75,3 +75,7 @@ export { mpDocShareLinksTable } from "@/db/tables/mpDocShareLinksTable";
 export { marketHoldingsTable } from "@/db/tables/marketHoldingsTable";
 export { marketTradesTable } from "@/db/tables/marketTradesTable";
 export { marketStateTable } from "@/db/tables/marketStateTable";
+export {
+  mpNotificationsTable,
+  mpNotificationTypeEnum,
+} from "@/db/tables/mpNotificationsTable";

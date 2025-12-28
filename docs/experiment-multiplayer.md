@@ -1,189 +1,252 @@
 # Multiplayer Rationale Experiment
 
-## Overview
-Real-time collaborative rationale editor powered by Yjs CRDT documents, WebSocket transport, and React Flow for graph visualisation. The experiment lives alongside the core product but is completely isolated in routing, actions, and persistence.
+**Last updated**: 2025-12-20
 
-**Scale**: 135 TypeScript files (~15,000 lines) including core UI, hooks, utilities, dedicated tests, and the Yjs WebSocket bridge.
+## Overview
+Real-time collaborative rationale editor with prediction markets, powered by Yjs CRDT documents, WebSocket transport, and React Flow for graph visualisation. The experiment includes advanced argumentation tools, market overlays, and comprehensive notification systems.
+
+**Scale**: 309 TypeScript files (~42,637 lines) across app routes, API routes, actions, components, hooks, utils, queries/mutations, and tests, plus the Yjs WebSocket bridge (214 lines, JS).
 
 ## Files
 
-### App Router Pages (6 files, 1,730 lines)
-- `src/app/experiment/layout.tsx` (18) – Feature flag guard and shared layout chrome.
-- `src/app/experiment/rationale/page.tsx` (238) – Experiment landing page and navigation entry points.
-- `src/app/experiment/rationale/multiplayer/page.tsx` (578) – Board listing, filtering, and entry orchestration.
-- `src/app/experiment/rationale/multiplayer/new/page.tsx` (46) – Board creation form.
-- `src/app/experiment/rationale/multiplayer/[id]/page.tsx` (811) – Multiplayer board runtime: graph orchestration, tool state, Yjs integration.
-- `src/app/experiment/rationale/multiplayer/__tests__/index.page.test.tsx` (39) – Smoke coverage for routing and listing.
+### App Router Pages (7 files, 995 lines)
+- `src/app/experiment/layout.tsx` - Feature flag guard with enforced light theme.
+- `src/app/experiment/rationale/multiplayer/page.tsx` – Board listing, filtering, and entry orchestration.
+- `src/app/experiment/rationale/multiplayer/[id]/page.tsx` – Main multiplayer board runtime: graph orchestration, market integration, Yjs sync.
+- `src/app/experiment/rationale/multiplayer/[id]/layout.tsx` - Metadata wrapper for board routes.
+- `src/app/experiment/rationale/profile/page.tsx` - Redirects to the legacy profile route.
+- `src/app/experiment/multiplayer/__tests__/BoardAccessPage.test.tsx` – Board access testing.
+- `src/app/experiment/rationale/multiplayer/__tests__/index.page.test.tsx` – Smoke coverage for routing and listing.
 
-### API Routes (9 files, 666 lines)
-- `src/app/api/experimental/rationales/route.ts` (38) – Collection GET/POST.
-- `src/app/api/experimental/rationales/[id]/route.ts` (142) – Single-board read/update/delete.
-- `src/app/api/experimental/rationales/[id]/state/route.ts` (168) – Persisted Yjs state blob endpoints.
-- `src/app/api/experimental/rationales/[id]/updates/route.ts` (58) – Incremental Yjs update ingestion.
-- `src/app/api/experimental/rationales/[id]/open/route.ts` (72) – Access arbitration.
-- `src/app/api/experimental/rationales/__tests__/id.route.get.test.ts` (35) – GET contract tests.
-- `src/app/api/experimental/rationales/__tests__/id.route.patch.test.ts` (60) – PATCH behaviour tests.
-- `src/app/api/experimental/rationales/__tests__/id.route.delete.test.ts` (60) – DELETE safeguards.
-- `src/app/api/experimental/rationales/__tests__/index.route.get.test.ts` (33) – Listing assertions.
+### API Routes (12 files, 1,199 lines)
+- `src/app/api/experimental/rationales/route.ts` – Collection GET/POST for board management.
+- `src/app/api/experimental/rationales/[id]/route.ts` – Single-board read/update/delete operations.
+- `src/app/api/experimental/rationales/[id]/state/route.ts` – Persisted Yjs state blob management.
+- `src/app/api/experimental/rationales/[id]/updates/route.ts` – Incremental Yjs update ingestion.
+- `src/app/api/experimental/rationales/[id]/open/route.ts` – Access control and permissions.
+- `src/app/api/experimental/rationales/__tests__/id.route.delete.test.ts` – DELETE contract tests.
+- `src/app/api/experimental/rationales/__tests__/id.route.get.test.ts` – GET contract tests.
+- `src/app/api/experimental/rationales/__tests__/id.route.patch.test.ts` – PATCH behavior tests.
+- `src/app/api/experimental/rationales/__tests__/index.route.get.test.ts` – Listing assertions.
+- `src/app/api/experimental/rationales/__tests__/state.route.auth.test.ts` – State endpoint auth tests.
+- `src/app/api/experimental/rationales/__tests__/updates.route.auth.test.ts` – Updates endpoint auth tests.
+- `src/app/api/experimental/rationales/__tests__/updates.route.post.test.ts` – Updates POST contract tests.
 
-### Actions (3 files, 444 lines)
-- `src/actions/experimental/rationales.ts` (248) – Server actions wrapping board CRUD, permissions, and locking.
-- `src/actions/experimental/fetchMpDocs.ts` (18) – Fetch helper for multiplayer docs.
-- `src/actions/experimental/__tests__/rationales.actions.test.ts` (178) – Action contract tests.
+### Actions (4 files, 1,661 lines)
+- `src/actions/experimental/rationales.ts` - Server actions for board CRUD, permissions, and locking.
+- `src/actions/experimental/rationaleAccess.ts` - Board access control and permission management.
+- `src/actions/experimental/fetchMpDocs.ts` - Fetch helper for multiplayer documents.
+- `src/actions/experimental/__tests__/rationales.actions.test.ts` - Action contract tests.
 
-### Components (53 files, 5,415 lines)
-#### Core surfaces
-- `src/components/experiment/multiplayer/GraphCanvas.tsx` (273) – React Flow surface, connect-mode interactions, cursor telemetry.
-- `src/components/experiment/multiplayer/GraphContext.tsx` (99) – Action context wiring graph mutators into nodes.
-- `src/components/experiment/multiplayer/GraphUpdater.tsx` (20) – Keeps local React Flow state synced with Yjs mutations.
-- `src/components/experiment/multiplayer/ToolsBar.tsx` (128) – Tooling switcher, undo/redo controls, read-only affordances.
-- `src/components/experiment/multiplayer/MultiplayerHeader.tsx` (181) – Connection health, locking badges, save state indicators.
-- `src/components/experiment/multiplayer/ConnectedUsers.tsx` (104) – Presence roster with color badges.
-- `src/components/experiment/multiplayer/CursorOverlay.tsx` (56) – Remote pointer rendering.
-- `src/components/experiment/multiplayer/CursorReporter.tsx` (47) – Publishes local cursor positions and selections.
-- `src/components/experiment/multiplayer/TypeSelectorDropdown.tsx` (101) – New-node type chooser for quick creation.
-- `src/components/experiment/multiplayer/ToolbarButton.tsx` (55) – Shared button styling for toolbar controls.
-- `src/components/experiment/multiplayer/EditorsBadgeRow.tsx` (21) – Inline editor avatar row.
-- `src/components/experiment/multiplayer/OffscreenNeighborPreviews.tsx` (326) – Offscreen node preview rail with scroll positioning.
+### Queries (2 files, 311 lines)
+- `src/queries/experiment/multiplayer/useMultiplayerNotifications.ts` - Notification query and aggregation helpers.
+- `src/queries/experiment/multiplayer/__tests__/useMultiplayerNotifications.transform.test.ts` - Query aggregation tests.
 
-#### Node components
-- `src/components/experiment/multiplayer/PointNode.tsx` (379) – Point nodes with favor scoring, context menus, connect affordances.
-- `src/components/experiment/multiplayer/StatementNode.tsx` (187) – Statement/question nodes with editing chrome.
-- `src/components/experiment/multiplayer/TitleNode.tsx` (168) – Board title node, hero styling, inline editing.
-- `src/components/experiment/multiplayer/GroupNode.tsx` (201) – Layout container with measured sizing and drag affordances.
-- `src/components/experiment/multiplayer/objection/ObjectionNode.tsx` (262) – Objection nodes with relevance controls.
-- `src/components/experiment/multiplayer/objection/EdgeAnchorNode.tsx` (31) – Virtual nodes anchoring objection edges to parent edges.
+### Mutations (1 file, 31 lines)
+- `src/mutations/experiment/multiplayer/useMarkMultiplayerNotificationsRead.ts` - Notification read-state mutations.
 
-#### Edge components
-- `src/components/experiment/multiplayer/NegationEdge.tsx` (8) – Negation edge renderer wrapper.
-- `src/components/experiment/multiplayer/SupportEdge.tsx` (11) – Support edge styling.
-- `src/components/experiment/multiplayer/ObjectionEdge.tsx` (11) – Objection edge styling.
-- `src/components/experiment/multiplayer/StatementEdge.tsx` (7) – Statement edge styling.
-- `src/components/experiment/multiplayer/OptionEdge.tsx` (7) – Option edge styling.
+### Components (139 files, 20,499 lines)
 
-#### Shared UI utilities & hooks
-- `src/components/experiment/multiplayer/common/BaseEdge.tsx` (295) – Shared SVG edge shell, markers, and hit testing.
-- `src/components/experiment/multiplayer/common/EdgeConfiguration.ts` (204) – Edge styling constants and behaviour tables.
-- `src/components/experiment/multiplayer/common/EdgeInteractionOverlay.tsx` (67) – Edge hover/click hit areas.
-- `src/components/experiment/multiplayer/common/EdgeMaskDefs.tsx` (126) – SVG mask definitions for edge highlighting.
-- `src/components/experiment/multiplayer/common/EdgeMidpointControl.tsx` (43) – Midpoint drag handles.
-- `src/components/experiment/multiplayer/common/EdgeOverlay.tsx` (85) – Edge overlay chrome combining markers, relevance, locks.
-- `src/components/experiment/multiplayer/common/EdgeStrapGeometry.tsx` (138) – Advanced geometry helpers for strap curves.
-- `src/components/experiment/multiplayer/common/edgeStyle.ts` (19) – Shared CSS class mapping for edges.
-- `src/components/experiment/multiplayer/common/ContextMenu.tsx` (74) – Lightweight context menu wrapper.
-- `src/components/experiment/multiplayer/common/NodeActionPill.tsx` (60) – Floating node action pill presentation.
-- `src/components/experiment/multiplayer/common/SideActionPill.tsx` (66) – Side action pill variant for supports.
-- `src/components/experiment/multiplayer/common/NodeShell.tsx` (104) – Structural shell for nodes with shared handles.
-- `src/components/experiment/multiplayer/common/useAbsoluteNodePosition.ts` (86) – Computes absolute node bounds for overlays.
-- `src/components/experiment/multiplayer/common/useAutoFocusNode.ts` (61) – Autofocus newly created nodes.
-- `src/components/experiment/multiplayer/common/useConnectableNode.ts` (54) – Handles connect-mode clicks and flow conversion.
-- `src/components/experiment/multiplayer/common/useEdgeAnchorPosition.ts` (28) – Tracks anchor node positions for objections.
-- `src/components/experiment/multiplayer/common/useEdgeNodeMasking.ts` (36) – Manages edge/node mask intersections.
-- `src/components/experiment/multiplayer/common/useEdgePerformanceOptimization.ts` (78) – Memoises expensive edge calculations.
-- `src/components/experiment/multiplayer/common/useEdgeState.ts` (121) – Aggregates edge hover/selection state.
-- `src/components/experiment/multiplayer/common/useEditableNode.ts` (384) – Full editing lifecycle management for node content.
-- `src/components/experiment/multiplayer/common/useFavorOpacity.ts` (23) – Derives favour shading for point nodes.
-- `src/components/experiment/multiplayer/common/useHoverTracking.ts` (67) – Hover intent tracking and timers.
-- `src/components/experiment/multiplayer/common/useNeighborEmphasis.ts` (56) – Applies scale transforms to neighbours during focus.
-- `src/components/experiment/multiplayer/common/useNodeChrome.ts` (97) – Bundles editing, connecting, and hover chrome for nodes.
-- `src/components/experiment/multiplayer/common/usePillVisibility.ts` (56) – Timed visibility controller for action pills.
-- `src/components/experiment/multiplayer/common/usePanDetection.ts` (94) - Detects left/middle button drags on the graph canvas to mute cursor broadcasts while panning.
+#### Core Surfaces (32 files)
+- `GraphCanvas.tsx` – React Flow surface with connect-mode interactions and cursor telemetry.
+- `GraphContext.tsx` – Action context wiring graph mutators into nodes and edges.
+- `GraphUpdater.tsx` – Keeps local React Flow state synced with Yjs mutations.
+- `MultiplayerBoardContent.tsx` – Main board container with market integration.
+- `MultiplayerHeader.tsx` – Connection health, locking badges, save indicators, market controls.
+- `ConnectedUsers.tsx` – Presence roster with color badges and user status.
+- `CursorOverlay.tsx`, `CursorReporter.tsx` – Remote cursor rendering and position publishing.
+- `ToolsBar.tsx` – Tooling switcher, undo/redo controls, market mode toggles.
+- `TypeSelectorDropdown.tsx` – New-node type chooser with market-aware options.
+- `ShareBoardDialog.tsx` – Board sharing and permission management.
+- `BoardLoading.tsx`, `BoardNotFound.tsx` – Loading and error states.
+- `MarketModeControls.tsx` - Market feature toggles and controls.
+- `MiniHoverStats.tsx` - Hover statistics for market data.
+- `NodePriceOverlay.tsx` - Market overlays for node price context.
+- `SnapLines.tsx` - Visual guides for node/edge alignment.
+- `UndoHintOverlay.tsx` - Contextual undo/redo hints.
+- `PerformanceContext.tsx` - Performance monitoring and optimization context.
 
-#### Component tests
-- `src/components/experiment/multiplayer/__tests__/MultiplayerHeader.status.test.tsx` (62) – Header state matrix coverage.
-- `src/components/experiment/multiplayer/common/__tests__/useAbsoluteNodePosition.test.tsx` (51) – Hook geometry tests.
-- `src/components/experiment/multiplayer/common/__tests__/useHoverTracking.test.tsx` (45) – Hover timing tests.
+#### Node Components (5 files)
+- `PointNode.tsx` - Point nodes with favor scoring, market overlays, context menus.
+- `StatementNode.tsx` - Statement/question nodes with rich editing capabilities.
+- `CommentNode.tsx` - Comment nodes for discussion threads.
+- `objection/ObjectionNode.tsx` - Objection nodes with relevance controls and anchoring.
+- `objection/EdgeAnchorNode.tsx` - Virtual nodes for objection edge positioning.
 
-### Hooks (24 files, 2,474 lines)
-#### Graph and session hooks
-- `src/hooks/experiment/multiplayer/useInitialGraph.ts` (48) – Seeds graph state from Yjs snapshots.
-- `src/hooks/experiment/multiplayer/useKeyboardShortcuts.ts` (81) – Global hotkey handlers.
-- `src/hooks/experiment/multiplayer/useMultiplayerCursors.ts` (95) – Remote cursor subscription.
-- `src/hooks/experiment/multiplayer/useMultiplayerEditing.ts` (186) – Editing locks, focus tracking, clipboard flow.
-- `src/hooks/experiment/multiplayer/useNodeDragHandlers.ts` (37) – Drag handling wired to locks and Yjs updates.
-- `src/hooks/experiment/multiplayer/useUserColor.ts` (15) – Deterministic user colour selection.
-- `src/hooks/experiment/multiplayer/useWritableSync.ts` (90) – Replay local graph after regaining write access.
-- `src/hooks/experiment/multiplayer/useWriteAccess.ts` (60) – Client arbitration for write locks across sessions.
+#### Edge Components (5 files)
+- `NegationEdge.tsx`, `SupportEdge.tsx`, `ObjectionEdge.tsx` - Core argumentation edges.
+- `CommentEdge.tsx`, `OptionEdge.tsx` - Additional relationship types.
 
-#### Yjs orchestration hooks
-- `src/hooks/experiment/multiplayer/useYjsMultiplayer.ts` (284) – Top-level multiplayer lifecycle: providers, undo manager, save scheduling.
-- `src/hooks/experiment/multiplayer/useYjsDocumentHydration.ts` (199) – Bootstraps Yjs doc content into React Flow nodes/edges.
-- `src/hooks/experiment/multiplayer/useYjsProviderConnection.ts` (273) – WebSocket provider lifecycle, reconnect logic, awareness wiring.
-- `src/hooks/experiment/multiplayer/useYjsSynchronization.ts` (185) – Sync watchdogs, save throttling, and awareness broadcast.
-- `src/hooks/experiment/multiplayer/useYjsUndoRedo.ts` (134) – Undo/redo stack wiring with scoped observers.
+#### Common/Shared System (58 files)
 
-#### Yjs helpers
-- `src/hooks/experiment/multiplayer/yjs/auth.ts` (27) – Token fetch helper for Yjs endpoints.
-- `src/hooks/experiment/multiplayer/yjs/edgeSync.ts` (62) – Edge map observers and migration handling.
-- `src/hooks/experiment/multiplayer/yjs/nodeSync.ts` (99) – Node observers with migration safeguards.
-- `src/hooks/experiment/multiplayer/yjs/saveHandlers.ts` (222) – Debounced save pipelines and error handling.
-- `src/hooks/experiment/multiplayer/yjs/sync.ts` (41) – Shared sync constants.
-- `src/hooks/experiment/multiplayer/yjs/text.ts` (80) – Text map conversion utilities.
-- `src/hooks/experiment/multiplayer/yjs/textSync.ts` (61) – Text node sync observers.
-- `src/hooks/experiment/multiplayer/yjs/undo.ts` (30) – Yjs UndoManager scope wiring.
+**Edge System (22 files):**
+- `BaseEdge.tsx` – Shared SVG edge shell with markers and hit testing.
+- `EdgeConfiguration.ts` – Edge styling constants and behavior tables.
+- `EdgeInteractionOverlay.tsx`, `EdgeOverlay.tsx` – Edge interaction and overlay management.
+- `EdgeMaskDefs.tsx`, `EdgeStrapGeometry.tsx` – Advanced edge geometry and masking.
+- `EdgeMidpointControl.tsx` – Midpoint drag handles for edge manipulation.
+- `EdgeTypeToggle.tsx`, `MainEdgeRenderer.tsx` – Edge type management and rendering.
+- `EdgeVoting.tsx`, `edgeVotes.ts` – Edge-based voting and interaction system.
 
-#### Hook tests
-- `src/hooks/experiment/multiplayer/yjs/__tests__/mergeNodesWithText.test.ts` (72) – Text/graph merge tests.
-- `src/hooks/experiment/multiplayer/yjs/__tests__/seeding.behavior.test.tsx` (52) – Hydration behaviour coverage.
-- `src/hooks/experiment/multiplayer/yjs/__tests__/updateNodesFromText.test.ts` (33) – Text update propagation tests.
+**Node System (14 files):**
+- `NodeShell.tsx` – Structural shell for nodes with shared interaction handles.
+- `NodeActionPill.tsx`, `SideActionPill.tsx` – Floating action interfaces for nodes.
+- `NodeWithMarket.tsx`, `NodeVoting.tsx` – Market-integrated node behaviors.
+- `useEditableNode.ts` – Full editing lifecycle management for node content.
+- `useNodeChrome.ts`, `usePillVisibility.ts` – Node UI state management.
+- `useAbsoluteNodePosition.ts`, `useNeighborEmphasis.ts` – Node positioning and emphasis.
 
-### Utils (20 files, 2,412 lines)
-#### Graph sync utilities
-- `src/utils/experiment/multiplayer/graphSync.ts` (337) – React Flow/Yjs change bridging, deterministic IDs.
-- `src/utils/experiment/multiplayer/connectUtils.ts` (43) – Edge type selection and deterministic ID helpers.
-- `src/utils/experiment/multiplayer/negation.ts` (27) – Negation node helpers.
-- `src/utils/experiment/multiplayer/viewport.ts` (24) – Viewport helpers for Offscreen previews.
-- `src/utils/experiment/multiplayer/graphOperations.ts` (5) – Barrel for graph operations package.
+**Interaction & Performance (15 files):**
+- `useHoverTracking.ts`, `usePanDetection.ts` – User interaction detection.
+- `useContextMenuHandler.ts`, `ContextMenu.tsx` – Context menu system.
+- `useCursorState.ts`, `useSelectionPayload.ts` – Selection and cursor management.
+- `useAutoFocusNode.ts`, `useForceHidePills.ts` – UI state optimizations.
 
-#### Graph operations
-- `src/utils/experiment/multiplayer/graphOperations/nodeCreation.ts` (293) – Node creation flows and defaults.
-- `src/utils/experiment/multiplayer/graphOperations/nodeContent.ts` (203) – Content updates, metadata toggles.
-- `src/utils/experiment/multiplayer/graphOperations/nodeDeletion/createDeleteNode.ts` (240) – Node deletion with cascading rules.
-- `src/utils/experiment/multiplayer/graphOperations/nodeDeletion/createDeleteInversePair.ts` (221) – Inverse pair teardown handler.
-- `src/utils/experiment/multiplayer/graphOperations/nodeDeletion/index.ts` (2) – Node deletion exports.
-- `src/utils/experiment/multiplayer/graphOperations/shared.ts` (81) – Shared helpers for edge/node mutations.
-- `src/utils/experiment/multiplayer/graphOperations/edgeOperations.ts` (155) – Edge creation, update, and deletion logic.
-- `src/utils/experiment/multiplayer/graphOperations/inversePair.ts` (430) – Inverse pair orchestration and layout.
+#### Market Subsystem (16 files)
+- `market/MarketPanel/` – Complete trading interface with charts and controls.
+- `market/MarketPriceOverlays.tsx` – Price visualization overlays.
+- `market/MarketSidePanel.tsx` – Market data sidebar.
+- `market/QuickBuyActions.tsx` – Fast trading actions.
+- `market/InlineBuyControls.tsx`, `InlinePriceHistory.tsx` - Inline market controls.
+- `market/MarketErrorBoundary.tsx` - Market system error handling.
+- `EdgePriceOverlay.tsx` - Market price overlays for edges.
 
-#### Utility tests
-- `src/utils/experiment/multiplayer/__tests__/connectUtils.test.ts` (31) – Edge helper tests.
-- `src/utils/experiment/multiplayer/__tests__/graphOperations.deleteEdgeCascade.test.ts` (67) – Deletion cascade coverage.
-- `src/utils/experiment/multiplayer/__tests__/graphOperations.deleteGroupYjs.test.ts` (54) – Yjs-backed group deletion tests.
-- `src/utils/experiment/multiplayer/__tests__/graphOperations.objection.test.ts` (65) – Objection flows.
-- `src/utils/experiment/multiplayer/__tests__/graphOperations.updateNodeContent.test.ts` (51) – Content update paths.
-- `src/utils/experiment/multiplayer/__tests__/graphOperations.updateNodeType.test.ts` (35) – Node type conversions.
-- `src/utils/experiment/multiplayer/__tests__/graphSync.onNodesChange.test.ts` (48) – Graph sync change filtering.
+#### Notification System (6 files)
+- `notifications/NotificationsPanel.tsx`, `NotificationsSidebar.tsx` - Notification interfaces.
+- `notifications/NotificationsPanelTrigger.tsx` - Notification triggers.
+- `notifications/types.ts` - Notification type definitions.
+- `notifications/__tests__/NotificationsPanel.test.tsx`, `NotificationsSidebar.test.tsx` - Notification UI tests.
 
-### Component Registry (1 file, 37 lines)
-- `src/components/experiment/multiplayer/componentRegistry.ts` – Registers node/edge types with React Flow.
+#### Component Tests (41 files)
+- Header, board, and market component test suites.
+- Hook integration tests for UI components.
+- Edge and node interaction test coverage.
 
-### Data (1 file, 118 lines)
-- `src/data/experiment/multiplayer/sampleData.ts` – Sample nodes, edges, and demo users for seeding and tests.
+### Hooks (69 files, 10,505 lines)
 
-### Database (3 files, 70 lines)
-- `src/db/tables/mpDocsTable.ts` (13) – Multiplayer doc metadata schema.
-- `src/db/tables/mpDocAccessTable.ts` (19) – Access control records.
-- `src/db/tables/mpDocUpdatesTable.ts` (38) – Stored Yjs update log.
+#### Yjs Integration (5 files)
+- `useYjsMultiplayer.ts` – Top-level multiplayer lifecycle: providers, undo manager, save scheduling.
+- `useYjsDocumentHydration.ts` – Bootstraps Yjs document content into React Flow nodes/edges.
+- `useYjsProviderConnection.ts` – WebSocket provider lifecycle, reconnect logic, awareness wiring.
+- `useYjsSynchronization.ts` – Sync watchdogs, save throttling, and awareness broadcast.
+- `useYjsUndoRedo.ts` – Undo/redo stack wiring with scoped observers.
 
-### Top-Level Multiplayer Tests (15 files, 1,588 lines)
-- `src/__tests__/api.yjs.token.test.ts` (56) – Token issuance for Yjs endpoints.
-- `src/__tests__/multiplayer.deleteInversePair.test.ts` (123) – Inverse pair deletion regression coverage.
-- `src/__tests__/multiplayer.edgeSync.upsertOnly.test.ts` (75) – Edge sync upsert guardrails.
-- `src/__tests__/yjs.migration.observe.test.ts` (111) – Node/edge migration observers.
-- `src/__tests__/experiment/multiplayer/deleteEdgeEndpoints.test.ts` (107) – REST endpoint deletion flows.
-- `src/__tests__/experiment/multiplayer/deleteNode.test.ts` (349) – Node deletion scenarios.
-- `src/__tests__/experiment/multiplayer/edgeStyle.test.ts` (34) – Edge styling helpers.
-- `src/__tests__/experiment/multiplayer/gating.test.ts` (7) – Feature flag gating.
-- `src/__tests__/experiment/multiplayer/negation.inverse-pair.test.ts` (288) – Negation inverse pair handshake.
-- `src/__tests__/experiment/multiplayer/negation.test.ts` (33) – Negation basics.
-- `src/__tests__/experiment/multiplayer/ObjectionNode.pointlike.test.tsx` (32) – Objection node pointlike behaviour.
-- `src/__tests__/experiment/multiplayer/pointlikeUtil.test.ts` (12) – Point utility coverage.
-- `src/__tests__/experiment/multiplayer/support.addBelow.test.ts` (189) – Support creation flows.
-- `src/__tests__/experiment/multiplayer/sync.e2e.test.ts` (147) – End-to-end sync scenarios.
-- `src/__tests__/experiment/multiplayer/viewport.test.ts` (25) – Viewport helper tests.
+#### Graph Operations (12 files)
+- `useGraphOperations.ts` – Core graph mutation operations.
+- `useGraphContextMenu.ts` – Context menu handling for graph elements.
+- `useGraphKeyboardHandlers.ts` – Global keyboard shortcuts for graph interactions.
+- `useGraphNodeHandlers.ts` – Node interaction handlers (drag, select, edit).
+- `useGraphWheelHandler.ts` – Mouse wheel and zoom handling.
+- `useConnectionMode.ts` – Edge creation and connection mode management.
+- `useConnectionHandlers.ts` – Connection initiation and completion logic.
+- `useConnectionSnapping.ts` – Visual snapping guides for connections.
+- `useEdgeSelection.ts` – Edge selection state management.
+- `useEdgeTypeManager.ts` – Dynamic edge type switching and management.
+- `handlers/dragHandlers.ts`, `handlers/dragStopHandlers.ts` – Specialized drag handling.
 
-### External (1 file, 97 lines)
-- `yjs-ws/server.js` – Standalone Yjs WebSocket bridge for the experiment cluster.
+#### UI State Management (20+ files)
+- `useMultiplayerCursors.ts` – Remote cursor subscription and rendering.
+- `useMultiplayerEditing.ts` – Editing locks, focus tracking, clipboard flow.
+- `useMultiplayerTitle.ts` – Board title synchronization.
+- `useWriteAccess.ts` – Client arbitration for write locks across sessions.
+- `useWritableSync.ts` – Replay local graph after regaining write access.
+- `useModeState.ts` – Global editor mode state (edit, connect, select).
+- `useTabIdentifier.ts` – Browser tab identification for session management.
+- `useAnonymousId.ts` – Anonymous user session management.
+- `useAuthSetup.ts` – Authentication integration for multiplayer sessions.
+- `useBoardResolution.ts` – Board loading and resolution logic.
+- `useUserColor.ts` – Deterministic user color selection.
+- `useInitialGraph.ts` – Seeds graph state from Yjs snapshots.
+
+#### Interaction & Performance (15+ files)
+- `useHoverTracking.ts` – Hover intent tracking and timers.
+- `usePanDetection.ts` – Canvas panning detection and cursor muting.
+- `useKeyboardPanning.ts` – Keyboard-based canvas navigation.
+- `useNodeDragHandlers.ts`, `useNodeDragSnapping.ts` – Node drag operations with snapping.
+- `useNodeHelpers.ts` – Node utility functions and helpers.
+- `connectionGrace.ts` – Connection grace period management.
+- `lockUtils.ts` – Locking utilities for session management.
+
+#### Yjs Infrastructure (8 files)
+- `yjs/auth.ts` – Token fetch helper for Yjs endpoints.
+- `yjs/edgeSync.ts` – Edge map observers and migration handling.
+- `yjs/nodeSync.ts` – Node observers with migration safeguards.
+- `yjs/saveHandlers.ts` – Debounced save pipelines and error handling.
+- `yjs/sync.ts` – Shared sync constants and utilities.
+- `yjs/text.ts`, `yjs/textSync.ts` – Text content synchronization.
+- `yjs/origins.ts` – Yjs operation origin tracking.
+
+#### Hook Tests (25+ files)
+- Yjs synchronization and migration tests.
+- Graph operation behavior tests.
+- UI interaction and state management tests.
+- Authentication and session management tests.
+
+### Utils (35 files, 3,387 lines)
+
+#### Graph Operations System (10 files)
+- `graphOperations.ts` – Main barrel export for graph operations.
+- `graphOperations/nodeCreation.ts` – Node creation flows, defaults, and validation.
+- `graphOperations/nodeContent.ts` – Content updates, metadata toggles, and rich text handling.
+- `graphOperations/nodeDeletion/` – Node deletion with cascading rules and cleanup.
+- `graphOperations/nodeDuplication.ts` – Node cloning with relationship preservation.
+- `graphOperations/edgeOperations.ts` – Edge creation, update, deletion, and relationship management.
+- `graphOperations/shared.ts` – Shared helpers for edge/node mutations and utilities.
+
+#### Core Graph Utilities (8 files)
+- `graphSync.ts` – React Flow/Yjs change bridging with deterministic ID management.
+- `connectUtils.ts` – Edge type selection and connection validation helpers.
+- `edgePathUtils.ts` – Advanced edge path calculations and geometry.
+- `bezierSplit.ts` – Bézier curve splitting for smooth edge rendering.
+- `negation.ts` – Negation node and relationship helpers.
+- `nodeUtils.ts` – General node manipulation utilities.
+- `viewport.ts` – Viewport calculations and offscreen element management.
+- `creatorStamp.ts` – User attribution and creation timestamp tracking.
+
+#### Notification & Communication (2 files)
+- `notificationRouting.ts` – Notification delivery and routing logic.
+- `notificationVotes.ts` – Vote aggregation and notification triggers.
+
+#### Utility Tests (15+ files)
+- Graph operation behavior tests (creation, deletion, updates).
+- Edge and node manipulation test suites.
+- Synchronization and ID generation tests.
+- Notification routing and aggregation tests.
+
+### Component Registry (1 file, 33 lines)
+- `src/components/experiment/multiplayer/componentRegistry.ts` - Registers node/edge types with React Flow.
+
+### Data (1 file, 115 lines)
+- `src/data/experiment/multiplayer/sampleData.ts` - Sample nodes, edges, and demo users for seeding and tests.
+
+### Database Tables (8 files)
+- `mpDocsTable.ts` – Multiplayer document metadata and settings.
+- `mpDocAccessTable.ts` – User access control and permission records.
+- `mpDocPermissionsTable.ts` – Granular permission management.
+- `mpDocShareLinksTable.ts` – Shareable link generation and management.
+- `mpDocUpdatesTable.ts` – Stored Yjs update log for synchronization.
+- `mpNotificationsTable.ts` – Notification storage and delivery tracking.
+- `notificationPreferencesTable.ts` – User notification preferences.
+- `notificationsTable.ts` – General notification system storage.
+
+### Top-Level Multiplayer Tests (40 files, 4,049 lines)
+- `src/__tests__/api.yjs.token.test.ts` - Token issuance for Yjs endpoints.
+- `src/__tests__/hooks/useYjsUndoRedo.test.ts` - Undo/redo hook coverage.
+- `src/__tests__/multiplayer.edgeSync.upsertOnly.test.ts` - Edge sync upsert guardrails.
+- `src/__tests__/multiplayer/nodeDuplication.test.ts` - Node duplication invariants.
+- `src/__tests__/yjs.migration.observe.test.ts` - Node/edge migration observers.
+- `src/__tests__/yjs.state.gzip.test.ts` - Yjs state compression behavior.
+- `src/__tests__/yjs.state.headers.test.ts` - Yjs state header assertions.
+- `src/__tests__/yjs.token.expiry.test.ts` - Token expiry behavior.
+- `src/__tests__/experiment/multiplayer/deleteNode.test.ts` - Node deletion scenarios.
+- `src/__tests__/experiment/multiplayer/edgeTypeSwitching.test.ts` - Edge type switching behavior.
+- `src/__tests__/experiment/multiplayer/support.addBelow.test.ts` - Support creation flows.
+- `src/__tests__/experiment/multiplayer/sync.e2e.test.ts` - End-to-end sync scenarios.
+- `src/__tests__/experiment/multiplayer/undo.integration.test.ts` - Undo stack integration.
+- Additional UI and interaction coverage lives under `src/__tests__/experiment/multiplayer`.
+
+### External (1 file, 214 lines)
+- `yjs-ws/server.js` - Standalone Yjs WebSocket bridge for the experiment cluster.
 
 ## Write Access Model
 - Exactly one session per user holds `canWrite`; others remain read-only replicas until arbitration grants ownership.
@@ -194,16 +257,46 @@ Real-time collaborative rationale editor powered by Yjs CRDT documents, WebSocke
  - Anonymous sessions receive an `anon-…` user id via cookies and are eligible for write access only in non‑production environments; in production, authentication is required. Arbitration treats user ids (including `anon-…`) the same wherever anonymous participation is enabled.
 
 ## Summary Statistics
-- **App Router Pages**: 6 files / 1,730 lines
-- **API Routes**: 9 files / 666 lines
-- **Components**: 53 files / 5,415 lines
-- **Hooks**: 24 files / 2,474 lines
-- **Utils**: 20 files / 2,412 lines
-- **Actions**: 3 files / 444 lines
-- **Database**: 3 files / 70 lines
-- **Data**: 1 file / 118 lines
-- **Top-Level Multiplayer Tests**: 15 files / 1,588 lines
-- **External Bridge**: 1 file / 97 lines
+- **App Router Pages**: 7 files / 995 lines
+- **API Routes**: 12 files / 1,199 lines
+- **Components**: 139 files / 20,499 lines
+- **Hooks**: 69 files / 10,505 lines
+- **Utils**: 35 files / 3,387 lines
+- **Queries**: 2 files / 311 lines
+- **Mutations**: 1 file / 31 lines
+- **Actions**: 4 files / 1,661 lines
+- **Database Tables**: 8 files
+- **Data**: 1 file / 115 lines
+- **Top-Level Tests**: 40 files / 4,049 lines
+- **External Bridge**: Yjs WebSocket server (submodule, 214 lines)
 
-## Feature Flag
-Controlled via `NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED`. When disabled, the layout guard prevents entry and hides navigation to multiplayer boards.
+## Key Features
+
+### Market Integration
+- **Prediction Markets**: Nodes and edges can have associated prediction markets
+- **Automated Market Maker**: LMSR (Logarithmic Market Scoring Rule) implementation
+- **Trading Interface**: Buy/sell controls with price history and charts
+- **Market Overlays**: Real-time price visualization on graph elements
+- **Portfolio Management**: Holdings tracking and profit/loss calculations
+
+### Advanced Notifications
+- **Real-time Notifications**: Activity feeds for board changes
+- **Notification Panels**: Sidebar and panel interfaces for activity tracking
+- **Granular Preferences**: User-controllable notification settings
+- **Activity Types**: Supports, objections, negations, comments, upvotes
+
+### Enhanced UI Interactions
+- **Edge Voting**: Interactive voting on relationship strength
+- **Context Menus**: Rich context menus for graph elements
+- **Snap Lines**: Visual alignment guides for precise positioning
+- **Performance Monitoring**: Connection health and rendering optimization
+- **Grace Periods**: Intelligent disconnect handling
+
+## Feature Flags
+- **`NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED`**: Enables multiplayer boards with real-time collaboration
+- **`NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED`**: Activates prediction market features (requires Carroll submodule)
+- **`NEXT_PUBLIC_FEATURE_NOTIFICATIONS_ENABLED`**: Controls main notification system (default: true)
+- **`NEXT_PUBLIC_FEATURE_MP_NOTIFICATIONS_ENABLED`**: Controls multiplayer board notifications (default: true)
+- **`NEXT_PUBLIC_FEATURE_PINNED_AND_PRIORITY`**: Enables moderation features for pinned/priority content
+
+When disabled, respective features are hidden and their APIs return appropriate fallbacks.

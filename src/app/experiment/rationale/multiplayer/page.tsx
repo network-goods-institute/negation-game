@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCopyUrl } from "@/hooks/viewpoints/useCopyUrl";
+import { NotificationsSidebarLauncher } from "@/components/experiment/multiplayer/notifications/NotificationsSidebarLauncher";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -732,6 +733,7 @@ export default function MultiplayerRationaleIndexPage() {
           )}
         </div>
       </TooltipProvider>
+      <NotificationsSidebarLauncher enabled={authenticated} />
 
       {/* Rename Dialog */}
       <Dialog open={!!renamingId} onOpenChange={(open) => {

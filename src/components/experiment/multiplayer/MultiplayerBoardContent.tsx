@@ -39,10 +39,23 @@ import { useMarket } from '@/hooks/market/useMarket';
 import { syncMarketDataToYDoc } from '@/utils/market/marketYDocSync';
 import { buildMarketViewPayload, isMarketEnabled } from '@/utils/market/marketUtils';
 import { logger } from '@/lib/logger';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { MarketPanel } from './market/MarketPanel';
 import { MarketErrorBoundary } from './market/MarketErrorBoundary';
 import { BoardLoading } from './BoardLoading';
 import { DocAccessRole } from '@/services/mpAccess';
+import { NotificationsSidebar } from './notifications/NotificationsSidebar';
+import type { MultiplayerNotification } from './notifications/types';
+import { Bell } from 'lucide-react';
+import { useMultiplayerNotifications } from '@/queries/experiment/multiplayer/useMultiplayerNotifications';
+import {
+  useMarkAllMultiplayerNotificationsRead,
+  useMarkMultiplayerNotificationRead,
+} from '@/mutations/experiment/multiplayer/useMarkMultiplayerNotificationsRead';
+import { stampMissingCreator } from '@/utils/experiment/multiplayer/creatorStamp';
+import { buildEdgeNotificationCandidates } from '@/utils/experiment/multiplayer/notificationRouting';
+import { normalizeNotificationVotes } from '@/utils/experiment/multiplayer/notificationVotes';
+import { createMultiplayerNotification } from '@/actions/experiment/multiplayer/notifications';
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -62,6 +75,7 @@ interface MultiplayerBoardContentProps {
   selectMode: boolean;
   accessRole?: DocAccessRole | null;
   shareToken?: string | null;
+  ownerId?: string | null;
 }
 
 type MarketPanelState = {
@@ -98,6 +112,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   selectMode,
   accessRole = null,
   shareToken = null,
+  ownerId = null,
 }) => {
   const routeId = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
   const {
@@ -120,6 +135,19 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [undoHintPosition, setUndoHintPosition] = useState<{ x: number; y: number } | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [notificationsSidebarOpen, setNotificationsSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState<MultiplayerNotification[]>([]);
+  const mpNotificationsEnabled = isFeatureEnabled("mpNotifications");
+  const unreadNotificationsCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
+  const [focusTarget, setFocusTarget] = useState<{
+    id: string;
+    kind?: "node" | "edge";
+    nonce: number;
+  } | null>(null);
+  const [missingNotificationId, setMissingNotificationId] = useState<string | null>(null);
   const [marketPanelState, setMarketPanelState] = useState<MarketPanelState>({
     nodeId: null,
     edgeId: null,
@@ -153,6 +181,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const [overlayActiveEdgeId, setOverlayActiveEdgeId] = useState<string | null>(null);
   const [forceBlurNodes, setForceBlurNodes] = useState(0);
   const centerOnceIdsRef = useRef<Set<string>>(new Set());
+  const focusNonceRef = useRef(0);
   const [centerQueueVersion, setCenterQueueVersion] = useState(0);
   const {
     nodeId: marketPanelNodeId,
@@ -173,11 +202,140 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     return out;
   }, []);
 
+  const requestFocusTarget = useCallback((id: string, kind?: "node" | "edge") => {
+    if (!id) return;
+    focusNonceRef.current += 1;
+    setFocusTarget({ id, kind, nonce: focusNonceRef.current });
+  }, []);
+
   const blurNodesImmediately = useCallback(() => {
     setForceBlurNodes((v) => v + 1);
   }, []);
 
   const initialGraph = useInitialGraph();
+
+  const notificationDocId = resolvedId || routeId || '';
+  const notificationQueryOptions = useMemo(
+    () => ({
+      docId: notificationDocId,
+      shareToken: shareToken ?? null,
+      limit: 50,
+      pauseAutoRefresh: notificationsSidebarOpen,
+    }),
+    [notificationDocId, notificationsSidebarOpen, shareToken]
+  );
+  const {
+    data: multiplayerNotifications = [],
+    isLoading: notificationsLoading,
+    isFetching: notificationsFetching,
+    refetch: refetchNotifications,
+  } = useMultiplayerNotifications(notificationQueryOptions);
+  const notificationsLoadingState = notificationsLoading || notificationsFetching;
+  const markNotificationReadMutation = useMarkMultiplayerNotificationRead();
+  const markAllNotificationsReadMutation = useMarkAllMultiplayerNotificationsRead();
+  const [pendingNavigateId, setPendingNavigateId] = useState<string | null>(null);
+  const getNodeTitle = useCallback((node: any) => {
+    const data = node?.data || {};
+    const content = data.content ?? data.statement;
+    if (typeof content === 'string' && content.trim()) return content.trim();
+    return 'Untitled point';
+  }, []);
+
+  useEffect(() => {
+    setNotifications((prev) => {
+      if (prev.length === multiplayerNotifications.length) {
+        const same = prev.every((item, idx) => {
+          const next = multiplayerNotifications[idx];
+          return (
+            next &&
+            item.id === next.id &&
+            item.userName === next.userName &&
+            item.count === next.count &&
+            item.timestamp === next.timestamp &&
+            item.isRead === next.isRead &&
+            item.pointTitle === next.pointTitle &&
+            item.type === next.type &&
+            item.action === next.action
+          );
+        });
+        if (same) return prev;
+      }
+      return multiplayerNotifications;
+    });
+  }, [multiplayerNotifications]);
+
+  const handleNotificationRead = useCallback(
+    async (notification: MultiplayerNotification) => {
+      const targetIds = new Set(notification.ids ?? [notification.id]);
+      setNotifications((prev) =>
+        prev.map((n) => {
+          const match =
+            (n.ids && n.ids.some((id) => targetIds.has(id))) ||
+            targetIds.has(n.id);
+          return match ? { ...n, isRead: true } : n;
+        })
+      );
+      try {
+        if (targetIds.size > 1) {
+          await markAllNotificationsReadMutation.mutateAsync({
+            ids: Array.from(targetIds),
+            showToast: false,
+          });
+        } else {
+          const [id] = Array.from(targetIds);
+          await markNotificationReadMutation.mutateAsync(id);
+        }
+      } catch (error) {
+        logger.error("Failed to mark multiplayer notification read", error);
+      }
+    },
+    [markNotificationReadMutation, markAllNotificationsReadMutation]
+  );
+
+  const handleMarkAllNotificationsRead = useCallback(
+    async (notificationIds: string[]) => {
+      if (!notificationIds.length) return;
+      const targetIds = new Set(notificationIds);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          (n.ids && n.ids.some((id) => targetIds.has(id))) || targetIds.has(n.id)
+            ? { ...n, isRead: true }
+            : n
+        )
+      );
+      try {
+        await markAllNotificationsReadMutation.mutateAsync({
+          ids: notificationIds,
+          showToast: true,
+        });
+      } catch (error) {
+        logger.error("Failed to mark multiplayer notifications read", error);
+      }
+    },
+    [markAllNotificationsReadMutation]
+  );
+
+  useEffect(() => {
+    if (!missingNotificationId) return;
+    const target = notifications.find(
+      (n) => n.id === missingNotificationId || (n.ids && n.ids.includes(missingNotificationId))
+    );
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === missingNotificationId || (n.ids && n.ids.includes(missingNotificationId))
+          ? { ...n, isRead: true }
+          : n
+      )
+    );
+    if (target && !target.isRead) {
+      void handleNotificationRead(target);
+    } else {
+      markNotificationReadMutation
+        .mutateAsync(missingNotificationId)
+        .catch((error) => logger.error("Failed to mark multiplayer notification read", error));
+    }
+    setMissingNotificationId(null);
+  }, [missingNotificationId, notifications, handleNotificationRead, markNotificationReadMutation]);
 
   const isProdHost = typeof window !== 'undefined' ? isProductionRequest(window.location.hostname) : false;
   const allowedByRole = accessRole ? (accessRole === 'owner' || accessRole === 'editor') : true;
@@ -185,6 +343,14 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const lastMarketStructSigRef = useRef<string | null>(null);
   const nodesRef = useRef<any[]>([]);
   const edgesRef = useRef<any[]>([]);
+  const notifiedEdgeIdsRef = useRef<Set<string>>(new Set());
+  const initializedEdgeNotificationsRef = useRef(false);
+  const notifiedEdgeTypesRef = useRef<Map<string, Set<string>>>(new Map());
+  const notifiedCommentIdsRef = useRef<Set<string>>(new Set());
+  const notifiedUpvotesRef = useRef<Map<string, Set<string>>>(new Map());
+  const notifiedEdgeVotesRef = useRef<Map<string, Set<string>>>(new Map());
+  const seededHistoricNotificationsRef = useRef(false);
+  const lastVoteSnapshotRef = useRef<Map<string, Set<string>>>(new Map());
 
   const {
     nodes,
@@ -238,10 +404,150 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const marketViewData = marketEnabled ? (market?.view?.data || null) : null;
   const initialMarketFetchDoneRef = useRef(false);
 
+  const handleNavigateToPoint = useCallback(
+    (pointId: string, boardId?: string) => {
+      if (!pointId) return;
+      if (boardId && boardId !== resolvedId) {
+        const targetPath = `/experiment/rationale/multiplayer/${encodeURIComponent(boardId)}?node=${encodeURIComponent(pointId)}`;
+        try {
+          window.location.href = targetPath;
+        } catch (error) {
+          logger.error("Failed to navigate to notification board", error);
+        }
+        return;
+      }
+      const targetNode = nodes.find((n: any) => n.id === pointId);
+      const targetEdge = edges.find((e: any) => e.id === pointId);
+      if (!targetNode && !targetEdge) {
+        logger.warn("Notification target missing", {
+          pointId,
+          nodeCount: nodes.length,
+          edgeCount: edges.length,
+          sampleNodeIds: nodes.slice(0, 5).map((n: any) => n.id),
+          sampleEdgeIds: edges.slice(0, 5).map((e: any) => e.id),
+        });
+        toast.error('That point no longer exists on this board.');
+        const missing = notifications.find((n) => n.pointId === pointId);
+        if (missing) {
+          setMissingNotificationId(missing.id);
+        }
+        return;
+      }
+      if (targetNode) {
+        setSelectedEdgeId(null);
+        setHoveredEdgeId(null);
+        setMarketPanelSelection(pointId, null);
+        setNodes((prev) =>
+          prev.map((n: any) =>
+            n.id === pointId ? { ...n, selected: true } : { ...n, selected: false }
+          )
+        );
+        requestFocusTarget(pointId, "node");
+      } else if (targetEdge) {
+        setMarketPanelSelection(null, pointId);
+        setSelectedEdgeId(pointId);
+        setHoveredEdgeId(pointId);
+        requestFocusTarget(pointId, "edge");
+      }
+    },
+    [resolvedId, setSelectedEdgeId, setHoveredEdgeId, setMarketPanelSelection, setNodes, requestFocusTarget, nodes, edges, notifications]
+  );
+
   useEffect(() => {
     nodesRef.current = nodes as any[];
     edgesRef.current = edges as any[];
   }, [nodes, edges]);
+
+  useEffect(() => {
+    if (!ydoc || !yNodesMap || !yEdgesMap) return;
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
+    const fallbackCreatorId = ownerId || userId || null;
+    if (!fallbackCreatorId) return;
+    if (!allowPersistence) return;
+    const fallbackCreatorName = fallbackCreatorId === userId ? username : null;
+
+    const {
+      nodes: stampedNodes,
+      edges: stampedEdges,
+      changed,
+      changedNodeIds,
+      changedEdgeIds,
+    } = stampMissingCreator(nodes as Node[], edges as any[], fallbackCreatorId, fallbackCreatorName);
+
+    if (!changed) return;
+
+    const changedNodeSet = new Set(changedNodeIds);
+    const changedEdgeSet = new Set(changedEdgeIds);
+    const updatedNodeMap = new Map<string, Node>();
+    stampedNodes.forEach((node) => {
+      if (changedNodeSet.has(node.id)) {
+        updatedNodeMap.set(node.id, node);
+      }
+    });
+    const updatedEdgeMap = new Map<string, any>();
+    stampedEdges.forEach((edge) => {
+      if (changedEdgeSet.has(edge.id)) {
+        updatedEdgeMap.set(edge.id, edge);
+      }
+    });
+
+    setNodes((prev) => {
+      let touched = false;
+      const next = prev.map((node: any) => {
+        const replacement = updatedNodeMap.get(node.id);
+        if (replacement) {
+          touched = true;
+          return replacement;
+        }
+        return node;
+      });
+      return touched ? next : prev;
+    });
+
+    setEdges((prev) => {
+      let touched = false;
+      const next = prev.map((edge: any) => {
+        const replacement = updatedEdgeMap.get(edge.id);
+        if (replacement) {
+          touched = true;
+          return replacement;
+        }
+        return edge;
+      });
+      return touched ? next : prev;
+    });
+
+    ydoc.transact(() => {
+      changedNodeIds.forEach((id) => {
+        const base = yNodesMap.get(id) || nodes.find((n: any) => n.id === id);
+        if (!base) return;
+        const existingName = (base as any)?.data?.createdByName;
+        yNodesMap.set(id, {
+          ...base,
+          data: {
+            ...(base as any).data,
+            createdBy: fallbackCreatorId,
+            createdByName:
+              typeof existingName === "string" ? existingName : fallbackCreatorName,
+          },
+        });
+      });
+      changedEdgeIds.forEach((id) => {
+        const base = yEdgesMap.get(id) || edges.find((e: any) => e.id === id);
+        if (!base) return;
+        const existingName = (base as any)?.data?.createdByName;
+        yEdgesMap.set(id, {
+          ...base,
+          data: {
+            ...(base as any).data,
+            createdBy: fallbackCreatorId,
+            createdByName:
+              typeof existingName === "string" ? existingName : fallbackCreatorName,
+          },
+        });
+      });
+    }, localOriginRef.current);
+  }, [ydoc, yNodesMap, yEdgesMap, nodes, edges, ownerId, userId, username, setNodes, setEdges, allowPersistence]);
 
   useEffect(() => {
     initialMarketFetchDoneRef.current = false;
@@ -322,7 +628,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       }
     }, 800);
     return () => {
-      try { ctrl.abort(); } catch {}
+      try { ctrl.abort(); } catch { }
       window.clearTimeout(timer);
     };
   }, [marketEnabled, marketViewData, nodes, edges, ydoc, yMetaMap, resolvedId]);
@@ -450,6 +756,70 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const canEdit = Boolean(canWrite && allowedByRole && (isConnected || connectedWithGrace));
 
   useEffect(() => {
+    edges.forEach((edge: any) => {
+      if (!initializedEdgeNotificationsRef.current) {
+        notifiedEdgeIdsRef.current.add(edge.id);
+      }
+      const typeSet = notifiedEdgeTypesRef.current.get(edge.id) || new Set<string>();
+      if (edge?.type) {
+        typeSet.add(String(edge.type));
+        notifiedEdgeTypesRef.current.set(edge.id, typeSet);
+      }
+    });
+    if (!initializedEdgeNotificationsRef.current) {
+      initializedEdgeNotificationsRef.current = true;
+    }
+  }, [edges]);
+
+  useEffect(() => {
+    if (!userId || !resolvedId || !Array.isArray(edges) || !Array.isArray(nodes)) return;
+    if (!canEdit) return;
+    if (!mpNotificationsEnabled) return;
+
+    const candidates = buildEdgeNotificationCandidates(
+      edges as any[],
+      nodes as any[],
+      userId,
+      ownerId || null
+    ).filter((candidate) => !notifiedEdgeIdsRef.current.has(candidate.edgeId));
+
+    if (candidates.length === 0) return;
+
+    candidates.forEach((candidate) => {
+      notifiedEdgeIdsRef.current.add(candidate.edgeId);
+      const actionLabel =
+        candidate.type === "negation"
+          ? "negated"
+          : candidate.type === "support"
+            ? "supported"
+            : "objected to";
+      logger.info("mp notifications: creating edge notification", {
+        edgeId: candidate.edgeId,
+        targetNodeId: candidate.targetNodeId,
+        recipientUserId: candidate.recipientUserId,
+        type: candidate.type,
+        docId: resolvedId,
+      });
+      void createMultiplayerNotification({
+        userId: candidate.recipientUserId,
+        docId: resolvedId,
+        shareToken: shareToken ?? null,
+        nodeId: candidate.targetNodeId,
+        edgeId: candidate.edgeId,
+        type: candidate.type,
+        action: actionLabel,
+        actorUserId: userId,
+        actorUsername: username,
+        title: candidate.title,
+      }).catch((error) => {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedEdgeIdsRef.current.delete(candidate.edgeId);
+        logger.error("Failed to create multiplayer notification", error);
+      });
+    });
+  }, [edges, nodes, userId, resolvedId, ownerId, username, shareToken, canEdit, mpNotificationsEnabled]);
+
+  useEffect(() => {
     if (!connectMode) return;
     setNodes((current) => {
       const existing = new Set(current.map((n: any) => n.id));
@@ -490,12 +860,14 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           n.id === nodeParam ? { ...n, selected: true } : { ...n, selected: false }
         )
       );
+      requestFocusTarget(nodeParam!, "node");
     } else if (hasEdge) {
       setMarketPanelSelection(null, edgeParam!);
       setSelectedEdgeId(edgeParam!);
       setNodes((nds: any[]) =>
         nds.map((n: any) => (n.selected ? { ...n, selected: false } : n))
       );
+      requestFocusTarget(edgeParam!, "edge");
     }
 
     // Consume the URL parameters so they don't linger once applied
@@ -515,7 +887,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     }
 
     markShareParamsApplied();
-  }, [shareParamsApplied, isConnected, nodes, edges, setNodes, setSelectedEdgeId, setMarketPanelSelection, markShareParamsApplied]);
+  }, [shareParamsApplied, isConnected, nodes, edges, setNodes, setSelectedEdgeId, setMarketPanelSelection, markShareParamsApplied, requestFocusTarget]);
 
   // Track node selection changes to open/switch market panel (but not close - panel is "sticky")
   useEffect(() => {
@@ -563,11 +935,61 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       const prev = edges.find((e: any) => e.id === edgeId);
       if (!prev) return;
       if (prev.type === newType) return;
+      const updatedEdge = {
+        ...prev,
+        type: newType,
+        data: {
+          ...(prev as any).data,
+          createdBy: (prev as any)?.data?.createdBy ?? userId,
+          createdByName: (prev as any)?.data?.createdByName ?? username,
+        },
+      };
+      const typesSet = notifiedEdgeTypesRef.current.get(edgeId) || new Set<string>();
+      const alreadyNotified = typesSet.has(newType);
       updateEdgeType(edgeId, newType);
+
+      if (mpNotificationsEnabled && !alreadyNotified && userId && resolvedId) {
+        const candidates = buildEdgeNotificationCandidates(
+          [updatedEdge] as any[],
+          nodes as any[],
+          userId,
+          ownerId || null,
+          { requireCreatorMatch: false }
+        );
+        if (candidates.length > 0) {
+          const candidate = candidates[0];
+          const actionLabel = newType === 'negation' ? 'negated' : 'supported';
+          logger.info("mp notifications: edge type switch", {
+            edgeId,
+            targetNodeId: candidate.targetNodeId,
+            recipientUserId: candidate.recipientUserId,
+            type: candidate.type,
+            docId: resolvedId,
+          });
+          typesSet.add(newType);
+          notifiedEdgeTypesRef.current.set(edgeId, typesSet);
+          void createMultiplayerNotification({
+            userId: candidate.recipientUserId,
+            docId: resolvedId,
+            shareToken: shareToken ?? null,
+            nodeId: candidate.targetNodeId,
+            edgeId: candidate.edgeId,
+            type: candidate.type,
+            action: actionLabel,
+            actorUserId: userId,
+            actorUsername: username,
+            title: candidate.title,
+          }).catch((error) => {
+            logger.error("Failed to create multiplayer notification for edge type switch", error);
+            // eslint-disable-next-line drizzle/enforce-delete-with-where
+            typesSet.delete(newType);
+          });
+        }
+      }
     } catch (error) {
       logDevError('[edge/ui] edge type effect failed', error);
     }
-  }, [edges, updateEdgeType]);
+  }, [edges, updateEdgeType, userId, ownerId, username, resolvedId, nodes, shareToken, mpNotificationsEnabled]);
 
   const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
 
@@ -828,6 +1250,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       await refreshMarketNow();
     },
     connectMode,
+    currentUserId: userId,
+    currentUsername: username,
   });
 
   const deleteNode = useCallback((nodeId: string) => {
@@ -887,6 +1311,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     getNodeCenter,
     getEdgeMidpoint,
     getPreferredEdgeType: () => preferredEdgeTypeRef.current,
+    currentUserId: userId,
+    currentUsername: username,
   });
 
   useKeyboardShortcuts(undo, redo, {
@@ -924,6 +1350,248 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       return null;
     }
   }, [marketPanelNodeId, nodes]);
+
+  useEffect(() => {
+    // Seed seen maps once after initial graph is loaded to avoid retroactive notifications
+    if (seededHistoricNotificationsRef.current) return;
+    if (!Array.isArray(nodes) || !Array.isArray(edges)) return;
+    if (nodes.length === 0 && edges.length === 0) return;
+    seededHistoricNotificationsRef.current = true;
+    nodes.forEach((node: any) => {
+      if (node?.type === 'comment') {
+        notifiedCommentIdsRef.current.add(node.id);
+      }
+      const votes = normalizeNotificationVotes(node?.data?.votes);
+      if (votes.length === 0) return;
+      const set = notifiedUpvotesRef.current.get(node.id) || new Set<string>();
+      votes.forEach((vote) => {
+        set.add(vote.id);
+      });
+      if (set.size > 0) {
+        notifiedUpvotesRef.current.set(node.id, set);
+      }
+    });
+    edges.forEach((edge: any) => {
+      const votes = normalizeNotificationVotes(edge?.data?.votes);
+      if (votes.length === 0) return;
+      const set = notifiedEdgeVotesRef.current.get(edge.id) || new Set<string>();
+      votes.forEach((vote) => {
+        set.add(vote.id);
+      });
+      if (set.size > 0) {
+        notifiedEdgeVotesRef.current.set(edge.id, set);
+      }
+    });
+  }, [nodes, edges]);
+
+  useEffect(() => {
+    if (!resolvedId || !Array.isArray(nodes) || !Array.isArray(edges)) return;
+    if (!mpNotificationsEnabled) return;
+    if (!userId) return;
+
+    const tasks: Promise<void>[] = [];
+
+    const voteSnapshot = new Map<string, Set<string>>();
+    const edgeVoteSnapshot = new Map<string, Set<string>>();
+
+    for (const node of nodes as any[]) {
+      // Comment notifications
+      if (node?.type === 'comment' && !notifiedCommentIdsRef.current.has(node.id)) {
+        const actorId = typeof node?.data?.createdBy === 'string' ? node.data.createdBy : null;
+        if (!actorId || actorId !== userId) {
+          notifiedCommentIdsRef.current.add(node.id);
+          continue;
+        }
+        const actorName = node?.data?.createdByName || username || undefined;
+        const commentEdge = edges.find((e: any) => e?.type === 'comment' && e?.source === node.id);
+        const targetNodeId = commentEdge?.target || null;
+        const targetNode = nodes.find((n: any) => n.id === targetNodeId);
+        const recipientRaw = targetNode?.data?.createdBy || ownerId || null;
+        const recipientId =
+          typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
+        if (recipientId && recipientId !== actorId) {
+          const title = targetNode ? getNodeTitle(targetNode) : 'Comment';
+          const commentContent =
+            typeof node?.data?.content === 'string' ? node.data.content : undefined;
+          const isReply = targetNode?.type === 'comment';
+          const actionLabel = isReply ? 'replied to your comment' : 'commented on';
+          notifiedCommentIdsRef.current.add(node.id);
+          tasks.push(
+            createMultiplayerNotification({
+              userId: recipientId,
+              docId: resolvedId,
+              shareToken: shareToken ?? null,
+              nodeId: targetNodeId || node.id,
+              edgeId: commentEdge?.id || null,
+              type: 'comment',
+              action: actionLabel,
+              actorUserId: actorId,
+              actorUsername: actorName,
+              title,
+              content: commentContent,
+              metadata: {
+                ...(node?.data?.metadata || {}),
+                isReply,
+                targetNodeId: targetNodeId || null,
+              },
+            })
+              .then(() => {})
+              .catch((error) => {
+                logger.error("Failed to create multiplayer notification for comment", error);
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
+                notifiedCommentIdsRef.current.delete(node.id);
+              })
+          );
+        }
+      }
+
+      // Upvote notifications
+      const votes = normalizeNotificationVotes(node?.data?.votes);
+      if (votes.length === 0) continue;
+      const voteSet = new Set(votes.map((vote) => vote.id));
+      voteSnapshot.set(node.id, voteSet);
+
+      const seen = notifiedUpvotesRef.current.get(node.id) || new Set<string>();
+      for (const vote of votes) {
+        const voterId = vote.id;
+        if (!voterId || seen.has(voterId)) continue;
+        if (voterId !== userId) {
+          seen.add(voterId);
+          continue;
+        }
+        const recipientRaw = node?.data?.createdBy || ownerId || null;
+        const recipientId =
+          typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
+        if (!recipientId || recipientId === voterId) {
+          seen.add(voterId);
+          continue;
+        }
+        const voterName = vote.name;
+        const title = getNodeTitle(node);
+        seen.add(voterId);
+        tasks.push(
+          createMultiplayerNotification({
+            userId: recipientId,
+            docId: resolvedId,
+            shareToken: shareToken ?? null,
+            nodeId: node.id,
+            edgeId: null,
+            type: 'upvote',
+            action: 'upvoted',
+            actorUserId: voterId,
+            actorUsername: voterName,
+            title,
+          })
+            .then(() => {})
+            .catch((error) => {
+              logger.error("Failed to create multiplayer notification for upvote", error);
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              seen.delete(voterId);
+            })
+        );
+      }
+      if (seen.size > 0) {
+        notifiedUpvotesRef.current.set(node.id, seen);
+      }
+    }
+
+    for (const edge of edges as any[]) {
+      const votes = normalizeNotificationVotes(edge?.data?.votes);
+      if (votes.length === 0) continue;
+      const voteSet = new Set(votes.map((vote) => vote.id));
+      edgeVoteSnapshot.set(edge.id, voteSet);
+
+      const seen = notifiedEdgeVotesRef.current.get(edge.id) || new Set<string>();
+      for (const vote of votes) {
+        const voterId = vote.id;
+        if (!voterId || seen.has(voterId)) continue;
+        if (voterId !== userId) {
+          seen.add(voterId);
+          continue;
+        }
+        const recipientRaw = edge?.data?.createdBy || ownerId || null;
+        const recipientId =
+          typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
+        if (!recipientId || recipientId === voterId) {
+          seen.add(voterId);
+          continue;
+        }
+        const targetNodeId = typeof edge?.target === 'string' ? edge.target : null;
+        const targetNode = targetNodeId ? nodes.find((n: any) => n.id === targetNodeId) : null;
+        const title = targetNode ? getNodeTitle(targetNode) : 'Edge';
+        const voterName = vote.name;
+        seen.add(voterId);
+        tasks.push(
+          createMultiplayerNotification({
+            userId: recipientId,
+            docId: resolvedId,
+            shareToken: shareToken ?? null,
+            nodeId: null,
+            edgeId: edge.id,
+            type: 'upvote',
+            action: 'upvoted',
+            actorUserId: voterId,
+            actorUsername: voterName,
+            title,
+          })
+            .then(() => {})
+            .catch((error) => {
+              logger.error("Failed to create multiplayer notification for edge upvote", error);
+              // eslint-disable-next-line drizzle/enforce-delete-with-where
+              seen.delete(voterId);
+            })
+        );
+      }
+      if (seen.size > 0) {
+        notifiedEdgeVotesRef.current.set(edge.id, seen);
+      }
+    }
+
+    // Remove stale vote entries to allow re-notify on genuine revote after removal
+    notifiedUpvotesRef.current.forEach((set, nodeId) => {
+      const current = voteSnapshot.get(nodeId);
+      if (!current) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedUpvotesRef.current.delete(nodeId);
+        return;
+      }
+      for (const voterId of Array.from(set)) {
+        if (!current.has(voterId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          set.delete(voterId);
+        }
+      }
+      if (set.size === 0) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedUpvotesRef.current.delete(nodeId);
+      }
+    });
+    lastVoteSnapshotRef.current = voteSnapshot;
+
+    notifiedEdgeVotesRef.current.forEach((set, edgeId) => {
+      const current = edgeVoteSnapshot.get(edgeId);
+      if (!current) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedEdgeVotesRef.current.delete(edgeId);
+        return;
+      }
+      for (const voterId of Array.from(set)) {
+        if (!current.has(voterId)) {
+          // eslint-disable-next-line drizzle/enforce-delete-with-where
+          set.delete(voterId);
+        }
+      }
+      if (set.size === 0) {
+        // eslint-disable-next-line drizzle/enforce-delete-with-where
+        notifiedEdgeVotesRef.current.delete(edgeId);
+      }
+    });
+
+    if (tasks.length > 0) {
+      void Promise.all(tasks);
+    }
+  }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username, shareToken, mpNotificationsEnabled, userId]);
+
   const fullyReady = Boolean(initialGraph && resolvedId && (isReady || connectionState === 'failed'));
 
   if (!fullyReady) {
@@ -976,6 +1644,25 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           }
         }}
       />
+
+      {mpNotificationsEnabled && !shareDialogOpen && !notificationsSidebarOpen && (
+        <button
+          onClick={() => setNotificationsSidebarOpen(true)}
+          className="fixed top-1/3 right-0 z-[70] bg-white/95 backdrop-blur-sm border-2 border-r-0 border-stone-300 rounded-l-lg shadow-lg hover:shadow-xl hover:-translate-x-1 transition-all py-6 px-2 group"
+          title="Notifications"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <Bell className="h-4 w-4 text-stone-700" />
+            {notificationsLoadingState ? (
+              <div className="rounded-full w-6 h-6 border-2 border-red-300 border-l-transparent animate-spin" aria-label="Loading notifications" />
+            ) : unreadNotificationsCount > 0 ? (
+              <div className="bg-red-500 rounded-full w-6 h-6 flex items-center justify-center">
+                <span className="text-white text-[10px] font-bold">{unreadNotificationsCount}</span>
+              </div>
+            ) : null}
+          </div>
+        </button>
+      )}
 
       <ReactFlowProvider>
         <PerfProvider value={{ perfMode: (((nodes?.length || 0) + (edges?.length || 0)) > 600) || perfBoost || grabMode, setPerfMode: setPerfBoost }}>
@@ -1064,6 +1751,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                 forceSave={forceSave}
                 yMetaMap={yMetaMap as any}
                 isMarketPanelVisible={!!(marketPanelNodeId || marketPanelEdgeId)}
+                focusTarget={focusTarget}
                 onFlowMouseMove={(x, y) => {
                   if (!connectAnchorRef.current) return;
                   setConnectCursor({ x, y });
@@ -1170,6 +1858,22 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         position={undoHintPosition}
         onDismiss={() => setUndoHintPosition(null)}
       />
+
+      {mpNotificationsEnabled && (
+        <NotificationsSidebar
+          isOpen={notificationsSidebarOpen}
+          notifications={notifications}
+          onNotificationsUpdate={setNotifications}
+          onClose={() => setNotificationsSidebarOpen(false)}
+          onNotificationRead={handleNotificationRead}
+          onMarkAllRead={handleMarkAllNotificationsRead}
+          onNavigateToPoint={handleNavigateToPoint}
+          isLoading={notificationsLoading || notificationsFetching}
+          onRefresh={() => {
+            void refetchNotifications();
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -38,9 +38,17 @@ describe("connect utils", () => {
       { id: "a", type: "point" },
       { id: "b", type: "statement" },
     ];
-    const { id, edge, edgeType } = buildConnectionEdge(nodes as any, "b", "a");
+    const { id, edge, edgeType } = buildConnectionEdge(
+      nodes as any,
+      "b",
+      "a",
+      undefined,
+      { userId: "user-1", username: "Alex" }
+    );
     expect(edgeType).toBe("option");
     expect(id).toBe(`edge:option:a:a-source-handle->b:b-incoming-handle`);
     expect(edge.id).toBe(id);
+    expect(edge.data.createdBy).toBe("user-1");
+    expect(edge.data.createdByName).toBe("Alex");
   });
 });

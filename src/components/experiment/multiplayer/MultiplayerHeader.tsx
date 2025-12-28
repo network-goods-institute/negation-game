@@ -408,11 +408,61 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
         </div>
         {/* User Info & Status */}
         <div className="px-4 py-3">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: userColor }} />
-            <span className="text-xs text-stone-600">
-              <span className="font-medium" style={{ color: userColor }}>{username}</span>
-            </span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: userColor }} />
+              <span className="text-xs text-stone-600">
+                <span className="font-medium" style={{ color: userColor }}>{username}</span>
+              </span>
+            </div>
+
+            {/* Subtle save indicator */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    if (!isSaving && forceSave) {
+                      forceSave();
+                    }
+                  }}
+                  disabled={isSaving || !forceSave || proxyMode || !isConnected}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-stone-100 dark:hover:bg-stone-800 transition-all disabled:cursor-default disabled:hover:bg-transparent group relative"
+                >
+                  {proxyMode ? (
+                    <>
+                      <span className="text-[10px] text-stone-500 dark:text-stone-400 font-medium">Save:</span>
+                      <div className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                      <span className="text-[10px] text-stone-400">read-only</span>
+                    </>
+                  ) : !isConnected ? (
+                    <>
+                      <span className="text-[10px] text-stone-500 dark:text-stone-400 font-medium">Save:</span>
+                      <div className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+                      <span className="text-[10px] text-stone-400">offline</span>
+                    </>
+                  ) : isSaving ? (
+                    <>
+                      <span className="text-[10px] text-stone-500 dark:text-stone-400 font-medium">Saving:</span>
+                      <div className="h-2 w-2 rounded-full border border-stone-300 border-t-stone-500 animate-spin" />
+                    </>
+                  ) : timeLeft !== null ? (
+                    <>
+                      <span className="text-[10px] text-stone-500 dark:text-stone-400 font-medium">Save:</span>
+                      <div className="h-1.5 w-1.5 rounded-full bg-green-400 group-hover:scale-125 transition-transform" />
+                      <span className="text-[10px] text-stone-400 tabular-nums">{formatTime(timeLeft)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[10px] text-stone-500 dark:text-stone-400 font-medium">Saved:</span>
+                      <div className="h-1.5 w-1.5 rounded-full bg-green-400 group-hover:scale-125 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">
+                {proxyMode ? "Read-only mode" : !isConnected ? "Not connected" : isSaving ? "Saving..." : "Save now"}
+              </TooltipContent>
+            </Tooltip>
           </div>
 
           {/* Connected Users */}
@@ -627,69 +677,8 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
         </div>
       </div>
       )}
-      {!shareOpen && (
-        <div className="absolute top-4 right-4 z-[60] flex flex-col items-end gap-2">
-        <div className="flex items-center gap-2 bg-white/90 backdrop-blur rounded-full border px-3 py-1 shadow-sm">
-          {proxyMode ? (
-            <>
-              <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-              <span className="text-xs text-amber-700">No changes persist</span>
-            </>
-          ) : (
-            <>
-              {!isConnected ? (
-                <>
-                  <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-                  <span className="text-xs text-stone-700">Not Connected — changes won&apos;t be saved</span>
-                  <button
-                    onClick={async () => {
-                      try {
-                        if (onRetryConnection) {
-                          await onRetryConnection();
-                        } else {
-                          onResyncNow?.();
-                        }
-                      } catch (err) {
-                        logger.error('Retry connection failed:', err);
-                      }
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-800 border-l border-stone-200 pl-2 ml-1"
-                    title="Retry connect"
-                  >
-                    Retry
-                  </button>
-                </>
-              ) : isSaving ? (
-                <div className="h-3 w-3 rounded-full border-2 border-stone-300 border-t-stone-600 animate-spin" />
-              ) : (
-                <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-              )}
-              <span className="text-xs text-stone-700">
-                {isSaving ? 'Saving…' : (!isConnected ? '' : (timeLeft !== null ? `Next save in ${formatTime(timeLeft)}` : 'Saved'))}
-              </span>
-              {forceSave && !isSaving && (
-                <button
-                  onClick={() => forceSave()}
-                  className="text-xs text-blue-600 hover:text-blue-800 border-l border-stone-200 pl-2 ml-1"
-                  title="Force save now"
-                >
-                  Save now
-                </button>
-              )}
-              {isSaving && interruptSave && (
-                <button
-                  onClick={() => interruptSave()}
-                  className="text-xs text-red-600 hover:text-red-800 border-l border-stone-200 pl-2 ml-1"
-                  title="Stop saving"
-                >
-                  Stop
-                </button>
-              )}
-            </>
-          )}
-        </div>
-        {marketEnabled && (
-          <div className="flex items-end justify-end">
+      {!shareOpen && marketEnabled && (
+        <div className="absolute top-4 right-4 z-[60]">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -766,9 +755,7 @@ export const MultiplayerHeader: React.FC<MultiplayerHeaderProps> = ({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          </div>
-        )}
-      </div>
+        </div>
       )}
       <ShareBoardDialog
         docId={documentId || ''}

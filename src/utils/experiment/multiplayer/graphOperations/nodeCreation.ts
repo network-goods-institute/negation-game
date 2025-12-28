@@ -31,6 +31,7 @@ export const createAddNodeAtPosition = (
   canWrite: boolean,
   localOrigin: object,
   setNodes: (updater: (nodes: any[]) => any[]) => void,
+  creator: { userId?: string | null; username?: string | null },
   onNodeCreated?: () => void,
   onNodeAdded?: (id: string) => void
 ) => {
@@ -63,7 +64,12 @@ export const createAddNodeAtPosition = (
       id,
       type,
       position: { x, y },
-      data: { ...baseData, createdAt: Date.now() },
+      data: {
+        ...baseData,
+        createdAt: Date.now(),
+        createdBy: creator.userId || null,
+        createdByName: creator.username || null,
+      },
       selected: true,
     };
 
@@ -109,6 +115,7 @@ export const createAddNegationBelow = (
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
   getViewportOffset?: () => { x: number; y: number },
+  creator?: { userId?: string | null; username?: string | null },
   onNodeCreated?: () => void,
   onNodeAdded?: (id: string) => void
 ) => {
@@ -135,7 +142,12 @@ export const createAddNegationBelow = (
       id: newId,
       type: "point",
       position: { x: newPos.x, y: newPos.y + 32 },
-      data: { content: "New point", createdAt: Date.now() },
+      data: {
+        content: "New point",
+        createdAt: Date.now(),
+        createdBy: creator?.userId || null,
+        createdByName: creator?.username || null,
+      },
       selected: true,
     };
     const edgeType = chooseEdgeType(newNode.type, parent.type);
@@ -146,7 +158,10 @@ export const createAddNegationBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
-      data: {},
+      data: {
+        createdBy: creator?.userId || null,
+        createdByName: creator?.username || null,
+      },
     };
     // Clear all existing selections and add new node/edge
     onNodeCreated?.();
@@ -190,6 +205,7 @@ export const createAddSupportBelow = (
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
   getViewportOffset?: () => { x: number; y: number },
+  creator?: { userId?: string | null; username?: string | null },
   onNodeCreated?: () => void,
   onNodeAdded?: (id: string) => void
 ) => {
@@ -216,7 +232,12 @@ export const createAddSupportBelow = (
       id: newId,
       type: "point",
       position: { x: newPos.x, y: newPos.y + 32 },
-      data: { content: "New Support", createdAt: Date.now() },
+      data: {
+        content: "New Support",
+        createdAt: Date.now(),
+        createdBy: creator?.userId || null,
+        createdByName: creator?.username || null,
+      },
       selected: true,
     };
     const newEdge: any = {
@@ -226,7 +247,10 @@ export const createAddSupportBelow = (
       target: parentNodeId,
       sourceHandle: `${newId}-source-handle`,
       targetHandle: `${parentNodeId}-incoming-handle`,
-      data: {},
+      data: {
+        createdBy: creator?.userId || null,
+        createdByName: creator?.username || null,
+      },
     };
     // Clear all existing selections and add new node/edge
     onNodeCreated?.();
@@ -269,8 +293,16 @@ export const createAddPointBelow = (
   isLockedForMe?: (nodeId: string) => boolean,
   getLockOwner?: (nodeId: string) => { name?: string } | null,
   getViewportOffset?: () => { x: number; y: number },
+  creatorOrOptions?: { userId?: string | null; username?: string | null } | CreateAddPointBelowOptions,
   options?: CreateAddPointBelowOptions
 ) => {
+  const creator =
+    creatorOrOptions && ("userId" in (creatorOrOptions as any) || "username" in (creatorOrOptions as any))
+      ? (creatorOrOptions as { userId?: string | null; username?: string | null })
+      : undefined;
+  const resolvedOptions =
+    creator && options ? options : (!creator ? (creatorOrOptions as CreateAddPointBelowOptions | undefined) : options);
+
   return (
     parentInput:
       | string
@@ -385,7 +417,7 @@ export const createAddPointBelow = (
         defaultContent = "New Comment";
       } else {
         // For point/objection parents, determine label based on edge type
-        const preferred = options?.getPreferredEdgeType?.({
+        const preferred = resolvedOptions?.getPreferredEdgeType?.({
           parent: firstParent,
         });
         const edgeType = chooseEdgeType("point", firstParentType, preferred);
@@ -407,7 +439,12 @@ export const createAddPointBelow = (
         x: newPos.x,
         y: newPos.y,
       },
-      data: { content: defaultContent, createdAt: Date.now() },
+      data: {
+        content: defaultContent,
+        createdAt: Date.now(),
+        createdBy: creator?.userId || null,
+        createdByName: creator?.username || null,
+      },
       selected: true,
     };
 
@@ -418,7 +455,7 @@ export const createAddPointBelow = (
 
     for (const parent of parents) {
       const parentType = (parent as any).type;
-      const preferred = options?.getPreferredEdgeType?.({ parent });
+      const preferred = resolvedOptions?.getPreferredEdgeType?.({ parent });
       const edgeType = chooseEdgeType("point", parentType, preferred);
 
       const newEdge: any = {
@@ -428,7 +465,10 @@ export const createAddPointBelow = (
         target: (parent as any).id,
         sourceHandle: `${newId}-source-handle`,
         targetHandle: `${(parent as any).id}-incoming-handle`,
-        data: {},
+        data: {
+          createdBy: creator?.userId || null,
+          createdByName: creator?.username || null,
+        },
       };
 
       newEdges.push(newEdge);
@@ -436,7 +476,7 @@ export const createAddPointBelow = (
     }
 
     // Clear all existing selections and add the new node/edges
-    options?.onNodeCreated?.();
+    resolvedOptions?.onNodeCreated?.();
     setNodes((curr) => [
       ...curr.map((n) => ({ ...n, selected: false })),
       newNode,
@@ -448,7 +488,7 @@ export const createAddPointBelow = (
     ]);
 
     // Notify about added node
-    options?.onNodeAdded?.(newId);
+    resolvedOptions?.onNodeAdded?.(newId);
 
     if (yNodesMap && yEdgesMap && ydoc && canWrite) {
       ydoc.transact(() => {
@@ -463,7 +503,7 @@ export const createAddPointBelow = (
     }
 
     // Trigger edge created callback for each edge
-    results.forEach((result) => options?.onEdgeCreated?.(result));
+    results.forEach((result) => resolvedOptions?.onEdgeCreated?.(result));
 
     // Return single result (the one node with multiple edges)
     return results[0];

@@ -687,6 +687,13 @@
       "when": 1766470032214,
       "tag": "0097_confused_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1765608071373,
+      "tag": "0098_cool_vampiro",
+      "breakpoints": true
     }
   ]
 }
