@@ -9,6 +9,7 @@ import type { MultiplayerNotification } from "./types";
 import { useMarkAllMultiplayerNotificationsRead, useMarkMultiplayerNotificationRead } from "@/mutations/experiment/multiplayer/useMarkMultiplayerNotificationsRead";
 import { recordOpen } from "@/actions/experimental/rationales";
 import { logger } from "@/lib/logger";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 interface NotificationsSidebarLauncherProps {
   enabled?: boolean;
@@ -18,6 +19,7 @@ export function NotificationsSidebarLauncher({
   enabled = true,
 }: NotificationsSidebarLauncherProps) {
   const router = useRouter();
+  const mpNotificationsEnabled = isFeatureEnabled("mpNotifications");
   const [isOpen, setIsOpen] = useState(false);
   const {
     data: multiplayerNotifications = [],
@@ -120,7 +122,7 @@ export function NotificationsSidebarLauncher({
     [router]
   );
 
-  if (!enabled) return null;
+  if (!enabled || !mpNotificationsEnabled) return null;
 
   return (
     <>

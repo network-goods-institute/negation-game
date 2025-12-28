@@ -9,6 +9,7 @@ import {
   usersTable,
 } from "@/db/schema";
 import { logger } from "@/lib/logger";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 import type {
   InsertMpNotification,
   SelectMpNotification,
@@ -23,6 +24,7 @@ import {
 } from "drizzle-orm";
 
 const shouldLogMpNotifications = process.env.MP_NOTIFICATIONS_DEBUG === "true";
+const mpNotificationsEnabled = isFeatureEnabled("mpNotifications");
 
 export type MultiplayerNotificationType = (typeof mpNotificationTypeEnum.enumValues)[number];
 
@@ -61,6 +63,9 @@ export const getMultiplayerNotifications = async (
   options: GetMultiplayerNotificationsOptions = {}
 ): Promise<MultiplayerNotificationRecord[]> => {
   const { docId, unreadOnly = false, limit = 50 } = options;
+  if (!mpNotificationsEnabled) {
+    return [];
+  }
   const userId = await getUserId();
   if (!userId) {
     logger.warn("mp notifications: missing user id for fetch", {
@@ -137,6 +142,9 @@ export const getMultiplayerNotifications = async (
 export const getMultiplayerNotificationSummaries = async (): Promise<
   MultiplayerNotificationSummary[]
 > => {
+  if (!mpNotificationsEnabled) {
+    return [];
+  }
   const userId = await getUserId();
   if (!userId) {
     logger.warn("mp notifications: missing user id for summaries");
@@ -324,6 +332,9 @@ export interface CreateMultiplayerNotificationInput
 export const createMultiplayerNotification = async (
   input: CreateMultiplayerNotificationInput
 ) => {
+  if (!mpNotificationsEnabled) {
+    return null;
+  }
   const { userId, docId, type, title } = input;
   if (!userId || !docId || !type || !title) {
     logger.warn("mp notifications: missing fields on create", {
@@ -450,6 +461,9 @@ export const createMultiplayerNotification = async (
 };
 
 export const markMultiplayerNotificationRead = async (notificationId: string) => {
+  if (!mpNotificationsEnabled) {
+    return null;
+  }
   const userId = await getUserId();
   if (!userId) {
     throw new Error("Unauthorized");
@@ -474,6 +488,9 @@ export const markMultiplayerNotificationRead = async (notificationId: string) =>
 };
 
 export const markMultiplayerNotificationsRead = async (notificationIds: string[]) => {
+  if (!mpNotificationsEnabled) {
+    return { updated: 0 };
+  }
   const userId = await getUserId();
   if (!userId) {
     throw new Error("Unauthorized");

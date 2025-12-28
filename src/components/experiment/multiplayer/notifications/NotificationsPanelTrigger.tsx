@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { useMultiplayerNotificationSummaries } from "@/queries/experiment/multiplayer/useMultiplayerNotifications";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 
 export function NotificationsPanelTrigger() {
+  const mpNotificationsEnabled = isFeatureEnabled("mpNotifications");
   const [isOpen, setIsOpen] = useState(false);
   const { data: summaries } = useMultiplayerNotificationSummaries();
   const summariesToShow = useMemo(
@@ -23,6 +25,8 @@ export function NotificationsPanelTrigger() {
       ),
     [summariesToShow]
   );
+
+  if (!mpNotificationsEnabled) return null;
 
   return (
     <>

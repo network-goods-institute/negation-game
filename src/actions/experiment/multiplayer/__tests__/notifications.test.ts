@@ -221,6 +221,7 @@ describe("multiplayer notifications actions", () => {
       type: "support",
       title: "Point",
     });
+    if (!row) throw new Error("Expected row");
     expect(row.id).toBe("new-id");
   });
 
@@ -236,6 +237,7 @@ describe("multiplayer notifications actions", () => {
       type: "support",
       title: "Point",
     });
+    if (!row) throw new Error("Expected row");
     expect(row.id).toBe(existing.id);
     expect(mockInsert).not.toHaveBeenCalled();
   });

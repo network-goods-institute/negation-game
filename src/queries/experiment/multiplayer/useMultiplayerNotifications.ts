@@ -3,6 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useAuthenticatedQuery } from "@/queries/auth/useAuthenticatedQuery";
 import { useUser } from "@/queries/users/useUser";
 import { useAppVisibility } from "@/hooks/utils/useAppVisibility";
+import { isFeatureEnabled } from "@/lib/featureFlags";
 import {
   getMultiplayerNotifications,
   getMultiplayerNotificationSummaries,
@@ -199,7 +200,8 @@ export const useMultiplayerNotifications = (
 ) => {
   const { data: user } = useUser();
   const isVisible = useAppVisibility();
-  const enabled = Boolean(user?.id && options.docId);
+  const mpNotificationsEnabled = isFeatureEnabled("mpNotifications");
+  const enabled = Boolean(mpNotificationsEnabled && user?.id && options.docId);
   const pauseAutoRefresh = Boolean(options.pauseAutoRefresh);
   const normalizedOptions = useMemo(
     () => ({
@@ -234,7 +236,8 @@ export const useAllMultiplayerNotifications = (
 ) => {
   const { data: user } = useUser();
   const isVisible = useAppVisibility();
-  const enabled = Boolean(user?.id);
+  const mpNotificationsEnabled = isFeatureEnabled("mpNotifications");
+  const enabled = Boolean(mpNotificationsEnabled && user?.id);
   const pauseAutoRefresh = Boolean(options.pauseAutoRefresh);
   const normalizedOptions = useMemo(
     () => ({
@@ -266,7 +269,8 @@ export const useAllMultiplayerNotifications = (
 export const useMultiplayerNotificationSummaries = () => {
   const { data: user } = useUser();
   const isVisible = useAppVisibility();
-  const enabled = Boolean(user?.id);
+  const mpNotificationsEnabled = isFeatureEnabled("mpNotifications");
+  const enabled = Boolean(mpNotificationsEnabled && user?.id);
 
   const query = useAuthenticatedQuery({
     queryKey: ["mp-notifications", "summaries", user?.id],

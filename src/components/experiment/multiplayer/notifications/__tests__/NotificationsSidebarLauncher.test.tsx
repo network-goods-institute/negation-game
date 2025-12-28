@@ -1,6 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { NotificationsSidebarLauncher } from '@/components/experiment/multiplayer/notifications/NotificationsSidebarLauncher';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 
 const mockPush = jest.fn();
 const notificationsSidebarMock = jest.fn();
@@ -50,10 +51,15 @@ jest.mock('@/actions/experimental/rationales', () => ({
   recordOpen: jest.fn(async () => ({})),
 }));
 
+jest.mock('@/lib/featureFlags', () => ({
+  isFeatureEnabled: jest.fn(),
+}));
+
 describe('NotificationsSidebarLauncher', () => {
   beforeEach(() => {
     notificationsSidebarMock.mockClear();
     mockPush.mockClear();
+    (isFeatureEnabled as jest.Mock).mockReturnValue(true);
   });
 
   it('passes board context props to sidebar', () => {
@@ -74,5 +80,11 @@ describe('NotificationsSidebarLauncher', () => {
     };
     props.onNavigateToPoint('point-1', 'board-1');
     expect(mockPush).toHaveBeenCalledWith('/experiment/rationale/multiplayer/board-1');
+  });
+
+  it('returns null when multiplayer notifications are disabled', () => {
+    (isFeatureEnabled as jest.Mock).mockReturnValue(false);
+    const { queryByTestId } = render(<NotificationsSidebarLauncher />);
+    expect(queryByTestId('notifications-sidebar')).not.toBeInTheDocument();
   });
 });

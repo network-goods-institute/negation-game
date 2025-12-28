@@ -177,7 +177,8 @@ YJS_AUTH_SECRET="generate-a-random-secret-key"
 # Core Features
 NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED=true  # Enable/disable multiplayer collaborative boards (default: false)
 NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED=false      # Enable/disable prediction market features (default: false)
-NEXT_PUBLIC_FEATURE_NOTIFICATIONS_ENABLED=true   # Enable/disable notifications system (default: true)
+NEXT_PUBLIC_FEATURE_NOTIFICATIONS_ENABLED=true   # Enable/disable main notifications system (default: true)
+NEXT_PUBLIC_FEATURE_MP_NOTIFICATIONS_ENABLED=true  # Enable/disable multiplayer board notifications (default: true)
 NEXT_PUBLIC_FEATURE_PINNED_AND_PRIORITY=false    # Enable/disable pinned and priority points (default: false)
 
 # Performance & Behavior
@@ -209,7 +210,9 @@ SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 
 - **`NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED`**: Activates prediction market features for nodes and edges, including price tracking, holdings, share trading, and market overlays. When disabled, market-related UI components and API endpoints are hidden. Requires additional git submodules - see `scripts/init-submodules.js`.
 
-- **`NEXT_PUBLIC_FEATURE_NOTIFICATIONS_ENABLED`**: Controls the notification system for multiplayer boards. When enabled (default), users receive notifications for negations, objections, supports, upvotes, and comments on their points. Notifications appear in the sidebar and can be marked as read.
+- **`NEXT_PUBLIC_FEATURE_NOTIFICATIONS_ENABLED`**: Controls the main notification system (non-multiplayer). When enabled (default), users receive notifications for negations, objections, supports, upvotes, and comments on their points.
+
+- **`NEXT_PUBLIC_FEATURE_MP_NOTIFICATIONS_ENABLED`**: Controls the multiplayer board notification system. When enabled (default), users receive activity notifications for supports, negations, objections, comments, and upvotes on their boards, shown in the board sidebar.
 
 - **`NEXT_PUBLIC_FEATURE_PINNED_AND_PRIORITY`**: Enables moderators to pin specific points to the top of feeds and mark points as priority. Useful for highlighting important discussions or announcements in specific spaces.
 

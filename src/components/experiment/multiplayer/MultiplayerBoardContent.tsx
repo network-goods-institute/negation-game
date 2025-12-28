@@ -39,6 +39,7 @@ import { useMarket } from '@/hooks/market/useMarket';
 import { syncMarketDataToYDoc } from '@/utils/market/marketYDocSync';
 import { buildMarketViewPayload, isMarketEnabled } from '@/utils/market/marketUtils';
 import { logger } from '@/lib/logger';
+import { isFeatureEnabled } from '@/lib/featureFlags';
 import { MarketPanel } from './market/MarketPanel';
 import { MarketErrorBoundary } from './market/MarketErrorBoundary';
 import { BoardLoading } from './BoardLoading';
@@ -136,6 +137,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [notificationsSidebarOpen, setNotificationsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<MultiplayerNotification[]>([]);
+  const mpNotificationsEnabled = isFeatureEnabled("mpNotifications");
   const unreadNotificationsCount = useMemo(
     () => notifications.filter((n) => !n.isRead).length,
     [notifications]
@@ -771,6 +773,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   useEffect(() => {
     if (!userId || !resolvedId || !Array.isArray(edges) || !Array.isArray(nodes)) return;
     if (!canEdit) return;
+    if (!mpNotificationsEnabled) return;
 
     const candidates = buildEdgeNotificationCandidates(
       edges as any[],
@@ -812,7 +815,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         logger.error("Failed to create multiplayer notification", error);
       });
     });
-  }, [edges, nodes, userId, resolvedId, ownerId, username, canEdit]);
+  }, [edges, nodes, userId, resolvedId, ownerId, username, canEdit, mpNotificationsEnabled]);
 
   useEffect(() => {
     if (!connectMode) return;
@@ -943,7 +946,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       const alreadyNotified = typesSet.has(newType);
       updateEdgeType(edgeId, newType);
 
-      if (!alreadyNotified && userId && resolvedId) {
+      if (mpNotificationsEnabled && !alreadyNotified && userId && resolvedId) {
         const candidates = buildEdgeNotificationCandidates(
           [updatedEdge] as any[],
           nodes as any[],
@@ -983,7 +986,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     } catch (error) {
       logDevError('[edge/ui] edge type effect failed', error);
     }
-  }, [edges, updateEdgeType, userId, ownerId, username, resolvedId, nodes]);
+  }, [edges, updateEdgeType, userId, ownerId, username, resolvedId, nodes, mpNotificationsEnabled]);
 
   const [editingSet, setEditingSet] = useState<Set<string>>(new Set());
 
@@ -1378,6 +1381,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
 
   useEffect(() => {
     if (!resolvedId || !Array.isArray(nodes) || !Array.isArray(edges)) return;
+    if (!mpNotificationsEnabled) return;
 
     const tasks: Promise<void>[] = [];
 
@@ -1567,7 +1571,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     if (tasks.length > 0) {
       void Promise.all(tasks);
     }
-  }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username]);
+  }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username, mpNotificationsEnabled]);
 
   const fullyReady = Boolean(initialGraph && resolvedId && (isReady || connectionState === 'failed'));
 
@@ -1622,7 +1626,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         }}
       />
 
-      {!shareDialogOpen && !notificationsSidebarOpen && (
+      {mpNotificationsEnabled && !shareDialogOpen && !notificationsSidebarOpen && (
         <button
           onClick={() => setNotificationsSidebarOpen(true)}
           className="fixed top-1/3 right-0 z-[70] bg-white/95 backdrop-blur-sm border-2 border-r-0 border-stone-300 rounded-l-lg shadow-lg hover:shadow-xl hover:-translate-x-1 transition-all py-6 px-2 group"
@@ -1836,19 +1840,21 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         onDismiss={() => setUndoHintPosition(null)}
       />
 
-      <NotificationsSidebar
-        isOpen={notificationsSidebarOpen}
-        notifications={notifications}
-        onNotificationsUpdate={setNotifications}
-        onClose={() => setNotificationsSidebarOpen(false)}
-        onNotificationRead={handleNotificationRead}
-        onMarkAllRead={handleMarkAllNotificationsRead}
-        onNavigateToPoint={handleNavigateToPoint}
-        isLoading={notificationsLoading || notificationsFetching}
-        onRefresh={() => {
-          void refetchNotifications();
-        }}
-      />
+      {mpNotificationsEnabled && (
+        <NotificationsSidebar
+          isOpen={notificationsSidebarOpen}
+          notifications={notifications}
+          onNotificationsUpdate={setNotifications}
+          onClose={() => setNotificationsSidebarOpen(false)}
+          onNotificationRead={handleNotificationRead}
+          onMarkAllRead={handleMarkAllNotificationsRead}
+          onNavigateToPoint={handleNavigateToPoint}
+          isLoading={notificationsLoading || notificationsFetching}
+          onRefresh={() => {
+            void refetchNotifications();
+          }}
+        />
+      )}
     </div>
   );
 };

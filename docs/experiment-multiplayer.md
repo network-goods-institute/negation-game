@@ -295,7 +295,8 @@ Real-time collaborative rationale editor with prediction markets, powered by Yjs
 ## Feature Flags
 - **`NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED`**: Enables multiplayer boards with real-time collaboration
 - **`NEXT_PUBLIC_MARKET_EXPERIMENT_ENABLED`**: Activates prediction market features (requires Carroll submodule)
-- **`NEXT_PUBLIC_FEATURE_NOTIFICATIONS_ENABLED`**: Controls notification system (default: true)
+- **`NEXT_PUBLIC_FEATURE_NOTIFICATIONS_ENABLED`**: Controls main notification system (default: true)
+- **`NEXT_PUBLIC_FEATURE_MP_NOTIFICATIONS_ENABLED`**: Controls multiplayer board notifications (default: true)
 - **`NEXT_PUBLIC_FEATURE_PINNED_AND_PRIORITY`**: Enables moderation features for pinned/priority content
 
 When disabled, respective features are hidden and their APIs return appropriate fallbacks.
