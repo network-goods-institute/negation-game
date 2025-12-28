@@ -343,6 +343,10 @@ export const useConnectionHandlers = ({
           target: `anchor:${edgeId}`,
           sourceHandle: `${originNode.id}-source-handle`,
           targetHandle: `anchor:${edgeId}-incoming-handle`,
+          data: {
+            createdBy: currentUserId || null,
+            createdByName: currentUsername || null,
+          },
         } as Edge;
         setEdges((eds) =>
           eds.some((e) => e.id === newEdge.id) ? eds : [...eds, newEdge]
@@ -370,6 +374,8 @@ export const useConnectionHandlers = ({
       setConnectAnchorId,
       setConnectCursor,
       getEdgeMidpoint,
+      currentUserId,
+      currentUsername,
           ]
   );
 

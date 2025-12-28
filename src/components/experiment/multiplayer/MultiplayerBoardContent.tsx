@@ -1384,6 +1384,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   useEffect(() => {
     if (!resolvedId || !Array.isArray(nodes) || !Array.isArray(edges)) return;
     if (!mpNotificationsEnabled) return;
+    if (!userId) return;
 
     const tasks: Promise<void>[] = [];
 
@@ -1394,47 +1395,49 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       // Comment notifications
       if (node?.type === 'comment' && !notifiedCommentIdsRef.current.has(node.id)) {
         const actorId = typeof node?.data?.createdBy === 'string' ? node.data.createdBy : null;
+        if (!actorId || actorId !== userId) {
+          notifiedCommentIdsRef.current.add(node.id);
+          continue;
+        }
         const actorName = node?.data?.createdByName || username || undefined;
-        if (actorId) {
-          const commentEdge = edges.find((e: any) => e?.type === 'comment' && e?.source === node.id);
-          const targetNodeId = commentEdge?.target || null;
-          const targetNode = nodes.find((n: any) => n.id === targetNodeId);
-          const recipientRaw = targetNode?.data?.createdBy || ownerId || null;
-          const recipientId =
-            typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
-          if (recipientId && recipientId !== actorId) {
-            const title = targetNode ? getNodeTitle(targetNode) : 'Comment';
-            const commentContent =
-              typeof node?.data?.content === 'string' ? node.data.content : undefined;
-            const isReply = targetNode?.type === 'comment';
-            const actionLabel = isReply ? 'replied to your comment' : 'commented on';
-            notifiedCommentIdsRef.current.add(node.id);
-            tasks.push(
-              createMultiplayerNotification({
-                userId: recipientId,
-                docId: resolvedId,
-                nodeId: targetNodeId || node.id,
-                edgeId: commentEdge?.id || null,
-                type: 'comment',
-                action: actionLabel,
-                actorUserId: actorId,
-                actorUsername: actorName,
-                title,
-                content: commentContent,
-                metadata: {
-                  ...(node?.data?.metadata || {}),
-                  isReply,
-                  targetNodeId: targetNodeId || null,
-                },
+        const commentEdge = edges.find((e: any) => e?.type === 'comment' && e?.source === node.id);
+        const targetNodeId = commentEdge?.target || null;
+        const targetNode = nodes.find((n: any) => n.id === targetNodeId);
+        const recipientRaw = targetNode?.data?.createdBy || ownerId || null;
+        const recipientId =
+          typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
+        if (recipientId && recipientId !== actorId) {
+          const title = targetNode ? getNodeTitle(targetNode) : 'Comment';
+          const commentContent =
+            typeof node?.data?.content === 'string' ? node.data.content : undefined;
+          const isReply = targetNode?.type === 'comment';
+          const actionLabel = isReply ? 'replied to your comment' : 'commented on';
+          notifiedCommentIdsRef.current.add(node.id);
+          tasks.push(
+            createMultiplayerNotification({
+              userId: recipientId,
+              docId: resolvedId,
+              nodeId: targetNodeId || node.id,
+              edgeId: commentEdge?.id || null,
+              type: 'comment',
+              action: actionLabel,
+              actorUserId: actorId,
+              actorUsername: actorName,
+              title,
+              content: commentContent,
+              metadata: {
+                ...(node?.data?.metadata || {}),
+                isReply,
+                targetNodeId: targetNodeId || null,
+              },
+            })
+              .then(() => {})
+              .catch((error) => {
+                logger.error("Failed to create multiplayer notification for comment", error);
+                // eslint-disable-next-line drizzle/enforce-delete-with-where
+                notifiedCommentIdsRef.current.delete(node.id);
               })
-                .then(() => {})
-                .catch((error) => {
-                  logger.error("Failed to create multiplayer notification for comment", error);
-                  // eslint-disable-next-line drizzle/enforce-delete-with-where
-                  notifiedCommentIdsRef.current.delete(node.id);
-                })
-            );
-          }
+          );
         }
       }
 
@@ -1448,6 +1451,10 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       for (const vote of votes) {
         const voterId = vote.id;
         if (!voterId || seen.has(voterId)) continue;
+        if (voterId !== userId) {
+          seen.add(voterId);
+          continue;
+        }
         const recipientRaw = node?.data?.createdBy || ownerId || null;
         const recipientId =
           typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
@@ -1493,6 +1500,10 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       for (const vote of votes) {
         const voterId = vote.id;
         if (!voterId || seen.has(voterId)) continue;
+        if (voterId !== userId) {
+          seen.add(voterId);
+          continue;
+        }
         const recipientRaw = edge?.data?.createdBy || ownerId || null;
         const recipientId =
           typeof recipientRaw === 'string' && recipientRaw.trim().length > 0 ? recipientRaw : null;
@@ -1573,7 +1584,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     if (tasks.length > 0) {
       void Promise.all(tasks);
     }
-  }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username, mpNotificationsEnabled]);
+  }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username, mpNotificationsEnabled, userId]);
 
   const fullyReady = Boolean(initialGraph && resolvedId && (isReady || connectionState === 'failed'));
 
