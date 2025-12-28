@@ -253,7 +253,7 @@ pnpm install
 pnpm dev
 ```
 
-This will start the Yjs WebSocket server on `wss://localhost:8080`.
+This will start the Yjs WebSocket server on `ws://localhost:8080`.
 
 ### 6. Run the development server
 
