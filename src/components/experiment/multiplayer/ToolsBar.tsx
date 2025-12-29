@@ -14,6 +14,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { markTutorialVideoSeen } from "@/actions/users/markTutorialVideoSeen";
 import { logger } from "@/lib/logger";
 
+const TUTORIAL_INTRO_LOCAL_KEY = "ng:tutorial-intro-seen";
+
 interface ToolsBarProps {
   connectMode: boolean;
   setConnectMode: React.Dispatch<React.SetStateAction<boolean>>;
@@ -47,14 +49,48 @@ export const ToolsBar: React.FC<ToolsBarProps> = ({
   const toolbarRef = React.useRef<HTMLDivElement | null>(null);
   const [isTutorialOpen, setIsTutorialOpen] = React.useState(false);
   const [introOverride, setIntroOverride] = React.useState(false);
+  const [introSeenLocal, setIntroSeenLocal] = React.useState(false);
   const queryClient = useQueryClient();
   const { user: privyUser } = usePrivy();
   const { data: appUser } = useUser(privyUser?.id);
-  const shouldLockIntro = Boolean(privyUser && appUser && !appUser.tutorialVideoSeenAt && !introOverride);
+  const hasSeenIntro = Boolean(appUser?.tutorialVideoSeenAt || introOverride || introSeenLocal);
+  const shouldLockIntro = Boolean(privyUser && appUser && !hasSeenIntro);
   const isTutorialVisible = isTutorialOpen || shouldLockIntro;
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const value = window.localStorage.getItem(TUTORIAL_INTRO_LOCAL_KEY);
+      if (value === 'true') {
+        setIntroSeenLocal(true);
+      }
+    } catch { }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== TUTORIAL_INTRO_LOCAL_KEY) return;
+      setIntroSeenLocal(event.newValue === 'true');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const handleIntroComplete = React.useCallback(async () => {
     setIntroOverride(true);
+    setIntroSeenLocal(true);
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(TUTORIAL_INTRO_LOCAL_KEY, 'true');
+      } catch { }
+    }
+    if (privyUser?.id) {
+      const now = new Date();
+      queryClient.setQueryData(userQueryKey(privyUser.id), (prev: any) =>
+        prev ? { ...prev, tutorialVideoSeenAt: now } : prev
+      );
+    }
     try {
       const result = await markTutorialVideoSeen();
       if (!result.ok) {

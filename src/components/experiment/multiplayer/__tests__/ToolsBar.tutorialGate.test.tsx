@@ -32,6 +32,9 @@ describe('ToolsBar tutorial gate', () => {
   beforeEach(() => {
     lastTutorialProps = null;
     jest.clearAllMocks();
+    if (typeof window !== "undefined") {
+      window.localStorage.clear();
+    }
   });
 
   const renderToolsBar = () =>
@@ -80,5 +83,19 @@ describe('ToolsBar tutorial gate', () => {
     });
 
     expect(markTutorialVideoSeen).toHaveBeenCalledTimes(1);
+  });
+
+  it('unlocks the tutorial when local storage marks the intro as seen', async () => {
+    (usePrivy as jest.Mock).mockReturnValue({ user: { id: 'user-1' } });
+    (useUser as jest.Mock).mockReturnValue({ data: { tutorialVideoSeenAt: null } });
+    window.localStorage.setItem("ng:tutorial-intro-seen", "true");
+
+    renderToolsBar();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(lastTutorialProps).toBeTruthy();
+    expect(lastTutorialProps.lockIntro).toBe(false);
   });
 });
