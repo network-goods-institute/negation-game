@@ -78,6 +78,7 @@ export function createHandleNodeDragStop({
     };
 
     try {
+      const mapping = altCloneMapRef.current.get(String(node.id));
       const isPrimaryNode = node.id === dragStateRef.current.nodeId;
       const ctrlPressed = e?.ctrlKey || e?.nativeEvent?.ctrlKey || false;
       // Refresh selection snapshot in case selection changed (e.g., marquee select)
@@ -109,6 +110,43 @@ export function createHandleNodeDragStop({
             : null;
       }
       const isMultiSelect = dragStateRef.current.selectedNodeIds.length > 1;
+
+      if (mapping) {
+        if (!dragStateRef.current.nodeId) {
+          graph.updateNodePosition?.(mapping.dupId, node.position?.x ?? mapping.origin.x, node.position?.y ?? mapping.origin.y);
+          graph.updateNodePosition?.(node.id, mapping.origin.x, mapping.origin.y);
+          cleanup();
+          return;
+        }
+        const allNodes = rf.getNodes();
+        dragStateRef.current.finalizingSnap = true;
+        const snapNode = { ...node, id: mapping.dupId };
+        const otherNodes = filterSnapTargets(
+          allNodes,
+          mapping.dupId
+        );
+        const { snapX, snapY } = ctrlPressed
+          ? { snapX: null, snapY: null }
+          : calculateSnapPositions(
+              snapNode as any,
+              node.position ?? { x: mapping.origin.x, y: mapping.origin.y },
+              otherNodes as any,
+              viewport.zoom || 1,
+              dragStateRef.current.initialSizesById
+            );
+        const finalX = snapX !== null ? snapX : (node.position?.x ?? mapping.origin.x);
+        const finalY = snapY !== null ? snapY : (node.position?.y ?? mapping.origin.y);
+
+        requestAnimationFrame(() => {
+          graph.updateNodePosition?.(mapping.dupId, finalX, finalY);
+          graph.updateNodePosition?.(node.id, mapping.origin.x, mapping.origin.y);
+          requestAnimationFrame(() => {
+            dragStateRef.current.finalizingSnap = false;
+            cleanup();
+          });
+        });
+        return;
+      }
 
       if (isPrimaryNode && isMultiSelect) {
         const allNodes = rf.getNodes();
