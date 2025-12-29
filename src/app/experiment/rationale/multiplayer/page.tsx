@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCopyUrl } from "@/hooks/viewpoints/useCopyUrl";
 import { NotificationsSidebarLauncher } from "@/components/experiment/multiplayer/notifications/NotificationsSidebarLauncher";
+import { NonDesktopWarning } from "@/components/experiment/multiplayer/NonDesktopWarning";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -366,7 +367,7 @@ export default function MultiplayerRationaleIndexPage() {
 
   return (
     <div className={`fixed inset-0 top-16 ${robotoSlab.className} overflow-y-auto bg-white`}>
-
+      <NonDesktopWarning fallbackPath="/" />
       <TooltipProvider>
         <div className="relative max-w-7xl mx-auto p-8 pb-16 pt-12">
           <div className="flex items-center justify-between mb-6">

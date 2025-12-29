@@ -240,34 +240,3 @@ export const createUpdateEdgeAnchorPosition = (
     } catch {}
   };
 };
-
-export const createUpdateEdgeRelevance = (
-  yEdgesMap: any,
-  ydoc: any,
-  canWrite: boolean,
-  localOrigin: object,
-  setEdges: (updater: (edges: any[]) => any[]) => void
-) => {
-  return (edgeId: string, relevance: number) => {
-    const rel = Math.max(1, Math.min(5, Math.round(Number(relevance) || 0)));
-    setEdges((eds) =>
-      eds.map((e: any) =>
-        e.id === edgeId
-          ? { ...e, data: { ...(e.data || {}), relevance: rel } }
-          : e
-      )
-    );
-    if (!canWrite || !yEdgesMap || !ydoc) return;
-    try {
-      (ydoc as any).transact(() => {
-        const base = (yEdgesMap as any).get(edgeId);
-        if (base) {
-          (yEdgesMap as any).set(edgeId, {
-            ...base,
-            data: { ...(base.data || {}), relevance: rel },
-          });
-        }
-      }, localOrigin);
-    } catch {}
-  };
-};

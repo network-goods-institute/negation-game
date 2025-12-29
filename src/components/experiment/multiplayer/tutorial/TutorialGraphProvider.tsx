@@ -28,7 +28,6 @@ export function TutorialGraphProvider({ children }: { children: React.ReactNode 
     addObjectionForEdge: () => {},
     hoveredEdgeId: null,
     setHoveredEdge: () => {},
-    updateEdgeRelevance: () => {},
     updateEdgeType: () => {},
     selectedEdgeId: null,
     setSelectedEdge: () => {},

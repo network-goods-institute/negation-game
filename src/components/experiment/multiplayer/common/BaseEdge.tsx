@@ -152,7 +152,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const threshold = useAtomValue(marketOverlayZoomThresholdAtom);
   const marketEnabled = isMarketEnabled();
   const side = useMemo(() => {
-    if (!marketEnabled) return 'TEXT'; // Always show text/relevance when market is disabled
+    if (!marketEnabled) return 'TEXT';
     let s = computeSide(overlayState);
     if (overlayState === 'AUTO_TEXT' || overlayState === 'AUTO_PRICE') {
       s = zoom <= (threshold ?? 0.6) ? 'PRICE' : 'TEXT';
@@ -161,16 +161,13 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   }, [overlayState, zoom, threshold, marketEnabled]);
   const showPriceMode = marketEnabled && side === 'PRICE';
 
-  const relevanceRaw = Number((props as any)?.data?.relevance ?? 3);
-  const relevance = Math.max(1, Math.min(5, Math.round(relevanceRaw)));
-  const strapStrength = Math.max(0, Math.min(1, (relevance - 1) / 4));
   const strapGeometry = useStrapGeometry(
     (visual.useStrap && !lightMode) ? {
       sourceX: sourceX ?? 0,
       sourceY: sourceY ?? 0,
       targetX: targetX ?? 0,
       targetY: targetY ?? 0,
-      strength: strapStrength,
+      strength: 0.5,
     } : null
   );
 
@@ -338,7 +335,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   ) as number;
 
   const edgeStyles = useMemo(() => {
-    const width = visual.strokeWidth(relevance);
+    const width = visual.strokeWidth;
     let marketWidth = width;
     try {
       const mp = marketPrice;
@@ -372,7 +369,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     }
 
     return baseStyle;
-  }, [visual, edgeTypeLocal, targetNode, relevance, marketPrice, showPriceMode]);
+  }, [visual, edgeTypeLocal, targetNode, marketPrice, showPriceMode]);
 
   const edgeStylesWithPointer = useMemo(() => {
     return grabMode ? { ...edgeStyles, pointerEvents: 'none' as any } : edgeStyles;
@@ -752,8 +749,6 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           starColor={visual.starColor}
           sourceLabel={(sourceNode as any)?.data?.content || (sourceNode as any)?.data?.statement}
           targetLabel={(targetNode as any)?.data?.content || (targetNode as any)?.data?.statement}
-          relevance={relevance}
-          onUpdateRelevance={(val) => (graphActions as any)?.updateEdgeRelevance?.(props.id as string, val as any)}
           suppress={endpointDragging}
           suppressReason={suppressReason}
         />
