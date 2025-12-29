@@ -33,4 +33,5 @@ export interface MultiplayerNotification {
   avatarUrls?: (string | undefined)[];
   actorNames?: string[];
   count?: number;
+  unreadCount?: number;
 }

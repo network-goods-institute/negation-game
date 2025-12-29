@@ -167,10 +167,16 @@ export function NotificationsSidebar({
     }).length;
   }, [hiddenNegativeUnreadNotifications, lastHiddenOpenedAt]);
 
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.isRead).length,
-    [notifications]
-  );
+  const unreadCount = useMemo(() => {
+    if (!showBoardContext) {
+      return notifications.filter((n) => !n.isRead).length;
+    }
+    return notifications.reduce((sum, notification) => {
+      const unread = notification.unreadCount
+        ?? (notification.isRead ? 0 : (notification.count ?? notification.ids?.length ?? 1));
+      return sum + unread;
+    }, 0);
+  }, [notifications, showBoardContext]);
 
   const visibleNotificationCount =
     supportNotifications.length +
