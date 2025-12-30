@@ -145,7 +145,6 @@ jest.mock('@/hooks/experiment/multiplayer/useGraphOperations', () => ({
     completeConnectToEdge: jest.fn(),
     cancelConnect: jest.fn(),
     addObjectionForEdge: jest.fn(),
-    updateEdgeRelevance: jest.fn(),
     updateEdgeType: jest.fn(),
     updateEdgeAnchorPosition: jest.fn(),
     ensureEdgeAnchor: jest.fn(),

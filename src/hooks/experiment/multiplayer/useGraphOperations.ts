@@ -11,7 +11,6 @@ import {
   createEnsureEdgeAnchor,
   createAddNodeAtPosition,
   createUpdateNodeType,
-  createUpdateEdgeRelevance,
 } from "@/utils/experiment/multiplayer/graphOperations";
 import { createDuplicateNodeWithConnections } from "@/utils/experiment/multiplayer/graphOperations/nodeDuplication";
 import type {
@@ -381,19 +380,6 @@ export const useGraphOperations = ({
     [setEdges, yEdgesMap, ydoc, canWrite, localOrigin, normalizeVotes]
   );
 
-  const updateEdgeRelevance = useMemo(
-    () => createUpdateEdgeRelevance(
-      yEdgesMap,
-      ydoc,
-      canWrite,
-      localOrigin,
-      setEdges,
-    ),
-    [yEdgesMap, ydoc, canWrite, localOrigin, setEdges]
-  );
-
-
-
   const ensureEdgeAnchor = useMemo(
     () => createEnsureEdgeAnchor(setNodes),
     [setNodes]
@@ -437,7 +423,6 @@ export const useGraphOperations = ({
     updateNodePosition,
     toggleNodeVote,
     toggleEdgeVote,
-    updateEdgeRelevance,
     deleteNode,
     addPointBelow,
     addObjectionForEdge,

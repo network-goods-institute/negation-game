@@ -1,5 +1,5 @@
 import React from 'react';
-import { EdgeLabelRenderer, useStore, useReactFlow } from '@xyflow/react';
+import { EdgeLabelRenderer, useStore } from '@xyflow/react';
 import { createPortal } from 'react-dom';
 import { ContextMenu } from './ContextMenu';
 import { useGraphActions } from '../GraphContext';
@@ -40,8 +40,6 @@ export interface EdgeOverlayProps {
   starColor?: string;
   sourceLabel?: string;
   targetLabel?: string;
-  relevance?: number;
-  onUpdateRelevance?: (relevance: number) => void;
   suppress?: boolean;
   suppressReason?: string;
 }
@@ -64,12 +62,9 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
   onToggleEdgeType,
   onConnectionClick,
   starColor = 'text-stone-600',
-  relevance,
-  onUpdateRelevance,
   suppress = false,
   suppressReason,
 }) => {
-  const rf = useReactFlow();
   const graph = useGraphActions();
   const { toggleEdgeVote } = graph;
   const overlayActiveId = (graph as any)?.overlayActiveEdgeId as (string | null);
@@ -101,8 +96,7 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     return s;
   }, [overlayState, zoom, threshold, marketEnabled]);
   // Edge overlay price circle ALWAYS shows when market is enabled (toolbar state doesn't affect it)
-  const showPriceCircle = marketEnabled;
-  const showRelevanceStars = !marketEnabled || side === 'TEXT';
+  const showPriceCircle = marketEnabled && (side === 'PRICE' || side === 'TEXT');
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
   const anchorNodeId = `anchor:${edgeId}`;
@@ -545,4 +539,3 @@ export const EdgeOverlay: React.FC<EdgeOverlayProps> = ({
     </React.Fragment>
   );
 };
-

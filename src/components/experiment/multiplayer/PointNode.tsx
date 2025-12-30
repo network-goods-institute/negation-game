@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Position, useReactFlow, useViewport } from '@xyflow/react';
+import { Position, useReactFlow, useStore, useViewport } from '@xyflow/react';
 import { useAtomValue } from 'jotai';
 import { marketOverlayStateAtom, marketOverlayZoomThresholdAtom, computeSide } from '@/atoms/marketOverlayAtom';
 import { isMarketEnabled } from '@/utils/market/marketUtils';
@@ -17,6 +17,7 @@ import { LockIndicator } from './common/LockIndicator';
 import { usePillHandlers } from './common/usePillHandlers';
 import { useVoteVisuals } from './common/useVoteVisuals';
 import { VoteGlow } from './common/VoteGlow';
+import { nodeHasConnectedEdgeType } from './common/nodeConnectionUtils';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -154,6 +155,9 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
   }, [parentId, id, setPairNodeHeight, wrapperRef]);
 
   const rf = useReactFlow();
+  const hasNegationConnected = useStore((s: any) => nodeHasConnectedEdgeType(s, id, 'negation', 'any'));
+  const hasObjectionConnected = useStore((s: any) => nodeHasConnectedEdgeType(s, id, 'objection', 'any'));
+  const isObjectionStyle = hasObjectionConnected && !hasNegationConnected;
 
   const getSelectedPointNodes = useCallback(() => {
     try {
@@ -173,10 +177,14 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
 
   const wrapperClassName = useMemo(() => {
     const base = hidden
-      ? 'bg-gray-200 text-gray-600 border-gray-300'
-      : (isInContainer
-        ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md'
-        : 'bg-white text-gray-900 border-stone-200');
+      ? (isObjectionStyle ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-gray-200 text-gray-600 border-gray-300')
+      : (isObjectionStyle
+        ? (isInContainer
+          ? 'bg-amber-100/90 backdrop-blur-sm text-amber-900 border-amber-300 shadow-md'
+          : 'bg-amber-100 text-amber-900 border-amber-300')
+        : (isInContainer
+          ? 'bg-white/95 backdrop-blur-sm text-gray-900 border-stone-200 shadow-md'
+          : 'bg-white text-gray-900 border-stone-200'));
     const ringConnect =
       isConnectingFromNodeId === id
         ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-md'
@@ -185,7 +193,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
       ? 'border-l-[6px] border-l-emerald-500 shadow-[-3px_0_8px_rgba(16,185,129,0.3)]'
       : '';
     return `px-4 py-3 rounded-lg min-w-[200px] max-w-[320px] inline-flex flex-col relative transition-all duration-300 ease-out origin-center group ${base} ${cursorClass} ${ringConnect} ${myVoteBorder} ${isActive ? '-translate-y-[1px] scale-[1.02]' : ''}`;
-  }, [hidden, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, hasMyVote, selected]);
+  }, [hidden, isObjectionStyle, isInContainer, cursorClass, isConnectingFromNodeId, id, isActive, hasMyVote, selected]);
 
   const wrapperProps = {
     onMouseEnter: (e) => {
@@ -308,7 +316,7 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
           onFocus={onFocus}
           onBlur={onBlur}
           onKeyDown={onKeyDown}
-          className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100 text-gray-900'} ${isInContainer ? 'overflow-visible' : ''}`}
+          className={`text-sm leading-relaxed whitespace-pre-wrap break-words outline-none transition-opacity duration-200 text-left ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : `opacity-100 ${isObjectionStyle ? 'text-amber-900' : 'text-gray-900'}`} ${isInContainer ? 'overflow-visible' : ''}`}
           title={typeof value === 'string' ? value : undefined}
         >
           {value || 'New point'}
@@ -320,11 +328,12 @@ export const PointNode: React.FC<PointNodeProps> = ({ data, id, selected, parent
         )}
         {selected && !hidden && extras.showExtras && (
           <div ref={(el) => extras.registerExtras?.(el)} className={`mt-1 mb-1 flex items-center gap-2 select-none`} style={{ position: 'relative', zIndex: 20 }}>
-            <NodeVoting
-              nodeId={id}
-              votes={data.votes || []}
-              onToggleVote={toggleNodeVote}
-            />
+              <NodeVoting
+                nodeId={id}
+                votes={data.votes || []}
+                onToggleVote={toggleNodeVote}
+                variant={isObjectionStyle ? 'orange' : 'blue'}
+              />
           </div>
         )}
         {!hidden && !perfMode && !grabMode && extras.showExtras && (

@@ -18,6 +18,7 @@ import { useSelectionPayload } from '../common/useSelectionPayload';
 import { usePillHandlers } from '../common/usePillHandlers';
 import { useVoteVisuals } from '../common/useVoteVisuals';
 import { VoteGlow } from '../common/VoteGlow';
+import { nodeIsPointLikeByObjectionRules } from '../common/nodeConnectionUtils';
 
 const INTERACTIVE_TARGET_SELECTOR = 'button, [role="button"], a, input, textarea, select, [data-interactive="true"]';
 
@@ -139,13 +140,7 @@ const ObjectionNode: React.FC<ObjectionNodeProps> = ({ data, id, selected }) => 
         isConnectMode,
     } = editable;
 
-    const pointLike = useStore((s: any) => {
-        const edges: any[] = s.edges || [];
-        const hasNegationConnected = edges.some((edge: any) => (edge.type || '') === 'negation' && (edge.source === id || edge.target === id));
-        if (hasNegationConnected) return true;
-        const hasOutgoingObjection = edges.some((edge: any) => (edge.type || '') === 'objection' && edge.source === id);
-        return !hasOutgoingObjection;
-    });
+    const pointLike = useStore((s: any) => nodeIsPointLikeByObjectionRules(s, id));
     const { hovered, onMouseEnter, onMouseLeave } = hover;
     const { handleMouseEnter, handleMouseLeave, hideNow, shouldShowPill } = pill;
 

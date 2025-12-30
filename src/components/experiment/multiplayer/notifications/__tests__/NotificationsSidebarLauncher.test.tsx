@@ -34,6 +34,8 @@ jest.mock('@/queries/experiment/multiplayer/useMultiplayerNotifications', () => 
         timestamp: '2m ago',
         isRead: false,
         createdAt: new Date(),
+        ids: ['n1'],
+        count: 1,
       },
     ],
     isLoading: false,

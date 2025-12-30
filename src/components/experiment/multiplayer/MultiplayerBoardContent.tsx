@@ -48,6 +48,7 @@ import { NotificationsSidebar } from './notifications/NotificationsSidebar';
 import type { MultiplayerNotification } from './notifications/types';
 import { Bell } from 'lucide-react';
 import { useMultiplayerNotifications } from '@/queries/experiment/multiplayer/useMultiplayerNotifications';
+import { NonDesktopWarning } from '@/components/experiment/multiplayer/NonDesktopWarning';
 import {
   useMarkAllMultiplayerNotificationsRead,
   useMarkMultiplayerNotificationRead,
@@ -1199,7 +1200,6 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     updateNodePosition,
     toggleNodeVote,
     toggleEdgeVote,
-    updateEdgeRelevance,
     deleteNode: deleteNodeBase,
     addPointBelow,
     addObjectionForEdge,
@@ -1604,6 +1604,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
 
   return (
     <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
+      <NonDesktopWarning fallbackPath="/experiment/rationale/multiplayer" />
       <MultiplayerHeader
         username={username}
         userColor={userColor}
@@ -1695,7 +1696,6 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             addObjectionForEdge,
             hoveredEdgeId,
             setHoveredEdge: setHoveredEdgeId,
-            updateEdgeRelevance,
             updateEdgeType: updateEdgeTypeWrapped,
             selectedEdgeId,
             setSelectedEdge: setSelectedEdgeId,

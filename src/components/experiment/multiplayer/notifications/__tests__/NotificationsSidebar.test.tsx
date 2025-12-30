@@ -129,7 +129,7 @@ describe('NotificationsSidebar', () => {
     expect(notified.ids).toContain(customNotifications[0].id);
   });
 
-  it('does not mark notifications as read when viewing', () => {
+  it('marks notifications as read when viewing unread notifications', () => {
     const handleRead = jest.fn();
     const handleNavigate = jest.fn();
 
@@ -147,6 +147,34 @@ describe('NotificationsSidebar', () => {
     fireEvent.click(within(visible).getByText(/Show \d+ other update/));
 
     const viewButton = within(visible).getByTestId(`notification-view-${baseNotifications[0].id}`);
+    fireEvent.click(viewButton);
+
+    expect(handleRead).toHaveBeenCalled();
+    expect(handleNavigate).toHaveBeenCalled();
+  });
+
+  it('does not re-mark notifications as read when already read', () => {
+    const handleRead = jest.fn();
+    const handleNavigate = jest.fn();
+
+    render(
+      <NotificationsSidebar
+        isOpen
+        notifications={baseNotifications}
+        onNotificationRead={handleRead}
+        onNavigateToPoint={handleNavigate}
+        onClose={() => {}}
+      />
+    );
+
+    const visible = screen.getByTestId('notifications-visible');
+    fireEvent.click(within(visible).getByText(/Show \d+ other update/));
+
+    const readNotification = baseNotifications.find((n) => n.isRead);
+    if (!readNotification) {
+      throw new Error("Expected a read notification in test data.");
+    }
+    const viewButton = within(visible).getByTestId(`notification-view-${readNotification.id}`);
     fireEvent.click(viewButton);
 
     expect(handleRead).not.toHaveBeenCalled();

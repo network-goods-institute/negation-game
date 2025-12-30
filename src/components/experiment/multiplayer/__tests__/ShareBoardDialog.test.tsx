@@ -52,7 +52,7 @@ describe("ShareBoardDialog", () => {
       expect(screen.getByText(/Only the owner can manage sharing/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /Copy/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Copy link/i })).toBeDisabled();
   });
 
   it("hides the current user from the collaborator list", async () => {

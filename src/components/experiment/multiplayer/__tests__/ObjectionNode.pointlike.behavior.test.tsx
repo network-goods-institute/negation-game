@@ -66,6 +66,19 @@ describe("ObjectionNode point-like behavior", () => {
     expect(getByText(/New mitigation/i)).toBeInTheDocument();
   });
 
+  it("renders 'New mitigation' when there is an incoming objection edge", () => {
+    mockStore.edges = [
+      { id: "oe1", type: "objection", source: "obj-2", target: "obj-1" },
+    ];
+
+    const { getByText } = render(
+      <ReactFlowProvider>
+        <ObjectionNode {...baseProps} />
+      </ReactFlowProvider>
+    );
+    expect(getByText(/New mitigation/i)).toBeInTheDocument();
+  });
+
   it("renders 'New point' when a negation is connected, even with an outgoing objection", () => {
     mockStore.edges = [
       { id: "oe1", type: "objection", source: "obj-1", target: "anchor-1" },
@@ -81,5 +94,3 @@ describe("ObjectionNode point-like behavior", () => {
     expect(getByText(/New point/i)).toBeInTheDocument();
   });
 });
-
-

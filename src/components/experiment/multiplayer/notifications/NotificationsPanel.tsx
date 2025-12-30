@@ -48,7 +48,8 @@ export function NotificationsPanel({
     () =>
       summaries.reduce(
         (sum, board) =>
-          sum + (board.totalCount ?? board.notifications.length),
+          sum +
+          (board.unreadCount ?? board.totalCount ?? board.notifications.length),
         0
       ),
     [summaries]
@@ -99,7 +100,7 @@ export function NotificationsPanel({
             ) : (
               summaries.map((board) => {
                 const notificationCount =
-                  board.totalCount ?? board.notifications.length;
+                  board.unreadCount ?? board.totalCount ?? board.notifications.length;
                 return (
                   <Card
                     key={board.boardId}

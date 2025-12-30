@@ -372,7 +372,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                 disabled={pending || !isOwner}
                   className="h-9 px-3"
               >
-                  {pending ? "..." : "Copy"}
+                  {pending ? "..." : "Copy link"}
               </Button>
             </div>
 

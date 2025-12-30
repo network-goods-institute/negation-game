@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import Page from '../page';
 
 jest.mock('next/navigation', () => ({
@@ -44,6 +44,8 @@ jest.mock('@/queries/experiment/multiplayer/useMultiplayerNotifications', () => 
         timestamp: '2m ago',
         isRead: false,
         createdAt: new Date(),
+        ids: ['n1'],
+        count: 1,
       },
     ],
     isLoading: false,

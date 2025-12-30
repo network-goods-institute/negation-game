@@ -20,7 +20,8 @@ export function NotificationsPanelTrigger() {
     () =>
       summariesToShow.reduce(
         (sum, board) =>
-          sum + (board.totalCount ?? board.notifications.length),
+          sum +
+          (board.unreadCount ?? board.totalCount ?? board.notifications.length),
         0
       ),
     [summariesToShow]

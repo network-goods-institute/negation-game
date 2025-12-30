@@ -46,4 +46,16 @@ describe('usePersistencePointerHandlers', () => {
     expect(result.current.handlePersistencePointerDown).toBeDefined();
     expect(result.current.handlePersistencePointerMove).toBeDefined();
   });
+
+  it('stops propagation on primary pointer down', () => {
+    const { result } = renderHook(() => usePersistencePointerHandlers({ grabMode: false }));
+    const stopPropagation = jest.fn();
+    result.current.handlePersistencePointerDown({
+      button: 0,
+      pointerType: 'mouse',
+      target: { closest: () => null },
+      stopPropagation,
+    } as any);
+    expect(stopPropagation).toHaveBeenCalled();
+  });
 });

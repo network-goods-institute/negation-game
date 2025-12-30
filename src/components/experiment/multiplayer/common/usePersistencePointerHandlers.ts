@@ -65,6 +65,10 @@ export const usePersistencePointerHandlers = ({ grabMode }: UsePersistencePointe
       return;
     }
 
+    if (event.button === 0) {
+      event.stopPropagation();
+    }
+
     const target = event.target as HTMLElement | null;
     const isMiddleButton = event.button === 1;
     const isTouchGesture = event.pointerType === 'touch';

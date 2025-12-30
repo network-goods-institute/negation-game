@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCopyUrl } from "@/hooks/viewpoints/useCopyUrl";
 import { NotificationsSidebarLauncher } from "@/components/experiment/multiplayer/notifications/NotificationsSidebarLauncher";
+import { NonDesktopWarning } from "@/components/experiment/multiplayer/NonDesktopWarning";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -366,13 +367,13 @@ export default function MultiplayerRationaleIndexPage() {
 
   return (
     <div className={`fixed inset-0 top-16 ${robotoSlab.className} overflow-y-auto bg-white`}>
-
+      <NonDesktopWarning fallbackPath="/" />
       <TooltipProvider>
         <div className="relative max-w-7xl mx-auto p-8 pb-16 pt-12">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-stone-800">My Boards</h1>
-              <p className="text-sm text-stone-600 mt-1">Create, organize, and collaborate on argument boards.</p>
+              <p className="text-sm text-stone-600 mt-1">Create, organize, and collaborate on boards.</p>
             </div>
             <Button onClick={handleCreate} disabled={creating} aria-busy={creating} className="h-9 px-4 bg-sync hover:bg-sync-hover text-white">
               {creating ? (
