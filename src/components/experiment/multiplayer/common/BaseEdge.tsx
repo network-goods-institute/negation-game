@@ -142,6 +142,48 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const sourceHasOthersVotes = sourceOthersVotes.length > 0;
   const targetHasOthersVotes = targetOthersVotes.length > 0;
 
+  const highlightBezierData = useMemo(() => {
+    if (!edgeHasMyVote || props.edgeType !== 'objection' || !visual.useBezier) return null;
+    let sourcePosition = (props as any).sourcePosition;
+    let targetPosition = (props as any).targetPosition;
+    const objectionY = sourceNode?.position?.y ?? 0;
+    const anchorY = targetNode?.position?.y ?? 0;
+    sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
+    targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
+    const [path, labelX, labelY] = getBezierPath({
+      sourceX: sourceX ?? 0,
+      sourceY: sourceY ?? 0,
+      sourcePosition,
+      targetX: targetX ?? 0,
+      targetY: targetY ?? 0,
+      targetPosition,
+    });
+    return {
+      path,
+      labelX,
+      labelY,
+      halfPaths: getHalfBezierPaths(path),
+    };
+  }, [edgeHasMyVote, props.edgeType, visual.useBezier, sourceNode, targetNode, sourceX, sourceY, targetX, targetY, props]);
+
+  const highlightHalfBezierLengths = useMemo(() => {
+    if (!highlightBezierData?.halfPaths) return { first: null as number | null, second: null as number | null };
+    if (typeof document === 'undefined') return { first: null as number | null, second: null as number | null };
+    const measure = (d: string) => {
+      try {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        return path.getTotalLength();
+      } catch {
+        return null;
+      }
+    };
+    return {
+      first: measure(highlightBezierData.halfPaths.firstHalf),
+      second: measure(highlightBezierData.halfPaths.secondHalf),
+    };
+  }, [highlightBezierData]);
+
   const maskingData = useEdgeNodeMasking(sourceNode, targetNode);
 
   const { perfMode } = usePerformanceMode();
@@ -592,11 +634,13 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
         {/* Emerald highlight for my vote on edge - extends to nodes only if BOTH edge AND node have my vote */}
         {edgeHasMyVote && (() => {
-          const centerX = actualLabelX;
-          const centerY = actualLabelY;
+          const centerX = highlightBezierData?.labelX ?? actualLabelX;
+          const centerY = highlightBezierData?.labelY ?? actualLabelY;
           const extendToSource = edgeHasMyVote && sourceHasMyVote;
           const extendToTarget = edgeHasMyVote && targetHasMyVote;
           const isObjection = props.edgeType === 'objection';
+          const sourceHighlightPath = highlightBezierData?.halfPaths?.firstHalf ?? sourceHalfBezierPath;
+          const targetHighlightPath = highlightBezierData?.halfPaths?.secondHalf ?? targetHalfBezierPath;
 
           let dashArray;
           if (props.edgeType === 'negation') {
@@ -612,7 +656,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           const dashedEmeraldStyle = dashArray ? { ...emeraldStyle, strokeDasharray: dashArray, strokeLinecap: 'butt' as const } : emeraldStyle;
 
           const emeraldDashOffset = dashArray
-            ? computeDashOffset(halfBezierLengths.first, dashArray)
+            ? computeDashOffset(highlightHalfBezierLengths.first ?? halfBezierLengths.first, dashArray)
             : undefined;
           const emeraldTargetStyle = emeraldDashOffset != null
             ? { ...dashedEmeraldStyle, strokeDashoffset: emeraldDashOffset }
@@ -621,9 +665,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           return (
             <>
               {extendToSource && (
-                isObjection && visual.useBezier && sourceHalfBezierPath ? (
+                isObjection && visual.useBezier && sourceHighlightPath ? (
                   <path
-                    d={sourceHalfBezierPath}
+                    d={sourceHighlightPath}
                     stroke="#10b981"
                     strokeWidth={4}
                     fill="none"
@@ -646,9 +690,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                 )
               )}
               {extendToTarget && (
-                isObjection && visual.useBezier && targetHalfBezierPath ? (
+                isObjection && visual.useBezier && targetHighlightPath ? (
                   <path
-                    d={targetHalfBezierPath}
+                    d={targetHighlightPath}
                     stroke="#10b981"
                     strokeWidth={4}
                     fill="none"
