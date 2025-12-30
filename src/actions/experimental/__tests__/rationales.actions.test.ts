@@ -163,6 +163,47 @@ describe("rationales actions", () => {
     expect(mockDb.execute).toHaveBeenCalled();
   });
 
+  it("listPinnedRationales returns rows from db.execute", async () => {
+    const rows = [
+      {
+        id: "p",
+        title: "Pinned",
+        ownerId: "me",
+        updatedAt: new Date(),
+        createdAt: new Date(),
+        lastOpenAt: new Date(),
+        pinnedAt: new Date(),
+      },
+    ];
+    mockDb.execute.mockResolvedValueOnce(rows);
+    const { listPinnedRationales } = await import(
+      "@/actions/experimental/rationales"
+    );
+    const res = await listPinnedRationales();
+    expect(res).toEqual(rows);
+    expect(mockDb.execute).toHaveBeenCalled();
+  });
+
+  it("listPinnedRationales uses pins table", async () => {
+    mockDb.execute.mockResolvedValueOnce([]);
+    const { listPinnedRationales } = await import(
+      "@/actions/experimental/rationales"
+    );
+    const res = await listPinnedRationales();
+    const query = mockDb.execute.mock.calls[0]?.[0];
+    const text = Array.isArray(query?.queryChunks)
+      ? query.queryChunks
+          .map((chunk: any) => {
+            if (Array.isArray(chunk?.value)) return chunk.value.join(" ");
+            if (typeof chunk?.value === "string") return chunk.value;
+            return String(chunk?.value ?? "");
+          })
+          .join(" ")
+      : query?.sql || query?.text || String(query);
+    expect(text).toContain("mp_doc_pins");
+    expect(res).toEqual([]);
+  });
+
   it("listVisitedRationales filters share link visits through active links", async () => {
     mockDb.execute.mockResolvedValueOnce([]);
     const { listVisitedRationales } = await import(
@@ -184,6 +225,27 @@ describe("rationales actions", () => {
     expect(text).toContain("disabled_at");
     expect(text).toContain("expires_at");
     expect(res).toEqual([]);
+  });
+
+  it("pinRationale inserts pin after access check", async () => {
+    mockDb.insert.mockReturnValue(chainInsert());
+    const { pinRationale } = await import(
+      "@/actions/experimental/rationales"
+    );
+    const res = await pinRationale("doc1");
+    expect(res).toEqual({ ok: true });
+    expect(resolveDocAccess).toHaveBeenCalled();
+    expect(mockDb.insert).toHaveBeenCalled();
+  });
+
+  it("unpinRationale deletes pin", async () => {
+    mockDb["delete"].mockReturnValue(chainDelete());
+    const { unpinRationale } = await import(
+      "@/actions/experimental/rationales"
+    );
+    const res = await unpinRationale("doc1");
+    expect(res).toEqual({ ok: true });
+    expect(mockDb["delete"]).toHaveBeenCalled();
   });
 
   it("renameRationale allows owner", async () => {

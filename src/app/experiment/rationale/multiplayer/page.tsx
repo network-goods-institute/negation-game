@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { Roboto_Slab } from 'next/font/google';
-import { listOwnedRationales, listVisitedRationales, deleteRationale, renameRationale, createRationale, recordOpen, duplicateRationale } from "@/actions/experimental/rationales";
+import { listOwnedRationales, listVisitedRationales, listPinnedRationales, deleteRationale, renameRationale, createRationale, recordOpen, duplicateRationale, pinRationale, unpinRationale } from "@/actions/experimental/rationales";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,10 +39,21 @@ import { WebsocketProvider } from "y-websocket";
 import { fetchYjsAuthToken } from "@/hooks/experiment/multiplayer/yjs/auth";
 import { logger } from "@/lib/logger";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { Pin } from "lucide-react";
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
-type MpDoc = { id: string; title: string | null; updatedAt: string | Date; createdAt: string | Date; ownerId?: string | null; lastOpenAt?: string | Date | null };
+type MpDoc = {
+  id: string;
+  title: string | null;
+  updatedAt: string | Date;
+  createdAt: string | Date;
+  ownerId?: string | null;
+  ownerUsername?: string | null;
+  lastOpenAt?: string | Date | null;
+  slug?: string | null;
+  pinnedAt?: string | Date | null;
+};
 
 const formatRelativeTime = (date: Date | string) => {
   const dateObj = new Date(date);
@@ -68,6 +79,7 @@ export default function MultiplayerRationaleIndexPage() {
   const router = useRouter();
   const [owned, setOwned] = useState<MpDoc[]>([]);
   const [visited, setVisited] = useState<MpDoc[]>([]);
+  const [pinned, setPinned] = useState<MpDoc[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const myId = (user as any)?.id || (user as any)?.sub || (user as any)?.userId || null;
@@ -78,12 +90,14 @@ export default function MultiplayerRationaleIndexPage() {
     try {
       setLoading(true);
       setError(null);
-      const [o, v] = await Promise.all([
+      const [o, v, p] = await Promise.all([
         listOwnedRationales(),
         listVisitedRationales(),
+        listPinnedRationales(),
       ]);
       setOwned(o as any);
       setVisited(v as any);
+      setPinned(p as any);
     } catch (e: any) {
       setError(e?.message || "Failed to load");
     } finally {
@@ -99,6 +113,8 @@ export default function MultiplayerRationaleIndexPage() {
   const [renameLoading, setRenameLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [pinningId, setPinningId] = useState<string | null>(null);
+  const [unpinningId, setUnpinningId] = useState<string | null>(null);
   const handleCreate = async () => {
     if (creating) return;
     setCreating(true);
@@ -124,6 +140,7 @@ export default function MultiplayerRationaleIndexPage() {
       await deleteRationale(docId);
       setOwned((d) => d.filter((x) => x.id !== docId));
       setVisited((d) => d.filter((x) => x.id !== docId));
+      setPinned((d) => d.filter((x) => x.id !== docId));
       setDeletingId(null);
       toast.success('Board deleted successfully');
     } catch (e: any) {
@@ -324,6 +341,71 @@ export default function MultiplayerRationaleIndexPage() {
     }
   };
 
+  const handlePinBoard = async (doc: MpDoc) => {
+    if (pinningId || unpinningId) return;
+    const wasPinned = pinned.some((item) => item.id === doc.id);
+    setPinningId(doc.id);
+    setPinned((prev) => {
+      const filtered = prev.filter((item) => item.id !== doc.id);
+      return [{ ...doc, pinnedAt: new Date().toISOString() }, ...filtered];
+    });
+    try {
+      await pinRationale(doc.id);
+      setPinned((prev) => {
+        if (prev.some((item) => item.id === doc.id)) return prev;
+        return [{ ...doc, pinnedAt: new Date().toISOString() }, ...prev];
+      });
+      toast.success("Board pinned");
+    } catch (e: any) {
+      if (!wasPinned) {
+        setPinned((prev) => prev.filter((item) => item.id !== doc.id));
+      }
+      const msg = (e?.message || "").toLowerCase();
+      if (msg.includes("unauthorized")) {
+        toast.error("Session expired. Please log in again.");
+        try { (login as any)?.(); } catch { }
+      } else if (msg.includes("forbidden")) {
+        toast.error("You do not have access to pin this board");
+      } else {
+        toast.error("Failed to pin board");
+      }
+    } finally {
+      setPinningId(null);
+    }
+  };
+
+  const handleUnpinBoard = async (docId: string) => {
+    if (pinningId || unpinningId) return;
+    const previousEntry = pinned.find((item) => item.id === docId);
+    const previousIndex = pinned.findIndex((item) => item.id === docId);
+    setUnpinningId(docId);
+    setPinned((prev) => prev.filter((item) => item.id !== docId));
+    try {
+      await unpinRationale(docId);
+      setPinned((prev) => prev.filter((item) => item.id !== docId));
+      toast.success("Board unpinned");
+    } catch (e: any) {
+      if (previousEntry) {
+        setPinned((prev) => {
+          if (prev.some((item) => item.id === docId)) return prev;
+          const next = prev.slice();
+          const insertIndex = previousIndex >= 0 ? Math.min(previousIndex, next.length) : 0;
+          next.splice(insertIndex, 0, previousEntry);
+          return next;
+        });
+      }
+      const msg = (e?.message || "").toLowerCase();
+      if (msg.includes("unauthorized")) {
+        toast.error("Session expired. Please log in again.");
+        try { (login as any)?.(); } catch { }
+      } else {
+        toast.error("Failed to unpin board");
+      }
+    } finally {
+      setUnpinningId(null);
+    }
+  };
+
   const handleRenameSubmit = async () => {
     if (!renamingId) return;
     const title = renamingDraft.trim();
@@ -334,6 +416,7 @@ export default function MultiplayerRationaleIndexPage() {
       await renameRationale(renamingId, title);
       setOwned((prev) => prev.map((d) => d.id === renamingId ? { ...d, title } : d));
       setVisited((prev) => prev.map((d) => d.id === renamingId ? { ...d, title } : d));
+      setPinned((prev) => prev.map((d) => d.id === renamingId ? { ...d, title } : d));
       setRenamingId(null);
       setRenamingDraft('');
       toast.success('Board renamed successfully');
@@ -344,6 +427,144 @@ export default function MultiplayerRationaleIndexPage() {
     } finally {
       setRenameLoading(false);
     }
+  };
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchesQuery = (doc: MpDoc) => {
+    if (!normalizedQuery) return true;
+    const title = (doc.title || "").toLowerCase();
+    const id = doc.id.toLowerCase();
+    return title.includes(normalizedQuery) || id.includes(normalizedQuery);
+  };
+  const pinnedIds = new Set(pinned.map((doc) => doc.id));
+  const pinnedVisible = pinned.filter(matchesQuery);
+  const ownedVisible = owned.filter((doc) => !pinnedIds.has(doc.id)).filter(matchesQuery);
+  const visitedVisible = visited.filter((doc) => !pinnedIds.has(doc.id)).filter(matchesQuery);
+
+  const renderBoardCard = (doc: MpDoc) => {
+    const title = (doc.title || 'Untitled').trim() || 'Untitled';
+    const slug = doc.slug || null;
+    const ownerId = doc.ownerId || '';
+    const lastOpenAt = doc.lastOpenAt ? new Date(doc.lastOpenAt as any) : null;
+    const updatedAt = doc.updatedAt ? new Date(doc.updatedAt as any) : null;
+    const canEditMeta = myId && ownerId && myId === ownerId;
+    const isPinned = pinnedIds.has(doc.id);
+    const isPinUpdating = pinningId === doc.id || unpinningId === doc.id;
+    return (
+      <Card
+        key={doc.id}
+        className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${(openingId === doc.id || duplicatingId === doc.id) ? 'opacity-60 pointer-events-none' : ''}`}
+        onClick={async () => {
+          if (openingId) return;
+          setOpeningId(doc.id);
+          try {
+            try { await recordOpen(doc.id); } catch (err: any) {
+              const msg = (err?.message || "").toLowerCase();
+              if (msg.includes("not found")) {
+                toast.error("Board no longer exists.");
+                setOpeningId(null);
+                return;
+              }
+            }
+            const host = typeof window !== 'undefined' ? window.location.host : '';
+            router.push(buildRationaleDetailPath(doc.id, host, slug));
+          } catch (e: any) {
+            const msg = (e?.message || '').toLowerCase();
+            if (msg.includes('unauthorized')) { toast.error('Session expired. Please log in again.'); try { (login as any)?.(); } catch { } }
+            setOpeningId(null);
+          }
+        }}
+        role="button"
+      >
+        {(openingId === doc.id || duplicatingId === doc.id) && (
+          <div className="absolute top-3 right-3 h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
+        )}
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(doc.id, host, slug); })()} className="text-base font-medium text-blue-600 hover:underline">
+              {title}
+            </Link>
+            <div className="mt-2 flex items-center gap-2 text-xs text-stone-600">
+              <Avatar className="h-6 w-6"><AvatarFallback>{(doc.ownerUsername || ownerId || 'U').slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>
+              <span className="">{doc.ownerUsername || ownerId || '—'}</span>
+              <span className="text-stone-400">•</span>
+              <span>{lastOpenAt ? `Opened ${formatRelativeTime(lastOpenAt)}` : updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : ''}</span>
+              <span className="text-stone-400">•</span>
+              <span>Created {formatRelativeTime(doc.createdAt as any)}</span>
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="More" onClick={(e) => e.stopPropagation()}>⋯</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} onPointerDownCapture={(e) => e.stopPropagation()}>
+              <DropdownMenuItem
+                disabled={isPinUpdating}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isPinned) {
+                    handleUnpinBoard(doc.id);
+                  } else {
+                    handlePinBoard(doc);
+                  }
+                }}
+              >
+                {isPinned ? "Unpin board" : "Pin board"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const host = typeof window !== 'undefined' ? window.location.host : '';
+                  const url = buildRationaleDetailPath(doc.id, host, slug);
+                  const fullUrl = `${window.location.protocol}//${host}${url}`;
+                  handleCopyUrl(fullUrl);
+                }}
+              >
+                {isCopyingUrl ? "Copied!" : "Copy Link"}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDuplicate(doc.id, title);
+                }}
+              >
+                Duplicate
+              </DropdownMenuItem>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuItem
+                    className={!canEditMeta ? "opacity-60 cursor-not-allowed" : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!canEditMeta) return;
+                      handleRename(doc.id, title);
+                    }}
+                  >
+                    Rename
+                  </DropdownMenuItem>
+                </TooltipTrigger>
+                {!canEditMeta && <TooltipContent className="z-[9999]">Only the owner can rename</TooltipContent>}
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuItem
+                    className={!canEditMeta ? "opacity-60 cursor-not-allowed" : "text-red-600 focus:text-red-700"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!canEditMeta) return;
+                      setDeletingId(doc.id);
+                    }}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </TooltipTrigger>
+                {!canEditMeta && <TooltipContent className="z-[9999]">Only the owner can delete</TooltipContent>}
+              </Tooltip>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </Card>
+    );
   };
 
   useEffect(() => { if (ready && authenticated) { load(); } }, [ready, authenticated]);
@@ -437,6 +658,22 @@ export default function MultiplayerRationaleIndexPage() {
             </div>
           ) : (
             <>
+              {pinnedVisible.length > 0 && (
+                <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-stone-200/30 p-6 mb-8">
+                  <div className="mb-6">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                        <Pin className="w-4 h-4 text-amber-700" />
+                      </div>
+                      <h2 className="text-xl font-semibold text-stone-800">Pinned boards</h2>
+                    </div>
+                    <p className="text-sm text-stone-600 ml-11">Boards pinned for quick access</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
+                    {pinnedVisible.map(renderBoardCard)}
+                  </div>
+                </div>
+              )}
               {/* Owned Rationales Section */}
               <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-stone-200/30 p-6 mb-8">
                 <div className="mb-6">
@@ -473,127 +710,11 @@ export default function MultiplayerRationaleIndexPage() {
                     </div>
                   </Card>
 
-                  {owned
-                    .filter((d) => {
-                      const t = (d.title || "").toLowerCase();
-                      const id = d.id.toLowerCase();
-                      const q = query.toLowerCase();
-                      return !q || t.includes(q) || id.includes(q);
-                    })
-                    .map((d) => {
-                      const title = (d.title || 'Untitled').trim() || 'Untitled';
-                      const slug = (d as any).slug || null;
-                      const ownerId = (d as any).ownerId || '';
-                      const lastOpenAt = d.lastOpenAt ? new Date(d.lastOpenAt as any) : null;
-                      const updatedAt = d.updatedAt ? new Date(d.updatedAt as any) : null;
-                      const canEditMeta = myId && ownerId && myId === ownerId;
-                      return (
-                        <Card
-                          key={d.id}
-                          className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${(openingId === d.id || duplicatingId === d.id) ? 'opacity-60 pointer-events-none' : ''}`}
-                          onClick={async () => {
-                            if (openingId) return;
-                            setOpeningId(d.id);
-                            try {
-                              try { await recordOpen(d.id); } catch (err: any) {
-                                const msg = (err?.message || "").toLowerCase();
-                                if (msg.includes("not found")) {
-                                  toast.error("Board no longer exists.");
-                                  setOpeningId(null);
-                                  return;
-                                }
-                              }
-                              const host = typeof window !== 'undefined' ? window.location.host : '';
-                              router.push(buildRationaleDetailPath(d.id, host, slug));
-                            } catch (e: any) {
-                              const msg = (e?.message || '').toLowerCase();
-                              if (msg.includes('unauthorized')) { toast.error('Session expired. Please log in again.'); try { (login as any)?.(); } catch { } }
-                              setOpeningId(null);
-                            }
-                          }}
-                          role="button"
-                        >
-                          {(openingId === d.id || duplicatingId === d.id) && (
-                            <div className="absolute top-3 right-3 h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
-                          )}
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(d.id, host, slug); })()} className="text-base font-medium text-blue-600 hover:underline">
-                                {title}
-                              </Link>
-                              <div className="mt-2 flex items-center gap-2 text-xs text-stone-600">
-                                <Avatar className="h-6 w-6"><AvatarFallback>{((d as any).ownerUsername || ownerId || 'U').slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>
-                                <span className="">{(d as any).ownerUsername || ownerId || '—'}</span>
-                                <span className="text-stone-400">•</span>
-                                <span>{lastOpenAt ? `Opened ${formatRelativeTime(lastOpenAt)}` : updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : ''}</span>
-                                <span className="text-stone-400">•</span>
-                                <span>Created {formatRelativeTime(d.createdAt as any)}</span>
-                              </div>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" aria-label="More" onClick={(e) => e.stopPropagation()}>⋯</Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} onPointerDownCapture={(e) => e.stopPropagation()}>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const host = typeof window !== 'undefined' ? window.location.host : '';
-                                    const url = buildRationaleDetailPath(d.id, host, slug);
-                                    const fullUrl = `${window.location.protocol}//${host}${url}`;
-                                    handleCopyUrl(fullUrl);
-                                  }}
-                                >
-                                  {isCopyingUrl ? "Copied!" : "Copy Link"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDuplicate(d.id, title);
-                                  }}
-                                >
-                                  Duplicate
-                                </DropdownMenuItem>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <DropdownMenuItem
-                                      className={!canEditMeta ? "opacity-60 cursor-not-allowed" : undefined}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!canEditMeta) return;
-                                        handleRename(d.id, title);
-                                      }}
-                                    >
-                                      Rename
-                                    </DropdownMenuItem>
-                                  </TooltipTrigger>
-                                  {!canEditMeta && <TooltipContent className="z-[9999]">Only the owner can rename</TooltipContent>}
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <DropdownMenuItem
-                                      className={!canEditMeta ? "opacity-60 cursor-not-allowed" : "text-red-600 focus:text-red-700"}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!canEditMeta) return;
-                                        setDeletingId(d.id);
-                                      }}
-                                    >
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </TooltipTrigger>
-                                  {!canEditMeta && <TooltipContent className="z-[9999]">Only the owner can delete</TooltipContent>}
-                                </Tooltip>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </Card>
-                      );
-                    })}
+                  {ownedVisible.map(renderBoardCard)}
                 </div>
               </div>
 
-              {visited.length > 0 && (
+              {visitedVisible.length > 0 && (
                 <>
                   {/* Shared Rationales Section */}
                   <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-stone-200/30 p-6 mb-8">
@@ -609,123 +730,7 @@ export default function MultiplayerRationaleIndexPage() {
                       <p className="text-sm text-stone-600 ml-11">Collaborative boards from others</p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
-                      {visited
-                        .filter((d) => {
-                          const t = (d.title || "").toLowerCase();
-                          const id = d.id.toLowerCase();
-                          const q = query.toLowerCase();
-                          return !q || t.includes(q) || id.includes(q);
-                        })
-                        .map((d) => {
-                          const title = (d.title || 'Untitled').trim() || 'Untitled';
-                          const slug = (d as any).slug || null;
-                          const ownerId = (d as any).ownerId || '';
-                          const lastOpenAt = d.lastOpenAt ? new Date(d.lastOpenAt as any) : null;
-                          const updatedAt = d.updatedAt ? new Date(d.updatedAt as any) : null;
-                          const canEditMeta = myId && ownerId && myId === ownerId;
-                          return (
-                            <Card
-                              key={d.id}
-                              className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${(openingId === d.id || duplicatingId === d.id) ? 'opacity-60 pointer-events-none' : ''}`}
-                              onClick={async () => {
-                                if (openingId) return;
-                                setOpeningId(d.id);
-                                try {
-                                  try { await recordOpen(d.id); } catch (err: any) {
-                                    const msg = (err?.message || "").toLowerCase();
-                                    if (msg.includes("not found")) {
-                                      toast.error("Board no longer exists.");
-                                      setOpeningId(null);
-                                      return;
-                                    }
-                                  }
-                                  const host = typeof window !== 'undefined' ? window.location.host : '';
-                                  router.push(buildRationaleDetailPath(d.id, host, slug));
-                                } catch (e: any) {
-                                  const msg = (e?.message || '').toLowerCase();
-                                  if (msg.includes('unauthorized')) { toast.error('Session expired. Please log in again.'); try { (login as any)?.(); } catch { } }
-                                  setOpeningId(null);
-                                }
-                              }}
-                              role="button"
-                            >
-                              {(openingId === d.id || duplicatingId === d.id) && (
-                                <div className="absolute top-3 right-3 h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
-                              )}
-                              <div className="flex items-start justify-between gap-2">
-                                <div>
-                                  <Link href={(() => { const host = typeof window !== 'undefined' ? window.location.host : ''; return buildRationaleDetailPath(d.id, host, slug); })()} className="text-base font-medium text-blue-600 hover:underline">
-                                    {title}
-                                  </Link>
-                                  <div className="mt-2 flex items-center gap-2 text-xs text-stone-600">
-                                    <Avatar className="h-6 w-6"><AvatarFallback>{((d as any).ownerUsername || ownerId || 'U').slice(0, 1).toUpperCase()}</AvatarFallback></Avatar>
-                                    <span className="">{(d as any).ownerUsername || ownerId || '—'}</span>
-                                    <span className="text-stone-400">•</span>
-                                    <span>{lastOpenAt ? `Opened ${formatRelativeTime(lastOpenAt)}` : updatedAt ? `Updated ${formatRelativeTime(updatedAt)}` : ''}</span>
-                                    <span className="text-stone-400">•</span>
-                                    <span>Created {formatRelativeTime(d.createdAt as any)}</span>
-                                  </div>
-                                </div>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" aria-label="More" onClick={(e) => e.stopPropagation()}>⋯</Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} onPointerDownCapture={(e) => e.stopPropagation()}>
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const host = typeof window !== 'undefined' ? window.location.host : '';
-                                        const url = buildRationaleDetailPath(d.id, host, slug);
-                                        const fullUrl = `${window.location.protocol}//${host}${url}`;
-                                        handleCopyUrl(fullUrl);
-                                      }}
-                                    >
-                                      {isCopyingUrl ? "Copied!" : "Copy Link"}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDuplicate(d.id, title);
-                                      }}
-                                    >
-                                      Duplicate
-                                    </DropdownMenuItem>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <DropdownMenuItem
-                                          className={!canEditMeta ? "opacity-60 cursor-not-allowed" : undefined}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (!canEditMeta) return;
-                                            handleRename(d.id, title);
-                                          }}
-                                        >
-                                          Rename
-                                        </DropdownMenuItem>
-                                      </TooltipTrigger>
-                                      {!canEditMeta && <TooltipContent className="z-[9999]">Only the owner can rename</TooltipContent>}
-                                    </Tooltip>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <DropdownMenuItem
-                                          className={!canEditMeta ? "opacity-60 cursor-not-allowed" : "text-red-600 focus:text-red-700"}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (!canEditMeta) return;
-                                            setDeletingId(d.id);
-                                          }}
-                                        >
-                                          Delete
-                                        </DropdownMenuItem>
-                                      </TooltipTrigger>
-                                      {!canEditMeta && <TooltipContent className="z-[9999]">Only the owner can delete</TooltipContent>}
-                                    </Tooltip>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </Card>
-                          );
-                        })}
+                      {visitedVisible.map(renderBoardCard)}
                     </div>
                   </div>
                 </>

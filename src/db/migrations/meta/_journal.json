@@ -694,6 +694,13 @@
       "when": 1765608071373,
       "tag": "0098_cool_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1767100501387,
+      "tag": "0099_loose_lionheart",
+      "breakpoints": true
     }
   ]
 }

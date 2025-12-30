@@ -20,13 +20,19 @@ jest.mock('@privy-io/react-auth', () => ({
 jest.mock('@/actions/experimental/rationales', () => ({
   listOwnedRationales: jest.fn(async () => ([
     { id: 'a', title: 'Mine', ownerId: 'me', updatedAt: new Date().toISOString(), createdAt: new Date().toISOString(), lastOpenAt: new Date().toISOString() },
+    { id: 'p', title: 'Pinned Board', ownerId: 'me', updatedAt: new Date().toISOString(), createdAt: new Date().toISOString(), lastOpenAt: new Date().toISOString() },
   ])),
   listVisitedRationales: jest.fn(async () => ([
     { id: 'b', title: 'Theirs', ownerId: 'other', updatedAt: new Date().toISOString(), createdAt: new Date().toISOString(), lastOpenAt: new Date().toISOString() },
   ])),
+  listPinnedRationales: jest.fn(async () => ([
+    { id: 'p', title: 'Pinned Board', ownerId: 'me', updatedAt: new Date().toISOString(), createdAt: new Date().toISOString(), lastOpenAt: new Date().toISOString(), pinnedAt: new Date().toISOString() },
+  ])),
   deleteRationale: jest.fn(async () => ({})),
   renameRationale: jest.fn(async () => ({})),
   createRationale: jest.fn(async () => ({ id: 'new' })),
+  pinRationale: jest.fn(async () => ({})),
+  unpinRationale: jest.fn(async () => ({})),
 }));
 
 jest.mock('@/queries/experiment/multiplayer/useMultiplayerNotifications', () => ({
@@ -65,6 +71,9 @@ describe('Multiplayer index page', () => {
     expect(await screen.findByText(/My Boards/i)).toBeInTheDocument();
     expect(await screen.findByText('Mine')).toBeInTheDocument();
     expect(await screen.findByText('Theirs')).toBeInTheDocument();
+    expect(await screen.findByText('Pinned boards')).toBeInTheDocument();
+    const pinnedMatches = await screen.findAllByText('Pinned Board');
+    expect(pinnedMatches).toHaveLength(1);
     expect(await screen.findByTitle(/Notifications/i)).toBeInTheDocument();
   });
 });

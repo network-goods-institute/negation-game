@@ -7,6 +7,7 @@ import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
 import { mpDocPermissionsTable } from "@/db/tables/mpDocPermissionsTable";
 import { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
+import { mpDocPinsTable } from "@/db/tables/mpDocPinsTable";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { slugify } from "@/utils/slugify";
@@ -195,6 +196,95 @@ export async function listVisitedRationales() {
     lastOpenAt: Date | null;
   }>;
   return rows;
+}
+
+export async function listPinnedRationales() {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+  const rows = (await db.execute(sql`
+    SELECT d.id,
+           d.title,
+           d.slug as "slug",
+           COALESCE(d.owner_id, ${userId}) AS "ownerId",
+           u.username AS "ownerUsername",
+           d.created_at AS "createdAt",
+           d.updated_at AS "updatedAt",
+           a.last_open_at AS "lastOpenAt",
+           p.created_at AS "pinnedAt"
+    FROM mp_doc_pins p
+    JOIN mp_docs d ON d.id = p.doc_id
+    LEFT JOIN users u ON u.id = d.owner_id
+    LEFT JOIN LATERAL (
+      SELECT last_open_at FROM mp_doc_access a
+      WHERE a.doc_id = d.id AND a.user_id = ${userId}
+      ORDER BY last_open_at DESC
+      LIMIT 1
+    ) a ON TRUE
+    LEFT JOIN mp_doc_access access ON access.doc_id = d.id AND access.user_id = ${userId}
+    LEFT JOIN mp_doc_share_links s
+      ON s.id = access.share_link_id
+     AND s.disabled_at IS NULL
+     AND (s.expires_at IS NULL OR s.expires_at > NOW())
+    LEFT JOIN mp_doc_permissions perms ON perms.doc_id = d.id AND perms.user_id = ${userId}
+    WHERE p.user_id = ${userId}
+      AND (
+        d.owner_id = ${userId}
+        OR (d.owner_id IS NULL AND access.user_id IS NOT NULL)
+        OR (
+          d.owner_id IS NOT NULL AND d.owner_id <> ${userId}
+          AND (
+            (d.created_at < ${PERMISSIONS_SYSTEM_CUTOFF_ISO} AND (access.user_id IS NOT NULL OR perms.user_id IS NOT NULL))
+            OR
+            (d.created_at >= ${PERMISSIONS_SYSTEM_CUTOFF_ISO} AND (perms.user_id IS NOT NULL OR (access.user_id IS NOT NULL AND s.id IS NOT NULL)))
+          )
+        )
+      )
+    ORDER BY p.created_at DESC
+    LIMIT 200
+  `)) as unknown as Array<{
+    id: string;
+    title: string | null;
+    slug: string | null;
+    ownerId: string;
+    ownerUsername: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    lastOpenAt: Date | null;
+    pinnedAt: Date;
+  }>;
+  return rows;
+}
+
+export async function pinRationale(docId: string) {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+  if (!isValidSlugOrId(docId)) throw new Error("Invalid doc id or slug");
+  const canonicalId = await resolveSlugToId(docId);
+  const access = await resolveDocAccess(canonicalId, { userId });
+  if (access.status === "not_found") throw new Error("Document not found");
+  if (access.status !== "ok") throw new Error("Forbidden");
+  await db
+    .insert(mpDocPinsTable)
+    .values({
+      docId: canonicalId,
+      userId,
+    })
+    .onConflictDoUpdate({
+      target: [mpDocPinsTable.userId, mpDocPinsTable.docId],
+      set: { createdAt: new Date() },
+    });
+  return { ok: true };
+}
+
+export async function unpinRationale(docId: string) {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+  if (!isValidSlugOrId(docId)) throw new Error("Invalid doc id or slug");
+  const canonicalId = await resolveSlugToId(docId);
+  await db
+    .delete(mpDocPinsTable)
+    .where(and(eq(mpDocPinsTable.docId, canonicalId), eq(mpDocPinsTable.userId, userId)));
+  return { ok: true };
 }
 
 export async function recordOpen(docId: string, opts?: { shareToken?: string | null }) {
