@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import Page from '../page';
 
 jest.mock('next/navigation', () => ({
@@ -75,5 +75,24 @@ describe('Multiplayer index page', () => {
     const pinnedMatches = await screen.findAllByText('Pinned Board');
     expect(pinnedMatches).toHaveLength(1);
     expect(await screen.findByTitle(/Notifications/i)).toBeInTheDocument();
+  });
+
+  it('opens board in new tab on meta click', async () => {
+    const originalOpen = window.open;
+    const openSpy = jest.fn();
+    window.open = openSpy as unknown as typeof window.open;
+
+    render(<Page />);
+    const title = await screen.findByText('Mine');
+    const card = title.closest('[role="button"]');
+    expect(card).not.toBeNull();
+    fireEvent.click(card as HTMLElement, { metaKey: true });
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/board/'),
+      '_blank',
+      'noopener'
+    );
+
+    window.open = originalOpen;
   });
 });

@@ -454,7 +454,19 @@ export default function MultiplayerRationaleIndexPage() {
       <Card
         key={doc.id}
         className={`p-4 hover:shadow-md transition w-full cursor-pointer relative ${(openingId === doc.id || duplicatingId === doc.id) ? 'opacity-60 pointer-events-none' : ''}`}
-        onClick={async () => {
+        onClick={async (event) => {
+          if (event.metaKey || event.ctrlKey) {
+            event.preventDefault();
+            if (typeof window !== 'undefined') {
+              const host = window.location.host;
+              const path = buildRationaleDetailPath(doc.id, host, slug);
+              const fullUrl = host
+                ? `${window.location.protocol}//${host}${path}`
+                : path;
+              window.open(fullUrl, "_blank", "noopener");
+            }
+            return;
+          }
           if (openingId) return;
           setOpeningId(doc.id);
           try {
