@@ -373,7 +373,7 @@ export default function MultiplayerRationaleIndexPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-stone-800">My Boards</h1>
-              <p className="text-sm text-stone-600 mt-1">Create, organize, and collaborate on argument boards.</p>
+              <p className="text-sm text-stone-600 mt-1">Create, organize, and collaborate on boards.</p>
             </div>
             <Button onClick={handleCreate} disabled={creating} aria-busy={creating} className="h-9 px-4 bg-sync hover:bg-sync-hover text-white">
               {creating ? (
