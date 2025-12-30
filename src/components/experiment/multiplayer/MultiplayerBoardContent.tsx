@@ -1649,7 +1649,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       {mpNotificationsEnabled && !shareDialogOpen && !notificationsSidebarOpen && (
         <button
           onClick={() => setNotificationsSidebarOpen(true)}
-          className="fixed top-1/3 right-0 z-[70] bg-white/95 backdrop-blur-sm border-2 border-r-0 border-stone-300 rounded-l-lg shadow-lg hover:shadow-xl hover:-translate-x-1 transition-all py-6 px-2 group"
+          className="fixed top-1/3 right-0 z-[70] bg-white/95 backdrop-blur-sm border-2 border-r-0 border-stone-300 rounded-l-lg shadow-lg hover:shadow-xl transition-[box-shadow,transform] duration-200 origin-right hover:scale-[1.02] py-6 px-2 group"
           title="Notifications"
         >
           <div className="flex flex-col items-center gap-2">
