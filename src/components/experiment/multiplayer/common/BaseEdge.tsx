@@ -142,10 +142,14 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const sourceHasOthersVotes = sourceOthersVotes.length > 0;
   const targetHasOthersVotes = targetOthersVotes.length > 0;
 
+  const edgeType = props.edgeType;
+  const sourcePositionProp = (props as any).sourcePosition;
+  const targetPositionProp = (props as any).targetPosition;
+
   const highlightBezierData = useMemo(() => {
-    if (!edgeHasMyVote || props.edgeType !== 'objection' || !visual.useBezier) return null;
-    let sourcePosition = (props as any).sourcePosition;
-    let targetPosition = (props as any).targetPosition;
+    if (!edgeHasMyVote || edgeType !== 'objection' || !visual.useBezier) return null;
+    let sourcePosition = sourcePositionProp;
+    let targetPosition = targetPositionProp;
     const objectionY = sourceNode?.position?.y ?? 0;
     const anchorY = targetNode?.position?.y ?? 0;
     sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
@@ -164,7 +168,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       labelY,
       halfPaths: getHalfBezierPaths(path),
     };
-  }, [edgeHasMyVote, props.edgeType, visual.useBezier, sourceNode, targetNode, sourceX, sourceY, targetX, targetY, props]);
+  }, [edgeHasMyVote, edgeType, visual.useBezier, sourceNode, targetNode, sourceX, sourceY, targetX, targetY, sourcePositionProp, targetPositionProp]);
 
   const highlightHalfBezierLengths = useMemo(() => {
     if (!highlightBezierData?.halfPaths) return { first: null as number | null, second: null as number | null };

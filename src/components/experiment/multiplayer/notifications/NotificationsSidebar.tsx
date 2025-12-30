@@ -320,13 +320,14 @@ export function NotificationsSidebar({
   };
 
   const handleNotificationMarkRead = (notification: MultiplayerNotification) => {
+    if (notification.isRead) return;
     const idsToMark = new Set(notification.ids ?? [notification.id]);
     updateNotifications((prev) =>
       prev.map((n) => {
         const matches =
           (n.ids && n.ids.some((id) => idsToMark.has(id))) ||
           idsToMark.has(n.id);
-        return matches ? { ...n, isRead: true } : n;
+        return matches ? { ...n, isRead: true, unreadCount: 0 } : n;
       })
     );
     try {
@@ -345,7 +346,9 @@ export function NotificationsSidebar({
   };
 
   const markAllAsRead = () => {
-    updateNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    updateNotifications((prev) =>
+      prev.map((n) => ({ ...n, isRead: true, unreadCount: 0 }))
+    );
     try {
       const unreadIds = notifications
         .filter((n) => !n.isRead)
@@ -730,16 +733,24 @@ function NotificationItem({
     src,
     name: actorNames[idx] ?? notification.userName,
   }));
+  const handleActivate = () => {
+    if (notification.isRead) {
+      onNavigate();
+      return;
+    }
+    onMarkRead();
+    onNavigate();
+  };
   return (
     <div
       role="button"
       tabIndex={0}
       data-testid={`notification-item-${notification.id}`}
-      onClick={onMarkRead}
+      onClick={handleActivate}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onMarkRead();
+          handleActivate();
         }
       }}
       className={cn(
@@ -805,7 +816,7 @@ function NotificationItem({
         data-testid={`notification-view-${notification.id}`}
         onClick={(event) => {
           event.stopPropagation();
-          onNavigate();
+          handleActivate();
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
