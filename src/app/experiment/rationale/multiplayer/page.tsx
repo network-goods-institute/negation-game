@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { Roboto_Slab } from 'next/font/google';
 import { listOwnedRationales, listVisitedRationales, listPinnedRationales, deleteRationale, renameRationale, createRationale, recordOpen, duplicateRationale, pinRationale, unpinRationale } from "@/actions/experimental/rationales";
+import { listAccessRequests, resolveAccessRequest } from "@/actions/experimental/rationaleAccess";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,18 @@ type MpDoc = {
   pinnedAt?: string | Date | null;
 };
 
+type AccessRequest = {
+  id: string;
+  docId: string;
+  docTitle: string | null;
+  docSlug?: string | null;
+  requesterId: string;
+  requesterUsername: string | null;
+  requestedRole: "viewer" | "editor";
+  status: "pending" | "approved" | "declined";
+  createdAt: string | Date;
+};
+
 const formatRelativeTime = (date: Date | string) => {
   const dateObj = new Date(date);
   const now = new Date();
@@ -80,6 +93,7 @@ export default function MultiplayerRationaleIndexPage() {
   const [owned, setOwned] = useState<MpDoc[]>([]);
   const [visited, setVisited] = useState<MpDoc[]>([]);
   const [pinned, setPinned] = useState<MpDoc[]>([]);
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const myId = (user as any)?.id || (user as any)?.sub || (user as any)?.userId || null;
@@ -90,14 +104,16 @@ export default function MultiplayerRationaleIndexPage() {
     try {
       setLoading(true);
       setError(null);
-      const [o, v, p] = await Promise.all([
+      const [o, v, p, r] = await Promise.all([
         listOwnedRationales(),
         listVisitedRationales(),
         listPinnedRationales(),
+        listAccessRequests(),
       ]);
       setOwned(o as any);
       setVisited(v as any);
       setPinned(p as any);
+      setAccessRequests((r as AccessRequest[]) || []);
     } catch (e: any) {
       setError(e?.message || "Failed to load");
     } finally {
@@ -115,6 +131,7 @@ export default function MultiplayerRationaleIndexPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [pinningId, setPinningId] = useState<string | null>(null);
   const [unpinningId, setUnpinningId] = useState<string | null>(null);
+  const [requestActionId, setRequestActionId] = useState<string | null>(null);
   const handleCreate = async () => {
     if (creating) return;
     setCreating(true);
@@ -406,6 +423,25 @@ export default function MultiplayerRationaleIndexPage() {
     }
   };
 
+  const handleResolveAccessRequest = async (requestId: string, action: "approve" | "decline", role?: "viewer" | "editor") => {
+    if (requestActionId) return;
+    setRequestActionId(requestId);
+    try {
+      const result = await resolveAccessRequest({ requestId, action, role });
+      if (result?.ok) {
+        setAccessRequests((prev) => prev.filter((req) => req.id !== requestId));
+        toast.success(action === "decline" ? "Request declined" : "Access granted");
+      } else {
+        toast.error("Request already handled");
+        setAccessRequests((prev) => prev.filter((req) => req.id !== requestId));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update request");
+    } finally {
+      setRequestActionId(null);
+    }
+  };
+
   const handleRenameSubmit = async () => {
     if (!renamingId) return;
     const title = renamingDraft.trim();
@@ -440,6 +476,12 @@ export default function MultiplayerRationaleIndexPage() {
   const pinnedVisible = pinned.filter(matchesQuery);
   const ownedVisible = owned.filter((doc) => !pinnedIds.has(doc.id)).filter(matchesQuery);
   const visitedVisible = visited.filter((doc) => !pinnedIds.has(doc.id)).filter(matchesQuery);
+  const accessRequestsVisible = accessRequests.filter((req) => {
+    if (!normalizedQuery) return true;
+    const title = (req.docTitle || "").toLowerCase();
+    const requester = (req.requesterUsername || req.requesterId || "").toLowerCase();
+    return title.includes(normalizedQuery) || requester.includes(normalizedQuery) || req.docId.toLowerCase().includes(normalizedQuery);
+  });
 
   const renderBoardCard = (doc: MpDoc) => {
     const title = (doc.title || 'Untitled').trim() || 'Untitled';
@@ -670,6 +712,73 @@ export default function MultiplayerRationaleIndexPage() {
             </div>
           ) : (
             <>
+              {accessRequestsVisible.length > 0 && (
+                <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-stone-200/30 p-6 mb-8">
+                  <div className="mb-6">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                      <h2 className="text-xl font-semibold text-stone-800">Access requests</h2>
+                    </div>
+                    <p className="text-sm text-stone-600 ml-11">People asking to view or edit your boards</p>
+                  </div>
+                  <div className="space-y-3">
+                    {accessRequestsVisible.map((req) => {
+                      const title = (req.docTitle || "Untitled").trim() || "Untitled";
+                      const requesterLabel = req.requesterUsername || req.requesterId;
+                      const createdAt = new Date(req.createdAt as any);
+                      const host = typeof window !== 'undefined' ? window.location.host : '';
+                      const url = buildRationaleDetailPath(req.docId, host, req.docSlug || undefined);
+                      const busy = requestActionId === req.id;
+                      return (
+                        <div key={req.id} className="rounded-lg border border-stone-200 bg-white px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <Link href={url} className="text-sm font-semibold text-blue-600 hover:underline">
+                              {title}
+                            </Link>
+                            <div className="text-xs text-stone-600 mt-1 flex flex-wrap gap-2">
+                              <span>Request from {requesterLabel}</span>
+                              <span className="text-stone-400">•</span>
+                              <span>Asked for {req.requestedRole === "editor" ? "edit" : "view"} access</span>
+                              <span className="text-stone-400">•</span>
+                              <span>{formatRelativeTime(createdAt)}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              onClick={() => handleResolveAccessRequest(req.id, "approve", "viewer")}
+                            >
+                              Approve view
+                            </Button>
+                            <Button
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => handleResolveAccessRequest(req.id, "approve", "editor")}
+                            >
+                              Approve edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={busy}
+                              className="text-stone-600 hover:text-stone-900"
+                              onClick={() => handleResolveAccessRequest(req.id, "decline")}
+                            >
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {pinnedVisible.length > 0 && (
                 <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-stone-200/30 p-6 mb-8">
                   <div className="mb-6">

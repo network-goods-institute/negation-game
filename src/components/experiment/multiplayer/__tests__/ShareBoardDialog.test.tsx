@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ShareBoardDialog } from "../ShareBoardDialog";
-import { listShareLinks, listCollaborators, setUserAccess } from "@/actions/experimental/rationaleAccess";
+import { listShareLinks, listCollaborators, setUserAccess, listAccessRequests, resolveAccessRequest } from "@/actions/experimental/rationaleAccess";
 import { fetchAllUsers } from "@/actions/users/fetchAllUsers";
 import { toast } from "sonner";
 
@@ -13,6 +13,8 @@ jest.mock("@/actions/experimental/rationaleAccess", () => ({
   setUserAccess: jest.fn(),
   listCollaborators: jest.fn(async () => []),
   removeUserAccess: jest.fn(),
+  listAccessRequests: jest.fn(async () => []),
+  resolveAccessRequest: jest.fn(async () => ({ ok: true, status: "approved" })),
 }));
 
 jest.mock("@/actions/users/fetchAllUsers", () => ({
@@ -31,8 +33,10 @@ describe("ShareBoardDialog", () => {
     jest.clearAllMocks();
     (listShareLinks as jest.Mock).mockResolvedValue([]);
     (listCollaborators as jest.Mock).mockResolvedValue([]);
+    (listAccessRequests as jest.Mock).mockResolvedValue([]);
     (fetchAllUsers as jest.Mock).mockResolvedValue([]);
     (setUserAccess as jest.Mock).mockResolvedValue({});
+    (resolveAccessRequest as jest.Mock).mockResolvedValue({ ok: true, status: "approved" });
     (toast.success as jest.Mock).mockClear();
     (toast.error as jest.Mock).mockClear();
   });
@@ -202,6 +206,35 @@ describe("ShareBoardDialog", () => {
     const revokeButton = await screen.findByRole("button", { name: /Revoke link/i });
 
     expect(revokeButton.parentElement?.className).toContain("group");
+  });
+
+  it("shows access requests for owners", async () => {
+    (listAccessRequests as jest.Mock).mockResolvedValue([
+      {
+        id: "req-1",
+        requesterId: "u1",
+        requesterUsername: "requester",
+        requestedRole: "viewer",
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(
+      <ShareBoardDialog
+        docId="doc-1"
+        slug="doc-1"
+        open={true}
+        onOpenChange={() => {}}
+        accessRole="owner"
+        currentUserId="me"
+        currentUsername="me-user"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Access requests/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText("requester")).toBeInTheDocument();
   });
 
   it("supports closing via the top-right control", async () => {

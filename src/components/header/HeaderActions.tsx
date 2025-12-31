@@ -27,8 +27,13 @@ import { SpaceSearchInput } from "@/components/search/SpaceSearchInput";
 import { useSpaceSearch } from "@/components/contexts/SpaceSearchContext";
 import { createPortal } from "react-dom";
 import { useTheme } from "next-themes";
+import { isSyncHost } from "@/utils/hosts/syncPaths";
 
-export const HeaderActions = () => {
+type HeaderActionsProps = {
+    isMultiplayerRoute?: boolean;
+};
+
+export const HeaderActions = ({ isMultiplayerRoute }: HeaderActionsProps) => {
     const { openDialog: openOnboardingDialog } = useOnboarding();
     const { openDialog: openKbDialog } = useKnowledgeBase();
     const { openDialog: openWriteupDialog } = useWriteup();
@@ -44,8 +49,18 @@ export const HeaderActions = () => {
     const { mobileFiltersOpen } = useSpaceSearch();
 
     const isSpacePage = pathname.match(/^\/s\/[^\/]+$/) !== null;
+    const isMultiplayerHost = typeof window !== "undefined" && (
+        isSyncHost(window.location.hostname) ||
+        window.location.hostname === "market.negationgame.com" ||
+        window.location.hostname.startsWith("market.")
+    );
     // Check if this is an experiment/multiplayer page (including rewritten routes like "/" and "/board/[id]")
-    const isExperimentPage = pathname.startsWith('/experiment') || pathname === '/' || pathname.startsWith('/board/');
+    const isExperimentPage =
+        Boolean(isMultiplayerRoute) ||
+        isMultiplayerHost ||
+        pathname === '/' ||
+        pathname.startsWith('/experiment') ||
+        pathname.startsWith('/board/');
 
     useEffect(() => {
         // Get the search container element for portal rendering
@@ -77,28 +92,30 @@ export const HeaderActions = () => {
 
             <div className="flex gap-1 sm:gap-2 flex-shrink-0 items-center">
                 {/* Enhanced AI button for mobile only */}
-                <div className="hidden sm:block xl:hidden">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={handleAiClick}
-                                disabled={isAiDisabled}
-                            >
-                                {isAiLoading ? (
-                                    <Loader className="h-4 w-4" />
-                                ) : (
-                                    <BrainCircuit className="h-4 w-4" />
-                                )}
-                                <span className="sr-only">AI Assistant</span>
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>AI Assistant</p>
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
+                {!isExperimentPage && (
+                    <div className="hidden sm:block xl:hidden">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleAiClick}
+                                    disabled={isAiDisabled}
+                                >
+                                    {isAiLoading ? (
+                                        <Loader className="h-4 w-4" />
+                                    ) : (
+                                        <BrainCircuit className="h-4 w-4" />
+                                    )}
+                                    <span className="sr-only">AI Assistant</span>
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>AI Assistant</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                )}
 
                 {!isExperimentPage && (
                     <div className="hidden sm:block flex-shrink-0">
@@ -128,14 +145,16 @@ export const HeaderActions = () => {
                         </Tooltip>
                         <DropdownMenuContent align="end">
                             {/* AI Assistant in dropdown as fallback */}
-                            <DropdownMenuItem onClick={handleAiClick} disabled={isAiDisabled}>
-                                {isAiLoading ? (
-                                    <Loader className="mr-2 h-4 w-4" />
-                                ) : (
-                                    <BrainCircuit className="mr-2 h-4 w-4" />
-                                )}
-                                <span>AI Assistant</span>
-                            </DropdownMenuItem>
+                            {!isExperimentPage && (
+                                <DropdownMenuItem onClick={handleAiClick} disabled={isAiDisabled}>
+                                    {isAiLoading ? (
+                                        <Loader className="mr-2 h-4 w-4" />
+                                    ) : (
+                                        <BrainCircuit className="mr-2 h-4 w-4" />
+                                    )}
+                                    <span>AI Assistant</span>
+                                </DropdownMenuItem>
+                            )}
 
                             {!isExperimentPage && (
                                 <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
@@ -208,14 +227,16 @@ export const HeaderActions = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {/* AI Assistant for mobile */}
-                            <DropdownMenuItem onClick={handleAiClick} disabled={isAiDisabled}>
-                                {isAiLoading ? (
-                                    <Loader className="mr-2 h-4 w-4" />
-                                ) : (
-                                    <BrainCircuit className="mr-2 h-4 w-4" />
-                                )}
-                                <span>AI Assistant</span>
-                            </DropdownMenuItem>
+                            {!isExperimentPage && (
+                                <DropdownMenuItem onClick={handleAiClick} disabled={isAiDisabled}>
+                                    {isAiLoading ? (
+                                        <Loader className="mr-2 h-4 w-4" />
+                                    ) : (
+                                        <BrainCircuit className="mr-2 h-4 w-4" />
+                                    )}
+                                    <span>AI Assistant</span>
+                                </DropdownMenuItem>
+                            )}
 
                             {/* Enhanced inline theme toggle for mobile */}
                             {!isExperimentPage && (

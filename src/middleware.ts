@@ -151,6 +151,7 @@ function handleSubdomain(
         dest.searchParams.set(key, value);
       });
       const response = NextResponse.rewrite(dest);
+      response.headers.set("x-multiplayer-route", "true");
       response.headers.set(SPACE_HEADER, "global");
       return response;
     }
@@ -165,10 +166,12 @@ function handleSubdomain(
         dest.searchParams.set(key, value);
       });
       const response = NextResponse.rewrite(dest);
+      response.headers.set("x-multiplayer-route", "true");
       response.headers.set(SPACE_HEADER, "global");
       return response;
     }
     const response = NextResponse.next();
+    response.headers.set("x-multiplayer-route", "true");
     response.headers.set(SPACE_HEADER, "global");
     return response;
   }
@@ -182,7 +185,9 @@ function handleSubdomain(
       url.searchParams.forEach((value, key) => {
         dest.searchParams.set(key, value);
       });
-      return NextResponse.rewrite(dest);
+      const response = NextResponse.rewrite(dest);
+      response.headers.set("x-multiplayer-route", "true");
+      return response;
     }
     // Canonicalize experiment path to short /:id or root
     if (path.startsWith("/experiment/rationale/multiplayer")) {
@@ -217,7 +222,9 @@ function handleSubdomain(
         url.searchParams.forEach((value, key) => {
           dest.searchParams.set(key, value);
         });
-        return NextResponse.rewrite(dest);
+        const response = NextResponse.rewrite(dest);
+        response.headers.set("x-multiplayer-route", "true");
+        return response;
       }
     }
     const boardMatch = path.match(/^\/board\/([^\/]+)\/?$/);
@@ -231,10 +238,12 @@ function handleSubdomain(
         dest.searchParams.set(key, value);
       });
       const response = NextResponse.rewrite(dest);
+      response.headers.set("x-multiplayer-route", "true");
       response.headers.set(SPACE_HEADER, "global");
       return response;
     }
     const response = NextResponse.next();
+    response.headers.set("x-multiplayer-route", "true");
     response.headers.set(SPACE_HEADER, "global");
     return response;
   }
@@ -553,6 +562,7 @@ export default async function middleware(req: NextRequest) {
     authResponse.headers.forEach((value, key) => {
       rewriteResponse.headers.set(key, value);
     });
+    rewriteResponse.headers.set("x-multiplayer-route", "true");
     // Board routes use global space
     rewriteResponse.headers.set(SPACE_HEADER, "global");
     return rewriteResponse;
@@ -568,6 +578,7 @@ export default async function middleware(req: NextRequest) {
     authResponse.headers.forEach((value, key) => {
       rewriteResponse.headers.set(key, value);
     });
+    rewriteResponse.headers.set("x-multiplayer-route", "true");
     // Root path uses global space
     rewriteResponse.headers.set(SPACE_HEADER, "global");
     return rewriteResponse;

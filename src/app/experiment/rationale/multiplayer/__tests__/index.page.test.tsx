@@ -35,6 +35,23 @@ jest.mock('@/actions/experimental/rationales', () => ({
   unpinRationale: jest.fn(async () => ({})),
 }));
 
+jest.mock('@/actions/experimental/rationaleAccess', () => ({
+  listAccessRequests: jest.fn(async () => ([
+    {
+      id: 'req-1',
+      docId: 'a',
+      docTitle: 'Mine',
+      docSlug: 'mine',
+      requesterId: 'u1',
+      requesterUsername: 'requester',
+      requestedRole: 'viewer',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    },
+  ])),
+  resolveAccessRequest: jest.fn(async () => ({ ok: true, status: 'approved' })),
+}));
+
 jest.mock('@/queries/experiment/multiplayer/useMultiplayerNotifications', () => ({
   useAllMultiplayerNotifications: () => ({
     data: [
@@ -69,9 +86,12 @@ describe('Multiplayer index page', () => {
   it('renders My Boards and lists docs', async () => {
     render(<Page />);
     expect(await screen.findByText(/My Boards/i)).toBeInTheDocument();
-    expect(await screen.findByText('Mine')).toBeInTheDocument();
+    const mineMatches = await screen.findAllByText('Mine');
+    expect(mineMatches.length).toBeGreaterThan(0);
     expect(await screen.findByText('Theirs')).toBeInTheDocument();
     expect(await screen.findByText('Pinned boards')).toBeInTheDocument();
+    expect(await screen.findByText('Access requests')).toBeInTheDocument();
+    expect(await screen.findByText(/requester/i)).toBeInTheDocument();
     const pinnedMatches = await screen.findAllByText('Pinned Board');
     expect(pinnedMatches).toHaveLength(1);
     expect(await screen.findByTitle(/Notifications/i)).toBeInTheDocument();
@@ -83,8 +103,10 @@ describe('Multiplayer index page', () => {
     window.open = openSpy as unknown as typeof window.open;
 
     render(<Page />);
-    const title = await screen.findByText('Mine');
-    const card = title.closest('[role="button"]');
+    const mineEntries = await screen.findAllByText('Mine');
+    const card = mineEntries
+      .map((entry) => entry.closest('[role="button"]'))
+      .find((entry) => Boolean(entry));
     expect(card).not.toBeNull();
     fireEvent.click(card as HTMLElement, { metaKey: true });
     expect(openSpy).toHaveBeenCalledWith(

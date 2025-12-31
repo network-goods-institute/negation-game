@@ -73,6 +73,7 @@ export { mpDocAccessTable } from "@/db/tables/mpDocAccessTable";
 export { mpDocPermissionsTable } from "@/db/tables/mpDocPermissionsTable";
 export { mpDocShareLinksTable } from "@/db/tables/mpDocShareLinksTable";
 export { mpDocPinsTable } from "@/db/tables/mpDocPinsTable";
+export { mpDocAccessRequestsTable } from "@/db/tables/mpDocAccessRequestsTable";
 export { marketHoldingsTable } from "@/db/tables/marketHoldingsTable";
 export { marketTradesTable } from "@/db/tables/marketTradesTable";
 export { marketStateTable } from "@/db/tables/marketStateTable";

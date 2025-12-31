@@ -4,6 +4,8 @@ import { db } from "@/services/db";
 import { getUserId } from "@/actions/users/getUserId";
 import { mpDocShareLinksTable } from "@/db/tables/mpDocShareLinksTable";
 import { mpDocPermissionsTable } from "@/db/tables/mpDocPermissionsTable";
+import { mpDocAccessRequestsTable } from "@/db/tables/mpDocAccessRequestsTable";
+import { mpDocsTable, usersTable } from "@/db/schema";
 import { resolveDocAccess, canWriteRole } from "@/services/mpAccess";
 import { resolveSlugToId, isValidSlugOrId } from "@/utils/slugResolver";
 import { nanoid } from "nanoid";
@@ -327,4 +329,178 @@ export const listCollaborators = async (
     .offset(offset);
 
   return rows;
+};
+
+export const createAccessRequest = async (
+  docId: string,
+  requestedRole: ShareRole
+) => {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+  if (!isValidSlugOrId(docId)) throw new Error("Invalid doc id or slug");
+  if (requestedRole !== "viewer" && requestedRole !== "editor") {
+    throw new Error("Invalid requested role");
+  }
+
+  const canonicalId = await resolveSlugToId(docId);
+  const access = await resolveDocAccess(canonicalId, { userId });
+  if (access.status === "not_found") throw new Error("Document not found");
+  if (access.status === "ok") {
+    return { ok: false, status: "already_has_access" } as const;
+  }
+
+  const now = new Date();
+  const [row] = await db
+    .insert(mpDocAccessRequestsTable)
+    .values({
+      docId: canonicalId,
+      requesterId: userId,
+      requestedRole,
+      status: "pending",
+      resolvedAt: null,
+      resolvedBy: null,
+      resolvedRole: null,
+    })
+    .onConflictDoUpdate({
+      target: [
+        mpDocAccessRequestsTable.docId,
+        mpDocAccessRequestsTable.requesterId,
+      ],
+      set: {
+        requestedRole,
+        status: "pending",
+        updatedAt: now,
+        resolvedAt: null,
+        resolvedBy: null,
+        resolvedRole: null,
+      },
+    })
+    .returning({
+      id: mpDocAccessRequestsTable.id,
+      status: mpDocAccessRequestsTable.status,
+      requestedRole: mpDocAccessRequestsTable.requestedRole,
+    });
+
+  return { ok: true, status: row?.status ?? "pending" } as const;
+};
+
+export const listAccessRequests = async (opts?: { docId?: string }) => {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+
+  let docFilter: string | null = null;
+  if (opts?.docId) {
+    if (!isValidSlugOrId(opts.docId)) throw new Error("Invalid doc id or slug");
+    docFilter = await resolveSlugToId(opts.docId);
+    const access = await resolveDocAccess(docFilter, { userId });
+    if (access.status !== "ok" || access.role !== "owner") {
+      throw new Error("Forbidden");
+    }
+  }
+
+  const query = db
+    .select({
+      id: mpDocAccessRequestsTable.id,
+      docId: mpDocAccessRequestsTable.docId,
+      docTitle: mpDocsTable.title,
+      docSlug: mpDocsTable.slug,
+      requesterId: mpDocAccessRequestsTable.requesterId,
+      requesterUsername: usersTable.username,
+      requestedRole: mpDocAccessRequestsTable.requestedRole,
+      status: mpDocAccessRequestsTable.status,
+      createdAt: mpDocAccessRequestsTable.createdAt,
+    })
+    .from(mpDocAccessRequestsTable)
+    .leftJoin(mpDocsTable, eq(mpDocsTable.id, mpDocAccessRequestsTable.docId))
+    .leftJoin(usersTable, eq(usersTable.id, mpDocAccessRequestsTable.requesterId))
+    .where(
+      and(
+        eq(mpDocAccessRequestsTable.status, "pending"),
+        docFilter
+          ? eq(mpDocAccessRequestsTable.docId, docFilter)
+          : eq(mpDocsTable.ownerId, userId)
+      )
+    )
+    .orderBy(desc(mpDocAccessRequestsTable.createdAt));
+
+  return query;
+};
+
+export const resolveAccessRequest = async (opts: {
+  requestId: string;
+  action: "approve" | "decline";
+  role?: ShareRole;
+}) => {
+  const userId = await getUserId();
+  if (!userId) throw new Error("Unauthorized");
+  if (!opts.requestId) throw new Error("Request id required");
+
+  const [row] = await db
+    .select({
+      id: mpDocAccessRequestsTable.id,
+      docId: mpDocAccessRequestsTable.docId,
+      requesterId: mpDocAccessRequestsTable.requesterId,
+      requestedRole: mpDocAccessRequestsTable.requestedRole,
+      status: mpDocAccessRequestsTable.status,
+      ownerId: mpDocsTable.ownerId,
+    })
+    .from(mpDocAccessRequestsTable)
+    .leftJoin(mpDocsTable, eq(mpDocsTable.id, mpDocAccessRequestsTable.docId))
+    .where(eq(mpDocAccessRequestsTable.id, opts.requestId))
+    .limit(1);
+
+  if (!row) throw new Error("Request not found");
+  if (row.ownerId !== userId) throw new Error("Forbidden");
+  if (row.status !== "pending") {
+    return { ok: false, status: row.status } as const;
+  }
+
+  const now = new Date();
+  if (opts.action === "decline") {
+    await db
+      .update(mpDocAccessRequestsTable)
+      .set({
+        status: "declined",
+        resolvedAt: now,
+        resolvedBy: userId,
+        updatedAt: now,
+        resolvedRole: null,
+      })
+      .where(eq(mpDocAccessRequestsTable.id, row.id));
+
+    return { ok: true, status: "declined" } as const;
+  }
+
+  const approvedRole =
+    opts.role && (opts.role === "viewer" || opts.role === "editor")
+      ? opts.role
+      : row.requestedRole;
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(mpDocPermissionsTable)
+      .values({
+        docId: row.docId,
+        userId: row.requesterId,
+        role: approvedRole,
+        grantedBy: userId,
+      })
+      .onConflictDoUpdate({
+        target: [mpDocPermissionsTable.docId, mpDocPermissionsTable.userId],
+        set: { role: approvedRole, updatedAt: now, grantedBy: userId },
+      });
+
+    await tx
+      .update(mpDocAccessRequestsTable)
+      .set({
+        status: "approved",
+        resolvedAt: now,
+        resolvedBy: userId,
+        updatedAt: now,
+        resolvedRole: approvedRole,
+      })
+      .where(eq(mpDocAccessRequestsTable.id, row.id));
+  });
+
+  return { ok: true, status: "approved", role: approvedRole } as const;
 };

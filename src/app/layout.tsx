@@ -136,6 +136,7 @@ export default async function RootLayout({
   const pathname = headersList.get("x-pathname") || "";
   const isEmbedRoute = pathname.startsWith("/embed");
   const isExperimentRoute = pathname.startsWith("/experiment");
+  const isMultiplayerRoute = headersList.get("x-multiplayer-route") === "true";
 
   const serverUser = await getCurrentUser();
 
@@ -215,7 +216,7 @@ export default async function RootLayout({
                               {/* Search will be rendered here via HeaderActions */}
                             </div>
                             <div className="flex justify-end items-center">
-                              <HeaderActions />
+                              <HeaderActions isMultiplayerRoute={isMultiplayerRoute} />
                             </div>
                           </header>
                         )}

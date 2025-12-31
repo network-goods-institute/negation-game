@@ -5,10 +5,9 @@ import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogDe
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { createShareLink, listShareLinks, revokeShareLink, setUserAccess, listCollaborators, removeUserAccess } from "@/actions/experimental/rationaleAccess";
+import { createShareLink, listShareLinks, revokeShareLink, setUserAccess, listCollaborators, removeUserAccess, listAccessRequests, resolveAccessRequest } from "@/actions/experimental/rationaleAccess";
 import { buildRationaleDetailPath } from "@/utils/hosts/syncPaths";
 import { DocAccessRole } from "@/services/mpAccess";
 import { fetchAllUsers } from "@/actions/users/fetchAllUsers";
@@ -33,6 +32,14 @@ type Collaborator = {
   createdAt: string;
 };
 
+type AccessRequest = {
+  id: string;
+  requesterId: string;
+  requesterUsername: string | null;
+  requestedRole: ShareRole;
+  createdAt: string;
+};
+
 type ShareBoardDialogProps = {
   docId: string;
   slug?: string | null;
@@ -49,6 +56,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
   const [requireLogin, setRequireLogin] = useState(false);
   const [links, setLinks] = useState<Array<ShareLink>>([]);
   const [collaborators, setCollaborators] = useState<Array<Collaborator>>([]);
+  const [accessRequests, setAccessRequests] = useState<Array<AccessRequest>>([]);
   const [targetUsername, setTargetUsername] = useState("");
   const [targetRole, setTargetRole] = useState<ShareRole>("viewer");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -56,6 +64,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [userInputValue, setUserInputValue] = useState("");
   const [roleUpdating, setRoleUpdating] = useState<Record<string, boolean>>({});
+  const [requestActionId, setRequestActionId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
   const isOwner = accessRole === "owner";
@@ -66,11 +75,16 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
       if (!isOwner) {
         setLinks([]);
         setCollaborators([]);
+        setAccessRequests([]);
         return;
       }
       setLoading(true);
       try {
-        const [ls, cs] = await Promise.all([listShareLinks(docId), listCollaborators(docId)]);
+        const [ls, cs, requests] = await Promise.all([
+          listShareLinks(docId),
+          listCollaborators(docId),
+          listAccessRequests({ docId }),
+        ]);
         const normalizedLinks = (ls as Array<any>).map((link) => ({
           id: link.id,
           token: link.token,
@@ -92,6 +106,15 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
           grantedBy: c.grantedBy || "",
           createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : String(c.createdAt),
         })));
+        setAccessRequests(
+          (requests as any[]).map((req) => ({
+            id: req.id,
+            requesterId: req.requesterId,
+            requesterUsername: req.requesterUsername || null,
+            requestedRole: req.requestedRole as ShareRole,
+            createdAt: req.createdAt instanceof Date ? req.createdAt.toISOString() : String(req.createdAt),
+          }))
+        );
       } catch (error: any) {
         toast.error(error?.message || "Failed to load sharing state");
       } finally {
@@ -150,6 +173,25 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
     const query = userInputValue.toLowerCase();
     return available.filter((u) => u.username.toLowerCase().includes(query)).slice(0, 50);
   }, [allUsers, userInputValue, collaborators, currentUsername, currentUserId]);
+
+  const handleResolveRequest = async (requestId: string, action: "approve" | "decline", role?: ShareRole) => {
+    if (requestActionId) return;
+    setRequestActionId(requestId);
+    try {
+      const result = await resolveAccessRequest({ requestId, action, role });
+      if (result?.ok) {
+        setAccessRequests((prev) => prev.filter((req) => req.id !== requestId));
+        toast.success(action === "decline" ? "Request declined" : "Access granted");
+      } else {
+        setAccessRequests((prev) => prev.filter((req) => req.id !== requestId));
+        toast.error("Request already handled");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update request");
+    } finally {
+      setRequestActionId(null);
+    }
+  };
 
   const visibleCollaborators = useMemo(
     () =>
@@ -456,6 +498,62 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                   );
                   })
                 )}
+              </div>
+            </div>
+          )}
+
+          {isOwner && accessRequests.length > 0 && (
+            <div className="rounded-lg border border-stone-200 bg-white p-4">
+              <h4 className="text-sm font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                <svg className="h-4 w-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Access requests
+              </h4>
+              <div className="space-y-2">
+                {accessRequests.map((req) => {
+                  const requesterLabel = req.requesterUsername || req.requesterId;
+                  const createdAt = new Date(req.createdAt);
+                  const busy = requestActionId === req.id;
+                  return (
+                    <div key={req.id} className="flex flex-col gap-2 rounded-md border border-stone-200 bg-stone-50 p-3 md:flex-row md:items-center md:justify-between">
+                      <div className="text-xs text-stone-700">
+                        <div className="font-semibold text-stone-900">
+                          {requesterLabel}
+                        </div>
+                        <div className="mt-1">
+                          Requested {req.requestedRole === "editor" ? "edit" : "view"} access - {createdAt.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => handleResolveRequest(req.id, "approve", "viewer")}
+                        >
+                          Approve view
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => handleResolveRequest(req.id, "approve", "editor")}
+                        >
+                          Approve edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          className="text-stone-600 hover:text-stone-900"
+                          onClick={() => handleResolveRequest(req.id, "decline")}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

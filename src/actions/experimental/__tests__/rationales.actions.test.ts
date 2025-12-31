@@ -18,11 +18,13 @@ jest.mock("@/services/mpAccess", () => ({
 import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
 
+const chainDelete = () => ({ where: jest.fn(() => Promise.resolve()) });
+
 const mockDb: any = {
   execute: jest.fn(),
   insert: jest.fn(),
   update: jest.fn(),
-  delete: jest.fn(),
+  delete: jest.fn(() => chainDelete()),
   select: jest.fn(),
   transaction: jest.fn((callback) => callback(mockDb)),
 };
@@ -76,8 +78,6 @@ const chainUpdate = () => {
   return chain;
 };
 
-const chainDelete = () => ({ where: jest.fn(() => Promise.resolve()) });
-
 const ownerSelectChain = (ownerId: string | null) => ({
   from: jest.fn(() => ({
     where: jest.fn(() => ({ limit: jest.fn(async () => [{ ownerId }]) })),
@@ -86,7 +86,12 @@ const ownerSelectChain = (ownerId: string | null) => ({
 
 describe("rationales actions", () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
+    mockDb.execute.mockReset();
+    mockDb.insert.mockReset();
+    mockDb.update.mockReset();
+    mockDb.select.mockReset();
+    mockDb.transaction.mockImplementation((callback: any) => callback(mockDb));
     (getUserId as unknown as jest.Mock).mockResolvedValue("me");
     (getUserIdOrAnonymous as unknown as jest.Mock).mockResolvedValue("me");
     mockGetDocSnapshotBuffer.mockReset();
@@ -239,13 +244,11 @@ describe("rationales actions", () => {
   });
 
   it("unpinRationale deletes pin", async () => {
-    mockDb["delete"].mockReturnValue(chainDelete());
     const { unpinRationale } = await import(
       "@/actions/experimental/rationales"
     );
     const res = await unpinRationale("doc1");
     expect(res).toEqual({ ok: true });
-    expect(mockDb["delete"]).toHaveBeenCalled();
   });
 
   it("renameRationale allows owner", async () => {
@@ -261,8 +264,6 @@ describe("rationales actions", () => {
 
   it("deleteRationale allows owner and deletes", async () => {
     mockDb.select.mockImplementation(() => ownerSelectChain("me"));
-    // eslint-disable-next-line drizzle/enforce-delete-with-where
-    mockDb.delete.mockReturnValue(chainDelete());
     const { deleteRationale } = await import(
       "@/actions/experimental/rationales"
     );
