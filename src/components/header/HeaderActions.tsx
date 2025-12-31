@@ -74,6 +74,7 @@ export const HeaderActions = ({ isMultiplayerRoute }: HeaderActionsProps) => {
         router.push(`${basePath}/chat`);
     };
 
+    const showAiButton = Boolean(basePath) && !isExperimentPage;
     // AI Assistant is only available in space contexts
     const isAiDisabled = !basePath || pathname === `${basePath}/chat`;
 
@@ -92,7 +93,7 @@ export const HeaderActions = ({ isMultiplayerRoute }: HeaderActionsProps) => {
 
             <div className="flex gap-1 sm:gap-2 flex-shrink-0 items-center">
                 {/* Enhanced AI button for mobile only */}
-                {!isExperimentPage && (
+                {showAiButton && (
                     <div className="hidden sm:block xl:hidden">
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -145,7 +146,7 @@ export const HeaderActions = ({ isMultiplayerRoute }: HeaderActionsProps) => {
                         </Tooltip>
                         <DropdownMenuContent align="end">
                             {/* AI Assistant in dropdown as fallback */}
-                            {!isExperimentPage && (
+                            {showAiButton && (
                                 <DropdownMenuItem onClick={handleAiClick} disabled={isAiDisabled}>
                                     {isAiLoading ? (
                                         <Loader className="mr-2 h-4 w-4" />
@@ -227,7 +228,7 @@ export const HeaderActions = ({ isMultiplayerRoute }: HeaderActionsProps) => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             {/* AI Assistant for mobile */}
-                            {!isExperimentPage && (
+                            {showAiButton && (
                                 <DropdownMenuItem onClick={handleAiClick} disabled={isAiDisabled}>
                                     {isAiLoading ? (
                                         <Loader className="mr-2 h-4 w-4" />
