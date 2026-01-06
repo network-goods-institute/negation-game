@@ -8,8 +8,9 @@ jest.mock('@xyflow/react', () => ({
 
 let graphCanvasRenderCount = 0;
 jest.mock('@/components/experiment/multiplayer/GraphCanvas', () => ({
-  GraphCanvas: () => {
+  GraphCanvas: (props: any) => {
     graphCanvasRenderCount += 1;
+    props.onInitialFitComplete?.();
     return null;
   },
 }));
@@ -174,7 +175,7 @@ describe('Board loading gating', () => {
     );
 
     expect(screen.getByTestId('board-loading')).toBeInTheDocument();
-    expect(graphCanvasRenderCount).toBe(0);
+    expect(graphCanvasRenderCount).toBeGreaterThanOrEqual(1);
   });
 
   it('renders board when ready', async () => {
@@ -201,5 +202,4 @@ describe('Board loading gating', () => {
     expect(graphCanvasRenderCount).toBeGreaterThanOrEqual(1);
   });
 });
-
 

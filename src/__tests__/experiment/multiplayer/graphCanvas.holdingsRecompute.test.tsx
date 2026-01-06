@@ -26,6 +26,7 @@ jest.mock('@xyflow/react', () => {
       getNode: () => null,
       getNodes: () => [],
     }),
+    useNodesInitialized: () => true,
     useViewport: () => ({ x: 0, y: 0, zoom: 1 }),
   };
 });

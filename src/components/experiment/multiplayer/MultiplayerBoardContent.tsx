@@ -184,12 +184,25 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const centerOnceIdsRef = useRef<Set<string>>(new Set());
   const focusNonceRef = useRef(0);
   const [centerQueueVersion, setCenterQueueVersion] = useState(0);
+  const [initialViewportReady, setInitialViewportReady] = useState(false);
+  const lastRoomNameRef = useRef<string | null>(null);
   const {
     nodeId: marketPanelNodeId,
     edgeId: marketPanelEdgeId,
     isExpanded: isMarketPanelExpanded,
     shareParamsApplied,
   } = marketPanelState;
+
+  useEffect(() => {
+    if (lastRoomNameRef.current === null) {
+      lastRoomNameRef.current = roomName;
+      return;
+    }
+    if (lastRoomNameRef.current !== roomName) {
+      lastRoomNameRef.current = roomName;
+      setInitialViewportReady(false);
+    }
+  }, [roomName]);
 
   const markNodeCenterOnce = useCallback((id: string) => {
     if (!id) return;
@@ -1593,14 +1606,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   }, [edges, getNodeTitle, nodes, ownerId, resolvedId, username, shareToken, mpNotificationsEnabled, userId]);
 
   const fullyReady = Boolean(initialGraph && resolvedId && (isReady || connectionState === 'failed'));
-
-  if (!fullyReady) {
-    return (
-      <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
-        <BoardLoading />
-      </div>
-    );
-  }
+  const initialFitReady = Boolean(initialGraph && resolvedId && (hasSyncedOnce || connectionState === 'failed'));
+  const showLoadingOverlay = !fullyReady || !initialViewportReady;
 
   return (
     <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
@@ -1752,6 +1759,9 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                 yMetaMap={yMetaMap as any}
                 isMarketPanelVisible={!!(marketPanelNodeId || marketPanelEdgeId)}
                 focusTarget={focusTarget}
+                initialFitReady={initialFitReady}
+                initialFitKey={roomName}
+                onInitialFitComplete={() => setInitialViewportReady(true)}
                 onFlowMouseMove={(x, y) => {
                   if (!connectAnchorRef.current) return;
                   setConnectCursor({ x, y });
@@ -1789,7 +1799,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                   }, 50);
                 }}
               />
-              {!shareDialogOpen && (
+              {!shareDialogOpen && !showLoadingOverlay && (
                 <ToolsBar
                   connectMode={connectMode}
                   setConnectMode={setConnectMode as any}
@@ -1874,6 +1884,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
           }}
         />
       )}
+
+      {showLoadingOverlay && <BoardLoading />}
     </div>
   );
 };

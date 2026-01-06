@@ -21,6 +21,7 @@ jest.mock('@xyflow/react', () => {
       getEdges: () => [],
       getNode: () => null,
     }),
+    useNodesInitialized: () => true,
     useViewport: () => ({ x: 0, y: 0, zoom: 1 }),
   };
 });
@@ -74,4 +75,3 @@ describe('GraphCanvas global click clearing', () => {
     (root as any).getBoundingClientRect = orig;
   });
 });
-

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ReactFlow, Background, Controls, MiniMap, Edge, Node, useReactFlow, SelectionMode } from '@xyflow/react';
+import { ReactFlow, Background, Controls, MiniMap, Edge, Node, useReactFlow, SelectionMode, useNodesInitialized } from '@xyflow/react';
 import { CursorOverlay } from './CursorOverlay';
 import { CursorReporter } from './CursorReporter';
 import { nodeTypes, edgeTypes } from '@/components/experiment/multiplayer/componentRegistry';
@@ -62,6 +62,9 @@ interface GraphCanvasProps {
   yMetaMap?: any;
   isMarketPanelVisible?: boolean;
   focusTarget?: { id: string; kind?: "node" | "edge"; nonce: number } | null;
+  initialFitReady?: boolean;
+  initialFitKey?: string | null;
+  onInitialFitComplete?: () => void;
 }
 
 type MarketNode = Node<{ market?: { price?: number; mine?: number; total?: number } }>;
@@ -100,9 +103,37 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   yMetaMap,
   isMarketPanelVisible = false,
   focusTarget,
+  initialFitReady = true,
+  initialFitKey = null,
+  onInitialFitComplete,
 }) => {
   const rf = useReactFlow();
+  const nodesInitialized = useNodesInitialized();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const hasUserInteractedRef = React.useRef(false);
+  const initialFitDoneRef = React.useRef(false);
+  const initialFitPerformedRef = React.useRef(false);
+  const initialFitCompleteRef = React.useRef(false);
+  const initialFitScheduledRef = React.useRef<number | null>(null);
+  const [isReactFlowReady, setIsReactFlowReady] = React.useState(false);
+  const notifyInitialFitComplete = React.useCallback(() => {
+    if (initialFitCompleteRef.current) return;
+    initialFitCompleteRef.current = true;
+    onInitialFitComplete?.();
+  }, [onInitialFitComplete]);
+  const finalizeInitialFit = React.useCallback(() => {
+    if (initialFitDoneRef.current) return;
+    initialFitDoneRef.current = true;
+    notifyInitialFitComplete();
+  }, [notifyInitialFitComplete]);
+  const markUserInteracted = React.useCallback(() => {
+    if (!initialFitReady) return;
+    if (hasUserInteractedRef.current) return;
+    hasUserInteractedRef.current = true;
+    if (!initialFitDoneRef.current) {
+      finalizeInitialFit();
+    }
+  }, [initialFitReady, finalizeInitialFit, initialFitKey]);
   const graph = useGraphActions();
   const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
   const [docId, setDocId] = React.useState<string | null>(null);
@@ -285,6 +316,79 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
   useGraphKeyboardHandlers({ graph, copiedNodeIdRef });
   useGraphWheelHandler({ containerRef });
   const selectionSnapshotRef = React.useRef<string[]>([]);
+  React.useEffect(() => {
+    initialFitDoneRef.current = false;
+    initialFitPerformedRef.current = false;
+    hasUserInteractedRef.current = false;
+    initialFitCompleteRef.current = false;
+    if (initialFitScheduledRef.current !== null) {
+      try {
+        window.cancelAnimationFrame(initialFitScheduledRef.current);
+      } catch { }
+      initialFitScheduledRef.current = null;
+    }
+  }, [initialFitKey]);
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    setIsReactFlowReady(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isReactFlowReady) return;
+    if (!initialFitReady) return;
+    if (!nodesForRender.length) return;
+    if (initialFitPerformedRef.current) return;
+    if (initialFitScheduledRef.current !== null) return;
+    if (!nodesInitialized) return;
+    if (hasUserInteractedRef.current) {
+      initialFitPerformedRef.current = true;
+      if (initialFitReady) {
+        finalizeInitialFit();
+      }
+      return;
+    }
+    initialFitScheduledRef.current = window.requestAnimationFrame(() => {
+      initialFitScheduledRef.current = null;
+      if (hasUserInteractedRef.current) {
+        if (initialFitReady) {
+          finalizeInitialFit();
+        }
+        return;
+      }
+      try { rf.fitView?.(); } catch { }
+      initialFitPerformedRef.current = true;
+      if (initialFitReady) finalizeInitialFit();
+    });
+  }, [isReactFlowReady, nodesForRender.length, nodesInitialized, rf, initialFitKey, initialFitReady, finalizeInitialFit]);
+
+  React.useEffect(() => {
+    if (!initialFitReady) return;
+    if (initialFitDoneRef.current) return;
+    if (hasUserInteractedRef.current) {
+      finalizeInitialFit();
+      return;
+    }
+    if (!nodesForRender.length) {
+      finalizeInitialFit();
+      return;
+    }
+    if (!initialFitPerformedRef.current) {
+      return;
+    }
+    finalizeInitialFit();
+  }, [initialFitReady, nodesForRender.length, finalizeInitialFit, initialFitKey]);
+
+  React.useEffect(() => {
+    return () => {
+      if (initialFitScheduledRef.current !== null) {
+        try {
+          window.cancelAnimationFrame(initialFitScheduledRef.current);
+        } catch { }
+        initialFitScheduledRef.current = null;
+      }
+    };
+  }, []);
 
   const {
     multiSelectMenuOpen,
@@ -320,10 +424,15 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     } catch { }
   }, [graph]);
 
+  const handleInit = React.useCallback(() => {
+    setIsReactFlowReady(true);
+  }, []);
+
   useKeyboardPanning({
     connectMode: !!connectMode,
     onCancelConnect: graph.cancelConnect,
     forceSave,
+    onPanStart: markUserInteracted,
   });
   React.useEffect(() => {
     if (!connectMode || !connectAnchorId || !onFlowMouseMove) return;
@@ -469,7 +578,9 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       className="w-full h-full relative"
       onContextMenu={handleMultiSelectContextMenu}
       onMouseDownCapture={handleBackgroundMouseDownCapture}
+      onWheelCapture={markUserInteracted}
       onPointerDown={(e) => {
+        markUserInteracted();
         try {
           if (e.button === 1 && e.pointerType === 'mouse') {
             midPanRef.current = true;
@@ -603,12 +714,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             onNodeDragStop={handleNodeDragStopInternal}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            fitView
             className={`w-full h-full bg-gray-50 ${connectMode ? 'connect-mode' : ''}`}
             style={{ willChange: 'transform' }}
             selectionOnDrag={selectMode}
             onEdgeMouseEnter={grabMode ? undefined : onEdgeMouseEnter}
             onEdgeMouseLeave={grabMode ? undefined : onEdgeMouseLeave}
+            onInit={handleInit}
             panOnDrag={selectMode ? [1, 2] : (panOnDrag !== undefined ? panOnDrag : (grabMode ? [0, 1, 2] : [1]))}
             panOnScroll={false}
             zoomOnScroll={false}

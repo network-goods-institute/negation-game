@@ -26,6 +26,7 @@ jest.mock("@xyflow/react", () => {
       getEdges: () => [],
       getNode: () => null,
     }),
+    useNodesInitialized: () => true,
     useViewport: () => ({ x: 0, y: 0, zoom: 1 }),
   };
 });
@@ -166,4 +167,3 @@ describe("GraphCanvas panning does not close market panel", () => {
     graphRoot.removeChild(paneEl);
   });
 });
-

@@ -6,6 +6,7 @@ interface UseKeyboardPanningOptions {
   onCancelConnect?: () => void;
   enabled?: boolean;
   forceSave?: () => Promise<void> | void;
+  onPanStart?: () => void;
 }
 
 /**
@@ -13,7 +14,7 @@ interface UseKeyboardPanningOptions {
  * Implements press-and-hold behavior with requestAnimationFrame for smooth movement.
  */
 export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
-  const { connectMode, onCancelConnect, enabled = true, forceSave } = options;
+  const { connectMode, onCancelConnect, enabled = true, forceSave, onPanStart } = options;
   const rf = useReactFlow();
   const heldKeysRef = useRef<{ [k: string]: boolean }>({});
   const rafRef = useRef<number | null>(null);
@@ -61,6 +62,7 @@ export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
           return;
         }
 
+        onPanStart?.();
         heldKeysRef.current[key] = true;
         e.preventDefault();
 
@@ -145,5 +147,5 @@ export function useKeyboardPanning(options: UseKeyboardPanningOptions = {}) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [enabled, connectMode, onCancelConnect, forceSave, rf]);
+  }, [enabled, connectMode, onCancelConnect, forceSave, onPanStart, rf]);
 }

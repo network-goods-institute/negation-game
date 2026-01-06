@@ -23,14 +23,14 @@ describe('BoardLoading', () => {
     expect(mainContainer).toHaveClass('fixed');
     expect(mainContainer).toHaveClass('inset-0');
     expect(mainContainer).toHaveClass('top-16');
-    expect(mainContainer).toHaveClass('z-50');
+    expect(mainContainer).toHaveClass('z-[2000]');
   });
 
-  it('renders semi-transparent background', () => {
+  it('renders solid background', () => {
     const { container } = render(<BoardLoading />);
 
     const mainContainer = container.firstChild as HTMLElement;
-    expect(mainContainer.style.backgroundColor).toBe('rgba(249, 250, 251, 0.8)');
+    expect(mainContainer.style.backgroundColor).toBe('rgb(249, 250, 251)');
   });
 
   it('centers content in viewport', () => {
