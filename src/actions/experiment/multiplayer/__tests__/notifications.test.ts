@@ -19,12 +19,14 @@ const { resolveDocAccess, canWriteRole } = require("@/services/mpAccess");
 const mockSelect = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
+const mockDelete = jest.fn();
 
 jest.mock("@/services/db", () => ({
   db: {
     select: (...args: any[]) => mockSelect(...args),
     insert: (...args: any[]) => mockInsert(...args),
     update: (...args: any[]) => mockUpdate(...args),
+    delete: (...args: any[]) => mockDelete(...args),
   },
 }));
 
@@ -69,6 +71,12 @@ const buildUpdateChain = (rows: any[]) => ({
     where: jest.fn(() => ({
       returning: jest.fn(async () => rows),
     })),
+  })),
+});
+
+const buildDeleteChain = (rows: any[]) => ({
+  where: jest.fn(() => ({
+    returning: jest.fn(async () => rows),
   })),
 });
 
@@ -363,5 +371,78 @@ describe("multiplayer notifications actions", () => {
     );
     const res = await markMultiplayerNotificationsRead(["n1", "n2"]);
     expect(res.updated).toBe(2);
+  });
+
+  describe("deleteMultiplayerNotification", () => {
+    it("deletes upvote notification for node", async () => {
+      mockDelete.mockReturnValue(buildDeleteChain([{ id: "n1" }]));
+      const { deleteMultiplayerNotification } = await import(
+        "@/actions/experiment/multiplayer/notifications"
+      );
+      const res = await deleteMultiplayerNotification({
+        docId: "doc-1",
+        nodeId: "node-1",
+        type: "upvote",
+      });
+      expect(res.deleted).toBe(1);
+      expect(mockDelete).toHaveBeenCalled();
+    });
+
+    it("deletes upvote notification for edge", async () => {
+      mockDelete.mockReturnValue(buildDeleteChain([{ id: "n1" }]));
+      const { deleteMultiplayerNotification } = await import(
+        "@/actions/experiment/multiplayer/notifications"
+      );
+      const res = await deleteMultiplayerNotification({
+        docId: "doc-1",
+        edgeId: "edge-1",
+        type: "upvote",
+      });
+      expect(res.deleted).toBe(1);
+      expect(mockDelete).toHaveBeenCalled();
+    });
+
+    it("returns 0 when no notification found", async () => {
+      mockDelete.mockReturnValue(buildDeleteChain([]));
+      const { deleteMultiplayerNotification } = await import(
+        "@/actions/experiment/multiplayer/notifications"
+      );
+      const res = await deleteMultiplayerNotification({
+        docId: "doc-1",
+        nodeId: "node-1",
+        type: "upvote",
+      });
+      expect(res.deleted).toBe(0);
+    });
+
+    it("rejects when unauthenticated", async () => {
+      (getUserId as unknown as jest.Mock).mockResolvedValue(null);
+      const { deleteMultiplayerNotification } = await import(
+        "@/actions/experiment/multiplayer/notifications"
+      );
+      await expect(
+        deleteMultiplayerNotification({
+          docId: "doc-1",
+          nodeId: "node-1",
+          type: "upvote",
+        })
+      ).rejects.toThrow("Unauthorized");
+    });
+
+    it("rejects when access is forbidden", async () => {
+      (resolveDocAccess as jest.Mock).mockResolvedValueOnce({
+        status: "forbidden",
+      });
+      const { deleteMultiplayerNotification } = await import(
+        "@/actions/experiment/multiplayer/notifications"
+      );
+      await expect(
+        deleteMultiplayerNotification({
+          docId: "doc-1",
+          nodeId: "node-1",
+          type: "upvote",
+        })
+      ).rejects.toThrow("Forbidden");
+    });
   });
 });

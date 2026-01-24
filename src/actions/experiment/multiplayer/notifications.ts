@@ -570,3 +570,72 @@ export const markMultiplayerNotificationsRead = async (notificationIds: string[]
 
   return { updated: result.length };
 };
+
+export interface DeleteMultiplayerNotificationOptions {
+  docId: string;
+  nodeId?: string;
+  edgeId?: string;
+  type: MultiplayerNotificationType;
+  shareToken?: string | null;
+}
+
+export const deleteMultiplayerNotification = async (
+  options: DeleteMultiplayerNotificationOptions
+) => {
+  if (!mpNotificationsEnabled) {
+    return { deleted: 0 };
+  }
+  const sessionUserId = await getUserId();
+  if (!sessionUserId) {
+    logger.warn("mp notifications: unauthenticated delete attempt", {
+      docId: options.docId ?? null,
+      type: options.type ?? null,
+    });
+    throw new Error("Unauthorized");
+  }
+
+  const access = await resolveDocAccess(options.docId, {
+    userId: sessionUserId,
+    shareToken: options.shareToken ?? null,
+  });
+  if (access.status !== "ok") {
+    logger.warn("mp notifications: forbidden delete attempt", {
+      sessionUserId,
+      docId: options.docId ?? null,
+      status: access.status,
+    });
+    throw new Error("Forbidden");
+  }
+
+  const docId = access.docId;
+  const conditions = [
+    eq(mpNotificationsTable.docId, docId),
+    eq(mpNotificationsTable.type, options.type),
+    eq(mpNotificationsTable.actorUserId, sessionUserId),
+  ];
+
+  if (options.nodeId) {
+    conditions.push(eq(mpNotificationsTable.nodeId, options.nodeId));
+  }
+  if (options.edgeId) {
+    conditions.push(eq(mpNotificationsTable.edgeId, options.edgeId));
+  }
+
+  const result = await db
+    .delete(mpNotificationsTable)
+    .where(and(...conditions))
+    .returning({ id: mpNotificationsTable.id });
+
+  if (result.length > 0) {
+    logger.info("mp notifications: deleted", {
+      count: result.length,
+      docId,
+      type: options.type,
+      nodeId: options.nodeId ?? null,
+      edgeId: options.edgeId ?? null,
+      actorUserId: sessionUserId,
+    });
+  }
+
+  return { deleted: result.length };
+};

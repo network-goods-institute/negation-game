@@ -13,6 +13,7 @@ import {
   createUpdateNodeType,
 } from "@/utils/experiment/multiplayer/graphOperations";
 import { createDuplicateNodeWithConnections } from "@/utils/experiment/multiplayer/graphOperations/nodeDuplication";
+import { deleteMultiplayerNotification } from "@/actions/experiment/multiplayer/notifications";
 import type {
   YjsDoc,
   YNodesMap,
@@ -312,11 +313,15 @@ export const useGraphOperations = ({
         try { (require('@/utils/readonlyToast') as any).showReadOnlyToast?.(); } catch {}
         return;
       }
+      let isRemoving = false;
       setNodes((nds) =>
         nds.map((n) => {
           if (n.id !== nodeId) return n;
           const currentVotes = normalizeVotes((n.data as any)?.votes);
           const existing = currentVotes.find((v) => v.id === userId);
+          if (existing) {
+            isRemoving = true;
+          }
           const updatedVotes = existing
             ? currentVotes.filter((v) => v.id !== userId)
             : [...currentVotes, { id: userId, name }];
@@ -329,6 +334,9 @@ export const useGraphOperations = ({
           if (base) {
             const currentVotes = normalizeVotes((base as any).data?.votes);
             const existing = currentVotes.find((v) => v.id === userId);
+            if (existing) {
+              isRemoving = true;
+            }
             const votes = existing
               ? currentVotes.filter((v) => v.id !== userId)
               : [...currentVotes, { id: userId, name }];
@@ -339,8 +347,18 @@ export const useGraphOperations = ({
           }
         }, localOrigin);
       }
+      // Delete upvote notification when removing vote
+      if (isRemoving && documentId) {
+        deleteMultiplayerNotification({
+          docId: documentId,
+          nodeId,
+          type: "upvote",
+        }).catch(() => {
+          // Silently ignore deletion errors
+        });
+      }
     },
-    [setNodes, yNodesMap, ydoc, canWrite, localOrigin, normalizeVotes]
+    [setNodes, yNodesMap, ydoc, canWrite, localOrigin, normalizeVotes, documentId]
   );
 
   const toggleEdgeVote = useCallback(
@@ -349,11 +367,15 @@ export const useGraphOperations = ({
         try { (require('@/utils/readonlyToast') as any).showReadOnlyToast?.(); } catch {}
         return;
       }
+      let isRemoving = false;
       setEdges((eds) =>
         eds.map((e) => {
           if (e.id !== edgeId) return e;
           const currentVotes = normalizeVotes((e.data as any)?.votes);
           const existing = currentVotes.find((v) => v.id === userId);
+          if (existing) {
+            isRemoving = true;
+          }
           const updatedVotes = existing
             ? currentVotes.filter((v) => v.id !== userId)
             : [...currentVotes, { id: userId, name }];
@@ -366,6 +388,9 @@ export const useGraphOperations = ({
           if (base) {
             const currentVotes = normalizeVotes((base as any).data?.votes);
             const existing = currentVotes.find((v) => v.id === userId);
+            if (existing) {
+              isRemoving = true;
+            }
             const votes = existing
               ? currentVotes.filter((v) => v.id !== userId)
               : [...currentVotes, { id: userId, name }];
@@ -376,8 +401,18 @@ export const useGraphOperations = ({
           }
         }, localOrigin);
       }
+      // Delete upvote notification when removing vote
+      if (isRemoving && documentId) {
+        deleteMultiplayerNotification({
+          docId: documentId,
+          edgeId,
+          type: "upvote",
+        }).catch(() => {
+          // Silently ignore deletion errors
+        });
+      }
     },
-    [setEdges, yEdgesMap, ydoc, canWrite, localOrigin, normalizeVotes]
+    [setEdges, yEdgesMap, ydoc, canWrite, localOrigin, normalizeVotes, documentId]
   );
 
   const ensureEdgeAnchor = useMemo(

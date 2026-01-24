@@ -146,8 +146,9 @@ export function NotificationsSidebar({
     [negativeNotifications]
   );
 
+  // Only hide UNREAD negative notifications; read ones appear in the main flow
   const hiddenNegativeUnreadNotifications = unreadNegativeNotifications;
-  const hiddenNegativeNotifications = negativeNotifications;
+  const hiddenNegativeNotifications = unreadNegativeNotifications;
 
   const hiddenNegativeCount = useMemo(
     () => hiddenNegativeNotifications.length,
@@ -178,11 +179,15 @@ export function NotificationsSidebar({
     }, 0);
   }, [notifications, showBoardContext]);
 
-  const visibleNotificationCount =
-    supportNotifications.length +
-    otherNotifications.length +
-    (showNegative ? negativeNotifications.length : 0);
-  const showHiddenNegativeToggle = hiddenNegativeCount > 0;
+  // For site-level view, count all notifications; for board view, count by category
+  const visibleNotificationCount = showBoardContext
+    ? notifications.length
+    : supportNotifications.length +
+      otherNotifications.length +
+      earlierNegativeNotifications.length +
+      (showNegative ? unreadNegativeNotifications.length : 0);
+  // Don't show hidden negative toggle in site-level view
+  const showHiddenNegativeToggle = !showBoardContext && hiddenNegativeCount > 0;
 
   const previewFallbackHeight = 104;
   const hiddenNegativeUnreadHeights = useMemo(() => {
@@ -190,12 +195,8 @@ export function NotificationsSidebar({
       hiddenNegativeItemHeights[idx] ?? previewFallbackHeight
     );
   }, [unreadNegativeNotifications, hiddenNegativeItemHeights]);
-  const hiddenNegativeEarlierHeights = useMemo(() => {
-    const offset = unreadNegativeNotifications.length;
-    return earlierNegativeNotifications.map((_, idx) =>
-      hiddenNegativeItemHeights[offset + idx] ?? previewFallbackHeight
-    );
-  }, [earlierNegativeNotifications, unreadNegativeNotifications.length, hiddenNegativeItemHeights]);
+  // Earlier negative notifications are no longer hidden, so no preview heights needed
+  const hiddenNegativeEarlierHeights = useMemo(() => [], []);
 
   useLayoutEffect(() => {
     const measureEl = hiddenNegativeMeasureRef.current;
@@ -299,7 +300,6 @@ export function NotificationsSidebar({
     hiddenNegativeCount,
     hiddenNegativeNotifications,
     unreadNegativeNotifications,
-    earlierNegativeNotifications,
     showBoardContext,
     linkLabel,
     rendered,
@@ -466,7 +466,51 @@ export function NotificationsSidebar({
             )
           ) : null}
 
-          {!isLoading && visibleNotificationCount > 0 && (
+          {!isLoading && visibleNotificationCount > 0 && showBoardContext && (
+            <>
+              {/* Site-level view: show all notifications without type categorization */}
+              {notifications.filter((n) => !n.isRead).length > 0 && (
+                <div data-testid="notifications-new">
+                  <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
+                    New activity
+                  </h3>
+                  {notifications.filter((n) => !n.isRead).map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onMarkRead={() => handleNotificationMarkRead(notification)}
+                      onNavigate={() => handleNotificationNavigate(notification)}
+                      showBoardContext={showBoardContext}
+                      linkLabel={linkLabel}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {notifications.filter((n) => n.isRead).length > 0 && (
+                <div
+                  data-testid="notifications-earlier"
+                  className={notifications.filter((n) => !n.isRead).length > 0 ? "mt-4" : undefined}
+                >
+                  <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
+                    Earlier activity
+                  </h3>
+                  {notifications.filter((n) => n.isRead).map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      onMarkRead={() => handleNotificationMarkRead(notification)}
+                      onNavigate={() => handleNotificationNavigate(notification)}
+                      showBoardContext={showBoardContext}
+                      linkLabel={linkLabel}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {!isLoading && visibleNotificationCount > 0 && !showBoardContext && (
             <>
               {unreadSupportNotifications.length > 0 && (
                 <div data-testid="notifications-supporting-new">
@@ -603,7 +647,7 @@ export function NotificationsSidebar({
                 </div>
               )}
 
-              {showNegative && earlierNegativeNotifications.length > 0 && (
+              {earlierNegativeNotifications.length > 0 && (
                 <div
                   data-testid="notifications-negative-earlier"
                   className="mt-4"
@@ -654,27 +698,6 @@ export function NotificationsSidebar({
                       {unreadNegativeNotifications.map((notification) => (
                         <div
                           key={`measure-negative-${notification.id}`}
-                          data-negative-measure-item
-                        >
-                          <NotificationItem
-                            notification={notification}
-                            onMarkRead={() => {}}
-                            onNavigate={() => {}}
-                            showBoardContext={showBoardContext}
-                            linkLabel={linkLabel}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {earlierNegativeNotifications.length > 0 && (
-                    <div className="mt-4">
-                      <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-2 px-2">
-                        Earlier negative activity
-                      </h3>
-                      {earlierNegativeNotifications.map((notification) => (
-                        <div
-                          key={`measure-negative-earlier-${notification.id}`}
                           data-negative-measure-item
                         >
                           <NotificationItem
@@ -754,13 +777,14 @@ function NotificationItem({
         }
       }}
       className={cn(
-        "relative w-full text-left p-3 pl-12 rounded-lg border transition-all duration-200 hover:bg-white dark:hover:bg-stone-900 group cursor-pointer",
+        "relative w-full text-left p-3 rounded-lg border transition-all duration-200 hover:bg-white dark:hover:bg-stone-900 group cursor-pointer",
+        !showBoardContext && "pl-12",
         notification.isRead
           ? "bg-stone-100 dark:bg-stone-900 border-stone-200 dark:border-stone-800 opacity-70"
           : "bg-white dark:bg-stone-900 border-stone-300 dark:border-stone-700 shadow-sm"
       )}
     >
-      {badge ? (
+      {!showBoardContext && badge ? (
         <span
           className={cn(
             "absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm",

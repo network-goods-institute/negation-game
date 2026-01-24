@@ -254,4 +254,189 @@ describe('NotificationsSidebar', () => {
 
     expect(within(visible).getByText(/Hide other activity/)).toBeInTheDocument();
   });
+
+  it('shows read negative notifications in the main flow without hiding', () => {
+    const readNegativeNotifications: MultiplayerNotification[] = [
+      {
+        id: 'read-neg-1',
+        boardId: 'board-1',
+        type: 'negation',
+        userName: 'User A',
+        action: 'negated',
+        pointTitle: 'Read negation point',
+        pointId: 'point-read-neg-1',
+        timestamp: '5h ago',
+        isRead: true,
+        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      },
+      {
+        id: 'read-obj-1',
+        boardId: 'board-1',
+        type: 'objection',
+        userName: 'User B',
+        action: 'objected to',
+        pointTitle: 'Read objection point',
+        pointId: 'point-read-obj-1',
+        timestamp: '6h ago',
+        isRead: true,
+        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
+      },
+    ];
+
+    render(
+      <NotificationsSidebar
+        isOpen
+        notifications={readNegativeNotifications}
+        onClose={() => {}}
+      />
+    );
+
+    const visible = screen.getByTestId('notifications-visible');
+    // Read negative notifications should appear in the earlier negative section
+    const earlierNegativeSection = screen.getByTestId('notifications-negative-earlier');
+    expect(
+      within(earlierNegativeSection).getByText(/Read negation point/)
+    ).toBeInTheDocument();
+    expect(
+      within(earlierNegativeSection).getByText(/Read objection point/)
+    ).toBeInTheDocument();
+
+    // There should be no "other activity" card for read-only negative notifications
+    expect(
+      within(visible).queryByRole('button', { name: /Show .*other update/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows unread negative behind hidden card but read negative in main flow', () => {
+    const mixedNegativeNotifications: MultiplayerNotification[] = [
+      {
+        id: 'unread-neg-1',
+        boardId: 'board-1',
+        type: 'negation',
+        userName: 'User A',
+        action: 'negated',
+        pointTitle: 'Unread negation',
+        pointId: 'point-unread-neg',
+        timestamp: '1m ago',
+        isRead: false,
+        createdAt: new Date(Date.now() - 60 * 1000),
+      },
+      {
+        id: 'read-neg-1',
+        boardId: 'board-1',
+        type: 'negation',
+        userName: 'User B',
+        action: 'negated',
+        pointTitle: 'Read negation',
+        pointId: 'point-read-neg',
+        timestamp: '5h ago',
+        isRead: true,
+        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      },
+    ];
+
+    render(
+      <NotificationsSidebar
+        isOpen
+        notifications={mixedNegativeNotifications}
+        onClose={() => {}}
+      />
+    );
+
+    const visible = screen.getByTestId('notifications-visible');
+
+    // Should show "other activity" card for the unread negative
+    const toggle = within(visible).getByRole('button', { name: /Show .*other update/ });
+    expect(toggle).toBeInTheDocument();
+
+    // Read negative should already be visible in earlier section
+    const earlierNegativeSection = screen.getByTestId('notifications-negative-earlier');
+    expect(
+      within(earlierNegativeSection).getByText(/Read negation/)
+    ).toBeInTheDocument();
+
+    // Expand to see unread negative
+    fireEvent.click(toggle);
+    const newNegativeSection = screen.getByTestId('notifications-negative-new');
+    expect(
+      within(newNegativeSection).getByText(/Unread negation/)
+    ).toBeInTheDocument();
+  });
+
+  it('shows all notifications without type categorization in site-level view', () => {
+    const mixedNotifications: MultiplayerNotification[] = [
+      {
+        id: 'unread-neg-1',
+        boardId: 'board-1',
+        boardTitle: 'Board A',
+        type: 'negation',
+        userName: 'User A',
+        action: 'negated',
+        pointTitle: 'Unread negation',
+        pointId: 'point-unread-neg',
+        timestamp: '1m ago',
+        isRead: false,
+        createdAt: new Date(Date.now() - 60 * 1000),
+      },
+      {
+        id: 'unread-support-1',
+        boardId: 'board-2',
+        boardTitle: 'Board B',
+        type: 'support',
+        userName: 'User B',
+        action: 'supported',
+        pointTitle: 'Unread support',
+        pointId: 'point-unread-support',
+        timestamp: '2m ago',
+        isRead: false,
+        createdAt: new Date(Date.now() - 2 * 60 * 1000),
+      },
+      {
+        id: 'read-comment-1',
+        boardId: 'board-3',
+        boardTitle: 'Board C',
+        type: 'comment',
+        userName: 'User C',
+        action: 'commented on',
+        pointTitle: 'Read comment',
+        pointId: 'point-read-comment',
+        timestamp: '1h ago',
+        isRead: true,
+        createdAt: new Date(Date.now() - 60 * 60 * 1000),
+      },
+    ];
+
+    render(
+      <NotificationsSidebar
+        isOpen
+        notifications={mixedNotifications}
+        onClose={() => {}}
+        showBoardContext
+      />
+    );
+
+    const visible = screen.getByTestId('notifications-visible');
+
+    // In site-level view, there should be NO "other activity" hidden card
+    expect(
+      within(visible).queryByRole('button', { name: /Show .*other update/ })
+    ).not.toBeInTheDocument();
+
+    // Site-level view should have simple "New activity" section (not categorized by type)
+    const newSection = screen.getByTestId('notifications-new');
+    // Both unread notifications should be in the same section
+    expect(within(newSection).getByText(/User A/)).toBeInTheDocument();
+    expect(within(newSection).getByText(/User B/)).toBeInTheDocument();
+    expect(within(newSection).getByText(/Board A/)).toBeInTheDocument();
+    expect(within(newSection).getByText(/Board B/)).toBeInTheDocument();
+
+    // Read notifications should be in "Earlier activity"
+    const earlierSection = screen.getByTestId('notifications-earlier');
+    expect(within(earlierSection).getByText(/User C/)).toBeInTheDocument();
+    expect(within(earlierSection).getByText(/Board C/)).toBeInTheDocument();
+
+    // There should NOT be type-specific sections in site-level view
+    expect(screen.queryByTestId('notifications-supporting-new')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('notifications-negative-new')).not.toBeInTheDocument();
+  });
 });
