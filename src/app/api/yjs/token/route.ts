@@ -5,6 +5,10 @@ import { logger } from "@/lib/logger";
 import { resolveDocAccess, canWriteRole } from "@/services/mpAccess";
 import { isValidSlugOrId } from "@/utils/slugResolver";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { db } from "@/services/db";
+import { mpDocPermissionsTable } from "@/db/tables/mpDocPermissionsTable";
+import { mpDocShareLinksTable } from "@/db/tables/mpDocShareLinksTable";
+import { eq } from "drizzle-orm";
 
 export async function POST(req: Request) {
   if (process.env.NEXT_PUBLIC_MULTIPLAYER_EXPERIMENT_ENABLED !== "true") {
@@ -60,6 +64,33 @@ export async function POST(req: Request) {
       access.status === "not_found" ? 404 : access.requiresAuth ? 401 : 403;
     return NextResponse.json({ error: "Forbidden" }, { status });
   }
+
+  // Persist access for authenticated users who used a share link that requires login
+  if (access.source === "share" && access.shareLinkId && userId && !userId.startsWith("anon-")) {
+    try {
+      const linkRows = await db
+        .select({ requireLogin: mpDocShareLinksTable.requireLogin })
+        .from(mpDocShareLinksTable)
+        .where(eq(mpDocShareLinksTable.id, access.shareLinkId))
+        .limit(1);
+
+      if (linkRows[0]?.requireLogin) {
+        await db
+          .insert(mpDocPermissionsTable)
+          .values({
+            docId: access.docId,
+            userId: userId,
+            role: access.role as "editor" | "viewer",
+            grantedBy: access.ownerId,
+            grantedByShareLinkId: access.shareLinkId,
+          })
+          .onConflictDoNothing();
+      }
+    } catch (err) {
+      logger.warn("[yjs token] Failed to persist share link access:", err);
+    }
+  }
+
   const readonly = access.requiresAuthForWrite
     ? true
     : !canWriteRole(access.role);

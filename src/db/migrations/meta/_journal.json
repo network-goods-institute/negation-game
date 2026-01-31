@@ -708,6 +708,13 @@
       "when": 1767183545332,
       "tag": "0100_flat_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1769836068035,
+      "tag": "0101_old_weapon_omega",
+      "breakpoints": true
     }
   ]
 }

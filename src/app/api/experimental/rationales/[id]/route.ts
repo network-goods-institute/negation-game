@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { mpDocsTable } from "@/db/tables/mpDocsTable";
 import { mpDocUpdatesTable } from "@/db/tables/mpDocUpdatesTable";
+import { mpDocPermissionsTable } from "@/db/tables/mpDocPermissionsTable";
+import { mpDocShareLinksTable } from "@/db/tables/mpDocShareLinksTable";
 import { eq } from "drizzle-orm";
 import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
@@ -45,6 +47,33 @@ export async function GET(_req: Request, ctx: any) {
   }
 
   const canonicalId = access.docId;
+
+  // Persist access for authenticated users who used a share link that requires login
+  // This prevents losing access when visiting without the share token
+  if (access.source === "share" && access.shareLinkId && userId && !userId.startsWith("anon-")) {
+    try {
+      const linkRows = await db
+        .select({ requireLogin: mpDocShareLinksTable.requireLogin })
+        .from(mpDocShareLinksTable)
+        .where(eq(mpDocShareLinksTable.id, access.shareLinkId))
+        .limit(1);
+
+      if (linkRows[0]?.requireLogin) {
+        await db
+          .insert(mpDocPermissionsTable)
+          .values({
+            docId: canonicalId,
+            userId: userId,
+            role: access.role as "editor" | "viewer",
+            grantedBy: access.ownerId,
+            grantedByShareLinkId: access.shareLinkId,
+          })
+          .onConflictDoNothing();
+      }
+    } catch (err) {
+      logger.warn("[rationales API] Failed to persist share link access:", err);
+    }
+  }
   const rows = await db
     .select()
     .from(mpDocsTable)

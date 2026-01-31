@@ -161,11 +161,12 @@ export const listShareLinks = async (
  * Revokes a share link by marking it as disabled.
  * Only document owners can revoke share links.
  * The link will no longer grant access after revocation.
+ * Also removes any permissions that were granted via this share link.
  *
  * @param docId - Document ID or slug
  * @param linkId - UUID of the share link to revoke
  *
- * @returns Success indicator
+ * @returns Success indicator with count of removed permissions
  *
  * @throws Error if user is unauthorized or not document owner
  */
@@ -178,12 +179,20 @@ export const revokeShareLink = async (docId: string, linkId: string) => {
   await assertOwnerAccess(canonicalId, userId);
 
   const nowUtc = new Date();
+
+  // Disable the share link
   await db
     .update(mpDocShareLinksTable)
     .set({ disabledAt: nowUtc })
     .where(and(eq(mpDocShareLinksTable.id, linkId), eq(mpDocShareLinksTable.docId, canonicalId)));
 
-  return { ok: true } as const;
+  // Remove permissions that were granted via this share link
+  const deleted = await db
+    .delete(mpDocPermissionsTable)
+    .where(eq(mpDocPermissionsTable.grantedByShareLinkId, linkId))
+    .returning({ userId: mpDocPermissionsTable.userId });
+
+  return { ok: true, revokedPermissions: deleted.length } as const;
 };
 
 /**
