@@ -93,6 +93,10 @@ export const getNodeAttachmentPoint = (
     edge: { id?: string; source?: string; target?: string };
     angle: number | null;
   };
+  type EdgeAngleEntryNumber = {
+    edge: { id?: string; source?: string; target?: string };
+    angle: number;
+  };
 
   const edgesWithAngles: EdgeAngleEntry[] = connectedEdges.map((edge) => {
     const s = String((edge as any)?.source ?? "");
@@ -108,10 +112,7 @@ export const getNodeAttachmentPoint = (
     return { edge, angle };
   });
 
-  const withAngles = edgesWithAngles.filter((entry) => entry.angle != null) as Array<{
-    edge: { id?: string; source?: string; target?: string };
-    angle: number;
-  }>;
+  const withAngles = edgesWithAngles.filter((entry) => entry.angle != null) as EdgeAngleEntryNumber[];
   const withoutAngles: EdgeAngleEntry[] = edgesWithAngles
     .filter((entry) => entry.angle == null)
     .slice()
@@ -121,7 +122,7 @@ export const getNodeAttachmentPoint = (
       return aId.localeCompare(bId);
     });
 
-  const sortedWithAngles: EdgeAngleEntry[] = withAngles.slice().sort((a, b) => {
+  const sortedWithAngles: EdgeAngleEntryNumber[] = withAngles.slice().sort((a, b) => {
     const diff = a.angle - b.angle;
     if (diff !== 0) return diff;
     const aId = String((a.edge as any)?.id ?? "");
@@ -129,7 +130,7 @@ export const getNodeAttachmentPoint = (
     return aId.localeCompare(bId);
   });
 
-  let ordered = sortedWithAngles.concat(withoutAngles);
+  let ordered: EdgeAngleEntry[] = [...sortedWithAngles, ...withoutAngles];
   if (sortedWithAngles.length > 1) {
     let maxGap = -1;
     let splitIndex = 0;
@@ -144,7 +145,7 @@ export const getNodeAttachmentPoint = (
       }
     }
     const rotated = sortedWithAngles.slice(splitIndex).concat(sortedWithAngles.slice(0, splitIndex));
-    ordered = rotated.concat(withoutAngles);
+    ordered = [...rotated, ...withoutAngles];
   }
 
   const idx = ordered.findIndex((entry) => String((entry.edge as any)?.id ?? "") === String(edgeId ?? ""));
@@ -339,5 +340,8 @@ export const computeMidpointBetweenBorders = (
     return [labelX, labelY] as const;
   }
 };
+
+
+
 
 
