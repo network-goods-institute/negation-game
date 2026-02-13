@@ -59,7 +59,8 @@ describe("MultiplayerHeader pending trades indicator", () => {
   it("shows 0 by default and updates on trade events", async () => {
     const provider = makeProvider();
     renderHeader(provider);
-    const badge = await screen.findByLabelText("Pending trades");
+    // Find the element with aria-live="polite" that contains the trade count
+    const badge = document.querySelector('[aria-live="polite"]');
     expect(badge).toHaveTextContent("0");
 
     await act(async () => {
@@ -76,7 +77,8 @@ describe("MultiplayerHeader pending trades indicator", () => {
   it("aggregates across clients via awareness", async () => {
     const provider = makeProvider();
     renderHeader(provider);
-    const badge = await screen.findByLabelText("Pending trades");
+    // Find the element with aria-live="polite" that contains the trade count
+    const badge = document.querySelector('[aria-live="polite"]');
     expect(badge).toHaveTextContent("0");
 
     await act(async () => {

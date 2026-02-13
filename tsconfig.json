@@ -28,7 +28,8 @@
         "./src/*"
       ]
     },
-    "typeRoots": ["./node_modules/@types", "./src/types"]
+    "typeRoots": ["./node_modules/@types", "./node_modules/.pnpm/@types", "./src/types"],
+    "types": ["node", "lodash"]
   },
   "include": [
     "next-env.d.ts",

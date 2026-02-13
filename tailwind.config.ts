@@ -9,7 +9,7 @@ import type { Config } from "tailwindcss";
 const config = {
   darkMode: ["class"],
   content: {
-    files: ["./src/**/*.{ts,tsx}"],
+    files: ["./src/**/*.{js,ts,jsx,tsx}"],
     extract,
   },
   prefix: "",

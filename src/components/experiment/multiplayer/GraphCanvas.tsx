@@ -133,7 +133,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     if (!initialFitDoneRef.current) {
       finalizeInitialFit();
     }
-  }, [initialFitReady, finalizeInitialFit, initialFitKey]);
+  }, [initialFitReady, finalizeInitialFit]);
   const graph = useGraphActions();
   const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
   const [docId, setDocId] = React.useState<string | null>(null);

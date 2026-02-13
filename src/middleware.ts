@@ -82,8 +82,10 @@ async function handleAuth(req: NextRequest): Promise<NextResponse> {
   if (token) {
     try {
       const client = await getPrivyClient();
-      const claims = await client.verifyAuthToken(token);
-      response.headers.set(USER_HEADER, JSON.stringify(claims));
+      if (client) {
+        const claims = await client.verifyAuthToken(token);
+        response.headers.set(USER_HEADER, JSON.stringify(claims));
+      }
     } catch (error: any) {
       const isExpired =
         error?.name === "JWTExpired" || error?.code === "ERR_JWT_EXPIRED";
@@ -99,7 +101,7 @@ async function handleAuth(req: NextRequest): Promise<NextResponse> {
               ? rawAuth.slice(7).trim()
               : rawAuth || null;
 
-          if (bearer) {
+          if (bearer && client) {
             const claims = await client.verifyAuthToken(bearer);
             response.headers.set(USER_HEADER, JSON.stringify(claims));
             response.cookies.set("privy-token", bearer, {

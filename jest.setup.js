@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom'
+import React from 'react'
 
 // Polyfill for TextEncoder/TextDecoder
 const { TextEncoder, TextDecoder } = require('util')
@@ -215,10 +216,17 @@ jest.mock('@privy-io/react-auth', () => ({
   }),
 }))
 
-// Mock @radix-ui/react-slot
+// Mock @radix-ui/react-slot with proper React.forwardRef for React 19 compatibility
 jest.mock('@radix-ui/react-slot', () => ({
-  Slot: ({ children, ...props }) => <div {...props}>{children}</div>,
-  createSlot: () => ({ children, ...props }) => <div {...props}>{children}</div>,
+  Slot: React.forwardRef(({ children, ...props }, ref) => <div ref={ref} {...props}>{children}</div>),
+  createSlot: () => React.forwardRef(({ children, ...props }, ref) => <div ref={ref} {...props}>{children}</div>),
+  createSlottable: (name) => {
+    const Component = React.forwardRef(({ children, ...props }, ref) => <div ref={ref} {...props}>{children}</div>);
+    Component.displayName = `${name}.Slottable`;
+    Component.__radixId = Symbol(name);
+    return Component;
+  },
+  Slottable: React.forwardRef(({ children, ...props }, ref) => <div ref={ref} {...props}>{children}</div>),
 }))
 
 // Mock @/lib/cn
@@ -230,6 +238,84 @@ jest.mock('@/lib/utils/cn', () => ({
 jest.mock('@/components/ui/loader', () => ({
   Loader: () => <div data-testid="loader" />,
 }))
+
+// Mock tooltip components to avoid Radix UI React 19 compatibility issues
+jest.mock('@/components/ui/tooltip', () => {
+  const React = require('react');
+
+  // Filter out Radix-specific props that shouldn't go to DOM
+  const filterProps = (props) => {
+    const {
+      asChild,
+      delayDuration,
+      defaultOpen,
+      open,
+      onOpenChange,
+      side,
+      sideOffset,
+      align,
+      alignOffset,
+      avoidCollisions,
+      collisionPadding,
+      sticky,
+      hideWhenDetached,
+      // Keep legitimate DOM props
+      className,
+      style,
+      id,
+      role,
+      'aria-label': ariaLabel,
+      'aria-describedby': ariaDescribedBy,
+      ...domProps
+    } = props;
+    return {
+      ...domProps,
+      className,
+      style,
+      id,
+      role,
+      'aria-label': ariaLabel,
+      'aria-describedby': ariaDescribedBy,
+    };
+  };
+
+  return {
+    Tooltip: ({ children, open, defaultOpen, onOpenChange, delayDuration, ...props }) => {
+      const [isOpen, setIsOpen] = React.useState(open || defaultOpen || false);
+      return React.createElement('div', {
+        ...filterProps(props),
+        'data-state': isOpen ? 'open' : 'closed'
+      }, children);
+    },
+    TooltipTrigger: ({ children, asChild, ...props }) => {
+      if (asChild && React.isValidElement(children)) {
+        // When asChild is true, clone the child element with tooltip props
+        return React.cloneElement(children, {
+          ...filterProps(props),
+          'data-state': 'closed',
+        });
+      }
+      return React.createElement('button', {
+        ...filterProps(props),
+        'data-state': 'closed',
+        type: 'button'
+      }, children);
+    },
+    TooltipContent: React.forwardRef(({ children, ...props }, ref) =>
+      React.createElement('div', {
+        ...filterProps(props),
+        ref,
+        'data-state': 'open',
+        role: 'tooltip'
+      }, children)
+    ),
+    TooltipProvider: ({ children, ...props }) => {
+      const filteredProps = filterProps(props);
+      // React.Fragment doesn't accept props other than key and children
+      return React.createElement(React.Fragment, {}, children);
+    },
+  };
+})
 
 // Mock sonner toast
 jest.mock('sonner', () => ({

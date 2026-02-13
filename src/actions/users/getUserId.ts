@@ -23,6 +23,11 @@ async function tryHeaderFallback(): Promise<string | null> {
     if (!candidate) return null;
 
     const privyClient = await getPrivyClient();
+    if (!privyClient) {
+      logger.warn("Privy client not available in tryHeaderFallback");
+      return null;
+    }
+
     const verificationResult = await privyClient.verifyAuthToken(candidate);
     await setPrivyCookie(candidate);
     return verificationResult.userId;
@@ -46,6 +51,10 @@ export const getUserId = async (): Promise<string | null> => {
   }
 
   const privyClient = await getPrivyClient();
+  if (!privyClient) {
+    logger.warn("Privy client not available in getUserId");
+    return null;
+  }
 
   try {
     const verificationResult = await privyClient.verifyAuthToken(privyToken);
