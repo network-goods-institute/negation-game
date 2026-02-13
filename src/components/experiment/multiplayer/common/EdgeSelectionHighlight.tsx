@@ -1,12 +1,13 @@
 import React from 'react';
 import { getBezierPath, Position } from '@xyflow/react';
-import { getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
+import { EdgeRouting } from './EdgeConfiguration';
 
 interface EdgeSelectionHighlightProps {
   selected: boolean;
   shouldRenderOverlay: boolean;
   edgeId?: string;
   useBezier: boolean;
+  routing?: EdgeRouting;
   curvature?: number;
   sourceX: number;
   sourceY: number;
@@ -24,6 +25,7 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
   shouldRenderOverlay,
   edgeId,
   useBezier,
+  routing,
   curvature,
   sourceX,
   sourceY,
@@ -39,8 +41,22 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
 
   const sw = overlayStrokeWidth ?? 12;
 
+  if (routing === 'orthogonal' && pathD) {
+    return (
+      <path
+        data-edge-overlay={edgeId}
+        d={pathD}
+        stroke="#000"
+        strokeWidth={sw}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.85}
+      />
+    );
+  }
+
   if (useBezier) {
-    // Compute bezier path for selection highlight
     let sourcePosition = Position.Right;
     let targetPosition = Position.Left;
     if (edgeType === 'objection') {
@@ -61,7 +77,6 @@ export const EdgeSelectionHighlight: React.FC<EdgeSelectionHighlightProps> = ({
     return <path data-edge-overlay={edgeId} d={d} stroke="#000" strokeWidth={sw} fill="none" strokeLinecap="round" opacity={0.85} />;
   }
 
-  // Special handling for comment edges - use blue highlight for better visibility
   if (edgeType === 'comment') {
     return (
       <line data-edge-overlay={edgeId} x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="#3b82f6" strokeWidth={6} strokeLinecap="round" opacity={0.9} />

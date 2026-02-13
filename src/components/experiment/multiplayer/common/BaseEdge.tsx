@@ -11,8 +11,9 @@ import { useStrapGeometry } from './EdgeStrapGeometry';
 import { EDGE_CONFIGURATIONS, EdgeType } from './EdgeConfiguration';
 import { edgeIsObjectionStyle } from './edgeStyle';
 import { usePerformanceMode } from '../PerformanceContext';
-import { computeMidpointBetweenBorders, getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
+import { computeMidpointBetweenBorders, getNodeAttachmentPoint, getTrimmedLineCoords } from '@/utils/experiment/multiplayer/edgePathUtils';
 import { getHalfBezierPaths } from '@/utils/experiment/multiplayer/bezierSplit';
+import { getOrthogonalPathSimple, getHalfOrthogonalPaths } from '@/utils/experiment/multiplayer/orthogonalPath';
 import { EdgeSelectionHighlight } from './EdgeSelectionHighlight';
 import { MainEdgeRenderer } from './MainEdgeRenderer';
 import { getMarkerIdForEdgeType } from './EdgeArrowMarkers';
@@ -146,6 +147,61 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const sourcePositionProp = (props as any).sourcePosition;
   const targetPositionProp = (props as any).targetPosition;
 
+  const edges = useStore((state: any) => state.edges as Edge[] | undefined);
+  const nodeInternals = useStore((state: any) => state.nodeInternals as Map<string, any> | undefined);
+  const edgeId = String(props.id ?? '');
+  const sourceId = String(props.source ?? '');
+  const targetId = String(props.target ?? '');
+
+  const getNodeById = useMemo(() => {
+    return (id: string) => {
+      const key = String(id ?? '');
+      if (nodeInternals?.has(key)) return nodeInternals.get(key);
+      if (String((sourceNode as any)?.id ?? '') === key) return sourceNode;
+      if (String((targetNode as any)?.id ?? '') === key) return targetNode;
+      return undefined;
+    };
+  }, [nodeInternals, sourceNode, targetNode]);
+
+  const attachmentSource = useMemo(() => {
+    if (!edgeId || !sourceId || !targetId) return null;
+    const sourceIsAnchor = String((sourceNode as any)?.type ?? '') === 'edge_anchor';
+    return getNodeAttachmentPoint(
+      sourceId,
+      targetId,
+      edgeId,
+      edges ?? [],
+      getNodeById,
+      {
+        spacing: 16,
+        basePoint: sourceIsAnchor ? { x: sourceX ?? 0, y: sourceY ?? 0 } : undefined,
+        directionalBase: props.edgeType === 'objection',
+      }
+    );
+  }, [edgeId, sourceId, targetId, edges, getNodeById, sourceNode, sourceX, sourceY, props.edgeType]);
+
+  const attachmentTarget = useMemo(() => {
+    if (!edgeId || !sourceId || !targetId) return null;
+    const targetIsAnchor = String((targetNode as any)?.type ?? '') === 'edge_anchor';
+    return getNodeAttachmentPoint(
+      targetId,
+      sourceId,
+      edgeId,
+      edges ?? [],
+      getNodeById,
+      {
+        spacing: 16,
+        basePoint: targetIsAnchor ? { x: targetX ?? 0, y: targetY ?? 0 } : undefined,
+        directionalBase: props.edgeType === 'objection',
+      }
+    );
+  }, [edgeId, sourceId, targetId, edges, getNodeById, targetNode, targetX, targetY, props.edgeType]);
+
+  const edgeSourceX = attachmentSource?.x ?? sourceX ?? 0;
+  const edgeSourceY = attachmentSource?.y ?? sourceY ?? 0;
+  const edgeTargetX = attachmentTarget?.x ?? targetX ?? 0;
+  const edgeTargetY = attachmentTarget?.y ?? targetY ?? 0;
+
   const highlightBezierData = useMemo(() => {
     if (!edgeHasMyVote || edgeType !== 'objection' || !visual.useBezier) return null;
     let sourcePosition = sourcePositionProp;
@@ -155,11 +211,11 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
     targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
     const [path, labelX, labelY] = getBezierPath({
-      sourceX: sourceX ?? 0,
-      sourceY: sourceY ?? 0,
+      sourceX: edgeSourceX,
+      sourceY: edgeSourceY,
       sourcePosition,
-      targetX: targetX ?? 0,
-      targetY: targetY ?? 0,
+      targetX: edgeTargetX,
+      targetY: edgeTargetY,
       targetPosition,
     });
     return {
@@ -168,7 +224,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       labelY,
       halfPaths: getHalfBezierPaths(path),
     };
-  }, [edgeHasMyVote, edgeType, visual.useBezier, sourceNode, targetNode, sourceX, sourceY, targetX, targetY, sourcePositionProp, targetPositionProp]);
+  }, [edgeHasMyVote, edgeType, visual.useBezier, sourceNode, targetNode, edgeSourceX, edgeSourceY, edgeTargetX, edgeTargetY, sourcePositionProp, targetPositionProp]);
 
   const highlightHalfBezierLengths = useMemo(() => {
     if (!highlightBezierData?.halfPaths) return { first: null as number | null, second: null as number | null };
@@ -209,10 +265,10 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
 
   const strapGeometry = useStrapGeometry(
     (visual.useStrap && !lightMode) ? {
-      sourceX: sourceX ?? 0,
-      sourceY: sourceY ?? 0,
-      targetX: targetX ?? 0,
-      targetY: targetY ?? 0,
+      sourceX: edgeSourceX,
+      sourceY: edgeSourceY,
+      targetX: edgeTargetX,
+      targetY: edgeTargetY,
       strength: 0.5,
     } : null
   );
@@ -223,7 +279,23 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
   const endpointDragging = Boolean(sourceDragging || targetDragging || edgeState.isHighFrequencyUpdates);
   const suppressReason = endpointDragging ? (sourceDragging ? 'source-dragging' : (targetDragging ? 'target-dragging' : 'high-frequency')) : undefined;
 
+  const orthogonalPathData = useMemo(() => {
+    if (visual.routing !== 'orthogonal') return null;
+    const result = getOrthogonalPathSimple(
+      edgeSourceX,
+      edgeSourceY,
+      edgeTargetX,
+      edgeTargetY,
+      { cornerRadius: visual.cornerRadius ?? 6 }
+    );
+    return result;
+  }, [edgeSourceX, edgeSourceY, edgeTargetX, edgeTargetY, visual.routing, visual.cornerRadius]);
+
   const [pathD, labelX, labelY] = useMemo(() => {
+    if (visual.routing === 'orthogonal' && orthogonalPathData) {
+      return [orthogonalPathData.path, orthogonalPathData.labelX, orthogonalPathData.labelY];
+    }
+
     if (visual.useBezier) {
       const curvature = (behavior.simplifyDuringDrag && isHighFrequencyUpdates) ? 0 : (visual.curvature ?? 0.35);
 
@@ -233,35 +305,40 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       if (props.edgeType === 'objection') {
         const objectionY = sourceNode?.position?.y ?? 0;
         const anchorY = targetNode?.position?.y ?? 0;
-        // Align bezier orientation with MainEdgeRenderer and GraphUpdater
         sourcePosition = objectionY < anchorY ? Position.Bottom : Position.Top;
         targetPosition = objectionY > anchorY ? Position.Bottom : Position.Top;
       }
 
       return getBezierPath({
-        sourceX: sourceX ?? 0,
-        sourceY: sourceY ?? 0,
+        sourceX: edgeSourceX,
+        sourceY: edgeSourceY,
         sourcePosition,
-        targetX: targetX ?? 0,
-        targetY: targetY ?? 0,
+        targetX: edgeTargetX,
+        targetY: edgeTargetY,
         targetPosition,
         curvature,
       });
     } else {
       const [path, x, y] = getStraightPath({
-        sourceX: sourceX ?? 0,
-        sourceY: sourceY ?? 0,
-        targetX: targetX ?? 0,
-        targetY: targetY ?? 0,
+        sourceX: edgeSourceX,
+        sourceY: edgeSourceY,
+        targetX: edgeTargetX,
+        targetY: edgeTargetY,
       });
       return [path, x, y];
     }
-  }, [sourceX, sourceY, targetX, targetY, visual.useBezier, visual.curvature, behavior.simplifyDuringDrag, isHighFrequencyUpdates, props, sourceNode, targetNode]);
+  }, [edgeSourceX, edgeSourceY, edgeTargetX, edgeTargetY, visual.useBezier, visual.curvature, visual.routing, orthogonalPathData, behavior.simplifyDuringDrag, isHighFrequencyUpdates, props, sourceNode, targetNode]);
+
+  const halfOrthogonalPaths = useMemo(() => {
+    if (visual.routing !== 'orthogonal' || !orthogonalPathData) return null;
+    return getHalfOrthogonalPaths(orthogonalPathData.segments, visual.cornerRadius ?? 6);
+  }, [visual.routing, orthogonalPathData, visual.cornerRadius]);
 
   const halfBezierPaths = useMemo(() => {
+    if (visual.routing === 'orthogonal') return null;
     if (props.edgeType !== 'objection' || !visual.useBezier || !pathD) return null;
     return getHalfBezierPaths(pathD);
-  }, [props.edgeType, visual.useBezier, pathD]);
+  }, [props.edgeType, visual.useBezier, visual.routing, pathD]);
 
   const halfBezierLengths = useMemo(() => {
     if (!halfBezierPaths) return { first: null as number | null, second: null as number | null };
@@ -280,6 +357,9 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       second: measure(halfBezierPaths.secondHalf),
     };
   }, [halfBezierPaths]);
+
+  const sourceHalfPath = halfOrthogonalPaths?.firstHalf ?? halfBezierPaths?.firstHalf ?? '';
+  const targetHalfPath = halfOrthogonalPaths?.secondHalf ?? halfBezierPaths?.secondHalf ?? '';
 
   const sourceHalfBezierPath = halfBezierPaths?.firstHalf ?? '';
   const targetHalfBezierPath = halfBezierPaths?.secondHalf ?? '';
@@ -320,10 +400,10 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       return [null, null];
     }
 
-    const sx = sourceX ?? 0;
-    const sy = sourceY ?? 0;
-    const tx = targetX ?? 0;
-    const ty = targetY ?? 0;
+    const sx = edgeSourceX;
+    const sy = edgeSourceY;
+    const tx = edgeTargetX;
+    const ty = edgeTargetY;
     const dx = tx - sx;
     const dy = ty - sy;
     const len = Math.max(1, Math.sqrt(dx * dx + dy * dy));
@@ -365,17 +445,26 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     });
 
     return [(fLabelX + bLabelX) / 2, (fLabelY + bLabelY) / 2];
-  }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, sourceX, sourceY, targetX, targetY, sourceNode, targetNode, props]);
+  }, [mindchangeRenderConfig.mode, visual.useBezier, visual.curvature, edgeSourceX, edgeSourceY, edgeTargetX, edgeTargetY, sourceNode, targetNode, props]);
+
+  const useOrthogonalRouting = visual.routing === 'orthogonal';
+  const attachmentAdjusted = Boolean(
+    (attachmentSource && (Math.abs(attachmentSource.x - (sourceX ?? 0)) > 0.001 || Math.abs(attachmentSource.y - (sourceY ?? 0)) > 0.001)) ||
+    (attachmentTarget && (Math.abs(attachmentTarget.x - (targetX ?? 0)) > 0.001 || Math.abs(attachmentTarget.y - (targetY ?? 0)) > 0.001))
+  );
+  const useOffsetLabel = useOrthogonalRouting || attachmentAdjusted;
+  const fallbackLabelX = (props.edgeType === 'objection' || useOffsetLabel) ? labelX : midXBetweenBorders;
+  const fallbackLabelY = (props.edgeType === 'objection' || useOffsetLabel) ? labelY : midYBetweenBorders;
 
   const actualLabelX = (
     bidirectionalLabelX
-    ?? (props.edgeType === 'objection' ? labelX : midXBetweenBorders)
+    ?? fallbackLabelX
     ?? labelX
     ?? cx
   ) as number;
   const actualLabelY = (
     bidirectionalLabelY
-    ?? (props.edgeType === 'objection' ? labelY : midYBetweenBorders)
+    ?? fallbackLabelY
     ?? labelY
     ?? cy
   ) as number;
@@ -442,7 +531,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
     e.stopPropagation();
 
     if (connectMode) {
-      const midpoint = { x: (labelX ?? cx), y: (labelY ?? cy) };
+      const midpoint = { x: actualLabelX, y: actualLabelY };
       const anchorId = graphActions.isConnectingFromNodeId as string | null;
       if (!anchorId) {
         beginConnectFromEdge?.(props.id as string, midpoint);
@@ -519,7 +608,17 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
               </defs>
 
               {extendToSource && (
-                isObjection && visual.useBezier ? (
+                visual.routing === 'orthogonal' && sourceHalfPath ? (
+                  <path
+                    d={sourceHalfPath}
+                    stroke={strokeStyle}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeLinecap="round"
+                    opacity={lineOpacity}
+                    className="pointer-events-none"
+                  />
+                ) : isObjection && visual.useBezier ? (
                   <path
                     d={sourceHalfBezierPath}
                     stroke={strokeStyle}
@@ -531,8 +630,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                   />
                 ) : (
                   <line
-                    x1={sourceX}
-                    y1={sourceY}
+                    x1={edgeSourceX}
+                    y1={edgeSourceY}
                     x2={centerX}
                     y2={centerY}
                     stroke={strokeStyle}
@@ -545,7 +644,17 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
               )}
 
               {extendToTarget && (
-                isObjection && visual.useBezier ? (
+                visual.routing === 'orthogonal' && targetHalfPath ? (
+                  <path
+                    d={targetHalfPath}
+                    stroke={strokeStyle}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeLinecap="round"
+                    opacity={lineOpacity}
+                    className="pointer-events-none"
+                  />
+                ) : isObjection && visual.useBezier ? (
                   <path
                     d={targetHalfBezierPath}
                     stroke={strokeStyle}
@@ -559,8 +668,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                   <line
                     x1={centerX}
                     y1={centerY}
-                    x2={targetX}
-                    y2={targetY}
+                    x2={edgeTargetX}
+                    y2={edgeTargetY}
                     stroke={strokeStyle}
                     strokeWidth={strokeWidth}
                     strokeLinecap="round"
@@ -595,11 +704,12 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             shouldRenderOverlay={shouldRenderOverlay}
             edgeId={props.id as string}
             useBezier={visual.useBezier ?? false}
+            routing={visual.routing}
             curvature={visual.curvature}
-            sourceX={sourceX ?? 0}
-            sourceY={sourceY ?? 0}
-            targetX={targetX ?? 0}
-            targetY={targetY ?? 0}
+            sourceX={edgeSourceX}
+            sourceY={edgeSourceY}
+            targetX={edgeTargetX}
+            targetY={edgeTargetY}
             sourceNode={sourceNode}
             targetNode={targetNode}
             edgeType={props.edgeType}
@@ -608,21 +718,22 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           />
 
           {shouldRenderOverlay && connectMode && isHovered && !selected && (
-            visual.useBezier ? (
+            (visual.useBezier || visual.routing === 'orthogonal') ? (
               <path d={pathD} stroke="hsl(var(--sync-primary))" strokeWidth={6} fill="none" strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
             ) : (
-              <line x1={sourceX} y1={sourceY} x2={targetX} y2={targetY} stroke="hsl(var(--sync-primary))" strokeWidth={6} strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
+              <line x1={edgeSourceX} y1={edgeSourceY} x2={edgeTargetX} y2={edgeTargetY} stroke="hsl(var(--sync-primary))" strokeWidth={6} strokeLinecap="round" opacity={0.8} strokeDasharray="8 4" />
             )
           )}
 
 
           <MainEdgeRenderer
             useBezier={visual.useBezier ?? false}
+            routing={visual.routing}
             curvature={visual.curvature}
-            sourceX={sourceX ?? 0}
-            sourceY={sourceY ?? 0}
-            targetX={targetX ?? 0}
-            targetY={targetY ?? 0}
+            sourceX={edgeSourceX}
+            sourceY={edgeSourceY}
+            targetX={edgeTargetX}
+            targetY={edgeTargetY}
             sourceNode={sourceNode}
             targetNode={targetNode}
             edgeType={props.edgeType}
@@ -633,6 +744,7 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             labelStyle={visual.labelStyle}
             labelX={actualLabelX}
             labelY={actualLabelY}
+            orthogonalPath={visual.routing === 'orthogonal' ? pathD : undefined}
           />
         </g>
 
@@ -666,10 +778,23 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
             ? { ...dashedEmeraldStyle, strokeDashoffset: emeraldDashOffset }
             : dashedEmeraldStyle;
 
+          const sourceOrthogonalHighlight = visual.routing === 'orthogonal' ? sourceHalfPath : '';
+          const targetOrthogonalHighlight = visual.routing === 'orthogonal' ? targetHalfPath : '';
+
           return (
             <>
               {extendToSource && (
-                isObjection && visual.useBezier && sourceHighlightPath ? (
+                visual.routing === 'orthogonal' && sourceOrthogonalHighlight ? (
+                  <path
+                    d={sourceOrthogonalHighlight}
+                    stroke="#10b981"
+                    strokeWidth={4}
+                    fill="none"
+                    opacity={0.75}
+                    className="pointer-events-none"
+                    style={dashedEmeraldStyle}
+                  />
+                ) : isObjection && visual.useBezier && sourceHighlightPath ? (
                   <path
                     d={sourceHighlightPath}
                     stroke="#10b981"
@@ -681,8 +806,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                   />
                 ) : (
                   <line
-                    x1={sourceX}
-                    y1={sourceY}
+                    x1={edgeSourceX}
+                    y1={edgeSourceY}
                     x2={centerX}
                     y2={centerY}
                     stroke="#10b981"
@@ -694,7 +819,17 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                 )
               )}
               {extendToTarget && (
-                isObjection && visual.useBezier && targetHighlightPath ? (
+                visual.routing === 'orthogonal' && targetOrthogonalHighlight ? (
+                  <path
+                    d={targetOrthogonalHighlight}
+                    stroke="#10b981"
+                    strokeWidth={4}
+                    fill="none"
+                    opacity={0.75}
+                    className="pointer-events-none"
+                    style={emeraldTargetStyle}
+                  />
+                ) : isObjection && visual.useBezier && targetHighlightPath ? (
                   <path
                     d={targetHighlightPath}
                     stroke="#10b981"
@@ -708,8 +843,8 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
                   <line
                     x1={centerX}
                     y1={centerY}
-                    x2={targetX}
-                    y2={targetY}
+                    x2={edgeTargetX}
+                    y2={edgeTargetY}
                     stroke="#10b981"
                     strokeWidth={4}
                     opacity={0.75}
@@ -736,11 +871,11 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
       {!grabMode && (
         <EdgeInteractionOverlay
           shouldRender={shouldRenderOverlay && !endpointDragging}
-          pathD={visual.useBezier ? pathD : undefined}
-          sourceX={visual.useBezier ? undefined : sourceX}
-          sourceY={visual.useBezier ? undefined : sourceY}
-          targetX={visual.useBezier ? undefined : targetX}
-          targetY={visual.useBezier ? undefined : targetY}
+          pathD={(visual.useBezier || visual.routing === 'orthogonal') ? pathD : undefined}
+          sourceX={(visual.useBezier || visual.routing === 'orthogonal') ? undefined : edgeSourceX}
+          sourceY={(visual.useBezier || visual.routing === 'orthogonal') ? undefined : edgeSourceY}
+          targetX={(visual.useBezier || visual.routing === 'orthogonal') ? undefined : edgeTargetX}
+          targetY={(visual.useBezier || visual.routing === 'orthogonal') ? undefined : edgeTargetY}
           onEdgeClick={handleEdgeClick}
           onContextMenu={handleContextMenu}
           onMouseEnter={() => {
@@ -780,10 +915,10 @@ const BaseEdgeImpl: React.FC<BaseEdgeProps> = (props) => {
           marketTotal={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? Number(((props as any).data?.market?.total) ?? NaN) : NaN}
           marketInfluence={(marketEnabled && (props.edgeType === 'support' || props.edgeType === 'negation' || props.edgeType === 'objection')) ? infl : NaN}
           votes={((props as any).data?.votes) || []}
-          srcX={sourceX ?? 0}
-          srcY={sourceY ?? 0}
-          tgtX={targetX ?? 0}
-          tgtY={targetY ?? 0}
+          srcX={edgeSourceX}
+          srcY={edgeSourceY}
+          tgtX={edgeTargetX}
+          tgtY={edgeTargetY}
           onMouseEnter={() => setHoveredEdge(props.id as string)}
           onMouseLeave={() => setHoveredEdge(null)}
 

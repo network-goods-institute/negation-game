@@ -37,6 +37,8 @@ export type EdgeType =
   | "statement"
   | "comment";
 
+export type EdgeRouting = 'straight' | 'bezier' | 'orthogonal';
+
 export interface EdgeVisualConfig {
   // Colors
   stroke: string;
@@ -47,6 +49,10 @@ export interface EdgeVisualConfig {
   strokeDasharray?: string;
   strokeWidth: number;
   curvature?: number;
+
+  // Routing
+  routing: EdgeRouting;
+  cornerRadius?: number;
 
   // Gradient configuration for strap edges
   gradientId?: string;
@@ -91,6 +97,8 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       starColor: "text-stone-600",
       strokeWidth: 4.8,
       strokeDasharray: "6,6",
+      routing: "orthogonal",
+      cornerRadius: 6,
       gradientId: "neg-strap-gradient",
       gradientStops: [
         { offset: "0%", stopColor: "#9CA3AF", stopOpacity: 0.15 },
@@ -114,8 +122,10 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       starColor: "text-yellow-500",
       strokeWidth: 4.8,
       strokeDasharray: "8,4",
+      routing: "orthogonal",
+      cornerRadius: 6,
       midpointContent: makeIcon("#f97316", [-45], 12, 2),
-      useBezier: true,
+      useBezier: false,
       curvature: 0.35,
     },
     behavior: {
@@ -131,6 +141,8 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       borderColor: "hsl(var(--sync-primary))",
       starColor: "text-blue-600",
       strokeWidth: 4.8,
+      routing: "orthogonal",
+      cornerRadius: 6,
       gradientId: "quest-strap-gradient",
       gradientStops: [
         { offset: "0%", stopColor: "hsl(var(--sync-primary-hover))", stopOpacity: 0.22 },
@@ -168,6 +180,8 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       borderColor: "#9CA3AF",
       starColor: "text-gray-600",
       strokeWidth: 4.2,
+      routing: "orthogonal",
+      cornerRadius: 6,
       gradientId: "support-strap-gradient",
       gradientStops: [
         { offset: "0%", stopColor: "#9CA3AF", stopOpacity: 0.15 },
@@ -190,6 +204,8 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       borderColor: "#6b7280",
       starColor: "text-gray-600",
       strokeWidth: 4.8,
+      routing: "orthogonal",
+      cornerRadius: 6,
       gradientId: "stmt-strap-gradient",
       gradientStops: [
         { offset: "0%", stopColor: "#111827", stopOpacity: 0.22 },
@@ -215,9 +231,11 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
       borderColor: "#000000",
       starColor: "text-black",
       strokeWidth: 1,
-      label: undefined, // No label for comment edges
-      midpointContent: null, // No midpoint content for comment edges
-      useStrap: false, // No strap for thin lines
+      routing: "orthogonal",
+      cornerRadius: 6,
+      label: undefined,
+      midpointContent: null,
+      useStrap: false,
       useBezier: false,
     },
     behavior: {

@@ -1,4 +1,4 @@
-import { getTrimmedLineCoords, computeMidpointBetweenBorders } from '../edgePathUtils';
+import { getTrimmedLineCoords, computeMidpointBetweenBorders, getParallelEdgeOffset, getNodeAttachmentPoint } from '../edgePathUtils';
 
 describe('edgePathUtils', () => {
   describe('getTrimmedLineCoords', () => {
@@ -158,6 +158,112 @@ describe('edgePathUtils', () => {
       expect(Math.abs(x - 50)).toBeLessThan(10); // X should be close to center
       expect(y).toBeGreaterThan(50);
       expect(y).toBeLessThan(250);
+    });
+  });
+
+  describe('getNodeAttachmentPoint', () => {
+    it('spreads attachment points for edges on the same side', () => {
+      const nodes = new Map([
+        ['a', { id: 'a', position: { x: 0, y: 0 }, width: 100, height: 100 }],
+        ['b', { id: 'b', position: { x: 200, y: 0 }, width: 100, height: 100 }],
+        ['c', { id: 'c', position: { x: 200, y: 50 }, width: 100, height: 100 }],
+        ['d', { id: 'd', position: { x: 200, y: 100 }, width: 100, height: 100 }],
+      ]);
+
+      const getNode = (id: string) => nodes.get(id);
+      const edges = [
+        { id: 'a-edge', source: 'a', target: 'b' },
+        { id: 'b-edge', source: 'a', target: 'c' },
+        { id: 'c-edge', source: 'a', target: 'd' },
+      ];
+
+      const first = getNodeAttachmentPoint('a', 'b', 'a-edge', edges, getNode, { spacing: 10 });
+      const second = getNodeAttachmentPoint('a', 'c', 'b-edge', edges, getNode, { spacing: 10 });
+      const third = getNodeAttachmentPoint('a', 'd', 'c-edge', edges, getNode, { spacing: 10 });
+
+      if (!first || !second || !third) {
+        throw new Error('Missing attachment point');
+      }
+      expect(first.x).toBeCloseTo(50, 3);
+      expect(first.y).toBeCloseTo(40, 3);
+      expect(second.x).toBeCloseTo(50, 3);
+      expect(second.y).toBeCloseTo(50, 3);
+      expect(third.x).toBeCloseTo(45.528, 3);
+      expect(third.y).toBeCloseTo(58.944, 3);
+    });
+
+    it('returns null when only one edge is connected', () => {
+      const nodes = new Map([
+        ['a', { id: 'a', position: { x: 0, y: 0 }, width: 100, height: 100 }],
+        ['b', { id: 'b', position: { x: 200, y: 0 }, width: 100, height: 100 }],
+      ]);
+      const getNode = (id: string) => nodes.get(id);
+      const edges = [{ id: 'solo-edge', source: 'a', target: 'b' }];
+
+      const point = getNodeAttachmentPoint('a', 'b', 'solo-edge', edges, getNode, { spacing: 10 });
+
+      expect(point).toBeNull();
+    });
+
+    it('spaces attachments for edge anchors', () => {
+      const nodes = new Map([
+        ['anchor:1', { id: 'anchor:1', type: 'edge_anchor', position: { x: 100, y: 100 } }],
+        ['b', { id: 'b', position: { x: 200, y: 100 }, width: 100, height: 100 }],
+        ['c', { id: 'c', position: { x: 100, y: 200 }, width: 100, height: 100 }],
+        ['d', { id: 'd', position: { x: 0, y: 100 }, width: 100, height: 100 }],
+      ]);
+      const getNode = (id: string) => nodes.get(id);
+      const edges = [
+        { id: 'edge-1', source: 'b', target: 'anchor:1' },
+        { id: 'edge-2', source: 'c', target: 'anchor:1' },
+        { id: 'edge-3', source: 'd', target: 'anchor:1' },
+      ];
+
+      const p1 = getNodeAttachmentPoint('anchor:1', 'b', 'edge-1', edges, getNode, { spacing: 10 });
+      const p2 = getNodeAttachmentPoint('anchor:1', 'c', 'edge-2', edges, getNode, { spacing: 10 });
+      const p3 = getNodeAttachmentPoint('anchor:1', 'd', 'edge-3', edges, getNode, { spacing: 10 });
+
+      if (!p1 || !p2 || !p3) {
+        throw new Error('Missing attachment point');
+      }
+      expect(Math.abs(p1.x - 100)).toBeLessThanOrEqual(8);
+      expect(Math.abs(p1.y - 100)).toBeLessThanOrEqual(8);
+      expect(Math.abs(p2.x - 100)).toBeLessThanOrEqual(8);
+      expect(Math.abs(p2.y - 100)).toBeLessThanOrEqual(8);
+      expect(Math.abs(p3.x - 100)).toBeLessThanOrEqual(8);
+      expect(Math.abs(p3.y - 100)).toBeLessThanOrEqual(8);
+      expect(p1.x === p2.x && p1.y === p2.y).toBe(false);
+      expect(p2.x === p3.x && p2.y === p3.y).toBe(false);
+    });
+  });
+
+  describe('getParallelEdgeOffset', () => {
+    it('returns zero offset for a single edge', () => {
+      const edges = [{ id: 'a', source: '1', target: '2' }];
+      const result = getParallelEdgeOffset('a', '1', '2', edges, { spacing: 10, includeReverse: true });
+      expect(result.offset).toBe(0);
+      expect(result.count).toBe(1);
+    });
+
+    it('spreads offsets across parallel edges', () => {
+      const edges = [
+        { id: 'a', source: '1', target: '2' },
+        { id: 'b', source: '1', target: '2' },
+      ];
+      const resultA = getParallelEdgeOffset('a', '1', '2', edges, { spacing: 10, includeReverse: true });
+      const resultB = getParallelEdgeOffset('b', '1', '2', edges, { spacing: 10, includeReverse: true });
+      expect(resultA.offset).toBe(-5);
+      expect(resultB.offset).toBe(5);
+    });
+
+    it('includes reverse edges when enabled', () => {
+      const edges = [
+        { id: 'a', source: '1', target: '2' },
+        { id: 'b', source: '2', target: '1' },
+      ];
+      const result = getParallelEdgeOffset('a', '1', '2', edges, { spacing: 8, includeReverse: true });
+      expect(result.count).toBe(2);
+      expect(result.offset).toBe(-4);
     });
   });
 });
