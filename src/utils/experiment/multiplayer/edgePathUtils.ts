@@ -89,7 +89,12 @@ export const getNodeAttachmentPoint = (
   const other = getNode(otherNodeId);
   const otherCenter = getNodeCenterData(other);
   const spacing = options?.spacing ?? 12;
-  const edgesWithAngles = connectedEdges.map((edge) => {
+  type EdgeAngleEntry = {
+    edge: { id?: string; source?: string; target?: string };
+    angle: number | null;
+  };
+
+  const edgesWithAngles: EdgeAngleEntry[] = connectedEdges.map((edge) => {
     const s = String((edge as any)?.source ?? "");
     const t = String((edge as any)?.target ?? "");
     const otherId = s === nodeId ? t : s;
@@ -107,7 +112,7 @@ export const getNodeAttachmentPoint = (
     edge: { id?: string; source?: string; target?: string };
     angle: number;
   }>;
-  const withoutAngles = edgesWithAngles
+  const withoutAngles: EdgeAngleEntry[] = edgesWithAngles
     .filter((entry) => entry.angle == null)
     .slice()
     .sort((a, b) => {
@@ -116,7 +121,7 @@ export const getNodeAttachmentPoint = (
       return aId.localeCompare(bId);
     });
 
-  const sortedWithAngles = withAngles.slice().sort((a, b) => {
+  const sortedWithAngles: EdgeAngleEntry[] = withAngles.slice().sort((a, b) => {
     const diff = a.angle - b.angle;
     if (diff !== 0) return diff;
     const aId = String((a.edge as any)?.id ?? "");
@@ -334,3 +339,5 @@ export const computeMidpointBetweenBorders = (
     return [labelX, labelY] as const;
   }
 };
+
+
