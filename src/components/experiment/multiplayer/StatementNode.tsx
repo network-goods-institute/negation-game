@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import { Position, useReactFlow } from '@xyflow/react';
+import { Position, useReactFlow, useViewport } from '@xyflow/react';
 import { useGraphActions } from './GraphContext';
 import { toast } from 'sonner';
 import { NodeActionPill } from './common/NodeActionPill';
@@ -43,6 +43,12 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
       return [];
     }
   }, [rf]);
+
+  const { zoom } = useViewport();
+  const MIN_VISIBLE_FONT_PX = 12;
+  const BASE_FONT_PX = 14; // text-sm
+  const questionFontSize =
+    zoom < BASE_FONT_PX / MIN_VISIBLE_FONT_PX ? MIN_VISIBLE_FONT_PX / zoom : undefined;
 
   const { editable, hover, pill, connect, innerScaleStyle, isActive, cursorClass } = useNodeChrome({
     id,
@@ -206,6 +212,7 @@ export const StatementNode: React.FC<StatementNodeProps> = ({ id, data, selected
           onBlur={onBlur}
           onKeyDown={onKeyDown}
           className={`text-sm whitespace-pre-wrap break-words outline-none transition-opacity duration-200 ${isEditing ? 'nodrag' : ''} ${hidden ? 'opacity-0 pointer-events-none select-none' : 'opacity-100'}`}
+          style={questionFontSize ? { fontSize: `${questionFontSize}px` } : undefined}
         >
           {value || 'New Question'}
         </div>
