@@ -18,6 +18,7 @@ import { useGraphContextMenu } from '@/hooks/experiment/multiplayer/useGraphCont
 import { MiniHoverStats } from './MiniHoverStats';
 import { NodePriceOverlay } from './NodePriceOverlay';
 import { EdgePriceOverlay } from './EdgePriceOverlay';
+import { StatementReadabilityOverlay } from './StatementReadabilityOverlay';
 import { enrichWithMarketData, getDocIdFromURL, isMarketEnabled } from '@/utils/market/marketUtils';
 import { dispatchMarketPanelClose } from '@/utils/market/marketEvents';
 import { useUserHoldingsLite } from '@/hooks/market/useUserHoldingsLite';
@@ -760,6 +761,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           </ReactFlow>
         );
       })()}
+      <StatementReadabilityOverlay nodes={nodesForRender as any} />
       {/* Connect overlay: draw a line from anchor origin to cursor */}
       {connectMode && connectAnchorId && edgesLayer && createPortal((() => {
         const cursorFlow = connectCursor || { x: origin.x + 100, y: origin.y };
