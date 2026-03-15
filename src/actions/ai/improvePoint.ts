@@ -59,7 +59,7 @@ export const improvePoint = async (content: string): Promise<string | null> => {
         },
       ],
       temperature: 0.7,
-      maxTokens: 200,
+      maxOutputTokens: 200,
     })
   );
 
@@ -88,7 +88,7 @@ export const improveNegation = async (
         },
       ],
       temperature: 0.7,
-      maxTokens: 200,
+      maxOutputTokens: 200,
     })
   );
 

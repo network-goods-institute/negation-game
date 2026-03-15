@@ -5,7 +5,8 @@ import { generateText } from "ai";
 import { withRetry } from "@/lib/utils/withRetry";
 import { db } from "@/services/db";
 import { pointsTable, viewpointsTable, usersTable } from "@/db/schema";
-import { and, eq } from "drizzle-orm";import { logger } from "@/lib/logger";
+import { and, eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 interface NotificationData {
   type: string;
@@ -73,7 +74,7 @@ Summary:`;
       return generateText({
         model: openai("gpt-4o-mini"),
         prompt,
-        maxTokens: 120,
+        maxOutputTokens: 120,
         temperature: 0.7,
       });
     });

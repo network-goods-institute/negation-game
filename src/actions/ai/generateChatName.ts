@@ -2,7 +2,8 @@
 
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
-import { withRetry } from "@/lib/utils/withRetry";import { logger } from "@/lib/logger";
+import { withRetry } from "@/lib/utils/withRetry";
+import { logger } from "@/lib/logger";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -36,7 +37,7 @@ TITLE:`;
         const response = await streamText({
           model: openai("gpt-4o-mini"),
           prompt,
-          maxTokens: 20,
+          maxOutputTokens: 20,
         });
 
         if (!response) {

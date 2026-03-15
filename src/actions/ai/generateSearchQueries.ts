@@ -64,7 +64,6 @@ Output *only* a JSON object matching the required schema containing a list of th
       model: openai("gpt-4o-mini"),
       schema: searchKeywordsSchema,
       prompt,
-      mode: "json",
     });
 
     if (!object || typeof object !== "object") {

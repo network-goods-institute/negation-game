@@ -5,7 +5,8 @@ import { chatsTable } from "@/db/tables/chatsTable";
 import { getUserId } from "@/actions/users/getUserId";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
-import { ViewpointGraph } from "@/atoms/viewpointAtoms";import { logger } from "@/lib/logger";
+import { ViewpointGraph } from "@/atoms/viewpointAtoms";
+import { logger } from "@/lib/logger";
 
 const ChatMetadataSchema = z.object({
   id: z.string(),
@@ -139,7 +140,7 @@ export async function fetchChatContent(
     if (!validatedContent.success) {
       logger.error(
         "Validation Error (fetchChatContent):",
-        validatedContent.error.errors
+        validatedContent.error.issues
       );
       throw new Error("Failed to validate chat content from database.");
     }
@@ -169,7 +170,7 @@ export async function createDbChat(
   const validation = ClientChatCreateSchema.safeParse(chatData);
   if (!validation.success) {
     const error = `Invalid chat data: ${validation.error.message}`;
-    logger.error("Validation Error (createDbChat):", validation.error.errors);
+    logger.error("Validation Error (createDbChat):", validation.error.issues);
     return { success: false, id: null, error };
   }
   const {
@@ -220,7 +221,7 @@ export async function updateDbChat(
     const error = `Invalid chat data: ${updateValidation.error.message}`;
     logger.error(
       "Validation Error (updateDbChat):",
-      updateValidation.error.errors
+      updateValidation.error.issues
     );
     return { success: false, error };
   }

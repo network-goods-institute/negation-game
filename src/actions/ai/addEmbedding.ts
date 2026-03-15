@@ -15,7 +15,8 @@ export const addEmbedding = async ({
 }: Pick<Point, "content" | "id">) => {
   const embedding = (
     await embed({
-      model: openai.embedding("text-embedding-3-small", { dimensions: 384 }),
+      model: openai.embedding("text-embedding-3-small"),
+      providerOptions: { openai: { dimensions: 384 } },
       value: content,
     })
   ).embedding;

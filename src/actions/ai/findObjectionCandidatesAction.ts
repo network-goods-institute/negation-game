@@ -49,7 +49,8 @@ export const findObjectionCandidatesAction = async ({
 
   const embedding = (
     await embed({
-      model: openai.embedding("text-embedding-3-small", { dimensions: 384 }),
+      model: openai.embedding("text-embedding-3-small"),
+      providerOptions: { openai: { dimensions: 384 } },
       value: objectionContent,
     })
   ).embedding;
