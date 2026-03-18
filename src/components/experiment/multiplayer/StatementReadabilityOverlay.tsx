@@ -21,34 +21,31 @@ type StatementOverlayNode = {
 
 type Props = {
   nodes: StatementOverlayNode[];
-  zoomThreshold?: number;
+  minZoomThreshold?: number;
+  maxZoomThreshold?: number;
 };
 
-const DEFAULT_ZOOM_THRESHOLD = 0.55;
-const MIN_OVERLAY_ZOOM = 0.2;
-const BASE_WIDTH_PX = 320;
-const BASE_FONT_SIZE_PX = 15;
-const BASE_LINE_HEIGHT_PX = 22;
-const BASE_PADDING_X_PX = 18;
-const BASE_PADDING_Y_PX = 10;
-const MAX_SCALE = 1.45;
+const DEFAULT_MIN_ZOOM_THRESHOLD = 0.3;
+const DEFAULT_MAX_ZOOM_THRESHOLD = 0.55;
+const BASE_WIDTH_PX = 280;
+const BASE_FONT_SIZE_PX = 14;
+const BASE_LINE_HEIGHT_PX = 20;
+const BASE_PADDING_X_PX = 14;
+const BASE_PADDING_Y_PX = 8;
 
 export function StatementReadabilityOverlay({
   nodes,
-  zoomThreshold = DEFAULT_ZOOM_THRESHOLD,
+  minZoomThreshold = DEFAULT_MIN_ZOOM_THRESHOLD,
+  maxZoomThreshold = DEFAULT_MAX_ZOOM_THRESHOLD,
 }: Props) {
   const { zoom, x: vx, y: vy } = useViewport();
   const graph = useGraphActions() as any;
   const hoveredNodeId: string | null = graph?.hoveredNodeId ?? null;
 
   if (!Array.isArray(nodes) || nodes.length === 0) return null;
-  if (!Number.isFinite(zoom) || zoom > zoomThreshold) return null;
-
-  const zoomFloor = Math.max(zoom, MIN_OVERLAY_ZOOM);
-  const scale = Math.min(
-    MAX_SCALE,
-    Number((zoomThreshold / zoomFloor).toFixed(2))
-  );
+  if (!Number.isFinite(zoom) || zoom < minZoomThreshold || zoom > maxZoomThreshold) {
+    return null;
+  }
 
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 25 }}>
@@ -75,16 +72,16 @@ export function StatementReadabilityOverlay({
             style={{
               left: sx,
               top: sy,
-              width: `${Math.round(BASE_WIDTH_PX * scale)}px`,
-              padding: `${Math.round(BASE_PADDING_Y_PX * scale)}px ${Math.round(BASE_PADDING_X_PX * scale)}px`,
+              width: `${BASE_WIDTH_PX}px`,
+              padding: `${BASE_PADDING_Y_PX}px ${BASE_PADDING_X_PX}px`,
               transform: "translate(-50%, -50%)",
             }}
           >
             <div
               className="whitespace-pre-wrap break-words text-center font-medium"
               style={{
-                fontSize: `${Number((BASE_FONT_SIZE_PX * scale).toFixed(2))}px`,
-                lineHeight: `${Number((BASE_LINE_HEIGHT_PX * scale).toFixed(2))}px`,
+                fontSize: `${BASE_FONT_SIZE_PX}px`,
+                lineHeight: `${BASE_LINE_HEIGHT_PX}px`,
               }}
             >
               {statement}

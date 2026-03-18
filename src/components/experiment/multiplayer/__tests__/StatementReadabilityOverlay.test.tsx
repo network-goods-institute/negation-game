@@ -52,6 +52,20 @@ describe('StatementReadabilityOverlay', () => {
     expect(screen.queryByText('Should people work four days a week?')).toBeNull();
   });
 
+  it('does not show the overlay when zoomed too far out', () => {
+    mockUseViewport.mockReturnValue({ x: 0, y: 0, zoom: 0.2 });
+
+    render(
+      <GraphProvider value={{ hoveredNodeId: null } as any}>
+        <div style={{ position: 'relative', width: 800, height: 600 }}>
+          <StatementReadabilityOverlay nodes={statementNodes} />
+        </div>
+      </GraphProvider>
+    );
+
+    expect(screen.queryByText('Should people work four days a week?')).toBeNull();
+  });
+
   it('hides the overlay while the statement is hovered', () => {
     mockUseViewport.mockReturnValue({ x: 0, y: 0, zoom: 0.35 });
 
@@ -64,5 +78,40 @@ describe('StatementReadabilityOverlay', () => {
     );
 
     expect(screen.queryByText('Should people work four days a week?')).toBeNull();
+  });
+
+  it('keeps the overlay visible throughout the allowed zoom band', () => {
+    mockUseViewport.mockReturnValue({ x: 0, y: 0, zoom: 0.35 });
+
+    const { rerender } = render(
+      <GraphProvider value={{ hoveredNodeId: null } as any}>
+        <div style={{ position: 'relative', width: 800, height: 600 }}>
+          <StatementReadabilityOverlay nodes={statementNodes} />
+        </div>
+      </GraphProvider>
+    );
+
+    const initialText = screen.getByText('Should people work four days a week?');
+    const initialBox = initialText.parentElement as HTMLDivElement;
+    const initialWidth = initialBox.style.width;
+    const initialFontSize = initialText.style.fontSize;
+
+    mockUseViewport.mockReturnValue({ x: 0, y: 0, zoom: 0.5 });
+
+    rerender(
+      <GraphProvider value={{ hoveredNodeId: null } as any}>
+        <div style={{ position: 'relative', width: 800, height: 600 }}>
+          <StatementReadabilityOverlay nodes={statementNodes} />
+        </div>
+      </GraphProvider>
+    );
+
+    const cappedText = screen.getByText('Should people work four days a week?');
+    const cappedBox = cappedText.parentElement as HTMLDivElement;
+
+    expect(cappedBox.style.width).toBe(initialWidth);
+    expect(cappedText.style.fontSize).toBe(initialFontSize);
+    expect(cappedBox.style.width).toBe('280px');
+    expect(cappedText.style.fontSize).toBe('14px');
   });
 });
