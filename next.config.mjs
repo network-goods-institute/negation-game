@@ -97,7 +97,7 @@ const nextConfig = {
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "frame-ancestors 'self' https://negation-game-git-auth-refactor-staging-network-goods-institute.vercel.app https://negation-game-network-goods-institute.vercel.app https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app https://negation-game-git-mindchange-network-goods-institute.vercel.app https://auth.privy.io",
+      "frame-ancestors 'self' https://negation-game-git-auth-refactor-staging-network-goods-institute.vercel.app https://negation-game-network-goods-institute.vercel.app https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app https://negation-game-git-mindchange-network-goods-institute.vercel.app https://auth.privy.io https://mississauga-demo.azule.xyz",
       "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://privy.negationgame.com https://www.youtube.com https://www.youtube-nocookie.com",
       connectSrc,
       "worker-src 'self' blob:",
@@ -127,6 +127,7 @@ const nextConfig = {
       "https://*.negationgame.com",
       "https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app",
       "https://negation-game-git-mindchange-network-goods-institute.vercel.app",
+      "https://mississauga-demo.azule.xyz",
     ];
     if (isDev) {
       embedAllowedAncestorsArr.push(
