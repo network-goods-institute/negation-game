@@ -625,8 +625,9 @@ export default async function middleware(req: NextRequest) {
   // Everything else redirects to play.negationgame.com
   const allowedRootPaths = ["/experiment", "/privacy", "/tos"];
   if (isLocalhost) {
-    // Allow /s/ paths in development
+    // Allow app-only root paths in development
     allowedRootPaths.push("/s/");
+    allowedRootPaths.push("/admin");
   }
   const isAllowedOnRoot = allowedRootPaths.some((prefix) =>
     pathname.startsWith(prefix)

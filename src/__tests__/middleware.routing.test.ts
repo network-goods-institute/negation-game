@@ -163,6 +163,17 @@ describe("Middleware Routing", () => {
     });
   });
 
+  describe("Localhost Development", () => {
+    test("/admin should stay on localhost", async () => {
+      const req = createMockRequest("/admin", "localhost:3001");
+      const response = await middleware(req);
+
+      expect(response).toBeInstanceOf(NextResponse);
+      expect(REWRITE_STATUSES).toContain(response.status);
+      expect(response.headers.get("location")).toBeFalsy();
+    });
+  });
+
   describe("Play Subdomain (play.negationgame.com)", () => {
     test("root path should pass through", async () => {
       const req = createMockRequest("/", "play.negationgame.com");

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { MonthlyBoardStatsCard } from "@/components/admin/MonthlyBoardStatsCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -559,6 +560,8 @@ export default function SiteAdminPage() {
             <JobResultDisplay result={yjsCompactResult} title="Yjs Compaction" />
           </CardContent>
         </Card>
+
+        <MonthlyBoardStatsCard />
       </div>
 
       <Separator />
