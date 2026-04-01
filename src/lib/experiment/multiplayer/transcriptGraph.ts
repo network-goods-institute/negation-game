@@ -450,12 +450,12 @@ const computePointDepths = (
   relationBySource: Map<number, TranscriptGraphRelation>
 ) => {
   const memo = new Map<number, number>();
-  const visiting = new Set<number>();
+  const inCurrentPath = Array.from({ length: pointCount }, () => false);
 
   const visit = (index: number): number => {
     if (memo.has(index)) return memo.get(index)!;
-    if (visiting.has(index)) return 1;
-    visiting.add(index);
+    if (inCurrentPath[index]) return 1;
+    inCurrentPath[index] = true;
 
     const relation = relationBySource.get(index);
     let depth = 1;
@@ -463,7 +463,7 @@ const computePointDepths = (
       depth = Math.min(MAX_LAYOUT_DEPTH, visit(relation.targetIndex) + 1);
     }
 
-    visiting.delete(index);
+    inCurrentPath[index] = false;
     memo.set(index, depth);
     return depth;
   };

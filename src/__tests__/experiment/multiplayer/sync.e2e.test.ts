@@ -98,16 +98,16 @@ describe("multiplayer sync e2e (websocket)", () => {
       }
     } catch {}
     try {
-      if (wsUtils?.docs) {
-        for (const [name, doc] of wsUtils.docs.entries()) {
-          try {
-            doc.destroy?.();
-          } catch {}
-          try {
-            wsUtils.docs.delete(name);
-          } catch {}
-        }
+      const docs = wsUtils?.docs;
+      if (!docs || typeof docs.entries !== "function") return;
+      for (const [, doc] of docs.entries()) {
+        try {
+          doc.destroy?.();
+        } catch {}
       }
+      try {
+        docs.clear?.();
+      } catch {}
     } catch {}
   });
 
