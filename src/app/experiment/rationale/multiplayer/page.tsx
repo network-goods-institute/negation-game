@@ -1,14 +1,15 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { Roboto_Slab } from 'next/font/google';
-import { listOwnedRationales, listVisitedRationales, listPinnedRationales, deleteRationale, renameRationale, createRationale, recordOpen, duplicateRationale, pinRationale, unpinRationale } from "@/actions/experimental/rationales";
+import { listOwnedRationales, listVisitedRationales, listPinnedRationales, deleteRationale, renameRationale, createRationale, createRationaleFromDocument, recordOpen, duplicateRationale, pinRationale, unpinRationale } from "@/actions/experimental/rationales";
 import { listAccessRequests, resolveAccessRequest } from "@/actions/experimental/rationaleAccess";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -40,7 +42,7 @@ import { WebsocketProvider } from "y-websocket";
 import { fetchYjsAuthToken } from "@/hooks/experiment/multiplayer/yjs/auth";
 import { logger } from "@/lib/logger";
 import { LandingPage } from "@/components/landing/LandingPage";
-import { Pin } from "lucide-react";
+import { FileText, Pin, PlusCircle, Sparkles, Upload } from "lucide-react";
 
 const robotoSlab = Roboto_Slab({ subsets: ['latin'] });
 
@@ -121,7 +123,11 @@ export default function MultiplayerRationaleIndexPage() {
     }
   };
 
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [creatingFromDocument, setCreatingFromDocument] = useState(false);
+  const [documentText, setDocumentText] = useState("");
+  const [documentFileName, setDocumentFileName] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -132,13 +138,37 @@ export default function MultiplayerRationaleIndexPage() {
   const [pinningId, setPinningId] = useState<string | null>(null);
   const [unpinningId, setUnpinningId] = useState<string | null>(null);
   const [requestActionId, setRequestActionId] = useState<string | null>(null);
-  const handleCreate = async () => {
+
+  const navigateToBoard = (id: string, slug?: string | null) => {
+    const host = typeof window !== "undefined" ? window.location.host : "";
+    const targetPath = buildRationaleDetailPath(id, host, slug || undefined);
+    try {
+      router.push(targetPath);
+    } catch (error) {
+      logger.error("Failed to navigate with router.push", error);
+      try {
+        if (typeof window !== "undefined") {
+          window.location.href = targetPath;
+        }
+      } catch (fallbackError) {
+        logger.error("Failed to navigate using window.location.href", fallbackError);
+      }
+    }
+  };
+
+  const resetCreateDialogState = () => {
+    setDocumentText("");
+    setDocumentFileName(null);
+  };
+
+  const handleStartFresh = async () => {
     if (creating) return;
     setCreating(true);
     try {
       const { id, slug } = await createRationale({});
-      const host = typeof window !== 'undefined' ? window.location.host : '';
-      window.location.href = buildRationaleDetailPath(id, host, slug || undefined);
+      setCreateDialogOpen(false);
+      resetCreateDialogState();
+      navigateToBoard(id, slug || null);
     } catch (e: any) {
       const msg = (e?.message || "").toLowerCase();
       if (msg.includes("unauthorized")) {
@@ -147,8 +177,66 @@ export default function MultiplayerRationaleIndexPage() {
       } else {
         toast.error("Failed to create");
       }
+    } finally {
       setCreating(false);
     }
+  };
+
+  const createBoardFromDocumentText = async (rawText: string) => {
+    if (creatingFromDocument) return;
+    setCreatingFromDocument(true);
+    try {
+      const { id, slug } = await createRationaleFromDocument({
+        documentText: rawText,
+      });
+      setCreateDialogOpen(false);
+      resetCreateDialogState();
+      navigateToBoard(id, slug || null);
+    } catch (e: any) {
+      const msg = (e?.message || "").toLowerCase();
+      if (msg.includes("unauthorized")) {
+        toast.error("Session expired. Please log in again.");
+        try { (login as any)?.(); } catch { }
+      } else {
+        toast.error(e?.message || "Failed to build board from document.");
+      }
+    } finally {
+      setCreatingFromDocument(false);
+    }
+  };
+
+  const handleDocumentFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2_000_000) {
+      toast.error("Document is too large. Max size is 2MB.");
+      event.target.value = "";
+      return;
+    }
+    try {
+      const text = await file.text();
+      if (!text.trim()) {
+        toast.error("This file has no readable text.");
+        return;
+      }
+      setDocumentText(text);
+      setDocumentFileName(file.name);
+      await createBoardFromDocumentText(text.trim());
+    } catch (error) {
+      logger.error("Failed to read transcript file", error);
+      toast.error("Failed to read file.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleCreateFromDocument = async () => {
+    const rawText = documentText.trim();
+    if (!rawText) {
+      toast.error("Upload a file or paste text first.");
+      return;
+    }
+    await createBoardFromDocumentText(rawText);
   };
 
   const handleDelete = async (docId: string) => {
@@ -464,6 +552,13 @@ export default function MultiplayerRationaleIndexPage() {
       setRenameLoading(false);
     }
   };
+  const documentCharCount = documentText.trim().length;
+  const documentLineCount = documentText.trim()
+    ? documentText
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean).length
+    : 0;
 
   const normalizedQuery = query.trim().toLowerCase();
   const matchesQuery = (doc: MpDoc) => {
@@ -650,12 +745,12 @@ export default function MultiplayerRationaleIndexPage() {
               <h1 className="text-3xl font-bold text-stone-800">My Boards</h1>
               <p className="text-sm text-stone-600 mt-1">Create, organize, and collaborate on boards.</p>
             </div>
-            <Button onClick={handleCreate} disabled={creating} aria-busy={creating} className="h-9 px-4 bg-sync hover:bg-sync-hover text-white">
-              {creating ? (
-                <span className="h-5 w-5 border-2 border-sync border-t-transparent rounded-full animate-spin" />
-              ) : (
-                "New Board"
-              )}
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              disabled={creating || creatingFromDocument}
+              className="h-9 px-4 bg-sync hover:bg-sync-hover text-white"
+            >
+              New Board
             </Button>
           </div>
           {/* Search and Stats Section */}
@@ -811,23 +906,23 @@ export default function MultiplayerRationaleIndexPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
                   {/* Create New Rationale Card */}
                   <Card
-                    className={`p-4 hover:shadow-md transition w-full cursor-pointer relative border-2 border-dashed border-stone-300 hover:border-stone-400 hover:bg-stone-50/50 ${creating ? 'opacity-60 pointer-events-none' : ''}`}
-                    onClick={handleCreate}
+                    className={`p-4 hover:shadow-md transition w-full cursor-pointer relative border-2 border-dashed border-stone-300 hover:border-stone-400 hover:bg-stone-50/50 ${(creating || creatingFromDocument) ? 'opacity-60 pointer-events-none' : ''}`}
+                    onClick={() => setCreateDialogOpen(true)}
                     role="button"
                   >
-                    {creating && (
-                      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
-                        <div className="size-5 border-2 border-sync border-t-transparent rounded-full animate-spin" />
+                    <div className="flex h-full flex-col justify-between gap-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-100">
+                          <PlusCircle className="h-5 w-5 text-stone-600" />
+                        </div>
+                        <span className="rounded-full bg-stone-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-600">
+                          Quick Start
+                        </span>
                       </div>
-                    )}
-                    <div className="flex flex-col items-center justify-center text-center h-full">
-                      <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center mb-2">
-                        <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
+                      <div>
+                        <div className="text-sm font-semibold text-stone-800">Create New</div>
+                        <div className="mt-1 text-xs text-stone-500">Start fresh or build from a transcript (Beta)</div>
                       </div>
-                      <div className="text-sm font-semibold text-stone-700 mb-1">Create New</div>
-                      <div className="text-xs text-stone-500">Start a board</div>
                     </div>
                   </Card>
 
@@ -861,6 +956,131 @@ export default function MultiplayerRationaleIndexPage() {
         </div>
       </TooltipProvider>
       <NotificationsSidebarLauncher enabled={authenticated} />
+
+      <Dialog
+        open={createDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && (creating || creatingFromDocument)) return;
+          setCreateDialogOpen(open);
+          if (!open) {
+            resetCreateDialogState();
+            setCreating(false);
+            setCreatingFromDocument(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl border-stone-200 bg-gradient-to-b from-white to-stone-50/80 p-0">
+          <DialogHeader>
+            <div className="border-b border-stone-200/70 px-6 pb-4 pt-6">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                <Sparkles className="h-3.5 w-3.5" />
+                Beta
+              </div>
+              <DialogTitle>Create board</DialogTitle>
+              <DialogDescription className="mt-2 max-w-2xl text-stone-600">
+                Build from document extracts argument points and links, then creates your board instantly.
+                Or start with a blank board.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <div className="grid gap-4 px-6 pb-6 md:grid-cols-[1.65fr_1fr]">
+            <div className="rounded-xl border border-sync/25 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-stone-900">
+                    <FileText className="h-4 w-4 text-sync" />
+                    Build from document
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                      Beta
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-stone-600">
+                    Uploading a file creates the board immediately. Or paste transcript text below.
+                  </p>
+                </div>
+                <span className="rounded-full bg-stone-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-stone-600">
+                  Fastest
+                </span>
+              </div>
+
+              <div className="mt-4">
+                <label className="flex w-full cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-stone-300 bg-stone-50/70 p-3 text-sm font-medium text-stone-700">
+                  <span className="flex items-center gap-2">
+                    <Upload className="h-4 w-4 text-stone-500" />
+                    Upload transcript file
+                  </span>
+                  <span className="text-xs font-normal text-stone-500">Accepted: txt, md, rtf up to 2MB</span>
+                  <Input
+                    type="file"
+                    accept=".txt,.md,.rtf,text/plain,text/markdown"
+                    onChange={handleDocumentFileChange}
+                    disabled={creatingFromDocument || creating}
+                    className="sr-only"
+                  />
+                </label>
+              </div>
+
+              {documentFileName && (
+                <div className="mt-3 rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700">
+                  Selected file: <span className="font-medium">{documentFileName}</span>
+                </div>
+              )}
+
+              <div className="mt-3">
+                <Textarea
+                  value={documentText}
+                  onChange={(event) => setDocumentText(event.target.value)}
+                  placeholder="Paste transcript text here..."
+                  className="min-h-40 resize-y border-stone-300 bg-white"
+                  disabled={creatingFromDocument || creating}
+                />
+                <div className="mt-2 flex items-center justify-between text-xs text-stone-500">
+                  <span>{documentLineCount} lines</span>
+                  <span>{documentCharCount.toLocaleString()} chars</span>
+                </div>
+              </div>
+
+              <Button
+                className="mt-4 w-full bg-sync hover:bg-sync-hover text-white"
+                onClick={handleCreateFromDocument}
+                disabled={creatingFromDocument || creating || !documentText.trim()}
+              >
+                {creatingFromDocument ? (
+                  <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  "Create from document"
+                )}
+              </Button>
+            </div>
+
+            <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+              <div className="flex h-full flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-stone-900">
+                    <PlusCircle className="h-4 w-4 text-stone-500" />
+                    Start fresh
+                  </div>
+                  <p className="mt-1 text-xs text-stone-600">
+                    Open a blank board and add options and objections manually.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="mt-4 w-full border-stone-300 text-stone-800 hover:bg-stone-50"
+                  onClick={handleStartFresh}
+                  disabled={creating || creatingFromDocument}
+                >
+                  {creating ? (
+                    <span className="h-4 w-4 border-2 border-sync border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    "Start fresh"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Rename Dialog */}
       <Dialog open={!!renamingId} onOpenChange={(open) => {

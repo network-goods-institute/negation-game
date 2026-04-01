@@ -1,10 +1,12 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Page from '../page';
+
+const mockPush = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     replace: jest.fn(),
     back: jest.fn(),
     forward: jest.fn(),
@@ -31,6 +33,7 @@ jest.mock('@/actions/experimental/rationales', () => ({
   deleteRationale: jest.fn(async () => ({})),
   renameRationale: jest.fn(async () => ({})),
   createRationale: jest.fn(async () => ({ id: 'new' })),
+  createRationaleFromDocument: jest.fn(async () => ({ id: 'new-doc' })),
   pinRationale: jest.fn(async () => ({})),
   unpinRationale: jest.fn(async () => ({})),
 }));
@@ -82,7 +85,14 @@ jest.mock('@/mutations/experiment/multiplayer/useMarkMultiplayerNotificationsRea
   useMarkAllMultiplayerNotificationsRead: () => ({ mutateAsync: jest.fn() }),
 }));
 
+const mockedRationales = jest.requireMock('@/actions/experimental/rationales');
+
 describe('Multiplayer index page', () => {
+  beforeEach(() => {
+    mockPush.mockClear();
+    mockedRationales.createRationaleFromDocument.mockResolvedValue({ id: 'new-doc', slug: null });
+  });
+
   it('renders My Boards and lists docs', async () => {
     render(<Page />);
     expect(await screen.findByText(/My Boards/i)).toBeInTheDocument();
@@ -116,5 +126,67 @@ describe('Multiplayer index page', () => {
     );
 
     window.open = originalOpen;
+  });
+
+  it('opens create dialog with document and fresh options', async () => {
+    render(<Page />);
+    const newBoardButton = await screen.findByRole('button', { name: 'New Board' });
+    fireEvent.click(newBoardButton);
+
+    expect(await screen.findByText('Create board')).toBeInTheDocument();
+    expect(await screen.findByText('Build from document')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Start fresh' })).toBeInTheDocument();
+  });
+
+  it('allows clicking anywhere in the upload panel to trigger file input', async () => {
+    render(<Page />);
+    fireEvent.click(await screen.findByRole('button', { name: 'New Board' }));
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).toBeTruthy();
+
+    const clickHandler = jest.fn();
+    fileInput.addEventListener('click', clickHandler);
+
+    fireEvent.click(await screen.findByText('Accepted: txt, md, rtf up to 2MB'));
+
+    expect(clickHandler).toHaveBeenCalled();
+  });
+
+  it('submits document text through createRationaleFromDocument', async () => {
+    render(<Page />);
+    fireEvent.click(await screen.findByRole('button', { name: 'New Board' }));
+    const textarea = await screen.findByPlaceholderText('Paste transcript text here...');
+    fireEvent.change(textarea, { target: { value: 'Moderator: Should we ship now?\nAlex: Ship now for adoption.\nBlair: Delay for reliability.\nCasey: Compare tradeoffs.' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Create from document' }));
+
+    await waitFor(() => {
+      expect(mockedRationales.createRationaleFromDocument).toHaveBeenCalledWith({
+        documentText: expect.stringContaining('Should we ship now?'),
+      });
+    });
+    expect(mockPush).toHaveBeenCalled();
+  });
+
+  it('auto-creates board immediately when a file is uploaded', async () => {
+    render(<Page />);
+    fireEvent.click(await screen.findByRole('button', { name: 'New Board' }));
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).toBeTruthy();
+
+    const file = new File(['Speaker A: We should prioritize speed.\nSpeaker B: We should prioritize reliability.\nSpeaker C: We should evaluate tradeoffs.'], 'transcript.txt', { type: 'text/plain' });
+    Object.defineProperty(file, 'text', {
+      value: async () => 'Speaker A: We should prioritize speed.\nSpeaker B: We should prioritize reliability.\nSpeaker C: We should evaluate tradeoffs.',
+    });
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(mockedRationales.createRationaleFromDocument).toHaveBeenCalledWith({
+        documentText: expect.stringContaining('prioritize speed'),
+      });
+    });
+    expect(mockPush).toHaveBeenCalled();
   });
 });

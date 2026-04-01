@@ -16,10 +16,14 @@ import { logger } from "@/lib/logger";
 import { getDocSnapshotBuffer } from "@/services/yjsCompaction";
 import * as Y from "yjs";
 import { canWriteRole, resolveDocAccess } from "@/services/mpAccess";
+import { generateTranscriptGraphSpec } from "@/actions/ai/generateTranscriptGraphSpec";
+import { encodeTranscriptGraphUpdate } from "@/lib/experiment/multiplayer/transcriptGraph";
 
 const DEFAULT_OWNER = "connormcmk";
 const DEFAULT_TITLE = "Untitled";
 const PERMISSIONS_SYSTEM_CUTOFF_ISO = "2025-12-08T12:57:38Z";
+const DOCUMENT_TEXT_MIN_CHARS = 30;
+const DOCUMENT_TEXT_MAX_CHARS = 120000;
 
 const claimOwnershipIfMissing = async (docId: string, userId: string) => {
   const result = await db
@@ -362,6 +366,7 @@ export async function recordOpen(docId: string, opts?: { shareToken?: string | n
 export async function createRationale(params?: {
   id?: string;
   title?: string;
+  initialUpdateBin?: Buffer;
 }) {
   const userId = await getUserId();
   const anonId = await getUserIdOrAnonymous();
@@ -416,11 +421,70 @@ export async function createRationale(params?: {
       logger.error("[Create Rationale] Failed to upsert owner permission", err);
       throw err;
     }
+
+    if (params?.initialUpdateBin && params.initialUpdateBin.length > 0) {
+      await tx
+        .insert(mpDocUpdatesTable)
+        .values({
+          docId: id,
+          updateBin: params.initialUpdateBin,
+          userId: ownerId,
+        })
+        .onConflictDoNothing();
+    }
   });
 
   await new Promise((resolve) => setTimeout(resolve, 100));
 
   return { id, title, slug: createdSlug };
+}
+
+export async function createRationaleFromDocument(params: {
+  documentText: string;
+  title?: string;
+}) {
+  const rawText = `${params?.documentText || ""}`.trim();
+  if (!rawText) {
+    throw new Error("Document text is required");
+  }
+  if (rawText.length < DOCUMENT_TEXT_MIN_CHARS) {
+    throw new Error(
+      `Document text must be at least ${DOCUMENT_TEXT_MIN_CHARS} characters`
+    );
+  }
+  if (rawText.length > DOCUMENT_TEXT_MAX_CHARS) {
+    throw new Error(
+      `Document text must be at most ${DOCUMENT_TEXT_MAX_CHARS} characters`
+    );
+  }
+
+  const explicitUserId = await getUserId();
+  const fallbackUserId = explicitUserId ? null : await getUserIdOrAnonymous();
+  const creatorUserId = explicitUserId || fallbackUserId || DEFAULT_OWNER;
+
+  const spec = await generateTranscriptGraphSpec(rawText);
+  const requestedTitle = (params?.title || "").trim();
+  const resolvedTitle =
+    requestedTitle || (spec.title || "").trim() || DEFAULT_TITLE;
+  const updateBin = encodeTranscriptGraphUpdate(
+    {
+      title: resolvedTitle,
+      points: spec.points,
+      relations: spec.relations,
+    },
+    { userId: creatorUserId, username: null }
+  );
+
+  const created = await createRationale({
+    title: resolvedTitle,
+    initialUpdateBin: updateBin,
+  });
+
+  return {
+    ...created,
+    pointCount: spec.points.length,
+    relationCount: spec.relations?.length ?? 0,
+  };
 }
 
 export async function renameRationale(id: string, title: string) {

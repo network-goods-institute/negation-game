@@ -156,6 +156,23 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
     loadUsers();
   }, [open, isOwner]);
 
+  useEffect(() => {
+    if (!open) {
+      setUserDropdownOpen(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!userDropdownOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && dialogRef.current?.contains(target)) return;
+      setUserDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [userDropdownOpen]);
+
   const filteredUsers = useMemo(() => {
     const existingUsernames = new Set(collaborators.map((c) => c.username).filter(Boolean));
     const existingIds = new Set(collaborators.map((c) => c.userId));
@@ -202,16 +219,6 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
       }),
     [collaborators, currentUserId]
   );
-
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setUserDropdownOpen(false);
-    };
-    if (userDropdownOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [userDropdownOpen]);
 
   const buildShareUrl = (token: string) => {
     const host = typeof window !== "undefined" ? window.location.host : "";
@@ -335,7 +342,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         ref={dialogRef}
-        className="sm:max-w-4xl relative max-h-[85vh] overflow-y-auto top-[38%] translate-y-[-38%] sm:top-[40%] sm:translate-y-[-40%]"
+        className="relative w-[min(94vw,44rem)] max-h-[88dvh] overflow-y-auto overflow-x-hidden break-words sm:max-w-[44rem]"
       >
         <DialogClose asChild>
           <Button
@@ -377,7 +384,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
         <div className="space-y-5">
           {/* Share Link Card */}
           <div className="rounded-lg border border-stone-200 bg-gradient-to-br from-stone-50 to-white p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-stone-900 flex items-center gap-2">
                 <svg className="h-4 w-4 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -395,13 +402,13 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
             </div>
 
           <div className="space-y-3">
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Select
                   value={shareRole}
                   onValueChange={(v) => setShareRole(v as ShareRole)}
                   disabled={!isOwner}
                 >
-                  <SelectTrigger className="flex-1 h-9">
+                  <SelectTrigger className="h-9 w-full sm:flex-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -412,7 +419,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
               <Button
                 onClick={() => handleCopyLink(shareRole)}
                 disabled={pending || !isOwner}
-                  className="h-9 px-3"
+                  className="h-9 w-full px-3 sm:w-auto"
               >
                   {pending ? "..." : "Copy link"}
               </Button>
@@ -438,7 +445,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                 </svg>
                 Links
               </h4>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
+              <div className="space-y-2 max-h-32 overflow-y-auto overflow-x-hidden">
                 {loading ? (
                   <div className="animate-pulse flex items-center gap-3 p-2 rounded bg-stone-50">
                     <div className="h-6 w-6 rounded-full bg-stone-200"></div>
@@ -453,7 +460,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                   const isPublic = !link.requireLogin;
                   const label = link.role === "editor" ? "Edit" : "View";
                   return (
-                      <div key={link.id} className="group flex items-center gap-3 p-2 rounded bg-stone-50 hover:bg-stone-100 transition-colors">
+                      <div key={link.id} className="group flex min-w-0 max-w-full items-center gap-3 overflow-hidden rounded bg-stone-50 p-2 transition-colors hover:bg-stone-100">
                         <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                           link.role === "editor"
                             ? "bg-indigo-100 text-indigo-700"
@@ -473,7 +480,7 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                             </span>
                           </div>
                           <button
-                            className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline truncate block w-full text-left"
+                            className="block w-full max-w-full break-all text-left text-[10px] text-blue-600 hover:text-blue-800 hover:underline"
                             onClick={() => copyShareUrl(link.token)}
                             title={url}
                           >
@@ -569,8 +576,8 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                   Add people
                 </h3>
 
-                <div className="flex gap-2 mb-3">
-                  <div className="relative flex-1">
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                  <div className="min-w-0 flex-1">
                     <Input
                       type="text"
                       placeholder="Username..."
@@ -586,45 +593,11 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                         setUserDropdownOpen(true);
                         e.stopPropagation();
                       }}
-                      onMouseDown={(e) => e.stopPropagation()}
                       className="h-9 text-sm"
                     />
-                    {userDropdownOpen && filteredUsers.length > 0 && (
-                      <div
-                        className="absolute z-50 w-full left-0 right-0 top-full translate-y-1 bg-white border border-stone-200 rounded-md shadow-lg max-h-[160px] overflow-y-auto"
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        {filteredUsers.slice(0, 6).map((user) => (
-                          <div
-                            key={user.id}
-                            className="px-3 py-2 hover:bg-stone-50 cursor-pointer text-sm"
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              setTargetUsername(user.username);
-                              setUserInputValue(user.username);
-                              setSelectedUserId(user.id);
-                              setUserDropdownOpen(false);
-                            }}
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-xs font-medium text-stone-700">
-                                {user.username[0]?.toUpperCase()}
-                              </div>
-                              <span className="text-stone-900">{user.username}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                   <Select value={targetRole} onValueChange={(v) => setTargetRole(v as ShareRole)}>
-                    <SelectTrigger className="w-20 h-9">
+                    <SelectTrigger className="h-9 w-full sm:w-20">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -635,11 +608,45 @@ export function ShareBoardDialog({ docId, slug, open, onOpenChange, accessRole, 
                   <Button
                     onClick={handleAddCollaborator}
                     disabled={pending || !(targetUsername.trim() || userInputValue.trim())}
-                    className="h-9 px-3"
+                    className="h-9 w-full px-3 sm:w-auto"
                   >
                     Add
                   </Button>
                 </div>
+                {userDropdownOpen && filteredUsers.length > 0 && (
+                  <div
+                    className="mb-3 rounded-md border border-stone-200 bg-white shadow-sm"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                    }}
+                  >
+                    <div className="max-h-48 overflow-y-auto p-1">
+                      {filteredUsers.slice(0, 8).map((user) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          className="w-full rounded px-2 py-2 text-left text-sm hover:bg-stone-50"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setTargetUsername(user.username);
+                            setUserInputValue(user.username);
+                            setSelectedUserId(user.id);
+                            setUserDropdownOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-stone-200 text-xs font-medium text-stone-700">
+                              {user.username[0]?.toUpperCase()}
+                            </div>
+                            <span className="truncate text-stone-900">{user.username}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Collaborators */}
                 {loading ? (

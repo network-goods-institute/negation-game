@@ -17,6 +17,7 @@ jest.mock("@/services/mpAccess", () => ({
 }));
 import { getUserId } from "@/actions/users/getUserId";
 import { getUserIdOrAnonymous } from "@/actions/users/getUserIdOrAnonymous";
+import * as Y from "yjs";
 
 const chainDelete = () => ({ where: jest.fn(() => Promise.resolve()) });
 
@@ -41,6 +42,22 @@ jest.mock("@/utils/slugify", () => ({
   ),
 }));
 
+jest.mock("@/actions/ai/generateTranscriptGraphSpec", () => ({
+  generateTranscriptGraphSpec: jest.fn(async () => ({
+    title: "Transcript Board",
+    points: [
+      "First transcript-derived claim for initialization",
+      "Second transcript-derived claim for initialization",
+      "Third transcript-derived claim for initialization",
+    ],
+    relations: [
+      { sourceIndex: 0, targetIndex: null, type: "option" },
+      { sourceIndex: 1, targetIndex: null, type: "option" },
+      { sourceIndex: 2, targetIndex: 1, type: "negation" },
+    ],
+  })),
+}));
+
 // Bypass DB usage in slug resolution for these unit tests
 jest.mock("@/utils/slugResolver", () => ({
   resolveSlugToId: jest.fn(async (v: string) => v),
@@ -52,6 +69,7 @@ jest.mock("@/services/yjsCompaction", () => ({
   getDocSnapshotBuffer: (...args: any[]) =>
     (mockGetDocSnapshotBuffer as unknown as jest.Mock).apply(null, args),
 }));
+const { generateTranscriptGraphSpec } = require("@/actions/ai/generateTranscriptGraphSpec");
 
 const chainInsert = () => {
   const chain: any = {
@@ -106,6 +124,19 @@ describe("rationales actions", () => {
       source: "owner",
     });
     (canWriteRole as jest.Mock).mockReturnValue(true);
+    (generateTranscriptGraphSpec as jest.Mock).mockResolvedValue({
+      title: "Transcript Board",
+      points: [
+        "First transcript-derived claim for initialization",
+        "Second transcript-derived claim for initialization",
+        "Third transcript-derived claim for initialization",
+      ],
+      relations: [
+        { sourceIndex: 0, targetIndex: null, type: "option" },
+        { sourceIndex: 1, targetIndex: null, type: "option" },
+        { sourceIndex: 2, targetIndex: 1, type: "negation" },
+      ],
+    });
   });
 
   it("listMyRationales returns rows from db.execute", async () => {
@@ -300,6 +331,157 @@ describe("rationales actions", () => {
     const res = await createRationale({});
     expect(res.id).toMatch(/^m-/);
     expect(res.title).toBe("Untitled");
+  });
+
+  it("createRationale stores initial yjs update when provided", async () => {
+    const insertedUpdates: any[] = [];
+    const tx: any = {
+      insert: jest.fn(() => ({
+        values: (obj: any) => {
+          if (obj?.updateBin) insertedUpdates.push(obj);
+          return {
+            onConflictDoNothing: jest.fn(() => Promise.resolve()),
+            onConflictDoUpdate: jest.fn(() => Promise.resolve()),
+          };
+        },
+      })),
+      update: jest.fn(() => ({ where: jest.fn(() => Promise.resolve()) })),
+    };
+    mockDb.transaction.mockImplementation(async (callback: any) => callback(tx));
+
+    const { createRationale } = await import(
+      "@/actions/experimental/rationales"
+    );
+    await createRationale({
+      title: "Seeded Board",
+      initialUpdateBin: Buffer.from("seed"),
+    });
+
+    expect(insertedUpdates).toHaveLength(1);
+    expect(insertedUpdates[0]).toEqual(
+      expect.objectContaining({
+        userId: "me",
+      })
+    );
+    expect(Buffer.isBuffer(insertedUpdates[0].updateBin)).toBe(true);
+  });
+
+  it("createRationaleFromDocument seeds board from generated transcript spec", async () => {
+    (generateTranscriptGraphSpec as jest.Mock).mockResolvedValueOnce({
+      title: "Transcript Strategy Debate",
+      points: [
+        "Ship now to capture demand while competitors lag behind",
+        "Delay release to reduce reliability risks before launch",
+        "Compare the cost of delay against the cost of outages",
+      ],
+      relations: [
+        { sourceIndex: 0, targetIndex: null, type: "option" },
+        { sourceIndex: 1, targetIndex: null, type: "option" },
+        { sourceIndex: 2, targetIndex: 1, type: "negation" },
+      ],
+    });
+
+    const insertedUpdates: any[] = [];
+    const tx: any = {
+      insert: jest.fn(() => ({
+        values: (obj: any) => {
+          if (obj?.updateBin) insertedUpdates.push(obj);
+          return {
+            onConflictDoNothing: jest.fn(() => Promise.resolve()),
+            onConflictDoUpdate: jest.fn(() => Promise.resolve()),
+          };
+        },
+      })),
+      update: jest.fn(() => ({ where: jest.fn(() => Promise.resolve()) })),
+    };
+    mockDb.transaction.mockImplementation(async (callback: any) => callback(tx));
+
+    const { createRationaleFromDocument } = await import(
+      "@/actions/experimental/rationales"
+    );
+    const result = await createRationaleFromDocument({
+      documentText:
+        "Moderator: Should we ship now?\nAlex: Ship now to capture demand.\nBlair: Delay to reduce reliability risk.\nCasey: Compare cost of delay against cost of outages.",
+    });
+
+    expect(result.id).toMatch(/^m-/);
+    expect(result.title).toBe("Transcript Strategy Debate");
+    expect(result.pointCount).toBe(3);
+    expect(result.relationCount).toBe(3);
+    expect(generateTranscriptGraphSpec).toHaveBeenCalledTimes(1);
+    expect(insertedUpdates).toHaveLength(1);
+    expect(Buffer.isBuffer(insertedUpdates[0].updateBin)).toBe(true);
+
+    const seededDoc = new Y.Doc();
+    Y.applyUpdate(seededDoc, new Uint8Array(insertedUpdates[0].updateBin));
+    const yMeta = seededDoc.getMap<any>("meta");
+    const yNodes = seededDoc.getMap<any>("nodes");
+    const yEdges = seededDoc.getMap<any>("edges");
+    const yText = seededDoc.getMap<Y.Text>("node_text");
+    expect(yMeta.get("createdFromDocument")).toBe(true);
+    expect(yMeta.get("title")).toBe("Transcript Strategy Debate");
+    expect(yMeta.get("transcriptRelationCount")).toBe(3);
+    expect(yNodes.size).toBe(4);
+    expect(yEdges.size).toBe(3);
+    const edgeTypes = Array.from(yEdges.values()).map((edge: any) => edge.type);
+    expect(edgeTypes).toEqual(expect.arrayContaining(["option", "negation"]));
+    expect(yText.get("title")?.toString()).toBe("Transcript Strategy Debate");
+  });
+
+  it("createRationaleFromDocument prefers explicit title override", async () => {
+    (generateTranscriptGraphSpec as jest.Mock).mockResolvedValueOnce({
+      title: "AI Generated Title",
+      points: [
+        "Point one extracted from transcript data",
+        "Point two extracted from transcript data",
+        "Point three extracted from transcript data",
+      ],
+      relations: [
+        { sourceIndex: 0, targetIndex: null, type: "option" },
+        { sourceIndex: 1, targetIndex: null, type: "option" },
+        { sourceIndex: 2, targetIndex: 0, type: "support" },
+      ],
+    });
+
+    const insertedUpdates: any[] = [];
+    const tx: any = {
+      insert: jest.fn(() => ({
+        values: (obj: any) => {
+          if (obj?.updateBin) insertedUpdates.push(obj);
+          return {
+            onConflictDoNothing: jest.fn(() => Promise.resolve()),
+            onConflictDoUpdate: jest.fn(() => Promise.resolve()),
+          };
+        },
+      })),
+      update: jest.fn(() => ({ where: jest.fn(() => Promise.resolve()) })),
+    };
+    mockDb.transaction.mockImplementation(async (callback: any) => callback(tx));
+
+    const { createRationaleFromDocument } = await import(
+      "@/actions/experimental/rationales"
+    );
+    const result = await createRationaleFromDocument({
+      title: "Manual Transcript Title",
+      documentText:
+        "A: First argument from transcript.\nB: Second argument from transcript.\nC: Third argument from transcript.",
+    });
+
+    expect(result.title).toBe("Manual Transcript Title");
+
+    const seededDoc = new Y.Doc();
+    Y.applyUpdate(seededDoc, new Uint8Array(insertedUpdates[0].updateBin));
+    const yMeta = seededDoc.getMap<any>("meta");
+    expect(yMeta.get("title")).toBe("Manual Transcript Title");
+  });
+
+  it("createRationaleFromDocument rejects short input", async () => {
+    const { createRationaleFromDocument } = await import(
+      "@/actions/experimental/rationales"
+    );
+    await expect(
+      createRationaleFromDocument({ documentText: "too short" })
+    ).rejects.toThrow(/at least/i);
   });
 
   it("createRationale allows anonymous creation via getUserIdOrAnonymous", async () => {
