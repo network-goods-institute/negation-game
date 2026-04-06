@@ -30,10 +30,9 @@ interface Rationale {
 interface Props {
   rationale: Rationale;
   from?: string;
-  minimal?: boolean;
 }
 
-export function RationaleEmbedClient({ rationale, from, minimal }: Props) {
+export function RationaleEmbedClient({ rationale, from }: Props) {
   const [hoveredNodeId, setHoveredNodeId] = React.useState<string | null>(null);
   const [nodePreview, setNodePreview] = React.useState<{
     id: string,
@@ -285,11 +284,9 @@ export function RationaleEmbedClient({ rationale, from, minimal }: Props) {
       {/* No back button here; topic embed will provide it */}
 
       {/* MiniMap Section */}
-      {!minimal && (
-        <div style={minimapStyle}>
-          {renderNodes()}
-        </div>
-      )}
+      <div style={minimapStyle}>
+        {renderNodes()}
+      </div>
 
       {/* Node Preview Tooltip - simplified, right-offset without arrow */}
       {nodePreview && (() => {
@@ -332,7 +329,6 @@ export function RationaleEmbedClient({ rationale, from, minimal }: Props) {
       <div style={{ display: 'flex', gap: '10px', flex: '1 1 auto' }}>
         <div style={{ flex: 1 }}>
           {/* Title and Author */}
-          {!minimal && (
           <div style={{ marginBottom: '4px' }}>
             <div style={{ fontSize: '13px', color: '#3b82f6', fontWeight: '600', marginBottom: '2px' }}>
               {rationale.authorUsername}
@@ -391,7 +387,6 @@ export function RationaleEmbedClient({ rationale, from, minimal }: Props) {
               </a>
             </div>
           </div>
-          )}
 
           {/* Description - show if exists */}
           {rationale.description && (

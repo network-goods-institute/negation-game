@@ -11,7 +11,7 @@ interface Props {
 
 export default async function RationaleEmbedPage({ params, searchParams }: Props) {
     const { rationaleId } = await params;
-    const { from, minimal } = await searchParams;
+    const { from } = await searchParams;
 
     try {
         const rationale = await fetchViewpointForEmbed(rationaleId);
@@ -28,7 +28,6 @@ export default async function RationaleEmbedPage({ params, searchParams }: Props
             <RationaleEmbedClient
                 rationale={{ ...rationale, space: 'scroll' }}
                 from={from as string}
-                minimal={minimal === 'true'}
             />
         );
     } catch (error) {

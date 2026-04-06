@@ -15,7 +15,6 @@ export default async function TopicEmbedPage({ params, searchParams }: Props) {
     const { topicId: rawTopicId } = await params;
     const sp = await searchParams;
     const preferredRationaleId = typeof sp.rationale === 'string' ? sp.rationale : Array.isArray(sp.rationale) ? sp.rationale[0] : undefined;
-    const minimal = sp.minimal === 'true';
 
     // Handle both encoded IDs and raw numbers for testing
     let topicId: number;
@@ -48,7 +47,6 @@ export default async function TopicEmbedPage({ params, searchParams }: Props) {
                 topic={topic}
                 rationales={rationales}
                 preferredRationaleId={preferredRationaleId || undefined}
-                minimal={minimal}
             />
         );
     } catch (error) {

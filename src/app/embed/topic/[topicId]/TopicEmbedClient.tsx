@@ -27,10 +27,9 @@ interface Props {
   topic: Topic;
   rationales: Rationale[];
   preferredRationaleId?: string | null;
-  minimal?: boolean;
 }
 
-export function TopicEmbedClient({ topic, rationales, preferredRationaleId, minimal }: Props) {
+export function TopicEmbedClient({ topic, rationales, preferredRationaleId }: Props) {
   const [selectedRationaleId, setSelectedRationaleId] = useState<string | null>(null);
   const [isRationaleLoading, setIsRationaleLoading] = useState<boolean>(false);
   const [spinnerRotation, setSpinnerRotation] = useState<number>(0);
@@ -364,7 +363,6 @@ export function TopicEmbedClient({ topic, rationales, preferredRationaleId, mini
 
   return (
     <div style={containerStyle}>
-      {!minimal && (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px', borderBottom: '1px solid #EAE8E5', paddingBottom: '2px' }}>
         <h3 style={{ margin: '0', fontSize: '13px', color: '#1e293b', fontWeight: '600' }}>
           Negation Game × Scroll
@@ -376,7 +374,6 @@ export function TopicEmbedClient({ topic, rationales, preferredRationaleId, mini
           <span>{rationales.length} rationale{rationales.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
-      )}
 
       {!preferredRationaleId && (
         <div style={{ marginBottom: '4px', textAlign: 'center', padding: '4px', background: '#FBF4EA', borderRadius: '3px', border: '1px solid #EAE8E5' }}>
