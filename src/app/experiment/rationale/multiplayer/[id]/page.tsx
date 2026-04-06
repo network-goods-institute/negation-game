@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuthSetup } from '@/hooks/experiment/multiplayer/useAuthSetup';
 import { useModeState } from '@/hooks/experiment/multiplayer/useModeState';
 import { useBoardResolution } from '@/hooks/experiment/multiplayer/useBoardResolution';
@@ -13,6 +14,8 @@ import { createAccessRequest } from '@/actions/experimental/rationaleAccess';
 import { toast } from 'sonner';
 
 export default function MultiplayerBoardDetailPage() {
+  const searchParams = useSearchParams();
+  const minimal = searchParams?.get('minimal') === 'true';
   const { authenticated, privyReady, login, userId, username, userColor } = useAuthSetup();
   const authFingerprint = useMemo(
     () => (authenticated ? userId || "authenticated" : "anonymous"),
@@ -125,6 +128,7 @@ export default function MultiplayerBoardDetailPage() {
       shareToken={shareToken}
       resolvedSlug={resolvedSlug}
       ownerId={ownerId}
+      minimal={minimal}
     />
   );
 }

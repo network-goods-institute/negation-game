@@ -77,6 +77,7 @@ interface MultiplayerBoardContentProps {
   accessRole?: DocAccessRole | null;
   shareToken?: string | null;
   ownerId?: string | null;
+  minimal?: boolean;
 }
 
 type MarketPanelState = {
@@ -114,6 +115,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   accessRole = null,
   shareToken = null,
   ownerId = null,
+  minimal = false,
 }) => {
   const routeId = typeof routeParams?.id === 'string' ? routeParams.id : String(routeParams?.id || '');
   const {
@@ -1610,9 +1612,9 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const showLoadingOverlay = !fullyReady || !initialViewportReady;
 
   return (
-    <div className={`fixed inset-0 top-16 bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
+    <div className={`fixed inset-0 ${minimal ? 'top-0' : 'top-16'} bg-gray-50 ${robotoSlab.className}`} style={{ backgroundColor: '#f9fafb' }}>
       <NonDesktopWarning fallbackPath="/experiment/rationale/multiplayer" />
-      <MultiplayerHeader
+      {!minimal && <MultiplayerHeader
         username={username}
         userColor={userColor}
         provider={provider}
@@ -1651,7 +1653,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             logDevError('[graph/ui] update slug failed', error);
           }
         }}
-      />
+      />}
 
       {mpNotificationsEnabled && !shareDialogOpen && !notificationsSidebarOpen && (
         <button
