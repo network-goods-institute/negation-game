@@ -11,8 +11,9 @@ jest.mock('@/components/experiment/multiplayer/GraphCanvas', () => ({
   GraphCanvas: (props: any) => { lastGraphCanvasProps = props; return null; },
 }));
 
+const mockToolsBar = jest.fn(() => null);
 jest.mock('@/components/experiment/multiplayer/ToolsBar', () => ({
-  ToolsBar: () => null,
+  ToolsBar: (props: any) => mockToolsBar(props),
 }));
 
 jest.mock('@/components/experiment/multiplayer/MultiplayerHeader', () => ({
@@ -135,11 +136,18 @@ jest.mock('@/hooks/experiment/multiplayer/useNodeDragHandlers', () => ({
   useNodeDragHandlers: () => ({ handleNodeDragStart: jest.fn(), handleNodeDragStop: jest.fn() }),
 }));
 
+const mockUseKeyboardShortcuts = jest.fn();
 jest.mock('@/hooks/experiment/multiplayer/useKeyboardShortcuts', () => ({
-  useKeyboardShortcuts: () => {},
+  useKeyboardShortcuts: (...args: any[]) => mockUseKeyboardShortcuts(...args),
 }));
 
 describe('effective selectMode under connect mode', () => {
+  beforeEach(() => {
+    lastGraphCanvasProps = null;
+    mockToolsBar.mockClear();
+    mockUseKeyboardShortcuts.mockClear();
+  });
+
   it('disables selection when connectMode is true', () => {
     render(
       <MultiplayerBoardContent
@@ -160,5 +168,32 @@ describe('effective selectMode under connect mode', () => {
 
     expect(lastGraphCanvasProps).toBeTruthy();
     expect(lastGraphCanvasProps.selectMode).toBe(false);
+  });
+
+  it('forces minimal mode into pan-only embed behavior', () => {
+    render(
+      <MultiplayerBoardContent
+        authenticated={true}
+        userId="u1"
+        username="alice"
+        userColor="#000"
+        roomName="room"
+        resolvedId="doc"
+        routeParams={{}}
+        grabMode={false}
+        setGrabMode={() => {}}
+        perfBoost={false}
+        setPerfBoost={() => {}}
+        selectMode={true}
+        minimal={true}
+      />
+    );
+
+    expect(lastGraphCanvasProps).toBeTruthy();
+    expect(lastGraphCanvasProps.grabMode).toBe(true);
+    expect(lastGraphCanvasProps.selectMode).toBe(false);
+    expect(lastGraphCanvasProps.canWrite).toBe(false);
+    expect(mockToolsBar).not.toHaveBeenCalled();
+    expect(mockUseKeyboardShortcuts).toHaveBeenCalledWith(undefined, undefined, undefined);
   });
 });

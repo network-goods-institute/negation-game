@@ -488,6 +488,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const nodesLayer = root.querySelector('.react-flow__nodes') as HTMLElement | null;
     const edgesLayerDiv = root.querySelector('.react-flow__edges') as HTMLElement | null;
     const edgeLabelsLayer = root.querySelector('.react-flow__edge-labels') as HTMLElement | null;
+    const paneLayer = root.querySelector('.react-flow__pane') as HTMLElement | null;
 
     // In normal mode, nodes layer must not block the pane; edges remain interactive
     // In grab mode, disable interaction on all layers for panning
@@ -495,10 +496,14 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       if (nodesLayer) nodesLayer.style.pointerEvents = 'none';
       if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = 'none';
       if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = 'none';
+      if (paneLayer) paneLayer.style.cursor = 'grab';
+      root.style.cursor = 'grab';
     } else {
       if (nodesLayer) nodesLayer.style.pointerEvents = 'none';
       if (edgesLayerDiv) edgesLayerDiv.style.pointerEvents = 'all';
       if (edgeLabelsLayer) edgeLabelsLayer.style.pointerEvents = 'none';
+      if (paneLayer) paneLayer.style.cursor = '';
+      root.style.cursor = '';
     }
   }, [grabMode]);
 

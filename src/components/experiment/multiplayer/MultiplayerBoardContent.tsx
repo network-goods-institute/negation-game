@@ -129,7 +129,11 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     clearConnect,
   } = useConnectionMode();
 
-  const effectiveSelectMode = useMemo(() => selectMode && !connectMode, [selectMode, connectMode]);
+  const effectiveGrabMode = minimal || grabMode;
+  const effectiveSelectMode = useMemo(
+    () => !minimal && selectMode && !connectMode,
+    [minimal, selectMode, connectMode]
+  );
 
   const [newNodeWithDropdown, setNewNodeWithDropdown] = useState<{ id: string, x: number, y: number } | null>(null);
   const { hoveredEdgeId, setHoveredEdgeId, selectedEdgeId, setSelectedEdgeId } = useEdgeSelection();
@@ -770,6 +774,36 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const { getNodeCenter, getEdgeMidpoint } = useNodeHelpers({ nodes, edges });
   const { canWrite } = useWriteAccess(provider, userId, { authenticated });
   const canEdit = Boolean(canWrite && allowedByRole && (isConnected || connectedWithGrace));
+  const canInteract = canEdit && !minimal;
+
+  useEffect(() => {
+    if (!minimal) return;
+    if (connectMode) {
+      setConnectMode(false);
+    }
+    if (connectAnchorId) {
+      setConnectAnchorId(null);
+    }
+    if (connectCursor) {
+      setConnectCursor(null);
+    }
+    if (notificationsSidebarOpen) {
+      setNotificationsSidebarOpen(false);
+    }
+    if (newNodeWithDropdown) {
+      setNewNodeWithDropdown(null);
+    }
+  }, [
+    minimal,
+    connectMode,
+    connectAnchorId,
+    connectCursor,
+    notificationsSidebarOpen,
+    newNodeWithDropdown,
+    setConnectMode,
+    setConnectAnchorId,
+    setConnectCursor,
+  ]);
 
   useEffect(() => {
     edges.forEach((edge: any) => {
@@ -789,7 +823,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
 
   useEffect(() => {
     if (!userId || !resolvedId || !Array.isArray(edges) || !Array.isArray(nodes)) return;
-    if (!canEdit) return;
+    if (!canInteract) return;
     if (!mpNotificationsEnabled) return;
 
     const candidates = buildEdgeNotificationCandidates(
@@ -833,7 +867,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         logger.error("Failed to create multiplayer notification", error);
       });
     });
-  }, [edges, nodes, userId, resolvedId, ownerId, username, shareToken, canEdit, mpNotificationsEnabled]);
+  }, [edges, nodes, userId, resolvedId, ownerId, username, shareToken, canInteract, mpNotificationsEnabled]);
 
   useEffect(() => {
     if (!connectMode) return;
@@ -928,8 +962,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     }
   }, [selectedEdgeId, edges, setMarketPanelSelection]);
 
-  const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite: canEdit, broadcastCursor: true });
-  const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite: canEdit, broadcastLocks: true });
+  const cursors = useMultiplayerCursors({ provider, userId, username, userColor, canWrite: canInteract, broadcastCursor: true });
+  const { startEditing, stopEditing, getEditorsForNode, lockNode, unlockNode, isLockedForMe, getLockOwner, markNodeActive, locks } = useMultiplayerEditing({ provider, userId, username, userColor, canWrite: canInteract, broadcastLocks: true });
 
   const { preferredEdgeTypeRef, updateEdgeType } = useEdgeTypeManager({
     nodes,
@@ -938,7 +972,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     yEdgesMap,
     yTextMap,
     ydoc,
-    canWrite: canEdit,
+    canWrite: canInteract,
     localOrigin: localOriginRef.current,
     setNodes,
     setEdges,
@@ -1013,23 +1047,23 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     setNodes((currentNodes) =>
       currentNodes.map((node) => {
         const isLocked = isLockedForMe(node.id);
-        const shouldBeDraggable = !isLocked && !grabMode;
+        const shouldBeDraggable = !isLocked && !effectiveGrabMode;
         if (node.draggable === shouldBeDraggable) return node;
         return { ...node, draggable: shouldBeDraggable };
       })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locks, grabMode, setNodes]);
+  }, [locks, effectiveGrabMode, setNodes]);
 
   useEffect(() => {
     setEdges((currentEdges) =>
       currentEdges.map((edge) => {
-        const shouldBeSelectable = !grabMode;
+        const shouldBeSelectable = !effectiveGrabMode;
         if ((edge as any).selectable === shouldBeSelectable) return edge;
         return { ...edge, selectable: shouldBeSelectable };
       })
     );
-  }, [grabMode, setEdges]);
+  }, [effectiveGrabMode, setEdges]);
 
   const startEditingNodeCtx = React.useCallback((nodeId: string) => {
     setEditingSet((prev) => { const ns = new Set(prev); ns.add(nodeId); return ns; });
@@ -1057,7 +1091,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   }, []);
 
   const writeSynced = useWritableSync({
-    canWrite: canEdit,
+    canWrite: canInteract,
     yNodesMap: yNodesMap as any,
     yEdgesMap: yEdgesMap as any,
     yTextMap: yTextMap as any,
@@ -1232,7 +1266,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     ydoc,
     yMetaMap,
     documentId: resolvedId || undefined,
-    canWrite: canEdit,
+    canWrite: canInteract,
     writeSynced,
     localOrigin: localOriginRef.current,
     lastAddRef,
@@ -1288,9 +1322,9 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
   const { onNodesChange, onEdgesChange, onConnect } = createGraphChangeHandlers(
     setNodes,
     setEdges,
-    canEdit && writeSynced ? yNodesMap : null,
-    canEdit && writeSynced ? yEdgesMap : null,
-    canEdit && writeSynced ? ydoc : null,
+    canInteract && writeSynced ? yNodesMap : null,
+    canInteract && writeSynced ? yEdgesMap : null,
+    canInteract && writeSynced ? ydoc : null,
     syncYMapFromArray,
     localOriginRef.current,
     () => nodes as any[],
@@ -1311,7 +1345,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     yNodesMap,
     yEdgesMap,
     ydoc,
-    canWrite: canEdit,
+    canWrite: canInteract,
     localOrigin: localOriginRef.current,
     setNodes,
     setEdges,
@@ -1330,27 +1364,33 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
     currentUsername: username,
   });
 
-  useKeyboardShortcuts(undo, redo, {
-    onToggleConnect: () => {
-      if (!canEdit) return;
-      setConnectMode((v) => !v);
-      setConnectAnchorId(null);
-    },
-    onExitConnect: () => {
-      setConnectMode(false);
-      setConnectAnchorId(null);
-    },
-    onPointerMode: () => {
-      setConnectMode(false);
-      setGrabMode(false);
-      setConnectAnchorId(null);
-    },
-    onToggleGrab: () => {
-      setConnectMode(false);
-      setGrabMode(!grabMode);
-      setConnectAnchorId(null);
-    }
-  });
+  useKeyboardShortcuts(
+    minimal ? undefined : undo,
+    minimal ? undefined : redo,
+    minimal
+      ? undefined
+      : {
+          onToggleConnect: () => {
+            if (!canInteract) return;
+            setConnectMode((v) => !v);
+            setConnectAnchorId(null);
+          },
+          onExitConnect: () => {
+            setConnectMode(false);
+            setConnectAnchorId(null);
+          },
+          onPointerMode: () => {
+            setConnectMode(false);
+            setGrabMode(false);
+            setConnectAnchorId(null);
+          },
+          onToggleGrab: () => {
+            setConnectMode(false);
+            setGrabMode(!grabMode);
+            setConnectAnchorId(null);
+          }
+        }
+  );
 
   const selectedMarketNodeContent = useMemo(() => {
     if (!marketPanelNodeId) return null;
@@ -1625,7 +1665,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         forceSave={forceSave}
         interruptSave={interruptSave || undefined}
         nextSaveTime={nextSaveTime}
-        proxyMode={!canEdit}
+        proxyMode={!canInteract}
         userId={userId}
         title={dbTitle || 'Untitled'}
         documentId={resolvedId || ''}
@@ -1655,7 +1695,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         }}
       />}
 
-      {mpNotificationsEnabled && !shareDialogOpen && !notificationsSidebarOpen && (
+      {!minimal && mpNotificationsEnabled && !shareDialogOpen && !notificationsSidebarOpen && (
         <button
           onClick={() => setNotificationsSidebarOpen(true)}
           className="fixed top-1/3 right-0 z-[70] bg-white/95 backdrop-blur-sm border-2 border-r-0 border-stone-300 rounded-l-lg shadow-lg hover:shadow-xl transition-[box-shadow,transform] duration-200 origin-right hover:scale-[1.02] py-6 px-2 group"
@@ -1675,7 +1715,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
       )}
 
       <ReactFlowProvider>
-        <PerfProvider value={{ perfMode: (((nodes?.length || 0) + (edges?.length || 0)) > 600) || perfBoost || grabMode, setPerfMode: setPerfBoost }}>
+        <PerfProvider value={{ perfMode: (((nodes?.length || 0) + (edges?.length || 0)) > 600) || perfBoost || effectiveGrabMode, setPerfMode: setPerfBoost }}>
           <GraphProvider value={{
             globalMarketOverlays: true,
             currentUserId: userId,
@@ -1693,7 +1733,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             isLockedForMe,
             getLockOwner,
             isAnyNodeEditing,
-            grabMode,
+            grabMode: effectiveGrabMode,
             clearNodeSelection,
             beginConnectFromNode,
             beginConnectFromEdge,
@@ -1715,7 +1755,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
             lockNode,
             unlockNode,
             markNodeActive,
-            proxyMode: !canEdit,
+            proxyMode: !canInteract,
             undo,
             redo,
             stopCapturing,
@@ -1736,7 +1776,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                 nodes={nodes as any}
                 edges={edges as any}
                 authenticated={authenticated}
-                canWrite={canEdit}
+                canWrite={canInteract}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
@@ -1749,8 +1789,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                 cursors={cursors as any}
                 username={username}
                 userColor={userColor}
-                grabMode={grabMode}
-                panOnDrag={grabMode ? [0, 1, 2] : [1]}
+                grabMode={effectiveGrabMode}
+                panOnDrag={effectiveGrabMode ? [0, 1, 2] : [1]}
                 panOnScroll={true}
                 zoomOnScroll={false}
                 connectMode={connectMode}
@@ -1775,8 +1815,9 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                   setConnectCursor(null);
                 }}
                 onBackgroundDoubleClick={(flowX, flowY) => {
+                  if (minimal) return;
                   if (connectMode) return;
-                  if (!canEdit) {
+                  if (!canInteract) {
                     showReadOnlyToast();
                     return;
                   }
@@ -1801,7 +1842,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                   }, 50);
                 }}
               />
-              {!shareDialogOpen && !showLoadingOverlay && (
+              {!minimal && !shareDialogOpen && !showLoadingOverlay && (
                 <ToolsBar
                   connectMode={connectMode}
                   setConnectMode={setConnectMode as any}
@@ -1811,8 +1852,8 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
                   undo={undo}
                   redo={redo}
                   connectAnchorId={connectAnchorId}
-                  readOnly={!canEdit}
-                  grabMode={grabMode}
+                  readOnly={!canInteract}
+                  grabMode={effectiveGrabMode}
                   setGrabMode={setGrabMode}
                   selectMode={effectiveSelectMode}
                 />
@@ -1850,7 +1891,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
               selectedEdgeId={marketPanelEdgeId}
               docId={resolvedId}
               updateNodeContent={updateNodeContent}
-              canEdit={canEdit}
+              canEdit={canInteract}
               selectedNodeContent={selectedMarketNodeContent}
               onClose={() => {
                 // Mirror canvas onPaneClick behavior: clear edge + node selection immediately
@@ -1871,7 +1912,7 @@ const MultiplayerBoardContentInner: React.FC<MultiplayerBoardContentProps> = ({
         onDismiss={() => setUndoHintPosition(null)}
       />
 
-      {mpNotificationsEnabled && (
+      {!minimal && mpNotificationsEnabled && (
         <NotificationsSidebar
           isOpen={notificationsSidebarOpen}
           notifications={notifications}
