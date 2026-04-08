@@ -72,6 +72,29 @@ describe("Middleware Routing", () => {
       expect(response.headers.get("location")).toBeFalsy();
     });
 
+    test("/board/:id?minimal=true should mark the rewrite as minimal mode", async () => {
+      const req = createMockRequest(
+        "/board/test-board-id?minimal=true",
+        "negationgame.com"
+      );
+      const response = await middleware(req);
+
+      expect(response).toBeInstanceOf(NextResponse);
+      expect(REWRITE_STATUSES).toContain(response.status);
+      expect(response.headers.get("x-multiplayer-route")).toBe("true");
+      expect(response.headers.get("x-minimal-mode")).toBe("true");
+    });
+
+    test("/board/:id without minimal mode should keep the app shell visible", async () => {
+      const req = createMockRequest("/board/test-board-id", "negationgame.com");
+      const response = await middleware(req);
+
+      expect(response).toBeInstanceOf(NextResponse);
+      expect(REWRITE_STATUSES).toContain(response.status);
+      expect(response.headers.get("x-multiplayer-route")).toBe("true");
+      expect(response.headers.get("x-minimal-mode")).toBe("false");
+    });
+
     test("/play should redirect to play.negationgame.com", async () => {
       const req = createMockRequest("/play", "negationgame.com");
       const response = await middleware(req);

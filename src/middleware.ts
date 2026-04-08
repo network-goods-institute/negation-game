@@ -77,7 +77,10 @@ function shouldHandlePath(pathname: string): boolean {
 
 async function handleAuth(req: NextRequest): Promise<NextResponse> {
   const response = NextResponse.next();
+  const isMinimalMode = req.nextUrl.searchParams.get("minimal") === "true";
   const token = req.cookies.get("privy-token")?.value;
+
+  response.headers.set("x-minimal-mode", isMinimalMode ? "true" : "false");
 
   if (token) {
     try {
