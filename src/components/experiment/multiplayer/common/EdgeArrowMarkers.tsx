@@ -7,7 +7,6 @@ import React from 'react';
 export const EdgeArrowMarkers: React.FC = () => {
   return (
     <defs>
-      {/* Objection arrows - orange */}
       <marker
         id="arrow-objection"
         viewBox="0 0 10 10"
@@ -21,9 +20,8 @@ export const EdgeArrowMarkers: React.FC = () => {
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="#f97316" />
       </marker>
 
-      {/* Gray arrows for negation, support edges */}
       <marker
-        id="arrow-gray"
+        id="arrow-negation"
         viewBox="0 0 10 10"
         refX="10"
         refY="5"
@@ -32,10 +30,22 @@ export const EdgeArrowMarkers: React.FC = () => {
         markerUnits="userSpaceOnUse"
         orient="auto-start-reverse"
       >
-        <path d="M 0 0 L 10 5 L 0 10 Z" fill="#9CA3AF" />
+        <path d="M 0 0 L 10 5 L 0 10 Z" fill="#f43f5e" />
       </marker>
 
-      {/* Primary color arrows for option edges */}
+      <marker
+        id="arrow-support"
+        viewBox="0 0 10 10"
+        refX="10"
+        refY="5"
+        markerWidth="10"
+        markerHeight="10"
+        markerUnits="userSpaceOnUse"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 Z" fill="#10b981" />
+      </marker>
+
       <marker
         id="arrow-primary"
         viewBox="0 0 10 10"
@@ -49,7 +59,6 @@ export const EdgeArrowMarkers: React.FC = () => {
         <path d="M 0 0 L 10 5 L 0 10 Z" fill="hsl(var(--sync-primary))" />
       </marker>
 
-      {/* Dark gray arrows for statement edges */}
       <marker
         id="arrow-dark-gray"
         viewBox="0 0 10 10"
@@ -72,8 +81,9 @@ export const EdgeArrowMarkers: React.FC = () => {
 export const getMarkerIdForEdgeType = (edgeType: string): string | null => {
   switch (edgeType) {
     case 'negation':
+      return 'arrow-negation';
     case 'support':
-      return 'arrow-gray';
+      return 'arrow-support';
     case 'objection':
       return 'arrow-objection';
     case 'option':
@@ -81,6 +91,6 @@ export const getMarkerIdForEdgeType = (edgeType: string): string | null => {
     case 'statement':
       return 'arrow-dark-gray';
     default:
-      return 'arrow-gray';
+      return 'arrow-support';
   }
 };

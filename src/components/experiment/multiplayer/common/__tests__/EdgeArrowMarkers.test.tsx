@@ -14,9 +14,13 @@ describe('EdgeArrowMarkers', () => {
     expect(objection).toBeTruthy()
     expect(objection?.getAttribute('fill')).toBe('#f97316')
 
-    const gray = container.querySelector('marker#arrow-gray path')
-    expect(gray).toBeTruthy()
-    expect(gray?.getAttribute('fill')).toBe('#9CA3AF')
+    const negation = container.querySelector('marker#arrow-negation path')
+    expect(negation).toBeTruthy()
+    expect(negation?.getAttribute('fill')).toBe('#f43f5e')
+
+    const support = container.querySelector('marker#arrow-support path')
+    expect(support).toBeTruthy()
+    expect(support?.getAttribute('fill')).toBe('#10b981')
 
     const primary = container.querySelector('marker#arrow-primary path')
     expect(primary).toBeTruthy()
@@ -29,5 +33,10 @@ describe('EdgeArrowMarkers', () => {
 
   it('returns arrow-objection for objection edges', () => {
     expect(getMarkerIdForEdgeType('objection')).toBe('arrow-objection')
+  })
+
+  it('returns edge-specific markers for support and negation', () => {
+    expect(getMarkerIdForEdgeType('support')).toBe('arrow-support')
+    expect(getMarkerIdForEdgeType('negation')).toBe('arrow-negation')
   })
 })

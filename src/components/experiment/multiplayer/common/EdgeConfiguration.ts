@@ -82,21 +82,26 @@ export interface EdgeConfig {
   behavior: EdgeBehaviorConfig;
 }
 
+const SUPPORT_EDGE_COLOR = "#10b981";
+const SUPPORT_EDGE_GRADIENT_START = "#34d399";
+const NEGATION_EDGE_COLOR = "#f43f5e";
+const NEGATION_EDGE_GRADIENT_START = "#fb7185";
+
 export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   negation: {
     type: "negation",
     visual: {
-      stroke: "#9CA3AF",
-      borderColor: "#9CA3AF",
-      starColor: "text-stone-600",
+      stroke: NEGATION_EDGE_COLOR,
+      borderColor: NEGATION_EDGE_COLOR,
+      starColor: "text-rose-600",
       strokeWidth: 4.8,
       strokeDasharray: "6,6",
       gradientId: "neg-strap-gradient",
       gradientStops: [
-        { offset: "0%", stopColor: "#9CA3AF", stopOpacity: 0.15 },
-        { offset: "100%", stopColor: "#6B7280", stopOpacity: 0.15 },
+        { offset: "0%", stopColor: NEGATION_EDGE_GRADIENT_START, stopOpacity: 0.18 },
+        { offset: "100%", stopColor: NEGATION_EDGE_COLOR, stopOpacity: 0.18 },
       ],
-      midpointContent: makeIcon("#9CA3AF", [0]),
+      midpointContent: makeIcon(NEGATION_EDGE_COLOR, [0]),
       useStrap: true,
       useBezier: false,
     },
@@ -164,16 +169,16 @@ export const EDGE_CONFIGURATIONS: Record<EdgeType, EdgeConfig> = {
   support: {
     type: "support",
     visual: {
-      stroke: "#9CA3AF",
-      borderColor: "#9CA3AF",
-      starColor: "text-gray-600",
+      stroke: SUPPORT_EDGE_COLOR,
+      borderColor: SUPPORT_EDGE_COLOR,
+      starColor: "text-emerald-600",
       strokeWidth: 4.2,
       gradientId: "support-strap-gradient",
       gradientStops: [
-        { offset: "0%", stopColor: "#9CA3AF", stopOpacity: 0.15 },
-        { offset: "100%", stopColor: "#6B7280", stopOpacity: 0.15 },
+        { offset: "0%", stopColor: SUPPORT_EDGE_GRADIENT_START, stopOpacity: 0.18 },
+        { offset: "100%", stopColor: SUPPORT_EDGE_COLOR, stopOpacity: 0.18 },
       ],
-      midpointContent: makeIcon("#9CA3AF", [0, 90]),
+      midpointContent: makeIcon(SUPPORT_EDGE_COLOR, [0, 90]),
       useStrap: true,
       useBezier: false,
     },
