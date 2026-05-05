@@ -11,6 +11,7 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: [
         'negationgame.com',
+        'louie.networkgoods.institute',
         'play.negationgame.com',
         'scroll.negationgame.com',
         'market.negationgame.com',
@@ -97,7 +98,7 @@ const nextConfig = {
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
-      "frame-ancestors 'self' https://negation-game-git-auth-refactor-staging-network-goods-institute.vercel.app https://negation-game-network-goods-institute.vercel.app https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app https://negation-game-git-mindchange-network-goods-institute.vercel.app https://auth.privy.io https://mississauga-demo.azule.xyz http://localhost:5173 http://localhost:5174 https://mississauga-demo.fairprotocol.workers.dev",
+      "frame-ancestors 'self' https://negation-game-git-auth-refactor-staging-network-goods-institute.vercel.app https://negation-game-network-goods-institute.vercel.app https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app https://negation-game-git-mindchange-network-goods-institute.vercel.app https://auth.privy.io https://mississauga-demo.azule.xyz https://louie.networkgoods.institute http://localhost:5173 http://localhost:5174 https://mississauga-demo.fairprotocol.workers.dev",
       "frame-src 'self' https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://privy.play.negationgame.com https://privy.negationgame.com https://www.youtube.com https://www.youtube-nocookie.com",
       connectSrc,
       "worker-src 'self' blob:",
@@ -128,6 +129,7 @@ const nextConfig = {
       "https://negation-game-git-fork-swaggymar-fb888c-network-goods-institute.vercel.app",
       "https://negation-game-git-mindchange-network-goods-institute.vercel.app",
       "https://mississauga-demo.azule.xyz",
+      "https://louie.networkgoods.institute",
       "http://localhost:5173",
       "http://localhost:5174",
       "https://mississauga-demo.fairprotocol.workers.dev",

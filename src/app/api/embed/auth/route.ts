@@ -5,6 +5,7 @@ import { createSecureErrorResponse } from "@/lib/security/headers";import { logg
 
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
+  "https://louie.networkgoods.institute",
   "https://negationgame.com",
   "https://play.negationgame.com",
   "https://scroll.negationgame.com",

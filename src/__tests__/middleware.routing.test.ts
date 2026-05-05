@@ -460,6 +460,9 @@ describe("Middleware Routing", () => {
       expect(response.headers.get("Content-Security-Policy")).toContain(
         "frame-ancestors"
       );
+      expect(response.headers.get("Content-Security-Policy")).toContain(
+        "https://louie.networkgoods.institute"
+      );
     });
 
     test("?embed=mobile should allow iframes", async () => {
@@ -473,6 +476,9 @@ describe("Middleware Routing", () => {
       expect(response.headers.get("X-Frame-Options")).toBeFalsy();
       expect(response.headers.get("Content-Security-Policy")).toContain(
         "frame-ancestors"
+      );
+      expect(response.headers.get("Content-Security-Policy")).toContain(
+        "https://louie.networkgoods.institute"
       );
       expect(response.headers.get("x-pathname")).toBe("/embed/s/global");
     });

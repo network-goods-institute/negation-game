@@ -21,14 +21,15 @@ describe("messages SSE headers", () => {
       }
     ) as any;
 
-  it("sets Access-Control-Allow-Origin to request origin and Vary: Origin", async () => {
+  it.each([
+    "https://play.negationgame.com",
+    "https://louie.networkgoods.institute",
+  ])("sets Access-Control-Allow-Origin to allowed origin %s", async (origin) => {
     const res: Response = (await sseGET(
-      makeReq("https://play.negationgame.com"),
+      makeReq(origin),
       { params: Promise.resolve({ spaceId: "global" }) } as any
     )) as any;
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
-      "https://play.negationgame.com"
-    );
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(origin);
     expect(res.headers.get("Vary")).toBe("Origin");
     expect(res.headers.get("Content-Type")).toContain("text/event-stream");
   });

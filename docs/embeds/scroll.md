@@ -105,7 +105,7 @@ The Negation Game embed system provides three types of embeddable content:
 ### Content Security Policy (CSP)
 The middleware (`src/middleware.ts`) applies specific CSP headers for embed routes:
 ```
-frame-ancestors *; 
+frame-ancestors <allowlisted origins>;
 default-src 'self'; 
 script-src 'self' 'unsafe-inline' 'unsafe-eval'; 
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
@@ -115,7 +115,7 @@ connect-src 'self' https://auth.privy.io https://*.rpc.privy.systems https://exp
 ```
 
 ### CORS Configuration
-- **Allowed Origins**: `forum.scroll.io`, `negationgame.com`, `play.negationgame.com`, `scroll.negationgame.com`, localhost URLs
+- **Allowed Origins**: `forum.scroll.io`, `louie.networkgoods.institute`, `negationgame.com`, `play.negationgame.com`, `scroll.negationgame.com`, `*.negationgame.com`, localhost URLs in development
 - **Methods**: GET, POST, OPTIONS
 - **Headers**: Content-Type
 - **Origin Validation**: Implemented in `isValidOrigin()` function

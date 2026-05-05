@@ -12,6 +12,7 @@ import { encodeId } from "@/lib/negation-game/encodeId";import { logger } from "
 const isDev = process.env.NODE_ENV !== "production";
 const ALLOWED_ORIGINS = [
   "https://forum.scroll.io",
+  "https://louie.networkgoods.institute",
   "https://negationgame.com",
   "https://play.negationgame.com",
   "https://scroll.negationgame.com",

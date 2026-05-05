@@ -167,6 +167,7 @@ export async function GET(
   const isDev = process.env.NODE_ENV !== "production";
   const PROD_ALLOWED_ORIGINS = new Set([
     "https://negationgame.com",
+    "https://louie.networkgoods.institute",
     "https://play.negationgame.com",
     "https://scroll.negationgame.com",
   ]);
