@@ -636,6 +636,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
               if (c?.dragging === false && (nodeHandlers.finalizingSnap || nodeHandlers.draggingActive)) {
                 // Pass through a change that only updates the dragging flag, not position
                 passthrough.push({ id: c.id, type: 'position', dragging: false });
+                // Alt-drag routes dragging:true changes to the clone, so clear the clone's flag here too
+                const cloneMapping = altCloneMapRef.current.get(String(c.id));
+                if (cloneMapping) {
+                  passthrough.push({ id: cloneMapping.dupId, type: 'position', dragging: false });
+                }
               }
               // Otherwise ignore the position change entirely
               continue;
