@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { generateBreadcrumbStructuredData } from "@/lib/seo/structuredData";
-import { generateBreadcrumbs } from "@/lib/seo/utils";
+import { generateBreadcrumbs, generateJsonLdScript } from "@/lib/seo/utils";
 import { VALID_SPACE_IDS } from "@/lib/negation-game/staticSpacesList";import { logger } from "@/lib/logger";
 
 interface Props {
@@ -125,7 +125,7 @@ export default async function SpaceLayout({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify([breadcrumbLd, collectionLd]),
+          __html: generateJsonLdScript([breadcrumbLd, collectionLd]),
         }}
       />
       {children}

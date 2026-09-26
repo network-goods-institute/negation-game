@@ -5,6 +5,7 @@ import {
     extractKeywords,
     generateSEOTitle,
     cleanTextForSEO,
+    generateJsonLdScript,
 } from "@/lib/seo/utils";
 import { generateBreadcrumbStructuredData } from "@/lib/seo/structuredData";
 import { generateBreadcrumbs } from "@/lib/seo/utils";
@@ -144,7 +145,7 @@ export default function ProfileLayout({
                         <script
                             key="profile-ld-json"
                             type="application/ld+json"
-                            dangerouslySetInnerHTML={{ __html: JSON.stringify(sd) }}
+                            dangerouslySetInnerHTML={{ __html: generateJsonLdScript(sd) }}
                         />
                     ),
             )
@@ -152,4 +153,4 @@ export default function ProfileLayout({
             {children}
         </>
     );
-} 
+}

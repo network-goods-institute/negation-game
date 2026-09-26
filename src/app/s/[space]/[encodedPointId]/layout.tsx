@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { decodeId } from "@/lib/negation-game/decodeId";
-import { truncateForSEO, extractKeywords, generateSEOTitle, cleanTextForSEO } from "@/lib/seo/utils";
+import { truncateForSEO, extractKeywords, generateSEOTitle, cleanTextForSEO, generateJsonLdScript } from "@/lib/seo/utils";
 import { generatePointStructuredData } from "@/lib/seo/structuredData";
 import { fetchPointSnapshots } from "@/actions/points/fetchPointSnapshots";import { logger } from "@/lib/logger";
 
@@ -161,7 +161,7 @@ export default async function PointLayout({
             <script
               type="application/ld+json"
               dangerouslySetInnerHTML={{
-                __html: JSON.stringify(structuredData),
+                __html: generateJsonLdScript(structuredData),
               }}
             />
             {children}

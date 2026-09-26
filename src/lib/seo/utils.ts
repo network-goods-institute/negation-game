@@ -275,8 +275,19 @@ export function calculateReadingTime(content: string): {
 /**
  * Generate JSON-LD script tag content
  */
-export function generateJsonLdScript(structuredData: any): string {
-  return JSON.stringify(structuredData, null, 0);
+export function generateJsonLdScript(structuredData: unknown): string {
+  const serialized = JSON.stringify(structuredData);
+
+  if (serialized === undefined) {
+    throw new TypeError("JSON-LD data must be serializable");
+  }
+
+  return serialized
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 /**

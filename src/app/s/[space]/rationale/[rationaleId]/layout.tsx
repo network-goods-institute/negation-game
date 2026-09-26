@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { db } from "@/services/db";
 import { viewpointsTable, usersTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { truncateForSEO, extractKeywords, generateSEOTitle, cleanTextForSEO } from "@/lib/seo/utils";
+import { truncateForSEO, extractKeywords, generateSEOTitle, cleanTextForSEO, generateJsonLdScript } from "@/lib/seo/utils";
 import { generateRationaleStructuredData } from "@/lib/seo/structuredData";import { logger } from "@/lib/logger";
 
 interface Props {
@@ -204,7 +204,7 @@ export default async function RationaleLayout({
                     <script
                         type="application/ld+json"
                         dangerouslySetInnerHTML={{
-                            __html: JSON.stringify(structuredData),
+                            __html: generateJsonLdScript(structuredData),
                         }}
                     />
                     {children}

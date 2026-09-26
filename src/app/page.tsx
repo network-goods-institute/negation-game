@@ -13,6 +13,7 @@ import { HomePageDialogs } from "@/components/HomePageDialogs";
 import { TestimonialsCarousel } from "@/components/TestimonialsCarousel";
 import { RedirectLoggedInUsers } from "@/components/RedirectLoggedInUsers";
 import { Header } from "@/components/Header";
+import { generateJsonLdScript } from "@/lib/seo/utils";
 
 
 export const metadata: Metadata = {
@@ -111,13 +112,13 @@ export default async function HomePage() {
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
-                    __html: JSON.stringify(websiteStructuredData),
+                    __html: generateJsonLdScript(websiteStructuredData),
                 }}
             />
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{
-                    __html: JSON.stringify(applicationStructuredData),
+                    __html: generateJsonLdScript(applicationStructuredData),
                 }}
             />
             <KnowledgeBaseProvider>
@@ -284,4 +285,4 @@ export default async function HomePage() {
             </KnowledgeBaseProvider>
         </>
     );
-} 
+}

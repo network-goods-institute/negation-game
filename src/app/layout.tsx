@@ -27,6 +27,7 @@ import { PrivyLoginErrorLogger } from "@/components/PrivyLoginErrorLogger";
 import { ConsoleSilencer } from "@/components/ConsoleSilencer";
 import { logger } from "@/lib/logger";
 import { shouldHideAppHeader } from "@/app/shouldHideAppHeader";
+import { generateJsonLdScript } from "@/lib/seo/utils";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -183,7 +184,7 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationStructuredData),
+            __html: generateJsonLdScript(organizationStructuredData),
           }}
         />
         {/* Preconnect for Google Fonts to speed up font loading */}
